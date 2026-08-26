@@ -152,12 +152,12 @@ export default function App() {
   const [feedLoading, setFeedLoading] = useState(false);
   const [likedPosts, setLikedPosts] = useState<Record<string, boolean>>({});
 
-  // Friends System State (Liste des IDs d'amis)
-  const [friendIds, setFriendIds] = useState<string[]>(['b1', 'b2']); // b1 et b2 sont amis par défaut
+  // Friends System
+  const [friendIds, setFriendIds] = useState<string[]>(['b1', 'b2']);
   const [pendingFriendIds, setPendingFriendIds] = useState<string[]>([]);
   const [buddyTabSubMode, setBuddyTabSubMode] = useState<'discover' | 'my_friends'>('discover');
 
-  // Comments Drawer State
+  // Comments Drawer
   const [activeCommentPostId, setActiveCommentPostId] = useState<string | null>(null);
   const [commentInput, setCommentInput] = useState('');
 
@@ -182,12 +182,12 @@ export default function App() {
   ]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Rest Timer State
+  // Rest Timer
   const [timerSeconds, setTimerSeconds] = useState(90);
   const [isTimerRunning, setIsTimerRunning] = useState(false);
   const [initialTime, setInitialTime] = useState(90);
 
-  // Buddy Finder Filters
+  // Buddy Filters
   const [filterWomenOnly, setFilterWomenOnly] = useState(false);
   const [filterLevel, setFilterLevel] = useState<string>('all');
   const [filterGoal, setFilterGoal] = useState<string>('all');
@@ -245,21 +245,15 @@ export default function App() {
     }
   ];
 
-  // Chat State
   const [selectedBuddyChat, setSelectedBuddyChat] = useState<Buddy>(buddiesList[0]);
   const [messages, setMessages] = useState<Record<string, DirectMessage[]>>({
     b1: [
       { id: '1', sender: 'Thomas D.', text: 'Salut ! Tu t’entraînes aujourd’hui à Tournai ?', time: '10:15', isMe: false },
-      { id: '2', sender: 'Moi', text: 'Salut Thomas ! Oui, séance Push prévue vers 18h.', time: '10:18', isMe: true },
-      { id: '3', sender: 'Thomas D.', text: 'Top, je serai sur le banc de dev couché, on tourne ensemble ?', time: '10:20', isMe: false }
-    ],
-    b2: [
-      { id: '1', sender: 'Sarah L.', text: 'Hello ! Dispo pour une séance fractionné / cuisses demain midi ?', time: 'Hier', isMe: false }
+      { id: '2', sender: 'Moi', text: 'Salut Thomas ! Oui, séance Push prévue vers 18h.', time: '10:18', isMe: true }
     ]
   });
   const [currentMessageInput, setCurrentMessageInput] = useState('');
 
-  // Initialisation & Chargement Cloud Supabase
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
@@ -282,6 +276,8 @@ export default function App() {
 
     if (!error && data) {
       setPosts(data as Post[]);
+    } else if (error) {
+      console.error("Erreur chargement posts:", error.message);
     }
     setFeedLoading(false);
   };
@@ -300,7 +296,6 @@ export default function App() {
     };
   }, [isTimerRunning, timerSeconds]);
 
-  // Gestion des relations d'amis
   const handleToggleFriend = (buddyId: string) => {
     if (friendIds.includes(buddyId)) {
       if (window.confirm("Retirer cet ami de ta liste ?")) {
@@ -309,12 +304,11 @@ export default function App() {
     } else if (pendingFriendIds.includes(buddyId)) {
       setPendingFriendIds(pendingFriendIds.filter(id => id !== buddyId));
     } else {
-      // Simuler l'envoi / acceptation rapide
       setPendingFriendIds([...pendingFriendIds, buddyId]);
       setTimeout(() => {
         setPendingFriendIds(prev => prev.filter(id => id !== buddyId));
         setFriendIds(prev => [...prev, buddyId]);
-      }, 700);
+      }, 500);
     }
   };
 
@@ -325,7 +319,7 @@ export default function App() {
     if (!error) {
       setPosts((prev) => prev.filter((p) => p.id !== postId));
     } else {
-      alert("Erreur lors de la suppression.");
+      alert("Erreur lors de la suppression: " + error.message);
     }
   };
 
@@ -366,11 +360,11 @@ export default function App() {
         password,
         options: { data: { username: username || email.split('@')[0] } }
       });
-      if (error) alert(error.message);
+      if (error) alert("Erreur d'inscription : " + error.message);
       else alert('Compte créé avec succès !');
     } else {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) alert(error.message);
+      if (error) alert("Erreur de connexion : " + error.message);
     }
     setAuthLoading(false);
   };
@@ -464,22 +458,25 @@ export default function App() {
 
     let uploadedImageUrl = undefined;
 
+    // Upload Supabase Storage
     if (postImageFile) {
       try {
         const compressedBlob = await compressImage(postImageFile, 800, 0.7);
-        const fileName = `${user.id}-${Date.now()}.jpg`;
+        const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.jpg`;
         const { data: uploadData, error: uploadError } = await supabase.storage
           .from('posts')
           .upload(fileName, compressedBlob, { contentType: 'image/jpeg' });
 
-        if (!uploadError && uploadData) {
+        if (uploadError) {
+          alert("Alerte Storage : " + uploadError.message);
+        } else if (uploadData) {
           const { data: publicUrlData } = supabase.storage
             .from('posts')
             .getPublicUrl(fileName);
           uploadedImageUrl = publicUrlData.publicUrl;
         }
-      } catch (err) {
-        console.log("Erreur upload storage.");
+      } catch (err: any) {
+        alert("Erreur lors de la compression de l'image : " + err.message);
       }
     }
 
@@ -505,39 +502,31 @@ export default function App() {
       comments: []
     };
 
+    // Insertion directe en base Supabase
     const { data, error } = await supabase
       .from('posts')
       .insert([newPostData])
       .select('*');
 
-    if (!error && data && data.length > 0) {
+    if (error) {
+      alert("Échec de l'enregistrement dans la base de données :\n" + error.message);
+    } else if (data && data.length > 0) {
       setPosts([data[0] as Post, ...posts]);
-    } else {
-      setPosts([
-        {
-          ...(newPostData as any),
-          id: 'post-' + Date.now(),
-          created_at: "À l'instant"
-        },
-        ...posts
-      ]);
+      setWorkoutCaption('');
+      setTaggedPartner('');
+      setPostImageFile(null);
+      setPostImagePreview(null);
+      setImageZoom(1);
+      setImagePos({ x: 0, y: 0 });
+      setWorkoutExercises([{ name: '', sets: 3, reps: 10, weight: 20 }]);
+      setCurrentTab('feed');
     }
 
-    setWorkoutCaption('');
-    setTaggedPartner('');
-    setPostImageFile(null);
-    setPostImagePreview(null);
-    setImageZoom(1);
-    setImagePos({ x: 0, y: 0 });
-    setWorkoutExercises([{ name: '', sets: 3, reps: 10, weight: 20 }]);
-    setCurrentTab('feed');
     setIsUploading(false);
   };
 
-  // Liste des amis confirmés
   const myFriendsList = buddiesList.filter(b => friendIds.includes(b.id));
 
-  // Filtrage des Buddies
   const filteredBuddies = buddiesList.filter((buddy) => {
     if (buddyTabSubMode === 'my_friends') {
       return friendIds.includes(buddy.id);
@@ -549,10 +538,8 @@ export default function App() {
     return true;
   });
 
-  // Filtrage du Fil d'actualité (Tous vs Mes Amis)
   const displayedPosts = posts.filter(post => {
     if (feedFilterMode === 'friends') {
-      // Afficher mes propres posts ou ceux de mes amis
       const myFriendNames = myFriendsList.map(f => f.name);
       return post.user_id === user?.id || myFriendNames.includes(post.username);
     }
@@ -671,7 +658,6 @@ export default function App() {
         {/* TAB 1: FEED */}
         {currentTab === 'feed' && (
           <div className="space-y-4">
-            {/* Filtre Feed : Tout le club vs Mes Amis */}
             <div className="bg-neutral-900 p-1.5 rounded-2xl border border-neutral-800 flex items-center gap-1">
               <button
                 onClick={() => setFeedFilterMode('all')}
@@ -733,8 +719,8 @@ export default function App() {
             ) : displayedPosts.length === 0 ? (
               <div className="text-center py-16 text-neutral-500 text-xs bg-neutral-900/50 rounded-3xl border border-neutral-800/60 p-6">
                 {feedFilterMode === 'friends'
-                  ? "Aucune publication récente de tes amis. Ajoute des amis dans l'onglet Buddy !"
-                  : "Aucune publication pour le moment. Partage ta première séance !"}
+                  ? "Aucune publication de tes amis pour l'instant."
+                  : "Aucune publication enregistrée dans la base."}
               </div>
             ) : (
               displayedPosts.map((post) => {
@@ -746,7 +732,6 @@ export default function App() {
                     key={post.id}
                     className="bg-neutral-900/70 border border-neutral-800 rounded-3xl p-4 space-y-3 shadow-sm overflow-hidden relative"
                   >
-                    {/* Post Header */}
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <img
@@ -786,7 +771,6 @@ export default function App() {
                       </div>
                     </div>
 
-                    {/* Image Cloud */}
                     {post.image_url && (
                       <div className="rounded-2xl overflow-hidden border border-neutral-800 bg-neutral-950 h-72 w-full relative flex items-center justify-center">
                         <img
@@ -801,12 +785,10 @@ export default function App() {
                       </div>
                     )}
 
-                    {/* Caption */}
                     {post.caption && (
                       <p className="text-xs text-neutral-200 leading-relaxed">{post.caption}</p>
                     )}
 
-                    {/* Metrics Badges */}
                     <div className="flex items-center gap-2">
                       <span className="flex items-center gap-1 text-[11px] bg-neutral-950 px-2.5 py-1 rounded-lg border border-neutral-800 text-neutral-300">
                         <Clock className="w-3 h-3 text-orange-500" />
@@ -818,7 +800,6 @@ export default function App() {
                       </span>
                     </div>
 
-                    {/* Exercises Details */}
                     {post.exercises && post.exercises.length > 0 && (
                       <div className="bg-neutral-950/70 rounded-2xl p-3 border border-neutral-800/60 space-y-1.5">
                         <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">
@@ -838,7 +819,6 @@ export default function App() {
                       </div>
                     )}
 
-                    {/* Post Interactions */}
                     <div className="flex items-center justify-between pt-2 border-t border-neutral-800/60 text-neutral-400 text-xs">
                       <button
                         onClick={() => handleToggleLike(post.id)}
@@ -867,7 +847,7 @@ export default function App() {
           </div>
         )}
 
-        {/* TAB 2: WORKOUT BUDDY & GESTION DES AMIS */}
+        {/* TAB 2: BUDDY */}
         {currentTab === 'buddy' && (
           <div className="space-y-4">
             <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4">
@@ -878,7 +858,6 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Sous-onglets Buddy / Amis */}
               <div className="bg-neutral-950 p-1.5 rounded-2xl border border-neutral-800 flex items-center gap-1">
                 <button
                   onClick={() => setBuddyTabSubMode('discover')}
@@ -902,7 +881,6 @@ export default function App() {
                 </button>
               </div>
 
-              {/* FILTRES (Si en mode découverte) */}
               {buddyTabSubMode === 'discover' && (
                 <div className="space-y-2.5 bg-neutral-950 p-3.5 rounded-2xl border border-neutral-800">
                   <div className="flex items-center justify-between pb-2 border-b border-neutral-900">
@@ -956,13 +934,12 @@ export default function App() {
                 </div>
               )}
 
-              {/* LISTE DES BUDDIES & BOUTONS D'AMIS */}
               <div className="space-y-3 pt-1">
                 {filteredBuddies.length === 0 ? (
                   <div className="text-center py-8 text-neutral-500 text-xs">
                     {buddyTabSubMode === 'my_friends'
-                      ? "Tu n'as pas encore d'amis dans ta liste. Ajoute des partenaires depuis l'onglet Découvrir !"
-                      : "Aucun partenaire ne correspond à ces critères dans cette salle."}
+                      ? "Tu n'as pas encore d'amis dans ta liste."
+                      : "Aucun partenaire ne correspond à ces critères."}
                   </div>
                 ) : (
                   filteredBuddies.map((buddy) => {
@@ -995,7 +972,6 @@ export default function App() {
                           </div>
 
                           <div className="flex items-center gap-2">
-                            {/* BOUTON AJOUTER EN AMI */}
                             <button
                               onClick={() => handleToggleFriend(buddy.id)}
                               className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1 ${
@@ -1019,7 +995,6 @@ export default function App() {
                               )}
                             </button>
 
-                            {/* BOUTON MESSAGE */}
                             <button
                               onClick={() => {
                                 setSelectedBuddyChat(buddy);
@@ -1045,13 +1020,12 @@ export default function App() {
           </div>
         )}
 
-        {/* TAB 3: LOG WORKOUT AVEC SEULEMENT LES AMIS EN PARTENAIRES */}
+        {/* TAB 3: WORKOUT */}
         {currentTab === 'workout' && (
           <form onSubmit={handlePublishWorkout} className="space-y-4">
             <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4">
               <h2 className="text-base font-black tracking-tight">Enregistrer une séance</h2>
 
-              {/* Tag / Partenaire parmi mes Amis */}
               <div>
                 <label className="block text-xs font-semibold text-neutral-400 mb-1.5">Partenaire d'entraînement (Buddy)</label>
                 <div className="relative">
@@ -1069,14 +1043,8 @@ export default function App() {
                     ))}
                   </select>
                 </div>
-                {myFriendsList.length === 0 && (
-                  <p className="text-[10px] text-neutral-500 mt-1">
-                    💡 Ajoute des amis dans l'onglet Buddy pour les tagger lors de tes entraînements.
-                  </p>
-                )}
               </div>
 
-              {/* Photo Box & Crop Tool */}
               <div>
                 <label className="block text-xs font-semibold text-neutral-400 mb-1.5">Photo de la séance</label>
                 <input
@@ -1290,7 +1258,7 @@ export default function App() {
           </form>
         )}
 
-        {/* TAB 4: DIRECT MESSAGING CHAT */}
+        {/* TAB 4: CHAT */}
         {currentTab === 'chat' && (
           <div className="bg-neutral-900 border border-neutral-800 rounded-3xl overflow-hidden flex flex-col h-[70vh]">
             <div className="p-3.5 bg-neutral-950 border-b border-neutral-800 flex items-center justify-between">
@@ -1375,7 +1343,7 @@ export default function App() {
           </div>
         )}
 
-        {/* TAB 6: PROFILE AVEC STATS D'AMIS */}
+        {/* TAB 6: PROFILE */}
         {currentTab === 'profile' && (
           <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-6 text-center space-y-5">
             <div className="w-20 h-20 rounded-full bg-gradient-to-tr from-orange-500 to-amber-500 p-0.5 mx-auto">
@@ -1422,7 +1390,7 @@ export default function App() {
         )}
       </main>
 
-      {/* COMMENTS MODAL / DRAWER */}
+      {/* COMMENTS DRAWER */}
       {activeCommentPostId && activePostForComments && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
           <div className="bg-neutral-900 border border-neutral-800 rounded-t-3xl sm:rounded-3xl max-w-lg w-full max-h-[80vh] flex flex-col overflow-hidden">
@@ -1471,7 +1439,7 @@ export default function App() {
         </div>
       )}
 
-      {/* Bottom Floating Navigation Bar */}
+      {/* Nav */}
       <nav className="fixed bottom-0 left-0 right-0 z-40 bg-neutral-950/90 backdrop-blur-xl border-t border-neutral-800/80 px-4 py-2 flex justify-around items-center">
         <button
           onClick={() => setCurrentTab('feed')}
