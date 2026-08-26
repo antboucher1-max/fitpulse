@@ -303,9 +303,10 @@ export default function App() {
   const [currentMessageInput, setCurrentMessageInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Geste Swipe to Delete pour les conversations
+  // État du swipe pour supprimer la conversation
   const [swipedChatBuddyId, setSwipedChatBuddyId] = useState<string | null>(null);
   const touchStartXRef = useRef<number>(0);
+  const touchCurrentXRef = useRef<number>(0);
 
   const [activeCommentPostId, setActiveCommentPostId] = useState<string | null>(null);
   const [commentInput, setCommentInput] = useState('');
@@ -570,7 +571,7 @@ export default function App() {
     setPosts((prev) => prev.filter((p) => p.id !== postId));
   };
 
-  // Effacer la conversation par glissement ou clic sur la poubelle
+  // Suppression d'une conversation par la poubelle ou swipe
   const handleDeleteConversationForBuddy = async (buddyId: string, buddyName: string) => {
     if (!user) return;
     if (!window.confirm(`Effacer toute la conversation avec ${buddyName} ?`)) return;
@@ -915,7 +916,7 @@ export default function App() {
           </div>
         )}
 
-        {/* TAB 4: CHAT AVEC GESTE SWIPE TO DELETE POUR EFFACER LA CONVERSATION */}
+        {/* TAB 4: CHAT AVEC GESTE SWIPE TO DELETE FONCTIONNEL */}
         {currentTab === 'chat' && (
           <div className="space-y-4">
             {selectedBuddyChat ? (
@@ -953,36 +954,54 @@ export default function App() {
                     <div
                       key={friend.id}
                       className="relative overflow-hidden rounded-2xl border border-neutral-800 bg-neutral-950"
+                      onTouchStart={(e) => { touchStartXRef.current = e.touches[0].clientX; }}
+                      onTouchMove={(e) => { touchCurrentXRef.current = e.touches[0].clientX; }}
+                      onTouchEnd={() => {
+                        const diff = touchStartXRef.current - touchCurrentXRef.current;
+                        if (diff > 50) setSwipedChatBuddyId(friend.id);
+                        else if (diff < -50) setSwipedChatBuddyId(null);
+                      }}
+                      onMouseDown={(e) => { touchStartXRef.current = e.clientX; }}
+                      onMouseUp={(e) => {
+                        const diff = touchStartXRef.current - e.clientX;
+                        if (diff > 50) setSwipedChatBuddyId(friend.id);
+                        else if (diff < -50) setSwipedChatBuddyId(null);
+                      }}
                     >
-                      {/* Bouton Poubelle révélé au swipe gauche */}
-                      <div className="absolute right-0 top-0 bottom-0 w-20 bg-red-600 flex items-center justify-center cursor-pointer text-white z-0"
-                           onClick={() => handleDeleteConversationForBuddy(friend.id, friend.name)}>
+                      {/* Bouton Poubelle rouge révélé en arrière-plan */}
+                      <div
+                        onClick={() => handleDeleteConversationForBuddy(friend.id, friend.name)}
+                        className="absolute right-0 top-0 bottom-0 w-24 bg-red-600 flex items-center justify-center cursor-pointer text-white font-bold text-xs z-0"
+                      >
                         <Trash2 className="w-5 h-5" />
                       </div>
 
-                      {/* Conteneur de la carte glissable */}
+                      {/* Carte mobile au premier plan */}
                       <div
-                        onClick={() => setSelectedBuddyChat(friend)}
-                        onTouchStart={(e) => { touchStartXRef.current = e.touches[0].clientX; }}
-                        onTouchEnd={(e) => {
-                          const diff = touchStartXRef.current - e.changedTouches[0].clientX;
-                          if (diff > 50) setSwipedChatBuddyId(friend.id);
-                          else if (diff < -50) setSwipedChatBuddyId(null);
+                        onClick={() => {
+                          if (swipedChatBuddyId === friend.id) {
+                            setSwipedChatBuddyId(null);
+                          } else {
+                            setSelectedBuddyChat(friend);
+                          }
                         }}
-                        onMouseDown={(e) => { touchStartXRef.current = e.clientX; }}
-                        onMouseUp={(e) => {
-                          const diff = touchStartXRef.current - e.clientX;
-                          if (diff > 50) setSwipedChatBuddyId(friend.id);
-                          else if (diff < -50) setSwipedChatBuddyId(null);
-                        }}
-                        style={{ transform: isSwiped ? 'translateX(-80px)' : 'translateX(0)' }}
-                        className="relative z-10 p-3 bg-neutral-950 flex items-center justify-between cursor-pointer transition-transform duration-200"
+                        style={{ transform: isSwiped ? 'translateX(-96px)' : 'translateX(0)' }}
+                        className="relative z-10 p-3.5 bg-neutral-950 hover:bg-neutral-900/80 flex items-center justify-between cursor-pointer transition-transform duration-200"
                       >
                         <div className="flex items-center gap-3">
-                          <img src={friend.avatar_url} alt="" className="w-11 h-11 rounded-full object-cover" />
-                          <div><h3 className="font-bold text-xs text-white">{friend.name}</h3><span className="text-[10px] text-neutral-500">{friend.club}</span></div>
+                          <img src={friend.avatar_url} alt="" className="w-11 h-11 rounded-full object-cover border border-neutral-800" />
+                          <div>
+                            <h3 className="font-bold text-xs text-white">{friend.name}</h3>
+                            <span className="text-[10px] text-neutral-500">{friend.club}</span>
+                          </div>
                         </div>
-                        <button onClick={(e) => { e.stopPropagation(); handleDeleteConversationForBuddy(friend.id, friend.name); }} className="p-2 text-neutral-500 hover:text-red-400">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteConversationForBuddy(friend.id, friend.name);
+                          }}
+                          className="p-2 text-neutral-500 hover:text-red-400"
+                        >
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
