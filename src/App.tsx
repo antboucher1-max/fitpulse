@@ -436,7 +436,7 @@ export default function App() {
   const [storyUploading, setStoryUploading] = useState(false);
   const storyFileInputRef = useRef<HTMLInputElement>(null);
 
-  // Workout
+  // Workout Creation State
   const [workoutType, setWorkoutType] = useState('Musculation (Push)');
   const [workoutCaption, setWorkoutCaption] = useState('');
   const [workoutDuration, setWorkoutDuration] = useState(60);
@@ -1184,7 +1184,7 @@ export default function App() {
                 
                 {/* SÉLECTEUR DE HASHTAGS EN UN CLIC */}
                 <div className="pt-1">
-                  <span className="text-[10px] text-neutral-400 font-medium block mb-1.5 flex items-center gap-1">
+                  <span className="text-[10px] text-neutral-400 font-medium flex items-center gap-1 mb-1.5">
                     <Hash className="w-3 h-3 text-orange-500" /> Ajouter des hashtags rapides :
                   </span>
                   <div className="flex flex-wrap gap-1.5">
