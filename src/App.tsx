@@ -41,7 +41,11 @@ import {
   Building2,
   Sparkles,
   SwitchCamera,
-  FolderOpen
+  FolderOpen,
+  BookOpen,
+  Calculator,
+  Volume2,
+  VolumeX
 } from 'lucide-react';
 import { createClient, User as SupabaseUser } from '@supabase/supabase-js';
 
@@ -156,6 +160,76 @@ const CLUBS_DATABASE: ClubLocation[] = [
     zip: '6700',
     lat: 49.6841,
     lng: 5.8173
+  }
+];
+
+interface ExerciseGuide {
+  id: string;
+  name: string;
+  category: 'Pectoraux' | 'Dos' | 'Jambes' | 'Épaules' | 'Bras';
+  target: string;
+  description: string;
+  tips: string[];
+  mediaType: 'image' | 'video';
+  mediaUrl: string;
+}
+
+const EXERCISE_GUIDES_DATABASE: ExerciseGuide[] = [
+  {
+    id: 'ex-1',
+    name: 'Développé couché (Barre)',
+    category: 'Pectoraux',
+    target: 'Grand pectoral, Triceps, Deltoïdes antérieurs',
+    description: "Le roi des exercices pour le haut du corps. Allongé sur le banc, descendez la barre de manière contrôlée vers le milieu de la poitrine avant de développer explosivement vers le haut.",
+    tips: [
+      "Gardez les pieds bien à plat sur le sol pour la stabilité.",
+      "Resserrez les omoplates et sortez la cage thoracique.",
+      "Évitez de rebondir avec la barre sur la poitrine."
+    ],
+    mediaType: 'image',
+    mediaUrl: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=800'
+  },
+  {
+    id: 'ex-2',
+    name: 'Squat barre nuque',
+    category: 'Jambes',
+    target: 'Quadriceps, Fessiers, Ischio-jambiers, Sangle abdominale',
+    description: "Exercice fondamental pour le bas du corps. Placez la barre sur les trapèzes, fléchissez les genoux et poussez les fesses vers l'arrière comme pour vous asseoir.",
+    tips: [
+      "Regardez droit devant vous pour garder le dos neutre.",
+      "Gardez les genoux alignés dans la direction des pointes de pieds.",
+      "Descendez au moins jusqu'à ce que les cuisses soient parallèles au sol."
+    ],
+    mediaType: 'image',
+    mediaUrl: 'https://images.unsplash.com/photo-1574680096145-d05b474e2155?w=800'
+  },
+  {
+    id: 'ex-3',
+    name: 'Soulevé de terre (Deadlift)',
+    category: 'Dos',
+    target: 'Chaîne postérieure complète (Lombaires, Fessiers, Ischios)',
+    description: "Soulevez une charge lourde posée au sol en tendant les jambes et le buste simultanément tout en maintenant le dos parfaitement droit.",
+    tips: [
+      "Gardez la barre au plus près des tibias et des cuisses tout au long du mouvement.",
+      "Verrouillez le gainage abdominal avant de soulever.",
+      "Ne arrondissez jamais le bas du dos en fin de mouvement."
+    ],
+    mediaType: 'image',
+    mediaUrl: 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?w=800'
+  },
+  {
+    id: 'ex-4',
+    name: 'Tractions à la barre fixe (Pull-up)',
+    category: 'Dos',
+    target: 'Grand dorsal, Brachial, Biceps',
+    description: "Suspendez-vous à une barre fixe en pronation et tirez votre corps vers le haut jusqu'à ce que votre menton dépasse la barre.",
+    tips: [
+      "Initiez le mouvement en abaissant les omoplates.",
+      "Évitez de vous balancer (élan excessif).",
+      "Contrôlez la phase de descente pour maximiser l'hypertrophie."
+    ],
+    mediaType: 'image',
+    mediaUrl: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?w=800'
   }
 ];
 
@@ -311,7 +385,7 @@ const DEFAULT_FRIEND_STORIES: Story[] = [
     caption: 'Prêt pour exploser le PR au dev couché 🔥',
     club_name: 'Basic-Fit Tournai (Bastion)',
     likes_count: 3,
-    created_at: new Date().toISOString()
+    created_at: new Date(Date.now() - 2 * 3600 * 1000).toISOString()
   },
   {
     id: 'demo-s2',
@@ -322,14 +396,13 @@ const DEFAULT_FRIEND_STORIES: Story[] = [
     caption: 'Fin de séance HIIT cardio, les jambes en feu 💦',
     club_name: 'Basic-Fit Tournai (Bastion)',
     likes_count: 5,
-    created_at: new Date().toISOString()
+    created_at: new Date(Date.now() - 5 * 3600 * 1000).toISOString()
   }
 ];
 
 export default function App() {
   const [user, setUser] = useState<SupabaseUser | null>(null);
 
-  // Formulaire d'inscription / Connexion
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -341,29 +414,28 @@ export default function App() {
   const [level, setLevel] = useState<'Débutant' | 'Intermédiaire' | 'Avancé'>('Intermédiaire');
   const [homeClub, setHomeClub] = useState<string>('Basic-Fit Tournai (Bastion)');
 
-  // Sélecteur Club
   const [clubsList, setClubsList] = useState<ClubLocation[]>(CLUBS_DATABASE);
   const [gpsLoading, setGpsLoading] = useState(false);
   const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [clubSearchQuery, setClubSearchQuery] = useState('');
   const [authLoading, setAuthLoading] = useState(false);
 
-  // Navigation
-  const [currentTab, setCurrentTab] = useState<'feed' | 'buddy' | 'workout' | 'chat' | 'leaderboard' | 'profile'>('feed');
+  const [currentTab, setCurrentTab] = useState<'feed' | 'buddy' | 'workout' | 'tools' | 'chat' | 'leaderboard' | 'profile'>('feed');
+  const [toolsSubTab, setToolsSubTab] = useState<'calculator' | 'guides'>('calculator');
   const [feedFilterMode, setFeedFilterMode] = useState<'all' | 'friends'>('all');
   const [selectedClub, setSelectedClub] = useState<string>('Basic-Fit Tournai (Bastion)');
 
-  // Posts Feed & Likes
+  const [targetWeight, setTargetWeight] = useState<number>(80);
+  const [barWeight, setBarWeight] = useState<number>(20);
+
   const [posts, setPosts] = useState<Post[]>([]);
   const [feedLoading, setFeedLoading] = useState(false);
   const [likedPosts, setLikedPosts] = useState<Record<string, boolean>>({});
 
-  // Friends System
   const [friendIds, setFriendIds] = useState<string[]>(['b1', 'b2']);
   const [friendRequestsReceived, setFriendRequestsReceived] = useState<string[]>(['b3']);
   const [buddyTabSubMode, setBuddyTabSubMode] = useState<'discover' | 'my_friends'>('discover');
 
-  // Stories State
   const [cloudStories, setCloudStories] = useState<Story[]>([]);
   const [viewedStoryIds, setViewedStoryIds] = useState<string[]>([]);
   const [activeStoryIndex, setActiveStoryIndex] = useState<number | null>(null);
@@ -378,7 +450,6 @@ export default function App() {
   const [storyUploading, setStoryUploading] = useState(false);
   const storyFileInputRef = useRef<HTMLInputElement>(null);
 
-  // Workout Form State
   const [workoutType, setWorkoutType] = useState('Musculation (Push)');
   const [workoutCaption, setWorkoutCaption] = useState('');
   const [workoutDuration, setWorkoutDuration] = useState(60);
@@ -388,7 +459,6 @@ export default function App() {
   const [postImagePreview, setPostImagePreview] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
 
-  // Image Framing State
   const [imageZoom, setImageZoom] = useState(1);
   const [imagePos, setImagePos] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
@@ -399,19 +469,16 @@ export default function App() {
   ]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // MODULE CAMÉRA EN DIRECT NATIVE
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [cameraTarget, setCameraTarget] = useState<'post' | 'story'>('post');
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('environment');
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
-  // Rest Timer
   const [timerSeconds, setTimerSeconds] = useState(90);
   const [isTimerRunning, setIsTimerRunning] = useState(false);
   const [initialTime, setInitialTime] = useState(90);
 
-  // Buddy Filters
   const [filterWomenOnly, setFilterWomenOnly] = useState(false);
   const [filterLevel, setFilterLevel] = useState<string>('all');
   const [filterGoal, setFilterGoal] = useState<string>('all');
@@ -469,14 +536,12 @@ export default function App() {
     }
   ];
 
-  // Chat Hub & Realtime Messages
   const [selectedBuddyChat, setSelectedBuddyChat] = useState<Buddy | null>(null);
   const [chatSearch, setChatSearch] = useState('');
   const [allMessages, setAllMessages] = useState<DBMessage[]>([]);
   const [currentMessageInput, setCurrentMessageInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Comments Drawer
   const [activeCommentPostId, setActiveCommentPostId] = useState<string | null>(null);
   const [commentInput, setCommentInput] = useState('');
 
@@ -588,13 +653,11 @@ export default function App() {
     };
   }, [isTimerRunning, timerSeconds]);
 
-  // COMBINAISON DES STORIES
   const combinedAllStories = [...cloudStories, ...DEFAULT_FRIEND_STORIES];
   const myFriendsList = buddiesList.filter((b) => friendIds.includes(b.id));
   const myFriendNames = myFriendsList.map((f) => f.name);
   const friendRequestsList = buddiesList.filter((b) => friendRequestsReceived.includes(b.id));
 
-  // FILTRE STORIES (< 24H)
   const twentyFourHoursAgoMs = Date.now() - 24 * 3600 * 1000;
   const friendStoriesList = combinedAllStories.filter((s) => {
     const storyDate = new Date(s.created_at).getTime();
@@ -606,7 +669,6 @@ export default function App() {
     return isUnder24h && isFriendOrMe;
   });
 
-  // Défilement automatique des stories
   useEffect(() => {
     if (activeStoryIndex === null || isStoryPaused) {
       return;
@@ -1170,6 +1232,27 @@ export default function App() {
 
   const activeViewingStory = activeStoryIndex !== null ? friendStoriesList[activeStoryIndex] : null;
 
+  const calculatePlates = (totalWeight: number, bar: number) => {
+    let weightPerSide = (totalWeight - bar) / 2;
+    if (weightPerSide < 0) weightPerSide = 0;
+
+    const availablePlates = [25, 20, 15, 10, 5, 2.5, 1.25];
+    const breakdown: { plate: number; count: number }[] = [];
+
+    let remaining = weightPerSide;
+    for (const plate of availablePlates) {
+      if (remaining <= 0) break;
+      const count = Math.floor(remaining / plate);
+      if (count > 0) {
+        breakdown.push({ plate, count });
+        remaining = Number((remaining - count * plate).toFixed(2));
+      }
+    }
+    return { weightPerSide, breakdown };
+  };
+
+  const plateResult = calculatePlates(targetWeight, barWeight);
+
   if (!user) {
     return (
       <div className="min-h-screen bg-neutral-950 text-white flex flex-col justify-center items-center px-4 py-8">
@@ -1285,7 +1368,7 @@ export default function App() {
                     <Search className="absolute left-3 top-2.5 w-3.5 h-3.5 text-neutral-500" />
                     <input
                       type="text"
-                      placeholder="Ville, code postal, rue (ex: Tournai, 7500, Bastion)..."
+                      placeholder="Ville, code postal, rue..."
                       value={clubSearchQuery}
                       onChange={(e) => setClubSearchQuery(e.target.value)}
                       className="w-full bg-neutral-900 border border-neutral-800 rounded-xl pl-9 pr-3 py-1.5 text-xs text-neutral-200 focus:outline-none focus:border-orange-500"
@@ -1381,7 +1464,6 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col font-sans select-none">
-      {/* Top Header */}
       <header className="sticky top-0 z-40 bg-neutral-950/80 backdrop-blur-md border-b border-neutral-900 px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-xl bg-orange-500/20 flex items-center justify-center text-orange-500">
@@ -1406,17 +1488,11 @@ export default function App() {
         </select>
       </header>
 
-      {/* Main Screen Container */}
       <main className="flex-1 max-w-lg w-full mx-auto px-4 py-3 pb-24">
-        {/* TAB 1: FEED AVEC STORIES AMIS */}
         {currentTab === 'feed' && (
           <div className="space-y-4">
-            
-            {/* STORIES ROW (HACHURÉ GRIS MONOCHROME SI VU / COULEUR SI NON VU) */}
             <div className="bg-neutral-900/60 border border-neutral-800/80 rounded-3xl p-3">
               <div className="flex items-center gap-3.5 overflow-x-auto no-scrollbar py-1">
-                
-                {/* Bulle Publier ma story */}
                 <div
                   onClick={() => setIsCreatingStory(true)}
                   className="flex flex-col items-center gap-1.5 flex-shrink-0 cursor-pointer group"
@@ -1432,10 +1508,8 @@ export default function App() {
                   <span className="text-[10px] font-semibold text-neutral-300 tracking-tight">Ta story</span>
                 </div>
 
-                {/* Bulles Stories de mes Amis */}
                 {friendStoriesList.map((story, index) => {
                   const isViewed = viewedStoryIds.includes(story.id);
-
                   return (
                     <div
                       key={story.id}
@@ -1446,29 +1520,19 @@ export default function App() {
                       }}
                       className="flex flex-col items-center gap-1.5 flex-shrink-0 cursor-pointer"
                     >
-                      {/* CERCLE HACHURÉ GRIS 100% SANS COULEUR SI DÉJÀ VU */}
                       {isViewed ? (
                         <div className="w-16 h-16 rounded-full border-2 border-dashed border-neutral-600 p-[2px] opacity-70 hover:opacity-100 transition">
                           <div className="w-full h-full bg-neutral-950 rounded-full p-[1px]">
-                            <img
-                              src={story.avatar_url}
-                              alt={story.username}
-                              className="w-full h-full rounded-full object-cover grayscale-[30%]"
-                            />
+                            <img src={story.avatar_url} alt="" className="w-full h-full rounded-full object-cover grayscale-[30%]" />
                           </div>
                         </div>
                       ) : (
                         <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-orange-500 via-pink-500 to-amber-400 p-[2.5px] shadow-sm hover:scale-105 transition transform">
                           <div className="w-full h-full bg-neutral-950 rounded-full p-[2px]">
-                            <img
-                              src={story.avatar_url}
-                              alt={story.username}
-                              className="w-full h-full rounded-full object-cover"
-                            />
+                            <img src={story.avatar_url} alt="" className="w-full h-full rounded-full object-cover" />
                           </div>
                         </div>
                       )}
-
                       <span className={`text-[10px] font-medium truncate max-w-[64px] text-center ${isViewed ? 'text-neutral-500' : 'text-neutral-200'}`}>
                         {story.username.split(' ')[0]}
                       </span>
@@ -1478,7 +1542,6 @@ export default function App() {
               </div>
             </div>
 
-            {/* Filtre Club vs Amis */}
             <div className="bg-neutral-900 p-1.5 rounded-2xl border border-neutral-800 flex items-center gap-1">
               <button
                 onClick={() => setFeedFilterMode('all')}
@@ -1498,7 +1561,6 @@ export default function App() {
               </button>
             </div>
 
-            {/* Rest Timer */}
             <div className="bg-neutral-900/90 border border-neutral-800/80 rounded-2xl p-3 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-orange-500/10 text-orange-500 flex items-center justify-center font-bold text-xs">
@@ -1528,7 +1590,6 @@ export default function App() {
               </div>
             </div>
 
-            {/* Posts Feed */}
             {feedLoading ? (
               <div className="flex justify-center py-12">
                 <Loader2 className="w-8 h-8 text-orange-500 animate-spin" />
@@ -1655,7 +1716,143 @@ export default function App() {
           </div>
         )}
 
-        {/* TAB 2: BUDDY */}
+        {currentTab === 'tools' && (
+          <div className="space-y-4">
+            <div className="bg-neutral-950 p-1.5 rounded-2xl border border-neutral-800 flex items-center gap-1">
+              <button
+                onClick={() => setToolsSubTab('calculator')}
+                className={`flex-1 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 ${
+                  toolsSubTab === 'calculator' ? 'bg-orange-600 text-white shadow-md' : 'text-neutral-400 hover:text-white'
+                }`}
+              >
+                <Calculator className="w-4 h-4" /> Calculateur de charge
+              </button>
+              <button
+                onClick={() => setToolsSubTab('guides')}
+                className={`flex-1 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 ${
+                  toolsSubTab === 'guides' ? 'bg-orange-600 text-white shadow-md' : 'text-neutral-400 hover:text-white'
+                }`}
+              >
+                <BookOpen className="w-4 h-4" /> Fiches & Vidéos 3D
+              </button>
+            </div>
+
+            {toolsSubTab === 'calculator' ? (
+              <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-5">
+                <div className="flex items-center gap-2">
+                  <Calculator className="w-5 h-5 text-orange-500" />
+                  <div>
+                    <h2 className="text-base font-black tracking-tight">Calculateur de Disques</h2>
+                    <p className="text-[11px] text-neutral-400">Calcule instantanément les disques à mettre par côté de la barre</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-neutral-400 mb-1.5">Poids total visé (kg)</label>
+                    <input
+                      type="number"
+                      step="2.5"
+                      value={targetWeight}
+                      onChange={(e) => setTargetWeight(Number(e.target.value))}
+                      className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3.5 py-2.5 text-sm font-bold text-orange-400 focus:outline-none focus:border-orange-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-neutral-400 mb-1.5">Poids de la barre (kg)</label>
+                    <select
+                      value={barWeight}
+                      onChange={(e) => setBarWeight(Number(e.target.value))}
+                      className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2.5 text-xs text-neutral-200 focus:outline-none focus:border-orange-500"
+                    >
+                      <option value={20}>Barre Olympique (20 kg)</option>
+                      <option value={15}>Barre technique / Féminine (15 kg)</option>
+                      <option value={10}>Petite barre droite (10 kg)</option>
+                      <option value={0}>Sans barre / Machine (0 kg)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 space-y-3">
+                  <div className="flex justify-between items-center text-xs pb-2 border-b border-neutral-900">
+                    <span className="text-neutral-400">Charge par côté :</span>
+                    <span className="font-mono font-bold text-white text-sm">{plateResult.weightPerSide} kg</span>
+                  </div>
+
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-orange-400 block pt-1">
+                    Disques à placer sur CHAQUE côté de la barre :
+                  </span>
+
+                  {plateResult.breakdown.length === 0 ? (
+                    <p className="text-xs text-neutral-500 italic">Le poids visé est égal ou inférieur au poids de la barre.</p>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-2 pt-1">
+                      {plateResult.breakdown.map((item, idx) => (
+                        <div key={idx} className="bg-neutral-900 p-2.5 rounded-xl border border-neutral-800 flex items-center justify-between">
+                          <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                            <span className="w-2.5 h-2.5 rounded-full bg-orange-500 inline-block" />
+                            {item.plate} kg
+                          </span>
+                          <span className="text-xs font-mono font-extrabold text-orange-400 bg-orange-500/10 px-2 py-0.5 rounded-md border border-orange-500/20">
+                            × {item.count}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <h2 className="text-sm font-bold text-neutral-300 px-1">Bibliothèque & Tutoriels Vidéo / 3D</h2>
+                {EXERCISE_GUIDES_DATABASE.map((guide) => (
+                  <div key={guide.id} className="bg-neutral-900 border border-neutral-800 rounded-3xl overflow-hidden space-y-3">
+                    {/* SUPPORT MEDIA (IMAGE OU VIDEO 3D LOOP) */}
+                    <div className="h-48 w-full relative bg-black">
+                      {guide.mediaType === 'video' ? (
+                        <video
+                          src={guide.mediaUrl}
+                          autoPlay
+                          loop
+                          muted
+                          playsInline
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <img src={guide.mediaUrl} alt={guide.name} className="w-full h-full object-cover" />
+                      )}
+                      <div className="absolute inset-0 bg-gradient-to-t from-neutral-900 via-transparent to-black/40" />
+                      <span className="absolute top-3 left-3 px-2.5 py-1 bg-orange-600 text-white rounded-full text-[10px] font-bold shadow">
+                        {guide.category} {guide.mediaType === 'video' && '• Animation 3D'}
+                      </span>
+                      <h3 className="absolute bottom-3 left-3 right-3 text-base font-extrabold text-white leading-snug">
+                        {guide.name}
+                      </h3>
+                    </div>
+
+                    <div className="p-4 pt-0 space-y-2.5">
+                      <div className="text-[11px] text-orange-400 font-semibold bg-orange-500/10 p-2 rounded-xl border border-orange-500/20">
+                        🎯 Cible : {guide.target}
+                      </div>
+                      <p className="text-xs text-neutral-300 leading-relaxed">{guide.description}</p>
+                      
+                      <div className="space-y-1 pt-1">
+                        <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block">Conseils d'exécution :</span>
+                        {guide.tips.map((tip, i) => (
+                          <div key={i} className="text-xs text-neutral-300 flex items-start gap-2">
+                            <span className="text-orange-500 font-bold">•</span>
+                            <span>{tip}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         {currentTab === 'buddy' && (
           <div className="space-y-4">
             <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4">
@@ -1704,37 +1901,6 @@ export default function App() {
                       <span>🚺</span> Entre femmes {filterWomenOnly && '✓'}
                     </button>
                   </div>
-
-                  <div className="grid grid-cols-2 gap-2 pt-1">
-                    <div>
-                      <label className="block text-[10px] text-neutral-500 mb-1">Niveau</label>
-                      <select
-                        value={filterLevel}
-                        onChange={(e) => setFilterLevel(e.target.value)}
-                        className="w-full bg-neutral-900 border border-neutral-800 rounded-lg px-2.5 py-1.5 text-xs text-neutral-300"
-                      >
-                        <option value="all">Tous les niveaux</option>
-                        <option value="Débutant">Débutant</option>
-                        <option value="Intermédiaire">Intermédiaire</option>
-                        <option value="Avancé">Avancé</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block text-[10px] text-neutral-500 mb-1">Objectif principal</label>
-                      <select
-                        value={filterGoal}
-                        onChange={(e) => setFilterGoal(e.target.value)}
-                        className="w-full bg-neutral-900 border border-neutral-800 rounded-lg px-2.5 py-1.5 text-xs text-neutral-300"
-                      >
-                        <option value="all">Tous objectifs</option>
-                        <option value="masse">Prise de masse / Force</option>
-                        <option value="cardio">Cardio / HIIT</option>
-                        <option value="remise">Remise en forme</option>
-                        <option value="powerlifting">Powerlifting</option>
-                      </select>
-                    </div>
-                  </div>
                 </div>
               )}
 
@@ -1748,14 +1914,9 @@ export default function App() {
                 ) : (
                   filteredBuddies.map((buddy) => {
                     const isFriend = friendIds.includes(buddy.id);
-
                     return (
-                      <div
-                        key={buddy.id}
-                        className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 flex flex-col space-y-3 relative overflow-hidden"
-                      >
+                      <div key={buddy.id} className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 flex flex-col space-y-3 relative overflow-hidden">
                         {buddy.gender === 'F' && <div className="absolute top-0 right-0 w-2 h-2 bg-pink-500 rounded-bl-lg" />}
-
                         <div className="flex items-center justify-between gap-2">
                           <div className="flex items-center gap-3">
                             <img src={buddy.avatar_url} alt="" className="w-12 h-12 rounded-full object-cover border border-neutral-700" />
@@ -1781,17 +1942,8 @@ export default function App() {
                                   : 'bg-neutral-900 border border-neutral-700 hover:border-orange-500 text-neutral-200'
                               }`}
                             >
-                              {isFriend ? (
-                                <>
-                                  <UserCheck className="w-3.5 h-3.5" /> Amis
-                                </>
-                              ) : (
-                                <>
-                                  <UserPlus className="w-3.5 h-3.5" /> Ajouter
-                                </>
-                              )}
+                              {isFriend ? <><UserCheck className="w-3.5 h-3.5" /> Amis</> : <><UserPlus className="w-3.5 h-3.5" /> Ajouter</>}
                             </button>
-
                             <button
                               onClick={() => {
                                 setSelectedBuddyChat(buddy);
@@ -1805,12 +1957,8 @@ export default function App() {
                         </div>
 
                         <div className="bg-neutral-900/60 rounded-xl p-2.5 text-[11px] space-y-1 text-neutral-300">
-                          <div>
-                            <strong className="text-neutral-400">Créneaux :</strong> {buddy.schedule}
-                          </div>
-                          <div>
-                            <strong className="text-neutral-400">Objectif :</strong> {buddy.goal}
-                          </div>
+                          <div><strong className="text-neutral-400">Créneaux :</strong> {buddy.schedule}</div>
+                          <div><strong className="text-neutral-400">Objectif :</strong> {buddy.goal}</div>
                         </div>
                       </div>
                     );
@@ -1821,7 +1969,6 @@ export default function App() {
           </div>
         )}
 
-        {/* TAB 3: WORKOUT AVEC DOUBLE CHOIX CAMÉRA OU GALERIE */}
         {currentTab === 'workout' && (
           <form onSubmit={handlePublishWorkout} className="space-y-4">
             <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4">
@@ -1877,11 +2024,6 @@ export default function App() {
                         }}
                         className="max-h-full max-w-full object-contain pointer-events-none"
                       />
-
-                      <div className="absolute top-2 left-2 px-2.5 py-1 bg-black/70 backdrop-blur-md rounded-lg text-[10px] text-neutral-300 flex items-center gap-1.5 pointer-events-none">
-                        <Move className="w-3 h-3 text-orange-400" /> Glisse pour ajuster
-                      </div>
-
                       <button
                         type="button"
                         onClick={() => {
@@ -1927,7 +2069,7 @@ export default function App() {
                       className="py-6 border-2 border-dashed border-neutral-800 hover:border-orange-500 rounded-2xl flex flex-col items-center justify-center gap-2 text-neutral-400 hover:text-orange-400 bg-neutral-950 transition"
                     >
                       <Camera className="w-6 h-6 text-orange-500" />
-                      <span className="text-xs font-semibold">Prendre photo</span>
+                      <span className="text-xs font-semibold">Prendre une photo</span>
                     </button>
 
                     <button
@@ -1936,7 +2078,7 @@ export default function App() {
                       className="py-6 border-2 border-dashed border-neutral-800 hover:border-orange-500 rounded-2xl flex flex-col items-center justify-center gap-2 text-neutral-400 hover:text-orange-400 bg-neutral-950 transition"
                     >
                       <FolderOpen className="w-6 h-6 text-neutral-400" />
-                      <span className="text-xs font-semibold">Depuis galerie</span>
+                      <span className="text-xs font-semibold">Depuis la galerie</span>
                     </button>
                   </div>
                 )}
@@ -2058,7 +2200,6 @@ export default function App() {
           </form>
         )}
 
-        {/* TAB 4: CHAT */}
         {currentTab === 'chat' && (
           <div className="space-y-4">
             {selectedBuddyChat ? (
@@ -2081,14 +2222,12 @@ export default function App() {
                   <div className="flex items-center gap-1">
                     <button
                       onClick={() => handleSendMessage("Dispo pour une séance ensemble aujourd'hui ? 🏋️‍♂️")}
-                      title="Proposer une séance duo"
                       className="px-2.5 py-1.5 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-orange-400 text-[11px] font-bold flex items-center gap-1 border border-neutral-700"
                     >
                       <Calendar className="w-3.5 h-3.5" /> Séance duo
                     </button>
                     <button
                       onClick={(e) => handleDeleteConversationForBuddy(selectedBuddyChat.id, selectedBuddyChat.name, e)}
-                      title="Effacer toute la discussion"
                       className="p-2 text-neutral-500 hover:text-red-400 hover:bg-red-500/10 rounded-xl transition"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -2157,7 +2296,6 @@ export default function App() {
                     <span className="text-xs font-bold text-orange-400 flex items-center gap-1.5">
                       <UserPlus className="w-3.5 h-3.5" /> Demandes d'amis reçues ({friendRequestsList.length})
                     </span>
-
                     <div className="space-y-2">
                       {friendRequestsList.map((req) => (
                         <div key={req.id} className="bg-neutral-950 p-3 rounded-xl border border-neutral-800 flex items-center justify-between gap-2">
@@ -2168,7 +2306,6 @@ export default function App() {
                               <span className="text-[10px] text-neutral-400">{req.club}</span>
                             </div>
                           </div>
-
                           <div className="flex items-center gap-1.5">
                             <button
                               onClick={() => handleAcceptFriendRequest(req.id)}
@@ -2189,78 +2326,48 @@ export default function App() {
                   </div>
                 )}
 
-                <div className="relative">
-                  <Search className="absolute left-3.5 top-3 w-4 h-4 text-neutral-500" />
-                  <input
-                    type="text"
-                    placeholder="Rechercher un ami..."
-                    value={chatSearch}
-                    onChange={(e) => setChatSearch(e.target.value)}
-                    className="w-full bg-neutral-950 border border-neutral-800 rounded-xl pl-10 pr-3 py-2.5 text-xs text-neutral-200 focus:outline-none focus:border-orange-500"
-                  />
-                </div>
-
                 <div className="space-y-2">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-500 block">Discussions actives</span>
+                  {myFriendsList.map((friend) => {
+                    const friendMessages = allMessages.filter(
+                      (m) => user && ((m.sender_id === user.id && m.receiver_id === friend.id) || (m.sender_id === friend.id && m.receiver_id === user.id))
+                    );
+                    const lastMessage = friendMessages[friendMessages.length - 1];
 
-                  {myFriendsList
-                    .filter((f) => f.name.toLowerCase().includes(chatSearch.toLowerCase()))
-                    .map((friend) => {
-                      const friendMessages = allMessages.filter(
-                        (m) => user && ((m.sender_id === user.id && m.receiver_id === friend.id) || (m.sender_id === friend.id && m.receiver_id === user.id))
-                      );
-                      const lastMessage = friendMessages[friendMessages.length - 1];
-
-                      return (
-                        <div
-                          key={friend.id}
-                          onClick={() => setSelectedBuddyChat(friend)}
-                          className="bg-neutral-950 hover:bg-neutral-900/80 p-3 rounded-2xl border border-neutral-800/80 flex items-center justify-between cursor-pointer transition group"
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className="relative">
-                              <img src={friend.avatar_url} alt="" className="w-11 h-11 rounded-full object-cover border border-neutral-700" />
-                              <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-neutral-950 rounded-full" />
-                            </div>
-                            <div>
-                              <div className="flex items-center gap-1.5">
-                                <h3 className="font-bold text-xs text-white">{friend.name}</h3>
-                                <span className="text-[10px] text-neutral-500">● {friend.club.replace('Basic-Fit ', '')}</span>
-                              </div>
-                              <p className="text-[11px] text-neutral-400 line-clamp-1 mt-0.5">
-                                {lastMessage ? (
-                                  <span>{lastMessage.sender_id === user?.id ? 'Moi : ' : ''}{lastMessage.text}</span>
-                                ) : (
-                                  <span className="italic text-neutral-500">Commencer la conversation...</span>
-                                )}
-                              </p>
-                            </div>
+                    return (
+                      <div
+                        key={friend.id}
+                        onClick={() => setSelectedBuddyChat(friend)}
+                        className="bg-neutral-950 hover:bg-neutral-900/80 p-3 rounded-2xl border border-neutral-800/80 flex items-center justify-between cursor-pointer transition group"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="relative">
+                            <img src={friend.avatar_url} alt="" className="w-11 h-11 rounded-full object-cover border border-neutral-700" />
+                            <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-neutral-950 rounded-full" />
                           </div>
-
-                          <div className="flex items-center gap-2">
-                            <span className="text-[9px] text-neutral-500">
-                              {lastMessage ? new Date(lastMessage.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
-                            </span>
-                            {friendMessages.length > 0 && (
-                              <button
-                                onClick={(e) => handleDeleteConversationForBuddy(friend.id, friend.name, e)}
-                                title="Supprimer la conversation"
-                                className="p-1.5 text-neutral-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            )}
+                          <div>
+                            <div className="flex items-center gap-1.5">
+                              <h3 className="font-bold text-xs text-white">{friend.name}</h3>
+                              <span className="text-[10px] text-neutral-500">● {friend.club.replace('Basic-Fit ', '')}</span>
+                            </div>
+                            <p className="text-[11px] text-neutral-400 line-clamp-1 mt-0.5">
+                              {lastMessage ? (
+                                <span>{lastMessage.sender_id === user?.id ? 'Moi : ' : ''}{lastMessage.text}</span>
+                              ) : (
+                                <span className="italic text-neutral-500">Commencer la conversation...</span>
+                              )}
+                            </p>
                           </div>
                         </div>
-                      );
-                    })}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}
           </div>
         )}
 
-        {/* TAB 5: LEADERBOARD */}
         {currentTab === 'leaderboard' && (
           <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4">
             <div className="flex items-center gap-2">
@@ -2290,7 +2397,6 @@ export default function App() {
           </div>
         )}
 
-        {/* TAB 6: PROFILE */}
         {currentTab === 'profile' && (
           <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-6 text-center space-y-5">
             <div className="w-20 h-20 rounded-full bg-gradient-to-tr from-orange-500 to-amber-500 p-0.5 mx-auto">
@@ -2310,21 +2416,6 @@ export default function App() {
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-2 pt-2">
-              <div className="bg-neutral-950 p-3 rounded-2xl border border-neutral-800">
-                <span className="text-base font-black text-white block">18</span>
-                <span className="text-[10px] text-neutral-400 font-medium">Séances</span>
-              </div>
-              <div className="bg-neutral-950 p-3 rounded-2xl border border-neutral-800">
-                <span className="text-base font-black text-orange-500 block">{myFriendsList.length}</span>
-                <span className="text-[10px] text-neutral-400 font-medium">Amis</span>
-              </div>
-              <div className="bg-neutral-950 p-3 rounded-2xl border border-neutral-800">
-                <span className="text-base font-black text-amber-500 block">Top 5%</span>
-                <span className="text-[10px] text-neutral-400 font-medium">Club Rang</span>
-              </div>
-            </div>
-
             <div className="pt-4 border-t border-neutral-800">
               <button
                 onClick={() => supabase.auth.signOut()}
@@ -2337,291 +2428,7 @@ export default function App() {
         )}
       </main>
 
-      {/* MODAL CAMÉRA PLEIN ÉCRAN NATIVE */}
-      {isCameraActive && (
-        <div className="fixed inset-0 z-50 bg-black flex flex-col justify-between items-center p-4">
-          <div className="w-full flex items-center justify-between z-10 pt-2">
-            <span className="text-xs font-bold text-white bg-black/50 px-3 py-1.5 rounded-full border border-neutral-800">
-              {cameraTarget === 'post' ? 'Photo de séance' : 'Photo de story'}
-            </span>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={switchCameraFacing}
-                className="p-2.5 bg-black/60 rounded-full text-white hover:bg-black/80 transition"
-              >
-                <SwitchCamera className="w-5 h-5" />
-              </button>
-              <button
-                type="button"
-                onClick={stopCameraStream}
-                className="p-2.5 bg-black/60 rounded-full text-white hover:bg-black/80 transition"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-          </div>
-
-          <div className="relative w-full flex-1 max-w-sm my-auto rounded-3xl overflow-hidden bg-neutral-950 flex items-center justify-center border border-neutral-800">
-            <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover" />
-          </div>
-
-          <div className="w-full flex justify-center items-center pb-6 z-10">
-            <button
-              type="button"
-              onClick={capturePhoto}
-              className="w-20 h-20 rounded-full border-4 border-white flex items-center justify-center p-1 hover:scale-105 active:scale-95 transition"
-            >
-              <div className="w-full h-full bg-orange-500 rounded-full shadow-lg" />
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* LECTEUR DE STORY PLEIN ÉCRAN */}
-      {activeViewingStory && activeStoryIndex !== null && (
-        <div className="fixed inset-0 z-50 bg-black flex flex-col justify-between p-4 animate-fade-in select-none">
-          <div className="w-full flex items-center gap-1.5 pt-2 z-20">
-            {friendStoriesList.map((_, idx) => (
-              <div key={idx} className="h-1 bg-white/30 rounded-full flex-1 overflow-hidden">
-                <div
-                  className="h-full bg-white transition-all ease-linear"
-                  style={{
-                    width:
-                      idx < activeStoryIndex
-                        ? '100%'
-                        : idx === activeStoryIndex
-                        ? `${storyProgress}%`
-                        : '0%'
-                  }}
-                />
-              </div>
-            ))}
-          </div>
-
-          <div className="flex items-center justify-between pt-3 z-20">
-            <div className="flex items-center gap-2.5">
-              <img
-                src={activeViewingStory.avatar_url}
-                alt=""
-                className="w-10 h-10 rounded-full object-cover border-2 border-orange-500"
-              />
-              <div>
-                <h4 className="font-bold text-xs text-white leading-tight">{activeViewingStory.username}</h4>
-                <span className="text-[10px] text-neutral-400">
-                  {activeViewingStory.club_name ? `${activeViewingStory.club_name.replace('Basic-Fit ', '')} • ` : ''}
-                  {new Date(activeViewingStory.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                </span>
-              </div>
-            </div>
-            <button
-              onClick={() => {
-                setActiveStoryIndex(null);
-                setIsStoryPaused(false);
-              }}
-              className="p-2 bg-black/60 backdrop-blur-md rounded-full text-neutral-300 hover:text-white transition"
-            >
-              <X className="w-6 h-6" />
-            </button>
-          </div>
-
-          <div className="absolute inset-0 z-10 flex" style={{ bottom: '90px' }}>
-            <div className="w-1/3 h-full cursor-pointer" onClick={handlePrevStory} />
-            <div className="w-2/3 h-full cursor-pointer" onClick={handleNextStory} />
-          </div>
-
-          <div className="flex-1 flex items-center justify-center py-4 z-0 pointer-events-none">
-            <img
-              src={activeViewingStory.image_url}
-              alt="Story"
-              className="max-h-[60vh] w-auto max-w-full rounded-2xl object-contain shadow-2xl border border-neutral-800"
-            />
-          </div>
-
-          {activeViewingStory.caption && (
-            <div className="bg-neutral-950/80 backdrop-blur-lg px-3.5 py-2 rounded-xl border border-neutral-800/80 text-center mb-2 z-20">
-              <p className="text-xs text-neutral-100 font-medium">{activeViewingStory.caption}</p>
-            </div>
-          )}
-
-          <div className="z-30 space-y-2">
-            <div className="flex justify-center gap-4 py-1">
-              {['🔥', '💪', '👏', '❤️'].map((emoji) => (
-                <button
-                  key={emoji}
-                  onClick={() => handleSendStoryComment(undefined, emoji)}
-                  className="text-xl hover:scale-125 transition transform active:scale-95 bg-neutral-900/80 p-1.5 rounded-full border border-neutral-800"
-                >
-                  {emoji}
-                </button>
-              ))}
-            </div>
-
-            <div className="flex items-center gap-2">
-              <form
-                onSubmit={(e) => handleSendStoryComment(e)}
-                className="flex-1 flex items-center bg-neutral-900/90 border border-neutral-800 rounded-2xl px-3 py-1.5 backdrop-blur-md"
-              >
-                <input
-                  type="text"
-                  placeholder={`Répondre à ${activeViewingStory.username.split(' ')[0]}...`}
-                  value={storyCommentInput}
-                  onFocus={() => setIsStoryPaused(true)}
-                  onBlur={() => !storyCommentInput && setIsStoryPaused(false)}
-                  onChange={(e) => setStoryCommentInput(e.target.value)}
-                  className="flex-1 bg-transparent text-xs text-white placeholder-neutral-500 focus:outline-none"
-                />
-                {storyCommentInput.trim() && (
-                  <button type="submit" className="text-orange-400 hover:text-orange-300 p-1 transition">
-                    <SendHorizontal className="w-4 h-4" />
-                  </button>
-                )}
-              </form>
-
-              <button
-                onClick={() => handleToggleStoryLike(activeViewingStory.id)}
-                className="p-3 bg-neutral-900/90 border border-neutral-800 rounded-2xl text-white hover:text-red-400 backdrop-blur-md transition flex items-center justify-center"
-              >
-                <Heart
-                  className={`w-5 h-5 transition ${
-                    likedStories[activeViewingStory.id] ? 'fill-red-500 text-red-500 scale-110' : 'text-white'
-                  }`}
-                />
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL 2 : PUBLIER UNE STORY AVEC CAMÉRA OU GALERIE */}
-      {isCreatingStory && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-md w-full p-5 space-y-4">
-            <div className="flex items-center justify-between pb-2 border-b border-neutral-800">
-              <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-orange-500" /> Ajouter à ma story (24h)
-              </h3>
-              <button onClick={() => setIsCreatingStory(false)} className="p-1 text-neutral-400 hover:text-white">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handlePublishStory} className="space-y-3.5">
-              <input
-                type="file"
-                accept="image/*"
-                ref={storyFileInputRef}
-                onChange={handleStoryImageSelect}
-                className="hidden"
-              />
-
-              {storyImagePreview ? (
-                <div className="relative rounded-2xl overflow-hidden border border-neutral-700 bg-neutral-950 h-56 flex items-center justify-center">
-                  <img src={storyImagePreview} alt="" className="max-h-full max-w-full object-contain" />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setStoryImageFile(null);
-                      setStoryImagePreview(null);
-                    }}
-                    className="absolute top-2 right-2 p-1.5 bg-black/80 text-white rounded-full"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-              ) : (
-                <div className="grid grid-cols-2 gap-2.5">
-                  <button
-                    type="button"
-                    onClick={() => startCamera('story')}
-                    className="py-8 border-2 border-dashed border-neutral-800 hover:border-orange-500 rounded-2xl flex flex-col items-center justify-center gap-2 text-neutral-400 hover:text-orange-400 bg-neutral-950 transition"
-                  >
-                    <Camera className="w-6 h-6 text-orange-500" />
-                    <span className="text-xs font-semibold">Prendre photo</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => storyFileInputRef.current?.click()}
-                    className="py-8 border-2 border-dashed border-neutral-800 hover:border-orange-500 rounded-2xl flex flex-col items-center justify-center gap-2 text-neutral-400 hover:text-orange-400 bg-neutral-950 transition"
-                  >
-                    <FolderOpen className="w-6 h-6 text-neutral-400" />
-                    <span className="text-xs font-semibold">Depuis galerie</span>
-                  </button>
-                </div>
-              )}
-
-              <div>
-                <label className="block text-[11px] font-semibold text-neutral-400 mb-1">Texte / Humeur</label>
-                <input
-                  type="text"
-                  placeholder="Ex: Prêt pour la séance de ce soir ! 🔥"
-                  value={storyCaption}
-                  onChange={(e) => setStoryCaption(e.target.value)}
-                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-orange-500"
-                />
-              </div>
-
-              <button
-                type="submit"
-                disabled={storyUploading || !storyImageFile}
-                className="w-full bg-gradient-to-r from-orange-600 to-orange-500 hover:from-orange-500 hover:to-orange-400 disabled:opacity-50 text-white font-bold py-3 rounded-xl shadow-lg shadow-orange-500/20 transition flex items-center justify-center gap-2 text-xs"
-              >
-                {storyUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Partager ma story (24h)"}
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* COMMENTS DRAWER */}
-      {activeCommentPostId && activePostForComments && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
-          <div className="bg-neutral-900 border border-neutral-800 rounded-t-3xl sm:rounded-3xl max-w-lg w-full max-h-[80vh] flex flex-col overflow-hidden">
-            <div className="p-4 border-b border-neutral-800 flex items-center justify-between">
-              <h3 className="text-sm font-bold text-white">Commentaires ({activePostForComments.comments?.length || 0})</h3>
-              <button onClick={() => setActiveCommentPostId(null)} className="p-1 rounded-full text-neutral-400 hover:text-white">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="flex-1 p-4 overflow-y-auto space-y-3">
-              {(activePostForComments.comments || []).map((comm) => (
-                <div key={comm.id} className="flex items-start gap-2.5">
-                  <img src={comm.avatar_url} alt="" className="w-7 h-7 rounded-full object-cover" />
-                  <div className="bg-neutral-950 p-2.5 rounded-2xl border border-neutral-800 flex-1">
-                    <div className="flex justify-between items-baseline mb-0.5">
-                      <span className="font-bold text-xs text-white">{comm.username}</span>
-                      <span className="text-[9px] text-neutral-500">{comm.created_at}</span>
-                    </div>
-                    <p className="text-xs text-neutral-300">{comm.text}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div className="p-3 bg-neutral-950 border-t border-neutral-800 flex items-center gap-2">
-              <input
-                type="text"
-                placeholder="Ajouter un commentaire..."
-                value={commentInput}
-                onChange={(e) => setCommentInput(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleAddComment(activePostForComments.id)}
-                className="flex-1 bg-neutral-900 border border-neutral-800 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-orange-500"
-              />
-              <button
-                onClick={() => handleAddComment(activePostForComments.id)}
-                className="p-2 bg-orange-600 hover:bg-orange-500 text-white rounded-xl transition"
-              >
-                <SendHorizontal className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Nav Bar */}
-      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-neutral-950/90 backdrop-blur-xl border-t border-neutral-800/80 px-4 py-2 flex justify-around items-center">
+      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-neutral-950/90 backdrop-blur-xl border-t border-neutral-800/80 px-2 py-2 flex justify-around items-center">
         <button
           onClick={() => setCurrentTab('feed')}
           className={`flex flex-col items-center gap-1 transition ${
@@ -2655,26 +2462,23 @@ export default function App() {
         </button>
 
         <button
+          onClick={() => setCurrentTab('tools')}
+          className={`flex flex-col items-center gap-1 transition ${
+            currentTab === 'tools' ? 'text-orange-500 font-bold' : 'text-neutral-500 hover:text-neutral-300'
+          }`}
+        >
+          <BookOpen className="w-5 h-5" />
+          <span className="text-[10px]">Outils</span>
+        </button>
+
+        <button
           onClick={() => setCurrentTab('chat')}
           className={`flex flex-col items-center gap-1 transition ${
             currentTab === 'chat' ? 'text-orange-500 font-bold' : 'text-neutral-500 hover:text-neutral-300'
           }`}
         >
-          <div className="relative">
-            <MessageCircle className="w-5 h-5" />
-            {friendRequestsList.length > 0 && <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-orange-500 rounded-full" />}
-          </div>
+          <MessageCircle className="w-5 h-5" />
           <span className="text-[10px]">Chat</span>
-        </button>
-
-        <button
-          onClick={() => setCurrentTab('leaderboard')}
-          className={`flex flex-col items-center gap-1 transition ${
-            currentTab === 'leaderboard' ? 'text-orange-500 font-bold' : 'text-neutral-500 hover:text-neutral-300'
-          }`}
-        >
-          <Trophy className="w-5 h-5" />
-          <span className="text-[10px]">Records</span>
         </button>
 
         <button
