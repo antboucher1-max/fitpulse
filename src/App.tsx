@@ -388,7 +388,7 @@ export default function App() {
   const [newPrWeight, setNewPrWeight] = useState<number | ''>('');
   const [newPrReps, setNewPrReps] = useState<number | ''>('');
 
-  // Planificateur de semaine modifiable avec choix
+  // Planificateur de semaine
   const [weeklyPlan, setWeeklyPlan] = useState<WeeklyPlan[]>(DEFAULT_WEEKLY_PLAN);
   const [editingDayIndex, setEditingDayIndex] = useState<number | null>(null);
   const [editFocus, setEditFocus] = useState(WORKOUT_CHOICES[0]);
@@ -422,7 +422,7 @@ export default function App() {
   const [storyUploading, setStoryUploading] = useState(false);
   const storyFileInputRef = useRef<HTMLInputElement>(null);
 
-  // Workout
+  // Workout Creation State (Visuel & Interactif)
   const [workoutType, setWorkoutType] = useState('Musculation (Push)');
   const [workoutCaption, setWorkoutCaption] = useState('');
   const [workoutDuration, setWorkoutDuration] = useState(60);
@@ -431,9 +431,6 @@ export default function App() {
   const [postImageFile, setPostImageFile] = useState<File | null>(null);
   const [postImagePreview, setPostImagePreview] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
-
-  const [imageZoom, setImageZoom] = useState(1);
-  const [imagePos, setImagePos] = useState({ x: 0, y: 0 });
 
   const [workoutExercises, setWorkoutExercises] = useState<ExerciseEntry[]>([
     { name: 'Développé couché', sets: 4, reps: 10, weight: 80 }
@@ -882,9 +879,6 @@ export default function App() {
       avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
       partner_name: taggedPartner || null,
       image_url: uploadedImageUrl || null,
-      image_zoom: imageZoom,
-      image_pos_x: imagePos.x,
-      image_pos_y: imagePos.y,
       club_name: selectedClub,
       session_type: workoutType,
       caption: workoutCaption,
@@ -1010,7 +1004,7 @@ export default function App() {
         </select>
       </header>
 
-      {/* CHRONOMÈTRE DE REPOS FLOTTANT (SI ACTIF) */}
+      {/* CHRONOMÈTRE DE REPOS FLOTTANT */}
       {isRestTimerActive && (
         <div className="bg-orange-600 text-white px-4 py-2 flex items-center justify-between sticky top-[53px] z-30 shadow-lg animate-pulse">
           <div className="flex items-center gap-2 text-xs font-bold">
@@ -1065,14 +1059,14 @@ export default function App() {
               </div>
             </div>
 
-            {/* Posts Feed */}
+            {/* Posts Feed - AFFICHAGE VISUEL ET IMPACTANT DE LA SÉANCE */}
             {feedLoading ? (
               <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 text-orange-500 animate-spin" /></div>
             ) : displayedPosts.length === 0 ? (
               <div className="text-center py-16 text-neutral-500 text-xs bg-neutral-900/50 rounded-3xl border border-neutral-800/60 p-6">Aucune publication pour l'instant dans ce club.</div>
             ) : (
               displayedPosts.map((post) => (
-                <article key={post.id} className="bg-neutral-900/70 border border-neutral-800 rounded-3xl p-4 space-y-3 shadow-sm overflow-hidden relative">
+                <article key={post.id} className="bg-neutral-900/70 border border-neutral-800 rounded-3xl p-4 space-y-3.5 shadow-sm overflow-hidden relative">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <img src={post.avatar_url} alt="" className="w-10 h-10 rounded-full object-cover border border-neutral-700" />
@@ -1087,28 +1081,45 @@ export default function App() {
                       <button onClick={() => handleDeletePost(post.id)} className="p-1.5 text-neutral-500 hover:text-red-400 rounded-lg"><Trash2 className="w-4 h-4" /></button>
                     )}
                   </div>
-                  {post.image_url && (
-                    <div className="rounded-2xl overflow-hidden border border-neutral-800 bg-neutral-950 h-72 w-full relative flex items-center justify-center">
-                      <img src={post.image_url} alt="" className="max-h-full max-w-full object-contain pointer-events-none" />
-                    </div>
-                  )}
-                  {post.caption && <p className="text-xs text-neutral-200 leading-relaxed">{post.caption}</p>}
 
-                  {/* EXERCICES & CHRONO DE REPOS INTÉGRÉ & 3D */}
+                  {/* CARTE VISUELLE DE LA SÉANCE AVEC PHOTO ET BADGES */}
+                  <div className="rounded-2xl overflow-hidden border border-neutral-800 bg-neutral-950 relative shadow-inner">
+                    {post.image_url ? (
+                      <div className="h-72 w-full relative flex items-center justify-center">
+                        <img src={post.image_url} alt="" className="max-h-full max-w-full object-contain pointer-events-none" />
+                        <div className="absolute top-3 left-3 bg-black/70 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/10 flex items-center gap-2">
+                          <Flame className="w-4 h-4 text-orange-500 animate-pulse" />
+                          <span className="text-xs font-black text-white">{post.session_type}</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="p-6 bg-gradient-to-br from-neutral-900 to-neutral-950 flex flex-col justify-center items-center text-center space-y-2">
+                        <Dumbbell className="w-10 h-10 text-orange-500 mb-1" />
+                        <span className="text-sm font-black text-white">{post.session_type}</span>
+                        <span className="text-[11px] text-neutral-400">Séance validée à {post.club_name}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {post.caption && <p className="text-xs text-neutral-200 leading-relaxed font-medium">{post.caption}</p>}
+
+                  {/* EXERCICES RÉALISÉS & REPOS */}
                   {post.exercises && post.exercises.length > 0 && (
-                    <div className="bg-neutral-950/70 rounded-2xl p-3 border border-neutral-800/60 space-y-2">
+                    <div className="bg-neutral-950/80 rounded-2xl p-3.5 border border-neutral-800/80 space-y-2.5">
                       <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider">Exercices & Repos</span>
+                        <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider flex items-center gap-1.5">
+                          <Dumbbell className="w-3.5 h-3.5 text-orange-500" /> Exercices réalisés
+                        </span>
                         <div className="flex items-center gap-1.5">
                           <button onClick={() => startRestTimer(60)} className="px-2 py-0.5 bg-neutral-900 hover:bg-orange-600 text-neutral-300 hover:text-white rounded text-[10px] transition">⏱ 60s</button>
                           <button onClick={() => startRestTimer(90)} className="px-2 py-0.5 bg-neutral-900 hover:bg-orange-600 text-neutral-300 hover:text-white rounded text-[10px] transition">⏱ 90s</button>
                         </div>
                       </div>
                       {post.exercises.map((ex, i) => (
-                        <div key={i} className="flex items-center justify-between text-xs py-1 border-b border-neutral-900 last:border-none">
-                          <span className="font-medium text-neutral-300">{ex.name}</span>
+                        <div key={i} className="flex items-center justify-between text-xs py-1.5 border-b border-neutral-900 last:border-none">
+                          <span className="font-semibold text-neutral-200">{ex.name}</span>
                           <div className="flex items-center gap-2">
-                            <span className="font-mono text-[11px] text-orange-400 font-semibold">{ex.sets} × {ex.reps} ({ex.weight}kg)</span>
+                            <span className="font-mono text-[11px] text-orange-400 font-bold">{ex.sets} séries × {ex.reps} reps ({ex.weight} kg)</span>
                             <button onClick={() => setActive3DExercise(ex.name)} className="p-1 bg-orange-600/20 hover:bg-orange-600 text-orange-400 hover:text-white rounded-lg flex items-center gap-1 text-[10px] transition">
                               <Box className="w-3 h-3" /> 3D
                             </button>
@@ -1119,7 +1130,7 @@ export default function App() {
                   )}
 
                   <div className="flex items-center justify-between pt-2 border-t border-neutral-800/60 text-neutral-400 text-xs">
-                    <button onClick={() => handleToggleLike(post.id)} className={`flex items-center gap-1.5 ${likedPosts[post.id] ? 'text-red-500' : ''}`}><Heart className="w-4 h-4" /><span>{post.likes_count}</span></button>
+                    <button onClick={() => handleToggleLike(post.id)} className={`flex items-center gap-1.5 ${likedPosts[post.id] ? 'text-red-500 font-bold' : ''}`}><Heart className="w-4 h-4" /><span>{post.likes_count}</span></button>
                     <button onClick={() => setActiveCommentPostId(post.id)} className="flex items-center gap-1.5"><MessageSquare className="w-4 h-4" /><span>{post.comments_count || 0}</span></button>
                   </div>
                 </article>
@@ -1749,7 +1760,7 @@ export default function App() {
         </div>
       )}
 
-      {/* BOTTOM NAV AVEC L'ONGLET INSTITUT FLEUR DE LYS */}
+      {/* BOTTOM NAV */}
       <nav className="fixed bottom-0 left-0 right-0 z-40 bg-neutral-950/90 backdrop-blur-xl border-t border-neutral-800/80 px-2 py-2 flex justify-around items-center">
         <button onClick={() => setCurrentTab('feed')} className={`flex flex-col items-center gap-1 ${currentTab === 'feed' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Home className="w-4 h-4" /><span className="text-[9px]">Accueil</span></button>
         <button onClick={() => setCurrentTab('buddy')} className={`flex flex-col items-center gap-1 ${currentTab === 'buddy' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Users className="w-4 h-4" /><span className="text-[9px]">Buddy</span></button>
@@ -1760,7 +1771,7 @@ export default function App() {
         </button>
         <button onClick={() => setCurrentTab('institut')} className={`flex flex-col items-center gap-1 ${currentTab === 'institut' ? 'text-pink-500 font-bold' : 'text-neutral-500'}`}><Flower2 className="w-4 h-4" /><span className="text-[9px]">Madéro</span></button>
         <button onClick={() => setCurrentTab('chat')} className={`flex flex-col items-center gap-1 ${currentTab === 'chat' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><MessageCircle className="w-4 h-4" /><span className="text-[9px]">Chat</span></button>
-        <button onClick={() => setCurrentTab('leaderboard')} className={`flex flex-col items-center gap-1 ${currentTab === 'leaderboard' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Trophy className="w-4 h-4" /><span className="text-[9px]">Records</span></button>
+        <button onClick={() => setCurrentTab('leaderboard')} className`flex flex-col items-center gap-1 ${currentTab === 'leaderboard' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Trophy className="w-4 h-4" /><span className="text-[9px]">Records</span></button>
         <button onClick={() => setCurrentTab('profile')} className={`flex flex-col items-center gap-1 ${currentTab === 'profile' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><User className="w-4 h-4" /><span className="text-[9px]">Profil</span></button>
       </nav>
     </div>
