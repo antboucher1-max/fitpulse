@@ -188,6 +188,14 @@ interface DBMessage {
   created_at: string;
 }
 
+// Membres par défaut du club pour que l'onglet Buddy ne soit jamais vide
+const INITIAL_CLUB_MEMBERS: RealUser[] = [
+  { id: 'b1', username: 'Thomas D.', email: 'thomas@fitpulse.be', gender: 'M', home_club: 'Basic-Fit Tournai (Bastion)', avatar_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150' },
+  { id: 'b2', username: 'Sarah L.', email: 'sarah@fitpulse.be', gender: 'F', home_club: 'Basic-Fit Tournai (Bastion)', avatar_url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150' },
+  { id: 'b3', username: 'Élodie M.', email: 'elodie@fitpulse.be', gender: 'F', home_club: 'Basic-Fit Tournai (Froyennes)', avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150' },
+  { id: 'b4', username: 'Maxime V.', email: 'maxime@fitpulse.be', gender: 'M', home_club: 'Basic-Fit Mouscron', avatar_url: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150' }
+];
+
 const DEFAULT_FRIEND_STORIES: Story[] = [
   {
     id: 'demo-s1',
@@ -198,6 +206,17 @@ const DEFAULT_FRIEND_STORIES: Story[] = [
     caption: 'Prêt pour exploser le PR au dev couché 🔥',
     club_name: 'Basic-Fit Tournai (Bastion)',
     likes_count: 3,
+    created_at: new Date().toISOString()
+  },
+  {
+    id: 'demo-s2',
+    user_id: 'b2',
+    username: 'Sarah L.',
+    avatar_url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150',
+    image_url: 'https://images.unsplash.com/photo-1518611012118-696072aa579a?w=800',
+    caption: 'Fin de séance HIIT cardio, les jambes en feu 💦',
+    club_name: 'Basic-Fit Tournai (Bastion)',
+    likes_count: 5,
     created_at: new Date().toISOString()
   }
 ];
@@ -233,12 +252,11 @@ export default function App() {
 
   const [active3DExercise, setActive3DExercise] = useState<string | null>(null);
 
-  // Vrais utilisateurs et Amis
-  const [registeredUsers, setRegisteredUsers] = useState<RealUser[]>([]);
-  const [friendIds, setFriendIds] = useState<string[]>([]);
+  // Utilisateurs réels et Amis
+  const [registeredUsers, setRegisteredUsers] = useState<RealUser[]>(INITIAL_CLUB_MEMBERS);
+  const [friendIds, setFriendIds] = useState<string[]>(['b1', 'b2']);
   const [buddyTabSubMode, setBuddyTabSubMode] = useState<'discover' | 'my_friends'>('discover');
   const [userSearchQuery, setUserSearchQuery] = useState('');
-  const [localitySearchQuery, setLocalitySearchQuery] = useState('');
   const [filterWomenOnly, setFilterWomenOnly] = useState(false);
 
   // Stories
@@ -360,6 +378,7 @@ export default function App() {
     const { data, error } = await supabase.from('posts').select('user_id, username, club_name, avatar_url').limit(50);
     if (!error && data) {
       const uniqueMap = new Map();
+      INITIAL_CLUB_MEMBERS.forEach((m) => uniqueMap.set(m.id, m));
       data.forEach((p) => {
         if (p.user_id !== user?.id && !uniqueMap.has(p.user_id)) {
           uniqueMap.set(p.user_id, {
@@ -367,7 +386,7 @@ export default function App() {
             username: p.username,
             email: `${p.username}@fitpulse.be`,
             gender: 'M',
-            home_club: p.club_name || 'Basic-Fit Tournai',
+            home_club: p.club_name || selectedClub,
             avatar_url: p.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'
           });
         }
@@ -682,17 +701,19 @@ export default function App() {
     setIsUploading(false);
   };
 
-  // Filtrage combiné : Pseudo + Localité/Salle + Filtre genre
+  // FILTRAGE : Uniquement les membres du club sélectionné (ou filtrés par recherche pseudo)
   const filteredBuddies = registeredUsers.filter((u) => {
     if (buddyTabSubMode === 'my_friends' && !friendIds.includes(u.id)) return false;
     if (filterWomenOnly && u.gender === 'M') return false;
     
-    // Recherche par pseudo
-    const matchesUser = !userSearchQuery.trim() || u.username.toLowerCase().includes(userSearchQuery.toLowerCase());
-    // Recherche par localité / club
-    const matchesLocality = !localitySearchQuery.trim() || u.home_club.toLowerCase().includes(localitySearchQuery.toLowerCase());
+    // Si l'utilisateur tape un mot-clé dans la recherche, on cherche sur le pseudo ou le club
+    if (userSearchQuery.trim()) {
+      const q = userSearchQuery.toLowerCase();
+      return u.username.toLowerCase().includes(q) || u.home_club.toLowerCase().includes(q);
+    }
 
-    return matchesUser && matchesLocality;
+    // Sinon, on affiche les membres de TON basic-fit sélectionné en haut
+    return isMatchingClub(u.home_club, selectedClub);
   });
 
   const displayedPosts = posts.filter((post) => {
@@ -908,11 +929,14 @@ export default function App() {
           </form>
         )}
 
-        {/* TAB 2: BUDDY - RECHERCHE PAR PSEUDO ET LOCALITÉ/CLUB */}
+        {/* TAB 2: BUDDY - MEMBRES DE TON BASIC-FIT SÉLECTIONNÉ */}
         {currentTab === 'buddy' && (
           <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4">
             <div className="flex items-center justify-between">
-              <h2 className="text-base font-black tracking-tight">Réseau & Athlètes</h2>
+              <div>
+                <h2 className="text-base font-black tracking-tight">Athlètes de ton club</h2>
+                <span className="text-[10px] text-orange-400 font-medium">{selectedClub}</span>
+              </div>
               <button
                 onClick={() => setFilterWomenOnly(!filterWomenOnly)}
                 className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition ${
@@ -930,7 +954,7 @@ export default function App() {
                 onClick={() => setBuddyTabSubMode('discover')}
                 className={`flex-1 py-2 rounded-xl text-xs font-bold transition ${buddyTabSubMode === 'discover' ? 'bg-orange-600 text-white' : 'text-neutral-400 hover:text-white'}`}
               >
-                Découvrir
+                Membres du club
               </button>
               <button
                 onClick={() => setBuddyTabSubMode('my_friends')}
@@ -940,34 +964,21 @@ export default function App() {
               </button>
             </div>
 
-            {/* BARRES DE RECHERCHE PSEUDO ET LOCALITÉ */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-              <div className="relative">
-                <Search className="absolute left-3.5 top-3 w-4 h-4 text-neutral-500" />
-                <input
-                  type="text"
-                  placeholder="Rechercher par pseudo..."
-                  value={userSearchQuery}
-                  onChange={(e) => setUserSearchQuery(e.target.value)}
-                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl pl-10 pr-3 py-2.5 text-xs text-white focus:outline-none focus:border-orange-500"
-                />
-              </div>
-              <div className="relative">
-                <MapPin className="absolute left-3.5 top-3 w-4 h-4 text-orange-500" />
-                <input
-                  type="text"
-                  placeholder="Filtrer par localité / club..."
-                  value={localitySearchQuery}
-                  onChange={(e) => setLocalitySearchQuery(e.target.value)}
-                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl pl-10 pr-3 py-2.5 text-xs text-white focus:outline-none focus:border-orange-500"
-                />
-              </div>
+            <div className="relative">
+              <Search className="absolute left-3.5 top-3 w-4 h-4 text-neutral-500" />
+              <input
+                type="text"
+                placeholder="Rechercher par pseudo..."
+                value={userSearchQuery}
+                onChange={(e) => setUserSearchQuery(e.target.value)}
+                className="w-full bg-neutral-950 border border-neutral-800 rounded-xl pl-10 pr-3 py-2.5 text-xs text-white focus:outline-none focus:border-orange-500"
+              />
             </div>
 
             <div className="space-y-3 pt-1">
               {filteredBuddies.length === 0 ? (
                 <div className="text-center py-8 text-neutral-500 text-xs">
-                  Aucun athlète ne correspond à ces critères de recherche.
+                  Aucun athlète trouvé pour ce club pour l'instant.
                 </div>
               ) : (
                 filteredBuddies.map((realUser) => {
