@@ -182,6 +182,7 @@ interface WeeklyPlan {
 
 interface TransformationPhoto {
   id: string;
+  user_id?: string;
   before_url: string;
   after_url: string;
   date: string;
@@ -281,7 +282,7 @@ interface Post {
   caption: string;
   exercises: ExerciseEntry[];
   likes_count: number;
-  liked_by?: string[]; // Liste des IDs ayant liké pour éviter les doublons
+  liked_by?: string[];
   comments_count: number;
   comments?: Comment[];
   created_at: string;
@@ -374,7 +375,7 @@ export default function App() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [feedLoading, setFeedLoading] = useState(false);
 
-  // Paramètres Utilisateur Locaux (Flammes, Mode Privé & Avant/Après)
+  // Paramètres Utilisateur Locaux (Flammes, Mode Privé & Avant/Après sur Supabase)
   const [userStreak, setUserStreak] = useState<number>(() => {
     try { return parseInt(localStorage.getItem('fitpulse_streak') || '2', 10); } catch { return 2; }
   });
@@ -383,14 +384,7 @@ export default function App() {
     try { return localStorage.getItem('fitpulse_private') === 'true'; } catch { return false; }
   });
 
-  const [transformations, setTransformations] = useState<TransformationPhoto[]>(() => {
-    try {
-      const saved = localStorage.getItem('fitpulse_transformations');
-      return saved ? JSON.parse(saved) : [
-        { id: 't-1', before_url: 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?w=600', after_url: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=600', date: '2026-06-01', weight: 78, note: 'Début de prise de masse propre' }
-      ];
-    } catch { return []; }
-  });
+  const [transformations, setTransformations] = useState<TransformationPhoto[]>([]);
 
   const [newTransNote, setNewTransNote] = useState('');
   const [newTransWeight, setNewTransWeight] = useState<number | ''>('');
@@ -399,7 +393,6 @@ export default function App() {
 
   useEffect(() => { localStorage.setItem('fitpulse_streak', userStreak.toString()); }, [userStreak]);
   useEffect(() => { localStorage.setItem('fitpulse_private', isPrivateMode.toString()); }, [isPrivateMode]);
-  useEffect(() => { localStorage.setItem('fitpulse_transformations', JSON.stringify(transformations)); }, [transformations]);
 
   const [likedStories, setLikedStories] = useState<Record<string, boolean>>(() => {
     try {
@@ -412,7 +405,7 @@ export default function App() {
     try {
       const saved = localStorage.getItem('fitpulse_viewed_stories');
       return saved ? JSON.parse(saved) : [];
-    } catch { return {}; }
+    } catch { return []; }
   });
 
   useEffect(() => { localStorage.setItem('fitpulse_liked_stories', JSON.stringify(likedStories)); }, [likedStories]);
@@ -606,24 +599,71 @@ export default function App() {
     }
   };
 
-  // Ajout d'un Avant/Après personnel
-  const handleAddTransformation = (e: React.FormEvent) => {
+  // AJOUT D'UNE TRANSFORMATION SUR SUPABASE (PERSISTANTE)
+  const handleAddTransformation = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newTransBefore || !newTransAfter || newTransWeight === '') return;
-    const item: TransformationPhoto = {
-      id: 'trans-' + Date.now(),
-      before_url: newTransBefore,
-      after_url: newTransAfter,
+    if (!user || !newTransBefore || !newTransAfter || newTransWeight === '') return;
+
+    let beforeUrl = newTransBefore;
+    let afterUrl = newTransAfter;
+
+    // Upload des images Avant/Après dans le Storage Supabase si ce sont des blobs locaux
+    try {
+      if (newTransBefore.startsWith('blob:')) {
+        const resB = await fetch(newTransBefore);
+        const blobB = await resB.blob();
+        const fileB = new File([blobB], `trans-before-${Date.now()}.jpg`, { type: 'image/jpeg' });
+        const compressedB = await compressImage(fileB, 800, 0.7);
+        const nameB = `trans-before-${Date.now()}-${Math.random().toString(36).substring(7)}.jpg`;
+        const { data: uploadB } = await supabase.storage.from('posts').upload(nameB, compressedB, { contentType: 'image/jpeg' });
+        if (uploadB) {
+          const { data: urlB } = supabase.storage.from('posts').getPublicUrl(nameB);
+          beforeUrl = urlB.publicUrl;
+        }
+      }
+
+      if (newTransAfter.startsWith('blob:')) {
+        const resA = await fetch(newTransAfter);
+        const blobA = await resA.blob();
+        const fileA = new File([blobA], `trans-after-${Date.now()}.jpg`, { type: 'image/jpeg' });
+        const compressedA = await compressImage(fileA, 800, 0.7);
+        const nameA = `trans-after-${Date.now()}-${Math.random().toString(36).substring(7)}.jpg`;
+        const { data: uploadA } = await supabase.storage.from('posts').upload(nameA, compressedA, { contentType: 'image/jpeg' });
+        if (uploadA) {
+          const { data: urlA } = supabase.storage.from('posts').getPublicUrl(nameA);
+          afterUrl = urlA.publicUrl;
+        }
+      }
+    } catch (err) {}
+
+    const newItem = {
+      user_id: user.id,
+      before_url: beforeUrl,
+      after_url: afterUrl,
       date: new Date().toISOString().split('T')[0],
       weight: Number(newTransWeight),
       note: newTransNote || 'Évolution physique'
     };
-    setTransformations([item, ...transformations]);
-    setNewTransBefore(null);
-    setNewTransAfter(null);
-    setNewTransNote('');
-    setNewTransWeight('');
-    alert('📸 Transformation enregistrée dans ton carnet personnel !');
+
+    const { data, error } = await supabase.from('transformations').insert([newItem]).select('*');
+    if (error) {
+      alert("Erreur enregistrement carnet : " + error.message + "\n(Vérifie que la table 'transformations' existe dans Supabase)");
+    } else if (data && data.length > 0) {
+      setTransformations([data[0] as TransformationPhoto, ...transformations]);
+      setNewTransBefore(null);
+      setNewTransAfter(null);
+      setNewTransNote('');
+      setNewTransWeight('');
+      alert('📸 Transformation enregistrée et sauvegardée dans le cloud !');
+    }
+  };
+
+  // Charger les transformations depuis Supabase
+  const fetchTransformations = async (userId: string) => {
+    const { data, error } = await supabase.from('transformations').select('*').eq('user_id', userId).order('date', { ascending: false });
+    if (!error && data) {
+      setTransformations(data as TransformationPhoto[]);
+    }
   };
 
   // Partager un Avant/Après sur le fil d'actualité
@@ -660,12 +700,14 @@ export default function App() {
       const activeUser = session?.user ?? null;
       setUser(activeUser);
       if (activeUser?.user_metadata?.home_club) setSelectedClub(activeUser.user_metadata.home_club);
+      if (activeUser) fetchTransformations(activeUser.id);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       const activeUser = session?.user ?? null;
       setUser(activeUser);
       if (activeUser?.user_metadata?.home_club) setSelectedClub(activeUser.user_metadata.home_club);
+      if (activeUser) fetchTransformations(activeUser.id);
     });
 
     fetchCloudPosts();
@@ -793,19 +835,15 @@ export default function App() {
     let newCount = post.likes_count;
 
     if (hasAlreadyLiked) {
-      // Retirer le like
       updatedLikedBy = updatedLikedBy.filter(id => id !== user.id);
       newCount = Math.max(0, newCount - 1);
     } else {
-      // Ajouter le like une seule fois
       updatedLikedBy.push(user.id);
       newCount += 1;
     }
 
-    // Mise à jour immédiate de l'interface
     setPosts(prev => prev.map(p => p.id === postId ? { ...p, likes_count: newCount, liked_by: updatedLikedBy } : p));
 
-    // Sauvegarde en base de données Supabase
     await supabase
       .from('posts')
       .update({ likes_count: newCount, liked_by: updatedLikedBy })
@@ -1876,27 +1914,31 @@ export default function App() {
 
               {/* Liste des transformations enregistrées */}
               <div className="space-y-3 pt-1">
-                {transformations.map((item) => (
-                  <div key={item.id} className="bg-neutral-950 p-3.5 rounded-2xl border border-neutral-800 space-y-3">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="font-bold text-orange-400">📅 {item.date} — {item.weight} kg</span>
-                      <span className="text-neutral-400 italic">{item.note}</span>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="relative rounded-xl overflow-hidden h-36 bg-neutral-900 border border-neutral-800">
-                        <img src={item.before_url} alt="Avant" className="w-full h-full object-cover" />
-                        <span className="absolute bottom-1 left-1 bg-black/70 text-[9px] text-white px-2 py-0.5 rounded">Avant</span>
+                {transformations.length === 0 ? (
+                  <div className="text-center py-6 text-neutral-500 text-xs">Aucune photo avant/après enregistrée pour l'instant.</div>
+                ) : (
+                  transformations.map((item) => (
+                    <div key={item.id} className="bg-neutral-950 p-3.5 rounded-2xl border border-neutral-800 space-y-3">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-bold text-orange-400">📅 {item.date} — {item.weight} kg</span>
+                        <span className="text-neutral-400 italic">{item.note}</span>
                       </div>
-                      <div className="relative rounded-xl overflow-hidden h-36 bg-neutral-900 border border-neutral-800">
-                        <img src={item.after_url} alt="Après" className="w-full h-full object-cover" />
-                        <span className="absolute bottom-1 left-1 bg-black/70 text-[9px] text-white px-2 py-0.5 rounded">Après</span>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="relative rounded-xl overflow-hidden h-36 bg-neutral-900 border border-neutral-800">
+                          <img src={item.before_url} alt="Avant" className="w-full h-full object-cover" />
+                          <span className="absolute bottom-1 left-1 bg-black/70 text-[9px] text-white px-2 py-0.5 rounded">Avant</span>
+                        </div>
+                        <div className="relative rounded-xl overflow-hidden h-36 bg-neutral-900 border border-neutral-800">
+                          <img src={item.after_url} alt="Après" className="w-full h-full object-cover" />
+                          <span className="absolute bottom-1 left-1 bg-black/70 text-[9px] text-white px-2 py-0.5 rounded">Après</span>
+                        </div>
                       </div>
+                      <button onClick={() => handleShareTransformationToFeed(item)} className="w-full py-2 bg-neutral-900 hover:bg-orange-600/20 border border-neutral-800 hover:border-orange-500 text-neutral-300 hover:text-orange-400 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5">
+                        <Share2 className="w-3.5 h-3.5" /> Partager ce bilan (Privé ou Public)
+                      </button>
                     </div>
-                    <button onClick={() => handleShareTransformationToFeed(item)} className="w-full py-2 bg-neutral-900 hover:bg-orange-600/20 border border-neutral-800 hover:border-orange-500 text-neutral-300 hover:text-orange-400 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5">
-                      <Share2 className="w-3.5 h-3.5" /> Partager ce bilan (Privé ou Public)
-                    </button>
-                  </div>
-                ))}
+                  ))
+                )}
               </div>
             </div>
 
