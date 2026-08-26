@@ -31,8 +31,9 @@ import {
   ZoomIn,
   Move,
   Filter,
-  ShieldCheck,
+  UserPlus,
   UserCheck,
+  UserMinus,
   Sparkles
 } from 'lucide-react';
 import { createClient, User as SupabaseUser } from '@supabase/supabase-js';
@@ -42,7 +43,7 @@ const supabaseUrl = 'https://obtahwmcoqrcauscpksv.supabase.co';
 const supabaseAnonKey = 'sb_publishable_O8CKhUtzgq9nO9lKavNE9A__fAdRWoB';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-// Compression d'image haute performance
+// Compression d'image
 const compressImage = (file: File, maxWidth = 800, quality = 0.7): Promise<Blob> => {
   return new Promise((resolve) => {
     const reader = new FileReader();
@@ -143,12 +144,18 @@ export default function App() {
 
   // Navigation
   const [currentTab, setCurrentTab] = useState<'feed' | 'buddy' | 'workout' | 'chat' | 'leaderboard' | 'profile'>('feed');
+  const [feedFilterMode, setFeedFilterMode] = useState<'all' | 'friends'>('all');
   const [selectedClub, setSelectedClub] = useState<string>('Basic-Fit Tournai');
 
   // Posts Feed & Likes
   const [posts, setPosts] = useState<Post[]>([]);
   const [feedLoading, setFeedLoading] = useState(false);
   const [likedPosts, setLikedPosts] = useState<Record<string, boolean>>({});
+
+  // Friends System State (Liste des IDs d'amis)
+  const [friendIds, setFriendIds] = useState<string[]>(['b1', 'b2']); // b1 et b2 sont amis par défaut
+  const [pendingFriendIds, setPendingFriendIds] = useState<string[]>([]);
+  const [buddyTabSubMode, setBuddyTabSubMode] = useState<'discover' | 'my_friends'>('discover');
 
   // Comments Drawer State
   const [activeCommentPostId, setActiveCommentPostId] = useState<string | null>(null);
@@ -180,7 +187,7 @@ export default function App() {
   const [isTimerRunning, setIsTimerRunning] = useState(false);
   const [initialTime, setInitialTime] = useState(90);
 
-  // Buddy Finder State & Filters
+  // Buddy Finder Filters
   const [filterWomenOnly, setFilterWomenOnly] = useState(false);
   const [filterLevel, setFilterLevel] = useState<string>('all');
   const [filterGoal, setFilterGoal] = useState<string>('all');
@@ -247,7 +254,7 @@ export default function App() {
       { id: '3', sender: 'Thomas D.', text: 'Top, je serai sur le banc de dev couché, on tourne ensemble ?', time: '10:20', isMe: false }
     ],
     b2: [
-      { id: '1', sender: 'Sarah L.', text: 'Hello ! Dispo pour une séance duo fractionné / cuisses demain midi ?', time: 'Hier', isMe: false }
+      { id: '1', sender: 'Sarah L.', text: 'Hello ! Dispo pour une séance fractionné / cuisses demain midi ?', time: 'Hier', isMe: false }
     ]
   });
   const [currentMessageInput, setCurrentMessageInput] = useState('');
@@ -292,6 +299,24 @@ export default function App() {
       if (interval) clearInterval(interval);
     };
   }, [isTimerRunning, timerSeconds]);
+
+  // Gestion des relations d'amis
+  const handleToggleFriend = (buddyId: string) => {
+    if (friendIds.includes(buddyId)) {
+      if (window.confirm("Retirer cet ami de ta liste ?")) {
+        setFriendIds(friendIds.filter(id => id !== buddyId));
+      }
+    } else if (pendingFriendIds.includes(buddyId)) {
+      setPendingFriendIds(pendingFriendIds.filter(id => id !== buddyId));
+    } else {
+      // Simuler l'envoi / acceptation rapide
+      setPendingFriendIds([...pendingFriendIds, buddyId]);
+      setTimeout(() => {
+        setPendingFriendIds(prev => prev.filter(id => id !== buddyId));
+        setFriendIds(prev => [...prev, buddyId]);
+      }, 700);
+    }
+  };
 
   const handleDeletePost = async (postId: string) => {
     if (!window.confirm("Es-tu sûr de vouloir supprimer cette publication ?")) return;
@@ -488,7 +513,6 @@ export default function App() {
     if (!error && data && data.length > 0) {
       setPosts([data[0] as Post, ...posts]);
     } else {
-      // Affichage local immédiat si souci réseau
       setPosts([
         {
           ...(newPostData as any),
@@ -499,7 +523,6 @@ export default function App() {
       ]);
     }
 
-    // Réinitialisation
     setWorkoutCaption('');
     setTaggedPartner('');
     setPostImageFile(null);
@@ -511,17 +534,28 @@ export default function App() {
     setIsUploading(false);
   };
 
-  // Filtrage intelligent des Buddies
-  const filteredBuddies = buddiesList.filter((buddy) => {
-    // Filtre Club
-    if (buddy.club !== selectedClub) return false;
-    // Filtre Entre Femmes
-    if (filterWomenOnly && buddy.gender !== 'F') return false;
-    // Filtre Niveau
-    if (filterLevel !== 'all' && !buddy.level.toLowerCase().includes(filterLevel.toLowerCase())) return false;
-    // Filtre Objectif
-    if (filterGoal !== 'all' && !buddy.goal.toLowerCase().includes(filterGoal.toLowerCase())) return false;
+  // Liste des amis confirmés
+  const myFriendsList = buddiesList.filter(b => friendIds.includes(b.id));
 
+  // Filtrage des Buddies
+  const filteredBuddies = buddiesList.filter((buddy) => {
+    if (buddyTabSubMode === 'my_friends') {
+      return friendIds.includes(buddy.id);
+    }
+    if (buddy.club !== selectedClub) return false;
+    if (filterWomenOnly && buddy.gender !== 'F') return false;
+    if (filterLevel !== 'all' && !buddy.level.toLowerCase().includes(filterLevel.toLowerCase())) return false;
+    if (filterGoal !== 'all' && !buddy.goal.toLowerCase().includes(filterGoal.toLowerCase())) return false;
+    return true;
+  });
+
+  // Filtrage du Fil d'actualité (Tous vs Mes Amis)
+  const displayedPosts = posts.filter(post => {
+    if (feedFilterMode === 'friends') {
+      // Afficher mes propres posts ou ceux de mes amis
+      const myFriendNames = myFriendsList.map(f => f.name);
+      return post.user_id === user?.id || myFriendNames.includes(post.username);
+    }
     return true;
   });
 
@@ -637,6 +671,30 @@ export default function App() {
         {/* TAB 1: FEED */}
         {currentTab === 'feed' && (
           <div className="space-y-4">
+            {/* Filtre Feed : Tout le club vs Mes Amis */}
+            <div className="bg-neutral-900 p-1.5 rounded-2xl border border-neutral-800 flex items-center gap-1">
+              <button
+                onClick={() => setFeedFilterMode('all')}
+                className={`flex-1 py-2 rounded-xl text-xs font-bold transition ${
+                  feedFilterMode === 'all'
+                    ? 'bg-orange-600 text-white shadow-md'
+                    : 'text-neutral-400 hover:text-white'
+                }`}
+              >
+                Fil du club ({selectedClub})
+              </button>
+              <button
+                onClick={() => setFeedFilterMode('friends')}
+                className={`flex-1 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 ${
+                  feedFilterMode === 'friends'
+                    ? 'bg-orange-600 text-white shadow-md'
+                    : 'text-neutral-400 hover:text-white'
+                }`}
+              >
+                <UserCheck className="w-3.5 h-3.5" /> Mes Amis ({myFriendsList.length})
+              </button>
+            </div>
+
             {/* Rest Timer Banner */}
             <div className="bg-neutral-900/90 border border-neutral-800/80 rounded-2xl p-3 flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -672,12 +730,14 @@ export default function App() {
               <div className="flex justify-center py-12">
                 <Loader2 className="w-8 h-8 text-orange-500 animate-spin" />
               </div>
-            ) : posts.length === 0 ? (
-              <div className="text-center py-16 text-neutral-500 text-xs">
-                Aucune publication pour le moment. Partage ta première séance !
+            ) : displayedPosts.length === 0 ? (
+              <div className="text-center py-16 text-neutral-500 text-xs bg-neutral-900/50 rounded-3xl border border-neutral-800/60 p-6">
+                {feedFilterMode === 'friends'
+                  ? "Aucune publication récente de tes amis. Ajoute des amis dans l'onglet Buddy !"
+                  : "Aucune publication pour le moment. Partage ta première séance !"}
               </div>
             ) : (
-              posts.map((post) => {
+              displayedPosts.map((post) => {
                 const isLiked = likedPosts[post.id];
                 const isMyPost = post.user_id === user.id || post.username === (user.user_metadata?.username || user.email?.split('@')[0]);
 
@@ -698,7 +758,7 @@ export default function App() {
                           <div className="flex items-center gap-1.5 flex-wrap">
                             <h3 className="font-bold text-sm leading-snug">{post.username}</h3>
                             {post.partner_name && (
-                              <span className="text-[10px] bg-neutral-800 text-orange-400 font-semibold px-2 py-0.5 rounded-md flex items-center gap-1">
+                              <span className="text-[10px] bg-orange-500/10 text-orange-400 font-semibold px-2 py-0.5 rounded-md flex items-center gap-1 border border-orange-500/20">
                                 <Users className="w-3 h-3" /> avec {post.partner_name}
                               </span>
                             )}
@@ -807,134 +867,191 @@ export default function App() {
           </div>
         )}
 
-        {/* TAB 2: WORKOUT BUDDY FINDER AVEC FILTRES & ENTRE FEMMES */}
+        {/* TAB 2: WORKOUT BUDDY & GESTION DES AMIS */}
         {currentTab === 'buddy' && (
           <div className="space-y-4">
             <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Users className="w-5 h-5 text-orange-500" />
-                  <h2 className="text-base font-black tracking-tight">Workout Buddy</h2>
-                </div>
-                <span className="text-[11px] text-orange-400 font-bold bg-orange-500/10 px-2.5 py-1 rounded-full border border-orange-500/20">
-                  {filteredBuddies.length} partenaire{filteredBuddies.length > 1 ? 's' : ''}
-                </span>
-              </div>
-
-              {/* FILTRES BUDDY */}
-              <div className="space-y-2.5 bg-neutral-950 p-3.5 rounded-2xl border border-neutral-800">
-                <div className="flex items-center justify-between pb-2 border-b border-neutral-900">
-                  <div className="flex items-center gap-2 text-xs font-bold text-neutral-300">
-                    <Filter className="w-3.5 h-3.5 text-orange-500" />
-                    <span>Filtres de recherche</span>
-                  </div>
-
-                  {/* BOUTON ENTRE FEMMES */}
-                  <button
-                    onClick={() => setFilterWomenOnly(!filterWomenOnly)}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition ${
-                      filterWomenOnly
-                        ? 'bg-gradient-to-r from-pink-600 to-purple-600 text-white shadow-lg shadow-pink-500/20 ring-2 ring-pink-400'
-                        : 'bg-neutral-900 text-neutral-400 hover:text-white border border-neutral-800'
-                    }`}
-                  >
-                    <span>🚺</span> Entre femmes {filterWomenOnly && '✓'}
-                  </button>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2 pt-1">
-                  <div>
-                    <label className="block text-[10px] text-neutral-500 mb-1">Niveau</label>
-                    <select
-                      value={filterLevel}
-                      onChange={(e) => setFilterLevel(e.target.value)}
-                      className="w-full bg-neutral-900 border border-neutral-800 rounded-lg px-2.5 py-1.5 text-xs text-neutral-300"
-                    >
-                      <option value="all">Tous les niveaux</option>
-                      <option value="Débutant">Débutant</option>
-                      <option value="Intermédiaire">Intermédiaire</option>
-                      <option value="Avancé">Avancé</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-[10px] text-neutral-500 mb-1">Objectif principal</label>
-                    <select
-                      value={filterGoal}
-                      onChange={(e) => setFilterGoal(e.target.value)}
-                      className="w-full bg-neutral-900 border border-neutral-800 rounded-lg px-2.5 py-1.5 text-xs text-neutral-300"
-                    >
-                      <option value="all">Tous objectifs</option>
-                      <option value="masse">Prise de masse / Force</option>
-                      <option value="cardio">Cardio / HIIT</option>
-                      <option value="remise">Remise en forme</option>
-                      <option value="powerlifting">Powerlifting</option>
-                    </select>
-                  </div>
+                  <h2 className="text-base font-black tracking-tight">Réseau & Buddy</h2>
                 </div>
               </div>
 
-              {/* LISTE DES BUDDIES FILTRÉE */}
+              {/* Sous-onglets Buddy / Amis */}
+              <div className="bg-neutral-950 p-1.5 rounded-2xl border border-neutral-800 flex items-center gap-1">
+                <button
+                  onClick={() => setBuddyTabSubMode('discover')}
+                  className={`flex-1 py-2 rounded-xl text-xs font-bold transition ${
+                    buddyTabSubMode === 'discover'
+                      ? 'bg-orange-600 text-white'
+                      : 'text-neutral-400 hover:text-white'
+                  }`}
+                >
+                  Découvrir des partenaires
+                </button>
+                <button
+                  onClick={() => setBuddyTabSubMode('my_friends')}
+                  className={`flex-1 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 ${
+                    buddyTabSubMode === 'my_friends'
+                      ? 'bg-orange-600 text-white'
+                      : 'text-neutral-400 hover:text-white'
+                  }`}
+                >
+                  <UserCheck className="w-3.5 h-3.5" /> Mes Amis ({myFriendsList.length})
+                </button>
+              </div>
+
+              {/* FILTRES (Si en mode découverte) */}
+              {buddyTabSubMode === 'discover' && (
+                <div className="space-y-2.5 bg-neutral-950 p-3.5 rounded-2xl border border-neutral-800">
+                  <div className="flex items-center justify-between pb-2 border-b border-neutral-900">
+                    <div className="flex items-center gap-2 text-xs font-bold text-neutral-300">
+                      <Filter className="w-3.5 h-3.5 text-orange-500" />
+                      <span>Filtres de recherche</span>
+                    </div>
+
+                    <button
+                      onClick={() => setFilterWomenOnly(!filterWomenOnly)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition ${
+                        filterWomenOnly
+                          ? 'bg-gradient-to-r from-pink-600 to-purple-600 text-white shadow-lg shadow-pink-500/20 ring-2 ring-pink-400'
+                          : 'bg-neutral-900 text-neutral-400 hover:text-white border border-neutral-800'
+                      }`}
+                    >
+                      <span>🚺</span> Entre femmes {filterWomenOnly && '✓'}
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 pt-1">
+                    <div>
+                      <label className="block text-[10px] text-neutral-500 mb-1">Niveau</label>
+                      <select
+                        value={filterLevel}
+                        onChange={(e) => setFilterLevel(e.target.value)}
+                        className="w-full bg-neutral-900 border border-neutral-800 rounded-lg px-2.5 py-1.5 text-xs text-neutral-300"
+                      >
+                        <option value="all">Tous les niveaux</option>
+                        <option value="Débutant">Débutant</option>
+                        <option value="Intermédiaire">Intermédiaire</option>
+                        <option value="Avancé">Avancé</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] text-neutral-500 mb-1">Objectif principal</label>
+                      <select
+                        value={filterGoal}
+                        onChange={(e) => setFilterGoal(e.target.value)}
+                        className="w-full bg-neutral-900 border border-neutral-800 rounded-lg px-2.5 py-1.5 text-xs text-neutral-300"
+                      >
+                        <option value="all">Tous objectifs</option>
+                        <option value="masse">Prise de masse / Force</option>
+                        <option value="cardio">Cardio / HIIT</option>
+                        <option value="remise">Remise en forme</option>
+                        <option value="powerlifting">Powerlifting</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* LISTE DES BUDDIES & BOUTONS D'AMIS */}
               <div className="space-y-3 pt-1">
                 {filteredBuddies.length === 0 ? (
                   <div className="text-center py-8 text-neutral-500 text-xs">
-                    Aucun partenaire ne correspond à ces critères dans cette salle.
+                    {buddyTabSubMode === 'my_friends'
+                      ? "Tu n'as pas encore d'amis dans ta liste. Ajoute des partenaires depuis l'onglet Découvrir !"
+                      : "Aucun partenaire ne correspond à ces critères dans cette salle."}
                   </div>
                 ) : (
-                  filteredBuddies.map((buddy) => (
-                    <div
-                      key={buddy.id}
-                      className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 flex flex-col space-y-3 relative overflow-hidden"
-                    >
-                      {buddy.gender === 'F' && (
-                        <div className="absolute top-0 right-0 w-2 h-2 bg-pink-500 rounded-bl-lg" />
-                      )}
+                  filteredBuddies.map((buddy) => {
+                    const isFriend = friendIds.includes(buddy.id);
+                    const isPending = pendingFriendIds.includes(buddy.id);
 
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <img src={buddy.avatar_url} alt="" className="w-12 h-12 rounded-full object-cover border border-neutral-700" />
-                          <div>
-                            <div className="flex items-center gap-1.5">
-                              <h3 className="font-bold text-sm text-white">{buddy.name}</h3>
-                              {buddy.gender === 'F' && (
-                                <span className="text-[10px] bg-pink-950/80 text-pink-300 border border-pink-500/30 px-1.5 py-0.2 rounded font-semibold">
-                                  Femme
-                                </span>
-                              )}
+                    return (
+                      <div
+                        key={buddy.id}
+                        className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 flex flex-col space-y-3 relative overflow-hidden"
+                      >
+                        {buddy.gender === 'F' && (
+                          <div className="absolute top-0 right-0 w-2 h-2 bg-pink-500 rounded-bl-lg" />
+                        )}
+
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-3">
+                            <img src={buddy.avatar_url} alt="" className="w-12 h-12 rounded-full object-cover border border-neutral-700" />
+                            <div>
+                              <div className="flex items-center gap-1.5">
+                                <h3 className="font-bold text-sm text-white">{buddy.name}</h3>
+                                {buddy.gender === 'F' && (
+                                  <span className="text-[10px] bg-pink-950/80 text-pink-300 border border-pink-500/30 px-1.5 py-0.2 rounded font-semibold">
+                                    Femme
+                                  </span>
+                                )}
+                              </div>
+                              <span className="text-[11px] text-orange-400 font-semibold">{buddy.level}</span>
                             </div>
-                            <span className="text-[11px] text-orange-400 font-semibold">{buddy.level}</span>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            {/* BOUTON AJOUTER EN AMI */}
+                            <button
+                              onClick={() => handleToggleFriend(buddy.id)}
+                              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1 ${
+                                isFriend
+                                  ? 'bg-neutral-900 border border-neutral-700 text-green-400 hover:text-red-400'
+                                  : isPending
+                                  ? 'bg-neutral-800 text-orange-400 animate-pulse'
+                                  : 'bg-neutral-900 border border-neutral-700 hover:border-orange-500 text-neutral-200'
+                              }`}
+                            >
+                              {isFriend ? (
+                                <>
+                                  <UserCheck className="w-3.5 h-3.5" /> Amis
+                                </>
+                              ) : isPending ? (
+                                <>Demande...</>
+                              ) : (
+                                <>
+                                  <UserPlus className="w-3.5 h-3.5" /> Ajouter
+                                </>
+                              )}
+                            </button>
+
+                            {/* BOUTON MESSAGE */}
+                            <button
+                              onClick={() => {
+                                setSelectedBuddyChat(buddy);
+                                setCurrentTab('chat');
+                              }}
+                              className="p-2 bg-orange-600 hover:bg-orange-500 text-white rounded-xl transition shadow-md shadow-orange-600/20"
+                            >
+                              <MessageCircle className="w-4 h-4" />
+                            </button>
                           </div>
                         </div>
-                        <button
-                          onClick={() => {
-                            setSelectedBuddyChat(buddy);
-                            setCurrentTab('chat');
-                          }}
-                          className="px-3.5 py-1.5 bg-orange-600 hover:bg-orange-500 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-md shadow-orange-600/20"
-                        >
-                          <MessageCircle className="w-3.5 h-3.5" /> Message
-                        </button>
-                      </div>
 
-                      <div className="bg-neutral-900/60 rounded-xl p-2.5 text-[11px] space-y-1 text-neutral-300">
-                        <div><strong className="text-neutral-400">Créneaux :</strong> {buddy.schedule}</div>
-                        <div><strong className="text-neutral-400">Objectif :</strong> {buddy.goal}</div>
+                        <div className="bg-neutral-900/60 rounded-xl p-2.5 text-[11px] space-y-1 text-neutral-300">
+                          <div><strong className="text-neutral-400">Créneaux :</strong> {buddy.schedule}</div>
+                          <div><strong className="text-neutral-400">Objectif :</strong> {buddy.goal}</div>
+                        </div>
                       </div>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
             </div>
           </div>
         )}
 
-        {/* TAB 3: LOG WORKOUT AVEC CHOIX DU PARTENAIRE (TAG BUDDY) */}
+        {/* TAB 3: LOG WORKOUT AVEC SEULEMENT LES AMIS EN PARTENAIRES */}
         {currentTab === 'workout' && (
           <form onSubmit={handlePublishWorkout} className="space-y-4">
             <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4">
               <h2 className="text-base font-black tracking-tight">Enregistrer une séance</h2>
 
-              {/* Tag / Partenaire de séance */}
+              {/* Tag / Partenaire parmi mes Amis */}
               <div>
                 <label className="block text-xs font-semibold text-neutral-400 mb-1.5">Partenaire d'entraînement (Buddy)</label>
                 <div className="relative">
@@ -944,17 +1061,22 @@ export default function App() {
                     onChange={(e) => setTaggedPartner(e.target.value)}
                     className="w-full bg-neutral-950 border border-neutral-800 rounded-xl pl-10 pr-3 py-2.5 text-xs text-neutral-200 focus:outline-none focus:border-orange-500"
                   >
-                    <option value="">Séance solo (Aucun partenaire)</option>
-                    {buddiesList.map((b) => (
-                      <option key={b.id} value={b.name}>
-                        {b.name} ({b.club})
+                    <option value="">Séance solo (Aucun ami sélectionné)</option>
+                    {myFriendsList.map((friend) => (
+                      <option key={friend.id} value={friend.name}>
+                        {friend.name} (Ami ✓)
                       </option>
                     ))}
                   </select>
                 </div>
+                {myFriendsList.length === 0 && (
+                  <p className="text-[10px] text-neutral-500 mt-1">
+                    💡 Ajoute des amis dans l'onglet Buddy pour les tagger lors de tes entraînements.
+                  </p>
+                )}
               </div>
 
-              {/* Photo Box & Crop / Move Tool */}
+              {/* Photo Box & Crop Tool */}
               <div>
                 <label className="block text-xs font-semibold text-neutral-400 mb-1.5">Photo de la séance</label>
                 <input
@@ -1253,7 +1375,7 @@ export default function App() {
           </div>
         )}
 
-        {/* TAB 6: PROFILE */}
+        {/* TAB 6: PROFILE AVEC STATS D'AMIS */}
         {currentTab === 'profile' && (
           <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-6 text-center space-y-5">
             <div className="w-20 h-20 rounded-full bg-gradient-to-tr from-orange-500 to-amber-500 p-0.5 mx-auto">
@@ -1279,8 +1401,8 @@ export default function App() {
                 <span className="text-[10px] text-neutral-400 font-medium">Séances</span>
               </div>
               <div className="bg-neutral-950 p-3 rounded-2xl border border-neutral-800">
-                <span className="text-base font-black text-orange-500 block">4.8k</span>
-                <span className="text-[10px] text-neutral-400 font-medium">Tonnage (kg)</span>
+                <span className="text-base font-black text-orange-500 block">{myFriendsList.length}</span>
+                <span className="text-[10px] text-neutral-400 font-medium">Amis</span>
               </div>
               <div className="bg-neutral-950 p-3 rounded-2xl border border-neutral-800">
                 <span className="text-base font-black text-amber-500 block">Top 5%</span>
