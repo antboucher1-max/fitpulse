@@ -44,7 +44,8 @@ import {
   FolderOpen,
   Box,
   BookOpen,
-  Info
+  Info,
+  Timer
 } from 'lucide-react';
 import { createClient, User as SupabaseUser } from '@supabase/supabase-js';
 
@@ -156,29 +157,29 @@ const EXERCISES_DATABASE: ExerciseGuide[] = [
     execution: 'Fléchis les jambes pour ramener le chariot vers toi (angle à 90° aux genoux) puis pousse puissamment sans tendre complètement les genoux.',
     tips: 'Ne décolle jamais le bas du dos ou les talons du dossier pendant le mouvement.',
     image_url: 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?w=800'
-  },
-  {
-    id: 'ex-7',
-    name: 'Élévations latérales (Haltères)',
-    category: 'Épaules',
-    equipment: 'Haltères légers',
-    targetMuscles: 'Deltoïdes latéraux (faisceau moyen)',
-    settings: 'Debout, un haltère dans chaque main le long du corps.',
-    execution: 'Monte les bras sur les côtés jusqu’à l’horizontale (niveau des épaules) en gardant une très légère flexion aux coudes.',
-    tips: 'Mouvement strict sans balancer le buste (évite de prendre trop lourd).',
-    image_url: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?w=800'
-  },
-  {
-    id: 'ex-8',
-    name: 'Curl Biceps (Poulie ou Haltères)',
-    category: 'Bras',
-    equipment: 'Poulie basse ou Haltères',
-    targetMuscles: 'Biceps brachial, Brachial antérieur',
-    settings: 'Debout face à la poulie, saisis la barre droite ou la poignée.',
-    execution: 'Fléchis les coudes pour ramener la charge vers tes épaules en gardant les coudes fixes le long du corps.',
-    tips: 'Ne bouge pas les épaules vers l’avant.',
-    image_url: 'https://images.unsplash.com/photo-1584735935682-2f2b69dff9d2?w=800'
   }
+];
+
+interface PersonalRecord {
+  exercise: string;
+  weight: number;
+  reps: number;
+  date: string;
+}
+
+interface WeeklyPlan {
+  day: string;
+  focus: string;
+  exercises: string[];
+}
+
+const DEFAULT_WEEKLY_PLAN: WeeklyPlan[] = [
+  { day: 'Lundi', focus: 'Push (Pectoraux, Épaules, Triceps)', exercises: ['Développé couché', 'Chest Press', 'Élévations latérales'] },
+  { day: 'Mardi', focus: 'Pull (Dos, Biceps)', exercises: ['Tirage vertical', 'Rowing poulie basse', 'Curl Biceps'] },
+  { day: 'Mercredi', focus: 'Repos / Récupération', exercises: ['Stretching & Mobilité'] },
+  { day: 'Jeudi', focus: 'Legs (Jambes)', exercises: ['Squat machine', 'Leg Press', 'Mollets'] },
+  { day: 'Vendredi', focus: 'Full Body / Upper', exercises: ['Développé incliné', 'Tractions', 'Dips'] },
+  { day: 'Samedi & Dimanche', focus: 'Repos & Cardio léger', exercises: ['Marche / Randonnée'] }
 ];
 
 const isMatchingClub = (postClubName?: string, selectedClubName?: string): boolean => {
@@ -356,7 +357,25 @@ export default function App() {
 
   const [active3DExercise, setActive3DExercise] = useState<string | null>(null);
 
-  // Guide des exercices & machines
+  // Chronomètre de repos intelligent
+  const [restTimerSeconds, setRestTimerSeconds] = useState(90);
+  const [isRestTimerActive, setIsRestTimerActive] = useState(false);
+  const [restTimeRemaining, setRestTimeRemaining] = useState(90);
+
+  // Records Personnels (PRs)
+  const [personalRecords, setPersonalRecords] = useState<PersonalRecord[]>([
+    { exercise: 'Développé couché', weight: 100, reps: 5, date: '2026-08-10' },
+    { exercise: 'Squat', weight: 140, reps: 5, date: '2026-08-12' },
+    { exercise: 'Leg Press', weight: 220, reps: 10, date: '2026-08-18' }
+  ]);
+  const [newPrExercise, setNewPrExercise] = useState('');
+  const [newPrWeight, setNewPrWeight] = useState<number | ''>('');
+  const [newPrReps, setNewPrReps] = useState<number | ''>('');
+
+  // Programme / Planificateur de semaine
+  const [weeklyPlan, setWeeklyPlan] = useState<WeeklyPlan[]>(DEFAULT_WEEKLY_PLAN);
+
+  // Guide des exercices
   const [exerciseSearch, setExerciseSearch] = useState('');
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>('Tous');
   const [selectedExerciseDetail, setSelectedExerciseDetail] = useState<ExerciseGuide | null>(null);
@@ -415,6 +434,40 @@ export default function App() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const [activeCommentPostId, setActiveCommentPostId] = useState<string | null>(null);
+
+  // Gestion du chrono de repos
+  useEffect(() => {
+    let timer: NodeJS.Timeout | null = null;
+    if (isRestTimerActive && restTimeRemaining > 0) {
+      timer = setInterval(() => setRestTimeRemaining((prev) => prev - 1), 1000);
+    } else if (restTimeRemaining === 0 && isRestTimerActive) {
+      setIsRestTimerActive(false);
+      alert('⏰ Temps de repos terminé ! Prépare ta prochaine série 💪');
+    }
+    return () => { if (timer) clearInterval(timer); };
+  }, [isRestTimerActive, restTimeRemaining]);
+
+  const startRestTimer = (seconds: number) => {
+    setRestTimerSeconds(seconds);
+    setRestTimeRemaining(seconds);
+    setIsRestTimerActive(true);
+  };
+
+  const handleAddPR = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newPrExercise.trim() || newPrWeight === '' || newPrReps === '') return;
+    const newRecord: PersonalRecord = {
+      exercise: newPrExercise.trim(),
+      weight: Number(newPrWeight),
+      reps: Number(newPrReps),
+      date: new Date().toISOString().split('T')[0]
+    };
+    setPersonalRecords([newRecord, ...personalRecords]);
+    setNewPrExercise('');
+    setNewPrWeight('');
+    setNewPrReps('');
+    alert('🏆 Nouveau record enregistré avec succès !');
+  };
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -928,6 +981,19 @@ export default function App() {
         </select>
       </header>
 
+      {/* CHRONOMÈTRE DE REPOS FLOTTANT (SI ACTIF) */}
+      {isRestTimerActive && (
+        <div className="bg-orange-600 text-white px-4 py-2 flex items-center justify-between sticky top-[53px] z-30 shadow-lg animate-pulse">
+          <div className="flex items-center gap-2 text-xs font-bold">
+            <Timer className="w-4 h-4 animate-spin" />
+            Repos en cours : {Math.floor(restTimeRemaining / 60)}:{(restTimeRemaining % 60).toString().padStart(2, '0')}
+          </div>
+          <button onClick={() => setIsRestTimerActive(false)} className="text-[11px] bg-black/30 hover:bg-black/50 px-2.5 py-1 rounded-lg">
+            Arrêter
+          </button>
+        </div>
+      )}
+
       <main className="flex-1 max-w-lg w-full mx-auto px-4 py-3 pb-24">
         {currentTab === 'feed' && (
           <div className="space-y-4">
@@ -999,17 +1065,23 @@ export default function App() {
                   )}
                   {post.caption && <p className="text-xs text-neutral-200 leading-relaxed">{post.caption}</p>}
 
-                  {/* EXERCICES & VISUALISEUR 3D */}
+                  {/* EXERCICES & CHRONO DE REPOS INTÉGRÉ & 3D */}
                   {post.exercises && post.exercises.length > 0 && (
                     <div className="bg-neutral-950/70 rounded-2xl p-3 border border-neutral-800/60 space-y-2">
-                      <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block">Exercices & Vue 3D Anatomique</span>
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider">Exercices & Repos</span>
+                        <div className="flex items-center gap-1.5">
+                          <button onClick={() => startRestTimer(60)} className="px-2 py-0.5 bg-neutral-900 hover:bg-orange-600 text-neutral-300 hover:text-white rounded text-[10px] transition">⏱ 60s</button>
+                          <button onClick={() => startRestTimer(90)} className="px-2 py-0.5 bg-neutral-900 hover:bg-orange-600 text-neutral-300 hover:text-white rounded text-[10px] transition">⏱ 90s</button>
+                        </div>
+                      </div>
                       {post.exercises.map((ex, i) => (
                         <div key={i} className="flex items-center justify-between text-xs py-1 border-b border-neutral-900 last:border-none">
                           <span className="font-medium text-neutral-300">{ex.name}</span>
                           <div className="flex items-center gap-2">
-                            <span className="font-mono text-[11px] text-orange-400 font-semibold">{ex.sets} séries × {ex.reps} reps ({ex.weight} kg)</span>
+                            <span className="font-mono text-[11px] text-orange-400 font-semibold">{ex.sets} × {ex.reps} ({ex.weight}kg)</span>
                             <button onClick={() => setActive3DExercise(ex.name)} className="p-1 bg-orange-600/20 hover:bg-orange-600 text-orange-400 hover:text-white rounded-lg flex items-center gap-1 text-[10px] transition">
-                              <Box className="w-3 h-3" /> Voir 3D
+                              <Box className="w-3 h-3" /> 3D
                             </button>
                           </div>
                         </div>
@@ -1054,7 +1126,7 @@ export default function App() {
           </form>
         )}
 
-        {/* TAB 3: EXERCICES ET GUIDE DES MACHINES AVEC PHOTOS */}
+        {/* TAB 3: EXERCICES ET GUIDE DES MACHINES */}
         {currentTab === 'exercises' && (
           <div className="space-y-4">
             <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4">
@@ -1067,7 +1139,6 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Barre de recherche d'exercices */}
               <div className="relative">
                 <Search className="absolute left-3.5 top-3.5 w-4 h-4 text-orange-500" />
                 <input
@@ -1079,7 +1150,6 @@ export default function App() {
                 />
               </div>
 
-              {/* Filtres par catégorie musculaire */}
               <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
                 {['Tous', 'Pectoraux', 'Dos', 'Jambes', 'Épaules', 'Bras'].map((cat) => (
                   <button
@@ -1096,7 +1166,6 @@ export default function App() {
                 ))}
               </div>
 
-              {/* Liste des exercices avec aperçu miniature */}
               <div className="space-y-2.5 pt-1">
                 {EXERCISES_DATABASE.filter((ex) => {
                   const matchCat = selectedCategoryFilter === 'Tous' || ex.category === selectedCategoryFilter;
@@ -1312,19 +1381,56 @@ export default function App() {
           </div>
         )}
 
+        {/* TAB 5: LEADERBOARD & SUIVI DES RECORDS PERSONNELS (PRs) + PLANIFICATEUR */}
         {currentTab === 'leaderboard' && (
-          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4">
-            <h2 className="text-base font-black tracking-tight flex items-center gap-2"><Trophy className="w-5 h-5 text-yellow-500" /> Records du club</h2>
-            {[
-              { exercise: 'Développé couché', name: 'Maxime R.', weight: '145 kg', rank: '🥇' },
-              { exercise: 'Squat', name: 'Julien D.', weight: '200 kg', rank: '🥇' },
-              { exercise: 'Soulevé de terre', name: 'Thomas L.', weight: '230 kg', rank: '🥇' }
-            ].map((item, index) => (
-              <div key={index} className="flex items-center justify-between p-3 bg-neutral-950 rounded-2xl border border-neutral-800">
-                <div><span className="text-xs font-bold text-white block">{item.exercise}</span><span className="text-[11px] text-neutral-400">{item.name}</span></div>
-                <div className="flex items-center gap-2"><span className="text-sm font-black font-mono text-orange-400">{item.weight}</span><span>{item.rank}</span></div>
+          <div className="space-y-4">
+            <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4">
+              <h2 className="text-base font-black tracking-tight flex items-center gap-2"><Trophy className="w-5 h-5 text-yellow-500" /> Mes Records Personnels (PRs)</h2>
+              <p className="text-xs text-neutral-400">Suivi de tes charges maximales par exercice.</p>
+
+              {/* Formulaire ajout de PR */}
+              <form onSubmit={handleAddPR} className="bg-neutral-950 p-3.5 rounded-2xl border border-neutral-800 space-y-3">
+                <span className="text-[11px] font-bold text-orange-400 block">Ajouter un nouveau record</span>
+                <div className="grid grid-cols-3 gap-2">
+                  <input type="text" placeholder="Exercice" value={newPrExercise} onChange={(e) => setNewPrExercise(e.target.value)} className="bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-orange-500" />
+                  <input type="number" placeholder="Poids (kg)" value={newPrWeight} onChange={(e) => setNewPrWeight(Number(e.target.value))} className="bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-orange-500" />
+                  <input type="number" placeholder="Reps" value={newPrReps} onChange={(e) => setNewPrReps(Number(e.target.value))} className="bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-orange-500" />
+                </div>
+                <button type="submit" className="w-full py-2 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-xl text-xs transition">Enregistrer le PR</button>
+              </form>
+
+              {/* Liste des PRs */}
+              <div className="space-y-2 pt-1">
+                {personalRecords.map((pr, index) => (
+                  <div key={index} className="flex items-center justify-between p-3 bg-neutral-950 rounded-2xl border border-neutral-800">
+                    <div>
+                      <span className="text-xs font-bold text-white block">{pr.exercise}</span>
+                      <span className="text-[10px] text-neutral-400">Atteint le {pr.date}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-black font-mono text-orange-400">{pr.weight} kg ({pr.reps} reps)</span>
+                      <span>🏆</span>
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
+            </div>
+
+            {/* PLANIFICATEUR DE SEMAINE */}
+            <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4">
+              <h2 className="text-base font-black tracking-tight flex items-center gap-2"><Calendar className="w-5 h-5 text-orange-500" /> Planificateur de la semaine</h2>
+              <div className="space-y-2.5">
+                {weeklyPlan.map((plan, i) => (
+                  <div key={i} className="bg-neutral-950 p-3 rounded-2xl border border-neutral-800 flex flex-col space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-orange-400">{plan.day}</span>
+                      <span className="text-[10px] bg-neutral-900 px-2 py-0.5 rounded text-neutral-300 font-medium">{plan.focus}</span>
+                    </div>
+                    <p className="text-[11px] text-neutral-400">Objectif : {plan.exercises.join(', ')}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         )}
 
@@ -1344,7 +1450,7 @@ export default function App() {
         )}
       </main>
 
-      {/* MODAL FICHE EXPLICATIVE EXERCICE / MACHINE AVEC PHOTO */}
+      {/* MODAL FICHE EXPLICATIVE EXERCICE / MACHINE */}
       {selectedExerciseDetail && (
         <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex flex-col justify-end sm:justify-center p-4">
           <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-lg w-full mx-auto p-5 space-y-4 max-h-[88vh] overflow-y-auto shadow-2xl">
@@ -1356,7 +1462,6 @@ export default function App() {
               <button onClick={() => setSelectedExerciseDetail(null)} className="p-1.5 bg-neutral-800 text-white rounded-full"><X className="w-5 h-5" /></button>
             </div>
 
-            {/* Photo d'illustration de la machine / exercice */}
             <div className="rounded-2xl overflow-hidden border border-neutral-800 bg-neutral-950 h-48 w-full relative">
               <img src={selectedExerciseDetail.image_url} alt="" className="w-full h-full object-cover" />
             </div>
@@ -1535,7 +1640,7 @@ export default function App() {
         </div>
       )}
 
-      {/* BOTTOM NAV AVEC L'ONGLET EXERCICES */}
+      {/* BOTTOM NAV */}
       <nav className="fixed bottom-0 left-0 right-0 z-40 bg-neutral-950/90 backdrop-blur-xl border-t border-neutral-800/80 px-4 py-2 flex justify-around items-center">
         <button onClick={() => setCurrentTab('feed')} className={`flex flex-col items-center gap-1 ${currentTab === 'feed' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Home className="w-5 h-5" /><span className="text-[10px]">Accueil</span></button>
         <button onClick={() => setCurrentTab('buddy')} className={`flex flex-col items-center gap-1 ${currentTab === 'buddy' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Users className="w-5 h-5" /><span className="text-[10px]">Buddy</span></button>
@@ -1545,6 +1650,7 @@ export default function App() {
           <span className="text-[10px]">Séance</span>
         </button>
         <button onClick={() => setCurrentTab('chat')} className={`flex flex-col items-center gap-1 ${currentTab === 'chat' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><MessageCircle className="w-5 h-5" /><span className="text-[10px]">Chat</span></button>
+        <button onClick={() => setCurrentTab('leaderboard')} className={`flex flex-col items-center gap-1 ${currentTab === 'leaderboard' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Trophy className="w-5 h-5" /><span className="text-[10px]">Records</span></button>
         <button onClick={() => setCurrentTab('profile')} className={`flex flex-col items-center gap-1 ${currentTab === 'profile' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><User className="w-5 h-5" /><span className="text-[10px]">Profil</span></button>
       </nav>
     </div>
