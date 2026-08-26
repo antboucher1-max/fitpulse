@@ -259,8 +259,8 @@ export default function App() {
   const [filterWomenOnly, setFilterWomenOnly] = useState(false);
   const [selectedGoalFilter, setSelectedGoalFilter] = useState<string>('all');
 
-  // Stories
-  const [cloudStories, setCloudStories] = useState<Story[]>(DEFAULT_STORIES);
+  // Stories (sans doublons)
+  const [cloudStories, setCloudStories] = useState<Story[]>([]);
   const [viewedStoryIds, setViewedStoryIds] = useState<string[]>([]);
   const [activeStoryIndex, setActiveStoryIndex] = useState<number | null>(null);
   const [storyProgress, setStoryProgress] = useState(0);
@@ -362,9 +362,7 @@ export default function App() {
   const fetchCloudStories = async () => {
     try {
       const { data, error } = await supabase.from('stories').select('*').order('created_at', { ascending: false });
-      if (!error && data && data.length > 0) {
-        setCloudStories((prev) => [...data as Story[], ...prev]);
-      }
+      if (!error && data) setCloudStories(data as Story[]);
     } catch (err) {}
   };
 
@@ -445,11 +443,19 @@ export default function App() {
     );
   };
 
+  // COMBINAISON PROPRE SANS DOUBLONS DES STORIES
   const combinedAllStories = [...cloudStories, ...DEFAULT_STORIES];
-  const myFriendsList = registeredUsers.filter((u) => friendIds.includes(u.id));
-  const myFriendUsernames = myFriendsList.map((f) => f.username);
+  const uniqueStoriesMap = new Map();
+  combinedAllStories.forEach((s) => {
+    if (!uniqueStoriesMap.has(s.id) && !uniqueStoriesMap.has(s.username)) {
+      uniqueStoriesMap.set(s.id || s.username, s);
+    }
+  });
+  const uniqueStoriesList = Array.from(uniqueStoriesMap.values());
 
-  const friendStoriesList = combinedAllStories.filter((s) => {
+  const myFriendsList = registeredUsers.filter((u) => friendIds.includes(u.id));
+
+  const friendStoriesList = uniqueStoriesList.filter((s) => {
     const storyDate = new Date(s.created_at).getTime();
     const isUnder24h = !isNaN(storyDate) ? storyDate >= Date.now() - 24 * 3600 * 1000 : true;
     return isUnder24h;
@@ -700,7 +706,7 @@ export default function App() {
       comments_count: 0,
       comments: []
     };
-    const { data } = await supabase.posts.insert([newPostData]).select('*');
+    const { data } = await supabase.from('posts').insert([newPostData]).select('*');
     if (data && data.length > 0) {
       setPosts([data[0] as Post, ...posts]);
       setWorkoutCaption('');
@@ -713,17 +719,15 @@ export default function App() {
     setIsUploading(false);
   };
 
-  // FILTRAGE BUDDY PAR OBJECTIF, GENRE ET RECHERCHE PSEUDO
+  // FILTRAGE BUDDY PAR OBJECTIF ET RECHERCHE PSEUDO
   const filteredBuddies = registeredUsers.filter((u) => {
     if (buddyTabSubMode === 'my_friends' && !friendIds.includes(u.id)) return false;
     if (filterWomenOnly && u.gender === 'M') return false;
     
-    // Filtre par objectif d'entraînement
     if (selectedGoalFilter !== 'all' && u.goal && !u.goal.toLowerCase().includes(selectedGoalFilter.toLowerCase())) {
       return false;
     }
 
-    // Filtre par texte de recherche
     if (userSearchQuery.trim()) {
       const q = userSearchQuery.toLowerCase();
       return u.username.toLowerCase().includes(q) || u.home_club.toLowerCase().includes(q);
@@ -821,7 +825,7 @@ export default function App() {
       <main className="flex-1 max-w-lg w-full mx-auto px-4 py-3 pb-24">
         {currentTab === 'feed' && (
           <div className="space-y-4">
-            {/* STORIES ROW */}
+            {/* STORIES ROW (SANS DOUBLONS) */}
             <div className="bg-neutral-900/60 border border-neutral-800/80 rounded-3xl p-3">
               <div className="flex items-center gap-3.5 overflow-x-auto no-scrollbar py-1">
                 <div onClick={() => setIsCreatingStory(true)} className="flex flex-col items-center gap-1.5 flex-shrink-0 cursor-pointer group">
@@ -837,7 +841,7 @@ export default function App() {
                 {friendStoriesList.map((story, index) => {
                   const isViewed = viewedStoryIds.includes(story.id);
                   return (
-                    <div key={story.id} onClick={() => { setActiveStoryIndex(index); setStoryProgress(0); setIsStoryPaused(false); }} className="flex flex-col items-center gap-1.5 flex-shrink-0 cursor-pointer">
+                    <div key={story.id || index} onClick={() => { setActiveStoryIndex(index); setStoryProgress(0); setIsStoryPaused(false); }} className="flex flex-col items-center gap-1.5 flex-shrink-0 cursor-pointer">
                       {isViewed ? (
                         <div className="w-16 h-16 rounded-full border-2 border-dashed border-neutral-600 p-[2px] opacity-70 hover:opacity-100 transition">
                           <div className="w-full h-full bg-neutral-950 rounded-full p-[1px]">
@@ -944,7 +948,7 @@ export default function App() {
           </form>
         )}
 
-        {/* TAB 2: BUDDY - RECHERCHE & FILTRES PAR OBJECTIF */}
+        {/* TAB 2: BUDDY - RECHERCHE ET FILTRES D'OBJECTIF ACTIFS */}
         {currentTab === 'buddy' && (
           <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4">
             <div className="flex items-center justify-between">
@@ -979,7 +983,7 @@ export default function App() {
               </button>
             </div>
 
-            {/* FILTRES PAR OBJECTIF (Cardio, Prise de masse, Remise en forme) */}
+            {/* FILTRES PAR OBJECTIF */}
             <div className="space-y-1.5">
               <span className="text-[11px] font-semibold text-neutral-400 block">Filtrer par objectif :</span>
               <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
@@ -1004,7 +1008,7 @@ export default function App() {
               </div>
             </div>
 
-            {/* CHAMP DE RECHERCHE PRINCIPAL */}
+            {/* CHAMP DE RECHERCHE */}
             <div className="relative">
               <Search className="absolute left-3.5 top-3.5 w-4 h-4 text-orange-500" />
               <input
