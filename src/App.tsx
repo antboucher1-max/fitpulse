@@ -631,10 +631,13 @@ export default function App() {
       comments: [],
       is_private: isPrivateMode
     };
-    const { data } = await supabase.from('posts').insert([newPostData]).select('*');
-    if (data && data.length > 0) {
+    const { data, error } = await supabase.from('posts').insert([newPostData]).select('*');
+    if (error) {
+      alert("Erreur de partage bilan : " + error.message);
+    } else if (data && data.length > 0) {
       setPosts([data[0] as Post, ...posts]);
       alert('✨ Bilan partagé avec succès sur le fil d’actualité !');
+      fetchCloudPosts();
     }
   };
 
@@ -868,7 +871,6 @@ export default function App() {
       if (streamRef.current) {
         streamRef.current.getTracks().forEach((t) => t.stop());
       }
-      // On force directement 'environment' (caméra arrière) au démarrage
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: { ideal: 'environment' } },
         audio: false
@@ -1012,32 +1014,43 @@ export default function App() {
       likes_count: 0,
       created_at: new Date().toISOString()
     };
-    await supabase.from('stories').insert([{ user_id: user.id, username: myName, avatar_url: newStory.avatar_url, image_url: uploadedStoryUrl, caption: storyCaption, club_name: selectedClub }]);
-    setCloudStories([newStory, ...cloudStories]);
-    setStoryImageFile(null);
-    setStoryImagePreview(null);
-    setStoryCaption('');
-    setIsCreatingStory(false);
+    const { error: storyError } = await supabase.from('stories').insert([{ user_id: user.id, username: myName, avatar_url: newStory.avatar_url, image_url: uploadedStoryUrl, caption: storyCaption, club_name: selectedClub }]);
+    if (storyError) {
+      alert("Erreur publication story : " + storyError.message);
+    } else {
+      setCloudStories([newStory, ...cloudStories]);
+      setStoryImageFile(null);
+      setStoryImagePreview(null);
+      setStoryCaption('');
+      setIsCreatingStory(false);
+    }
     setStoryUploading(false);
   };
 
   const handlePublishWorkout = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) return;
+    if (!user) {
+      alert("Erreur : Utilisateur non connecté.");
+      return;
+    }
     setIsUploading(true);
     let uploadedImageUrl = undefined;
     if (postImageFile) {
       try {
         const compressedBlob = await compressImage(postImageFile, 800, 0.7);
         const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.jpg`;
-        const { data: uploadData } = await supabase.storage.from('posts').upload(fileName, compressedBlob, { contentType: 'image/jpeg' });
-        if (uploadData) {
+        const { data: uploadData, error: uploadError } = await supabase.storage.from('posts').upload(fileName, compressedBlob, { contentType: 'image/jpeg' });
+        if (uploadError) {
+          alert("Erreur image : " + uploadError.message);
+        } else if (uploadData) {
           const { data: publicUrlData } = supabase.storage.from('posts').getPublicUrl(fileName);
           uploadedImageUrl = publicUrlData.publicUrl;
         }
-      } catch (err) {}
+      } catch (err: any) {
+        console.error(err);
+      }
     }
-    const validExercises = workoutExercises.filter((e) => e.name.trim() !== '');
+    const validExercises = workoutExercises.filter((ex) => ex.name.trim() !== '');
     const newPostData = {
       user_id: user.id,
       username: user.user_metadata?.username || user.email?.split('@')[0] || 'Athlète',
@@ -1052,8 +1065,10 @@ export default function App() {
       comments: [],
       is_private: isPrivateMode
     };
-    const { data } = await supabase.from('posts').insert([newPostData]).select('*');
-    if (data && data.length > 0) {
+    const { data, error } = await supabase.from('posts').insert([newPostData]).select('*');
+    if (error) {
+      alert("Erreur publication Supabase : " + error.message);
+    } else if (data && data.length > 0) {
       setPosts([data[0] as Post, ...posts]);
       setUserStreak(prev => prev + 1);
       setWorkoutCaption('');
@@ -1334,7 +1349,7 @@ export default function App() {
               </div>
 
               <div className="grid grid-cols-2 gap-2.5">
-                <button type="button" onClick={() => { setCameraTarget('post'); startCamera('post'); }} className="py-6 border-2 border-dashed border-neutral-800 hover:border-orange-500 rounded-2xl flex flex-col items-center justify-center gap-2 text-neutral-400 hover:text-orange-400 bg-neutral-950 transition">
+                <button type="button" onClick={() => startCamera('post')} className="py-6 border-2 border-dashed border-neutral-800 hover:border-orange-500 rounded-2xl flex flex-col items-center justify-center gap-2 text-neutral-400 hover:text-orange-400 bg-neutral-950 transition">
                   <Camera className="w-6 h-6 text-orange-500" /><span className="text-xs font-semibold">Prendre photo</span>
                 </button>
                 <button type="button" onClick={() => fileInputRef.current?.click()} className="py-6 border-2 border-dashed border-neutral-800 hover:border-orange-500 rounded-2xl flex flex-col items-center justify-center gap-2 text-neutral-400 hover:text-orange-400 bg-neutral-950 transition">
@@ -1748,10 +1763,10 @@ export default function App() {
               <form onSubmit={handleAddTransformation} className="bg-neutral-950 p-3.5 rounded-2xl border border-neutral-800 space-y-3">
                 <span className="text-[11px] font-bold text-orange-400 block">Ajouter un point d'évolution</span>
                 <div className="grid grid-cols-2 gap-2">
-                  <button type="button" onClick={() => beforeFileInputRef.current?.click()} className="p-3 bg-neutral-900 border border-neutral-800 rounded-xl text-xs text-neutral-300 flex items-center justify-center gap-1.5 hover:border-orange-500">
+                  <button type="button" onClick={() => { setCameraTarget('trans_before'); startCamera('trans_before'); }} className="p-3 bg-neutral-900 border border-neutral-800 rounded-xl text-xs text-neutral-300 flex items-center justify-center gap-1.5 hover:border-orange-500">
                     <Camera className="w-4 h-4 text-orange-500" /> {newTransBefore ? 'Photo Avant (✓)' : 'Photo Avant'}
                   </button>
-                  <button type="button" onClick={() => afterFileInputRef.current?.click()} className="p-3 bg-neutral-900 border border-neutral-800 rounded-xl text-xs text-neutral-300 flex items-center justify-center gap-1.5 hover:border-orange-500">
+                  <button type="button" onClick={() => { setCameraTarget('trans_after'); startCamera('trans_after'); }} className="p-3 bg-neutral-900 border border-neutral-800 rounded-xl text-xs text-neutral-300 flex items-center justify-center gap-1.5 hover:border-orange-500">
                     <Camera className="w-4 h-4 text-orange-500" /> {newTransAfter ? 'Photo Après (✓)' : 'Photo Après'}
                   </button>
                 </div>
