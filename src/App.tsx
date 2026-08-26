@@ -175,6 +175,7 @@ interface RealUser {
   username: string;
   email: string;
   gender?: 'M' | 'F';
+  goal?: string;
   home_club: string;
   avatar_url: string;
 }
@@ -189,10 +190,10 @@ interface DBMessage {
 }
 
 const DEFAULT_MEMBERS: RealUser[] = [
-  { id: 'b1', username: 'Thomas D.', email: 'thomas@fitpulse.be', gender: 'M', home_club: 'Basic-Fit Tournai (Bastion)', avatar_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150' },
-  { id: 'b2', username: 'Sarah L.', email: 'sarah@fitpulse.be', gender: 'F', home_club: 'Basic-Fit Tournai (Bastion)', avatar_url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150' },
-  { id: 'b3', username: 'Élodie M.', email: 'elodie@fitpulse.be', gender: 'F', home_club: 'Basic-Fit Tournai (Froyennes)', avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150' },
-  { id: 'b4', username: 'Maxime V.', email: 'maxime@fitpulse.be', gender: 'M', home_club: 'Basic-Fit Mouscron', avatar_url: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150' }
+  { id: 'b1', username: 'Thomas D.', email: 'thomas@fitpulse.be', gender: 'M', goal: 'Prise de masse & Force', home_club: 'Basic-Fit Tournai (Bastion)', avatar_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150' },
+  { id: 'b2', username: 'Sarah L.', email: 'sarah@fitpulse.be', gender: 'F', goal: 'Cardio & HIIT', home_club: 'Basic-Fit Tournai (Bastion)', avatar_url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150' },
+  { id: 'b3', username: 'Élodie M.', email: 'elodie@fitpulse.be', gender: 'F', goal: 'Remise en forme', home_club: 'Basic-Fit Tournai (Froyennes)', avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150' },
+  { id: 'b4', username: 'Maxime V.', email: 'maxime@fitpulse.be', gender: 'M', goal: 'Prise de masse & Force', home_club: 'Basic-Fit Mouscron', avatar_url: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150' }
 ];
 
 const DEFAULT_STORIES: Story[] = [
@@ -250,12 +251,13 @@ export default function App() {
 
   const [active3DExercise, setActive3DExercise] = useState<string | null>(null);
 
-  // Membres et Amis
+  // Membres et Amis & Filtres d'objectifs
   const [registeredUsers, setRegisteredUsers] = useState<RealUser[]>(DEFAULT_MEMBERS);
   const [friendIds, setFriendIds] = useState<string[]>(['b1', 'b2']);
   const [buddyTabSubMode, setBuddyTabSubMode] = useState<'discover' | 'my_friends'>('discover');
   const [userSearchQuery, setUserSearchQuery] = useState('');
   const [filterWomenOnly, setFilterWomenOnly] = useState(false);
+  const [selectedGoalFilter, setSelectedGoalFilter] = useState<string>('all');
 
   // Stories
   const [cloudStories, setCloudStories] = useState<Story[]>(DEFAULT_STORIES);
@@ -383,6 +385,7 @@ export default function App() {
             username: p.username,
             email: `${p.username}@fitpulse.be`,
             gender: 'M',
+            goal: 'Prise de masse & Force',
             home_club: p.club_name || selectedClub,
             avatar_url: p.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'
           });
@@ -697,7 +700,7 @@ export default function App() {
       comments_count: 0,
       comments: []
     };
-    const { data } = await supabase.from('posts').insert([newPostData]).select('*');
+    const { data } = await supabase.posts.insert([newPostData]).select('*');
     if (data && data.length > 0) {
       setPosts([data[0] as Post, ...posts]);
       setWorkoutCaption('');
@@ -710,17 +713,23 @@ export default function App() {
     setIsUploading(false);
   };
 
-  // FILTRAGE BUDDY CLAIR ET FONCTIONNEL
+  // FILTRAGE BUDDY PAR OBJECTIF, GENRE ET RECHERCHE PSEUDO
   const filteredBuddies = registeredUsers.filter((u) => {
     if (buddyTabSubMode === 'my_friends' && !friendIds.includes(u.id)) return false;
     if (filterWomenOnly && u.gender === 'M') return false;
+    
+    // Filtre par objectif d'entraînement
+    if (selectedGoalFilter !== 'all' && u.goal && !u.goal.toLowerCase().includes(selectedGoalFilter.toLowerCase())) {
+      return false;
+    }
 
+    // Filtre par texte de recherche
     if (userSearchQuery.trim()) {
       const q = userSearchQuery.toLowerCase();
       return u.username.toLowerCase().includes(q) || u.home_club.toLowerCase().includes(q);
     }
 
-    return true; // Affiche tous les membres par défaut
+    return true;
   });
 
   const displayedPosts = posts.filter((post) => {
@@ -935,7 +944,7 @@ export default function App() {
           </form>
         )}
 
-        {/* TAB 2: BUDDY - AVEC BARRE DE RECHERCHE VISIBLE ET FILTRE */}
+        {/* TAB 2: BUDDY - RECHERCHE & FILTRES PAR OBJECTIF */}
         {currentTab === 'buddy' && (
           <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4">
             <div className="flex items-center justify-between">
@@ -970,12 +979,37 @@ export default function App() {
               </button>
             </div>
 
-            {/* CHAMP DE RECHERCHE ACTIF */}
+            {/* FILTRES PAR OBJECTIF (Cardio, Prise de masse, Remise en forme) */}
+            <div className="space-y-1.5">
+              <span className="text-[11px] font-semibold text-neutral-400 block">Filtrer par objectif :</span>
+              <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+                {[
+                  { label: 'Tous', value: 'all' },
+                  { label: '💪 Prise de masse', value: 'masse' },
+                  { label: '🔥 Cardio & HIIT', value: 'cardio' },
+                  { label: '🧘 Remise en forme', value: 'remise' }
+                ].map((goal) => (
+                  <button
+                    key={goal.value}
+                    onClick={() => setSelectedGoalFilter(goal.value)}
+                    className={`px-3 py-1.5 rounded-xl text-[11px] font-bold whitespace-nowrap transition border ${
+                      selectedGoalFilter === goal.value
+                        ? 'bg-orange-500 text-white border-orange-400 shadow-md'
+                        : 'bg-neutral-950 text-neutral-400 border-neutral-800 hover:text-white'
+                    }`}
+                  >
+                    {goal.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* CHAMP DE RECHERCHE PRINCIPAL */}
             <div className="relative">
               <Search className="absolute left-3.5 top-3.5 w-4 h-4 text-orange-500" />
               <input
                 type="text"
-                placeholder="Rechercher par pseudo ou club..."
+                placeholder="Rechercher par pseudo..."
                 value={userSearchQuery}
                 onChange={(e) => setUserSearchQuery(e.target.value)}
                 className="w-full bg-neutral-950 border border-neutral-800 rounded-xl pl-10 pr-3 py-3 text-xs text-white focus:outline-none focus:border-orange-500 shadow-inner"
@@ -985,7 +1019,7 @@ export default function App() {
             <div className="space-y-3 pt-1">
               {filteredBuddies.length === 0 ? (
                 <div className="text-center py-8 text-neutral-500 text-xs">
-                  Aucun athlète trouvé.
+                  Aucun athlète ne correspond à vos critères.
                 </div>
               ) : (
                 filteredBuddies.map((realUser) => {
@@ -996,7 +1030,8 @@ export default function App() {
                         <img src={realUser.avatar_url} alt="" className="w-12 h-12 rounded-full object-cover border border-neutral-700" />
                         <div>
                           <h3 className="font-bold text-sm text-white">{realUser.username}</h3>
-                          <span className="text-[11px] text-orange-400 font-medium">● {realUser.home_club}</span>
+                          <span className="text-[11px] text-orange-400 font-medium block">● {realUser.home_club}</span>
+                          {realUser.goal && <span className="text-[10px] text-neutral-400 italic">🎯 {realUser.goal}</span>}
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
