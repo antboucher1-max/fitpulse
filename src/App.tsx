@@ -384,7 +384,7 @@ export default function App() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [feedLoading, setFeedLoading] = useState(false);
 
-  // GESTION DU LOCAL STORAGE POUR ÉVITER LES DOUBLES LIKES AU RAFRAICHISSEMENT
+  // GESTION DU LOCAL STORAGE POUR ÉVITER LES DOUBLES LIKES
   const [likedPosts, setLikedPosts] = useState<Record<string, boolean>>(() => {
     try {
       const saved = localStorage.getItem('fitpulse_liked_posts');
@@ -446,7 +446,7 @@ export default function App() {
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>('Tous');
   const [selectedExerciseDetail, setSelectedExerciseDetail] = useState<ExerciseGuide | null>(null);
 
-  // Membres et Amis & Filtres
+  // Membres et Amis
   const [registeredUsers, setRegisteredUsers] = useState<RealUser[]>(DEFAULT_MEMBERS);
   const [friendIds, setFriendIds] = useState<string[]>(['b1', 'b2']);
   const [buddyTabSubMode, setBuddyTabSubMode] = useState<'discover' | 'my_friends'>('discover');
@@ -467,7 +467,7 @@ export default function App() {
   const [storyUploading, setStoryUploading] = useState(false);
   const storyFileInputRef = useRef<HTMLInputElement>(null);
 
-  // Workout Creation State
+  // Workout
   const [workoutType, setWorkoutType] = useState('Musculation (Push)');
   const [workoutCaption, setWorkoutCaption] = useState('');
   const [workoutDuration, setWorkoutDuration] = useState(60);
@@ -495,6 +495,17 @@ export default function App() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const [activeCommentPostId, setActiveCommentPostId] = useState<string | null>(null);
+
+  // Helper pour colorer les hashtags dans la description du fil d'actualité
+  const renderCaptionWithHashtags = (text: string) => {
+    if (!text) return null;
+    return text.split(' ').map((word, i) => {
+      if (word.startsWith('#')) {
+        return <span key={i} className="text-orange-500 font-bold">{word} </span>;
+      }
+      return word + ' ';
+    });
+  };
 
   useEffect(() => {
     let timer: NodeJS.Timeout | null = null;
@@ -1151,7 +1162,8 @@ export default function App() {
                     )}
                   </div>
 
-                  {post.caption && <p className="text-xs text-neutral-200 leading-relaxed font-medium">{post.caption}</p>}
+                  {/* DESCRIPTION AVEC HASHTAGS COLORES */}
+                  {post.caption && <p className="text-xs text-neutral-200 leading-relaxed font-medium">{renderCaptionWithHashtags(post.caption)}</p>}
 
                   {/* EXERCICES & REPOS */}
                   {post.exercises && post.exercises.length > 0 && (
@@ -1189,6 +1201,7 @@ export default function App() {
           </div>
         )}
 
+        {/* TAB 4: WORKOUT / SÉANCE */}
         {currentTab === 'workout' && (
           <form onSubmit={handlePublishWorkout} className="space-y-4">
             <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4">
@@ -1213,7 +1226,7 @@ export default function App() {
                 <label className="block text-[11px] font-semibold text-neutral-400">Description de la séance & Hashtags :</label>
                 <textarea rows={2} placeholder="Comment s'est passée la séance ?" value={workoutCaption} onChange={(e) => setWorkoutCaption(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-orange-500" />
                 
-                {/* SÉLECTEUR DE HASHTAGS EN UN CLIC */}
+                {/* SÉLECTEUR DE HASHTAGS EN UN CLIC (Bien visible ici) */}
                 <div className="pt-1">
                   <span className="text-[10px] text-neutral-400 font-medium flex items-center gap-1 mb-1.5">
                     <Hash className="w-3 h-3 text-orange-500" /> Ajouter des hashtags rapides :
