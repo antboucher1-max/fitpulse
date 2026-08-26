@@ -27,8 +27,6 @@ import {
   Users,
   MessageCircle,
   X,
-  Sparkles,
-  ChevronRight,
   SendHorizontal
 } from 'lucide-react';
 import { createClient, User as SupabaseUser } from '@supabase/supabase-js';
@@ -97,7 +95,7 @@ export default function App() {
   const [isSignUp, setIsSignUp] = useState(false);
   const [authLoading, setAuthLoading] = useState(false);
 
-  // Navigation: feed, buddy, workout, chat, leaderboard, profile
+  // Navigation
   const [currentTab, setCurrentTab] = useState<'feed' | 'buddy' | 'workout' | 'chat' | 'leaderboard' | 'profile'>('feed');
   const [selectedClub, setSelectedClub] = useState<string>('Basic-Fit Tournai');
 
@@ -212,7 +210,7 @@ export default function App() {
       setPosts([
         {
           id: 'demo-1',
-          user_id: '1',
+          user_id: 'sample-user-id',
           username: 'Antoine_B',
           avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
           image_url: 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?w=800',
@@ -236,7 +234,7 @@ export default function App() {
         },
         {
           id: 'demo-2',
-          user_id: '2',
+          user_id: 'sample-user-id-2',
           username: 'Julie_Fit',
           avatar_url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150',
           image_url: 'https://images.unsplash.com/photo-1574680096145-d05b474e2155?w=800',
@@ -260,6 +258,16 @@ export default function App() {
       ]);
     }
     setFeedLoading(false);
+  };
+
+  const handleDeletePost = async (postId: string) => {
+    if (!window.confirm("Es-tu sûr de vouloir supprimer cette publication ?")) return;
+
+    // Suppression dans Supabase
+    await supabase.from('posts').delete().eq('id', postId);
+
+    // Suppression dans l'affichage local
+    setPosts((prev) => prev.filter((p) => p.id !== postId));
   };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -551,10 +559,12 @@ export default function App() {
             ) : (
               posts.map((post) => {
                 const isLiked = likedPosts[post.id];
+                const isMyPost = post.user_id === user.id || post.username === (user.user_metadata?.username || user.email?.split('@')[0]);
+
                 return (
                   <article
                     key={post.id}
-                    className="bg-neutral-900/70 border border-neutral-800 rounded-3xl p-4 space-y-3 shadow-sm overflow-hidden"
+                    className="bg-neutral-900/70 border border-neutral-800 rounded-3xl p-4 space-y-3 shadow-sm overflow-hidden relative"
                   >
                     {/* Post Header */}
                     <div className="flex items-center justify-between">
@@ -572,9 +582,21 @@ export default function App() {
                           </div>
                         </div>
                       </div>
-                      <span className="text-[10px] uppercase font-bold tracking-wider px-2.5 py-1 rounded-full bg-neutral-800 text-neutral-300 border border-neutral-700/50">
-                        {post.session_type}
-                      </span>
+
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] uppercase font-bold tracking-wider px-2.5 py-1 rounded-full bg-neutral-800 text-neutral-300 border border-neutral-700/50">
+                          {post.session_type}
+                        </span>
+                        {isMyPost && (
+                          <button
+                            onClick={() => handleDeletePost(post.id)}
+                            title="Supprimer ma publication"
+                            className="p-1.5 text-neutral-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
                     </div>
 
                     {/* Image */}
@@ -863,7 +885,6 @@ export default function App() {
         {/* TAB 4: DIRECT MESSAGING CHAT */}
         {currentTab === 'chat' && (
           <div className="bg-neutral-900 border border-neutral-800 rounded-3xl overflow-hidden flex flex-col h-[70vh]">
-            {/* Chat Contact Header */}
             <div className="p-3.5 bg-neutral-950 border-b border-neutral-800 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <img src={selectedBuddyChat.avatar_url} alt="" className="w-9 h-9 rounded-full object-cover border border-orange-500/30" />
@@ -874,7 +895,6 @@ export default function App() {
               </div>
             </div>
 
-            {/* Chat Messages Body */}
             <div className="flex-1 p-4 overflow-y-auto space-y-3">
               {(messages[selectedBuddyChat.id] || []).map((msg) => (
                 <div
@@ -895,7 +915,6 @@ export default function App() {
               ))}
             </div>
 
-            {/* Chat Input Bar */}
             <div className="p-3 bg-neutral-950 border-t border-neutral-800 flex items-center gap-2">
               <input
                 type="text"
