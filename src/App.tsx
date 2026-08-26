@@ -52,7 +52,8 @@ import {
   Phone,
   Instagram,
   Facebook,
-  ExternalLink
+  ExternalLink,
+  Hash
 } from 'lucide-react';
 import { createClient, User as SupabaseUser } from '@supabase/supabase-js';
 
@@ -187,6 +188,19 @@ const WORKOUT_CHOICES = [
   'Full Body (Corps entier)',
   'Cardio & HIIT',
   'Repos / Récupération'
+];
+
+const POPULAR_HASHTAGS = [
+  '#legday',
+  '#pushday',
+  '#pullday',
+  '#pr',
+  '#basicfit',
+  '#cardio',
+  '#hiit',
+  '#nopainnogain',
+  '#musculation',
+  '#fitness'
 ];
 
 const DEFAULT_WEEKLY_PLAN: WeeklyPlan[] = [
@@ -422,7 +436,7 @@ export default function App() {
   const [storyUploading, setStoryUploading] = useState(false);
   const storyFileInputRef = useRef<HTMLInputElement>(null);
 
-  // Workout Creation State (Visuel & Interactif)
+  // Workout
   const [workoutType, setWorkoutType] = useState('Musculation (Push)');
   const [workoutCaption, setWorkoutCaption] = useState('');
   const [workoutDuration, setWorkoutDuration] = useState(60);
@@ -493,6 +507,11 @@ export default function App() {
     };
     setWeeklyPlan(updated);
     setEditingDayIndex(null);
+  };
+
+  const handleAddHashtag = (tag: string) => {
+    if (workoutCaption.includes(tag)) return;
+    setWorkoutCaption((prev) => (prev ? `${prev} ${tag}` : tag));
   };
 
   useEffect(() => {
@@ -1059,7 +1078,7 @@ export default function App() {
               </div>
             </div>
 
-            {/* Posts Feed - AFFICHAGE VISUEL ET IMPACTANT DE LA SÉANCE */}
+            {/* Posts Feed */}
             {feedLoading ? (
               <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 text-orange-500 animate-spin" /></div>
             ) : displayedPosts.length === 0 ? (
@@ -1082,7 +1101,7 @@ export default function App() {
                     )}
                   </div>
 
-                  {/* CARTE VISUELLE DE LA SÉANCE AVEC PHOTO ET BADGES */}
+                  {/* CARTE VISUELLE DE LA SÉANCE */}
                   <div className="rounded-2xl overflow-hidden border border-neutral-800 bg-neutral-950 relative shadow-inner">
                     {post.image_url ? (
                       <div className="h-72 w-full relative flex items-center justify-center">
@@ -1103,7 +1122,7 @@ export default function App() {
 
                   {post.caption && <p className="text-xs text-neutral-200 leading-relaxed font-medium">{post.caption}</p>}
 
-                  {/* EXERCICES RÉALISÉS & REPOS */}
+                  {/* EXERCICES & REPOS */}
                   {post.exercises && post.exercises.length > 0 && (
                     <div className="bg-neutral-950/80 rounded-2xl p-3.5 border border-neutral-800/80 space-y-2.5">
                       <div className="flex items-center justify-between">
@@ -1119,7 +1138,7 @@ export default function App() {
                         <div key={i} className="flex items-center justify-between text-xs py-1.5 border-b border-neutral-900 last:border-none">
                           <span className="font-semibold text-neutral-200">{ex.name}</span>
                           <div className="flex items-center gap-2">
-                            <span className="font-mono text-[11px] text-orange-400 font-bold">{ex.sets} séries × {ex.reps} reps ({ex.weight} kg)</span>
+                            <span className="font-mono text-[11px] text-orange-400 font-bold">{ex.sets} × {ex.reps} ({ex.weight} kg)</span>
                             <button onClick={() => setActive3DExercise(ex.name)} className="p-1 bg-orange-600/20 hover:bg-orange-600 text-orange-400 hover:text-white rounded-lg flex items-center gap-1 text-[10px] transition">
                               <Box className="w-3 h-3" /> 3D
                             </button>
@@ -1158,7 +1177,31 @@ export default function App() {
                   <button type="button" onClick={() => setPostImagePreview(null)} className="absolute top-2 right-2 p-1 bg-black/80 text-white rounded-full"><X className="w-4 h-4" /></button>
                 </div>
               )}
-              <textarea rows={2} placeholder="Description de la séance..." value={workoutCaption} onChange={(e) => setWorkoutCaption(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-orange-500" />
+              
+              <div className="space-y-1.5">
+                <label className="block text-[11px] font-semibold text-neutral-400">Description de la séance & Hashtags :</label>
+                <textarea rows={2} placeholder="Comment s'est passée la séance ?" value={workoutCaption} onChange={(e) => setWorkoutCaption(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-orange-500" />
+                
+                {/* SÉLECTEUR DE HASHTAGS EN UN CLIC */}
+                <div className="pt-1">
+                  <span className="text-[10px] text-neutral-400 font-medium block mb-1.5 flex items-center gap-1">
+                    <Hash className="w-3 h-3 text-orange-500" /> Ajouter des hashtags rapides :
+                  </span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {POPULAR_HASHTAGS.map((tag) => (
+                      <button
+                        key={tag}
+                        type="button"
+                        onClick={() => handleAddHashtag(tag)}
+                        className="px-2.5 py-1 bg-neutral-950 hover:bg-orange-600/20 border border-neutral-800 hover:border-orange-500 text-neutral-300 hover:text-orange-400 rounded-lg text-[10px] font-semibold transition"
+                      >
+                        {tag}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
               <button type="submit" disabled={isUploading} className="w-full bg-orange-600 hover:bg-orange-500 text-white font-bold py-3.5 rounded-xl shadow-lg transition flex items-center justify-center gap-2">
                 {isUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Partager ma séance'}
               </button>
@@ -1771,7 +1814,7 @@ export default function App() {
         </button>
         <button onClick={() => setCurrentTab('institut')} className={`flex flex-col items-center gap-1 ${currentTab === 'institut' ? 'text-pink-500 font-bold' : 'text-neutral-500'}`}><Flower2 className="w-4 h-4" /><span className="text-[9px]">Madéro</span></button>
         <button onClick={() => setCurrentTab('chat')} className={`flex flex-col items-center gap-1 ${currentTab === 'chat' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><MessageCircle className="w-4 h-4" /><span className="text-[9px]">Chat</span></button>
-        <button onClick={() => setCurrentTab('leaderboard')} className`flex flex-col items-center gap-1 ${currentTab === 'leaderboard' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Trophy className="w-4 h-4" /><span className="text-[9px]">Records</span></button>
+        <button onClick={() => setCurrentTab('leaderboard')} className={`flex flex-col items-center gap-1 ${currentTab === 'leaderboard' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Trophy className="w-4 h-4" /><span className="text-[9px]">Records</span></button>
         <button onClick={() => setCurrentTab('profile')} className={`flex flex-col items-center gap-1 ${currentTab === 'profile' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><User className="w-4 h-4" /><span className="text-[9px]">Profil</span></button>
       </nav>
     </div>
