@@ -259,7 +259,7 @@ export default function App() {
   const [filterWomenOnly, setFilterWomenOnly] = useState(false);
   const [selectedGoalFilter, setSelectedGoalFilter] = useState<string>('all');
 
-  // Stories (sans doublons)
+  // Stories
   const [cloudStories, setCloudStories] = useState<Story[]>([]);
   const [viewedStoryIds, setViewedStoryIds] = useState<string[]>([]);
   const [activeStoryIndex, setActiveStoryIndex] = useState<number | null>(null);
@@ -274,7 +274,7 @@ export default function App() {
   const [storyUploading, setStoryUploading] = useState(false);
   const storyFileInputRef = useRef<HTMLInputElement>(null);
 
-  // Workout
+  // Workout Creation State
   const [workoutType, setWorkoutType] = useState('Musculation (Push)');
   const [workoutCaption, setWorkoutCaption] = useState('');
   const [workoutDuration, setWorkoutDuration] = useState(60);
@@ -362,7 +362,9 @@ export default function App() {
   const fetchCloudStories = async () => {
     try {
       const { data, error } = await supabase.from('stories').select('*').order('created_at', { ascending: false });
-      if (!error && data) setCloudStories(data as Story[]);
+      if (!error && data && data.length > 0) {
+        setCloudStories((prev) => [...data as Story[], ...prev]);
+      }
     } catch (err) {}
   };
 
@@ -443,7 +445,6 @@ export default function App() {
     );
   };
 
-  // COMBINAISON PROPRE SANS DOUBLONS DES STORIES
   const combinedAllStories = [...cloudStories, ...DEFAULT_STORIES];
   const uniqueStoriesMap = new Map();
   combinedAllStories.forEach((s) => {
@@ -719,7 +720,6 @@ export default function App() {
     setIsUploading(false);
   };
 
-  // FILTRAGE BUDDY PAR OBJECTIF ET RECHERCHE PSEUDO
   const filteredBuddies = registeredUsers.filter((u) => {
     if (buddyTabSubMode === 'my_friends' && !friendIds.includes(u.id)) return false;
     if (filterWomenOnly && u.gender === 'M') return false;
@@ -825,7 +825,7 @@ export default function App() {
       <main className="flex-1 max-w-lg w-full mx-auto px-4 py-3 pb-24">
         {currentTab === 'feed' && (
           <div className="space-y-4">
-            {/* STORIES ROW (SANS DOUBLONS) */}
+            {/* STORIES ROW */}
             <div className="bg-neutral-900/60 border border-neutral-800/80 rounded-3xl p-3">
               <div className="flex items-center gap-3.5 overflow-x-auto no-scrollbar py-1">
                 <div onClick={() => setIsCreatingStory(true)} className="flex flex-col items-center gap-1.5 flex-shrink-0 cursor-pointer group">
@@ -864,7 +864,7 @@ export default function App() {
               </div>
             </div>
 
-            {/* Posts Feed */}
+            {/* Posts Feed avec affichage complet des exercices et de la vue 3D */}
             {feedLoading ? (
               <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 text-orange-500 animate-spin" /></div>
             ) : displayedPosts.length === 0 ? (
@@ -893,7 +893,7 @@ export default function App() {
                   )}
                   {post.caption && <p className="text-xs text-neutral-200 leading-relaxed">{post.caption}</p>}
 
-                  {/* VISUALISEUR 3D */}
+                  {/* VISUALISEUR 3D & EXERCICES DE LA SÉANCE */}
                   {post.exercises && post.exercises.length > 0 && (
                     <div className="bg-neutral-950/70 rounded-2xl p-3 border border-neutral-800/60 space-y-2">
                       <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block">Exercices & Vue 3D Anatomique</span>
@@ -901,7 +901,7 @@ export default function App() {
                         <div key={i} className="flex items-center justify-between text-xs py-1 border-b border-neutral-900 last:border-none">
                           <span className="font-medium text-neutral-300">{ex.name}</span>
                           <div className="flex items-center gap-2">
-                            <span className="font-mono text-[11px] text-orange-400 font-semibold">{ex.sets} × {ex.reps}</span>
+                            <span className="font-mono text-[11px] text-orange-400 font-semibold">{ex.sets} séries × {ex.reps} reps ({ex.weight} kg)</span>
                             <button onClick={() => setActive3DExercise(ex.name)} className="p-1 bg-orange-600/20 hover:bg-orange-600 text-orange-400 hover:text-white rounded-lg flex items-center gap-1 text-[10px] transition">
                               <Box className="w-3 h-3" /> Voir 3D
                             </button>
@@ -948,7 +948,7 @@ export default function App() {
           </form>
         )}
 
-        {/* TAB 2: BUDDY - RECHERCHE ET FILTRES D'OBJECTIF ACTIFS */}
+        {/* TAB 2: BUDDY */}
         {currentTab === 'buddy' && (
           <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4">
             <div className="flex items-center justify-between">
@@ -983,7 +983,6 @@ export default function App() {
               </button>
             </div>
 
-            {/* FILTRES PAR OBJECTIF */}
             <div className="space-y-1.5">
               <span className="text-[11px] font-semibold text-neutral-400 block">Filtrer par objectif :</span>
               <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
@@ -1008,7 +1007,6 @@ export default function App() {
               </div>
             </div>
 
-            {/* CHAMP DE RECHERCHE */}
             <div className="relative">
               <Search className="absolute left-3.5 top-3.5 w-4 h-4 text-orange-500" />
               <input
