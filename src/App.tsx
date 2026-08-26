@@ -78,7 +78,6 @@ const CLUBS_DATABASE: ClubLocation[] = [
   { name: 'Basic-Fit Arlon (Hydrion)', address: "Parc Commercial de l'Hydrion 31b", city: 'Arlon', zip: '6700', lat: 49.6841, lng: 5.8173 }
 ];
 
-// Base de données des exercices et explications des machines Basic-Fit
 interface ExerciseGuide {
   id: string;
   name: string;
@@ -88,6 +87,7 @@ interface ExerciseGuide {
   settings: string;
   execution: string;
   tips: string;
+  image_url: string;
 }
 
 const EXERCISES_DATABASE: ExerciseGuide[] = [
@@ -99,7 +99,8 @@ const EXERCISES_DATABASE: ExerciseGuide[] = [
     targetMuscles: 'Pectoraux, Triceps, Deltoïdes antérieurs',
     settings: 'Régler le banc à plat. Allonge-toi les yeux sous la barre. Pieds bien à plat au sol.',
     execution: 'Saisir la barre un peu plus large que les épaules. Descendre la barre de manière contrôlée jusqu’au milieu de la poitrine, puis pousser en expirant.',
-    tips: 'Garde les omoplates serrées contre le banc et évite de cambrer excessivement le dos.'
+    tips: 'Garde les omoplates serrées contre le banc et évite de cambrer excessivement le dos.',
+    image_url: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=800'
   },
   {
     id: 'ex-2',
@@ -109,7 +110,8 @@ const EXERCISES_DATABASE: ExerciseGuide[] = [
     targetMuscles: 'Pectoraux, Triceps',
     settings: 'Régler la hauteur du siège pour que les poignées soient alignées au milieu de ta poitrine.',
     execution: 'Garde le dos bien collé au dossier. Pousse les poignées vers l’avant en tendant les bras sans verrouiller les coudes, puis reviens lentement.',
-    tips: 'Idéal pour l’isolation et la sécurité en fin de séance.'
+    tips: 'Idéal pour l’isolation et la sécurité en fin de séance.',
+    image_url: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=800'
   },
   {
     id: 'ex-3',
@@ -119,7 +121,8 @@ const EXERCISES_DATABASE: ExerciseGuide[] = [
     targetMuscles: 'Grand dorsal, Biceps, Ronds majeurs',
     settings: 'Ajuste les boudins de cuisses pour être bien calé. Saisis la barre avec une prise large.',
     execution: 'Tire la barre vers le haut de ta poitrine en sortant la poitrine et en tirant les coudes vers le bas et l’arrière. Reviens en contrôlant la charge.',
-    tips: 'Évite de te pencher trop en arrière ; garde le buste légèrement incliné.'
+    tips: 'Évite de te pencher trop en arrière ; garde le buste légèrement incliné.',
+    image_url: 'https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?w=800'
   },
   {
     id: 'ex-4',
@@ -129,17 +132,19 @@ const EXERCISES_DATABASE: ExerciseGuide[] = [
     targetMuscles: 'Trapèzes, Rhomboïdes, Grand dorsal, Biceps',
     settings: 'Place tes pieds sur les cale-pieds, genoux légèrement fléchis. Saisis la poignée.',
     execution: 'Tire la poignée vers ton nombril en gardant le dos droit. Resserre tes omoplates en fin de mouvement.',
-    tips: 'Ne arrondis surtout pas le bas du dos lors de la phase de relâchement.'
+    tips: 'Ne arrondis surtout pas le bas du dos lors de la phase de relâchement.',
+    image_url: 'https://images.unsplash.com/photo-1584735935682-2f2b69dff9d2?w=800'
   },
   {
     id: 'ex-5',
     name: 'Squat à la machine (Guided / Smith)',
     category: 'Jambes',
     equipment: 'Machine Smith / Guidée ou Squat libre',
-    targetMuscles: 'Quadriceps, Fessiers,ischio-jambiers',
+    targetMuscles: 'Quadriceps, Fessiers, Ischio-jambiers',
     settings: 'Place la barre sur tes trapèzes (haut du dos). Élargissement des pieds largeur d’épaules.',
     execution: 'Fléchis les genoux et descends les fesses vers l’arrière comme pour t’asseoir sur une chaise, le dos bien droit, puis remonte en poussant sur les talons.',
-    tips: 'Garde les genoux bien alignés dans l’axe des pointes de pieds.'
+    tips: 'Garde les genoux bien alignés dans l’axe des pointes de pieds.',
+    image_url: 'https://images.unsplash.com/photo-1574680096145-d05b474e2155?w=800'
   },
   {
     id: 'ex-6',
@@ -149,7 +154,8 @@ const EXERCISES_DATABASE: ExerciseGuide[] = [
     targetMuscles: 'Quadriceps, Fessiers',
     settings: 'Assieds-toi, place tes pieds au milieu de la plateforme largeur d’épaules. Déverrouille les sécurités.',
     execution: 'Fléchis les jambes pour ramener le chariot vers toi (angle à 90° aux genoux) puis pousse puissamment sans tendre complètement les genoux.',
-    tips: 'Ne décolle jamais le bas du dos ou les talons du dossier pendant le mouvement.'
+    tips: 'Ne décolle jamais le bas du dos ou les talons du dossier pendant le mouvement.',
+    image_url: 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?w=800'
   },
   {
     id: 'ex-7',
@@ -159,7 +165,8 @@ const EXERCISES_DATABASE: ExerciseGuide[] = [
     targetMuscles: 'Deltoïdes latéraux (faisceau moyen)',
     settings: 'Debout, un haltère dans chaque main le long du corps.',
     execution: 'Monte les bras sur les côtés jusqu’à l’horizontale (niveau des épaules) en gardant une très légère flexion aux coudes.',
-    tips: 'Mouvement strict sans balancer le buste (évite de prendre trop lourd).'
+    tips: 'Mouvement strict sans balancer le buste (évite de prendre trop lourd).',
+    image_url: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?w=800'
   },
   {
     id: 'ex-8',
@@ -169,7 +176,8 @@ const EXERCISES_DATABASE: ExerciseGuide[] = [
     targetMuscles: 'Biceps brachial, Brachial antérieur',
     settings: 'Debout face à la poulie, saisis la barre droite ou la poignée.',
     execution: 'Fléchis les coudes pour ramener la charge vers tes épaules en gardant les coudes fixes le long du corps.',
-    tips: 'Ne bouge pas les épaules vers l’avant.'
+    tips: 'Ne bouge pas les épaules vers l’avant.',
+    image_url: 'https://images.unsplash.com/photo-1584735935682-2f2b69dff9d2?w=800'
   }
 ];
 
@@ -1046,7 +1054,7 @@ export default function App() {
           </form>
         )}
 
-        {/* TAB 3: EXERCICES ET GUIDE DES MACHINES */}
+        {/* TAB 3: EXERCICES ET GUIDE DES MACHINES AVEC PHOTOS */}
         {currentTab === 'exercises' && (
           <div className="space-y-4">
             <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4">
@@ -1055,7 +1063,7 @@ export default function App() {
                   <h2 className="text-base font-black tracking-tight flex items-center gap-2">
                     <BookOpen className="w-5 h-5 text-orange-500" /> Guide des Exercices & Machines
                   </h2>
-                  <span className="text-[10px] text-neutral-400">Explications, réglages et posture idéale</span>
+                  <span className="text-[10px] text-neutral-400">Photos explicatives, réglages et posture</span>
                 </div>
               </div>
 
@@ -1088,7 +1096,7 @@ export default function App() {
                 ))}
               </div>
 
-              {/* Liste des exercices */}
+              {/* Liste des exercices avec aperçu miniature */}
               <div className="space-y-2.5 pt-1">
                 {EXERCISES_DATABASE.filter((ex) => {
                   const matchCat = selectedCategoryFilter === 'Tous' || ex.category === selectedCategoryFilter;
@@ -1098,16 +1106,19 @@ export default function App() {
                   <div
                     key={ex.id}
                     onClick={() => setSelectedExerciseDetail(ex)}
-                    className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 hover:border-orange-500/50 cursor-pointer transition flex items-center justify-between group"
+                    className="bg-neutral-950 p-3 rounded-2xl border border-neutral-800 hover:border-orange-500/50 cursor-pointer transition flex items-center justify-between group"
                   >
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-bold text-white group-hover:text-orange-400 transition">{ex.name}</span>
-                        <span className="text-[10px] bg-orange-500/10 text-orange-400 px-2 py-0.5 rounded-md border border-orange-500/20 font-medium">{ex.category}</span>
+                    <div className="flex items-center gap-3">
+                      <img src={ex.image_url} alt="" className="w-14 h-14 rounded-xl object-cover border border-neutral-800 flex-shrink-0" />
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold text-white group-hover:text-orange-400 transition">{ex.name}</span>
+                          <span className="text-[9px] bg-orange-500/10 text-orange-400 px-2 py-0.5 rounded-md border border-orange-500/20 font-medium">{ex.category}</span>
+                        </div>
+                        <p className="text-[11px] text-neutral-400">🎯 Cible : {ex.targetMuscles}</p>
                       </div>
-                      <p className="text-[11px] text-neutral-400">🎯 Cible : {ex.targetMuscles}</p>
                     </div>
-                    <div className="w-8 h-8 rounded-xl bg-neutral-900 border border-neutral-800 flex items-center justify-center text-orange-400 group-hover:bg-orange-600 group-hover:text-white transition">
+                    <div className="w-8 h-8 rounded-xl bg-neutral-900 border border-neutral-800 flex items-center justify-center text-orange-400 group-hover:bg-orange-600 group-hover:text-white transition flex-shrink-0">
                       <Info className="w-4 h-4" />
                     </div>
                   </div>
@@ -1333,16 +1344,21 @@ export default function App() {
         )}
       </main>
 
-      {/* MODAL FICHE EXPLICATIVE EXERCICE / MACHINE */}
+      {/* MODAL FICHE EXPLICATIVE EXERCICE / MACHINE AVEC PHOTO */}
       {selectedExerciseDetail && (
         <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex flex-col justify-end sm:justify-center p-4">
-          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-lg w-full mx-auto p-6 space-y-4 max-h-[85vh] overflow-y-auto shadow-2xl">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-lg w-full mx-auto p-5 space-y-4 max-h-[88vh] overflow-y-auto shadow-2xl">
             <div className="flex items-center justify-between pb-3 border-b border-neutral-800">
               <div className="flex items-center gap-2">
                 <span className="text-xs bg-orange-500/20 text-orange-400 px-2.5 py-1 rounded-lg font-bold">{selectedExerciseDetail.category}</span>
-                <h3 className="text-base font-black text-white">{selectedExerciseDetail.name}</h3>
+                <h3 className="text-sm font-black text-white">{selectedExerciseDetail.name}</h3>
               </div>
               <button onClick={() => setSelectedExerciseDetail(null)} className="p-1.5 bg-neutral-800 text-white rounded-full"><X className="w-5 h-5" /></button>
+            </div>
+
+            {/* Photo d'illustration de la machine / exercice */}
+            <div className="rounded-2xl overflow-hidden border border-neutral-800 bg-neutral-950 h-48 w-full relative">
+              <img src={selectedExerciseDetail.image_url} alt="" className="w-full h-full object-cover" />
             </div>
 
             <div className="space-y-3 text-xs">
