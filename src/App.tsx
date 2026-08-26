@@ -45,7 +45,8 @@ import {
   Box,
   BookOpen,
   Info,
-  Timer
+  Timer,
+  Edit3
 } from 'lucide-react';
 import { createClient, User as SupabaseUser } from '@supabase/supabase-js';
 
@@ -170,16 +171,16 @@ interface PersonalRecord {
 interface WeeklyPlan {
   day: string;
   focus: string;
-  exercises: string[];
+  exercisesText: string;
 }
 
 const DEFAULT_WEEKLY_PLAN: WeeklyPlan[] = [
-  { day: 'Lundi', focus: 'Push (Pectoraux, Épaules, Triceps)', exercises: ['Développé couché', 'Chest Press', 'Élévations latérales'] },
-  { day: 'Mardi', focus: 'Pull (Dos, Biceps)', exercises: ['Tirage vertical', 'Rowing poulie basse', 'Curl Biceps'] },
-  { day: 'Mercredi', focus: 'Repos / Récupération', exercises: ['Stretching & Mobilité'] },
-  { day: 'Jeudi', focus: 'Legs (Jambes)', exercises: ['Squat machine', 'Leg Press', 'Mollets'] },
-  { day: 'Vendredi', focus: 'Full Body / Upper', exercises: ['Développé incliné', 'Tractions', 'Dips'] },
-  { day: 'Samedi & Dimanche', focus: 'Repos & Cardio léger', exercises: ['Marche / Randonnée'] }
+  { day: 'Lundi', focus: 'Push (Pectoraux, Épaules, Triceps)', exercisesText: 'Développé couché, Chest Press, Élévations latérales' },
+  { day: 'Mardi', focus: 'Pull (Dos, Biceps)', exercisesText: 'Tirage vertical, Rowing poulie basse, Curl Biceps' },
+  { day: 'Mercredi', focus: 'Repos / Récupération', exercisesText: 'Stretching & Mobilité' },
+  { day: 'Jeudi', focus: 'Legs (Jambes)', exercisesText: 'Squat machine, Leg Press, Mollets' },
+  { day: 'Vendredi', focus: 'Full Body / Upper', exercisesText: 'Développé incliné, Tractions, Dips' },
+  { day: 'Samedi & Dimanche', focus: 'Repos & Cardio léger', exercisesText: 'Marche / Randonnée' }
 ];
 
 const isMatchingClub = (postClubName?: string, selectedClubName?: string): boolean => {
@@ -372,8 +373,11 @@ export default function App() {
   const [newPrWeight, setNewPrWeight] = useState<number | ''>('');
   const [newPrReps, setNewPrReps] = useState<number | ''>('');
 
-  // Programme / Planificateur de semaine
+  // Planificateur de semaine modifiable
   const [weeklyPlan, setWeeklyPlan] = useState<WeeklyPlan[]>(DEFAULT_WEEKLY_PLAN);
+  const [editingDayIndex, setEditingDayIndex] = useState<number | null>(null);
+  const [editFocus, setEditFocus] = useState('');
+  const [editExercisesText, setEditExercisesText] = useState('');
 
   // Guide des exercices
   const [exerciseSearch, setExerciseSearch] = useState('');
@@ -467,6 +471,17 @@ export default function App() {
     setNewPrWeight('');
     setNewPrReps('');
     alert('🏆 Nouveau record enregistré avec succès !');
+  };
+
+  const handleSaveWeeklyPlanEdit = (index: number) => {
+    const updated = [...weeklyPlan];
+    updated[index] = {
+      ...updated[index],
+      focus: editFocus,
+      exercisesText: editExercisesText
+    };
+    setWeeklyPlan(updated);
+    setEditingDayIndex(null);
   };
 
   useEffect(() => {
@@ -1126,7 +1141,7 @@ export default function App() {
           </form>
         )}
 
-        {/* TAB 3: EXERCICES ET GUIDE DES MACHINES */}
+        {/* TAB 3: EXERCICES */}
         {currentTab === 'exercises' && (
           <div className="space-y-4">
             <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4">
@@ -1381,14 +1396,14 @@ export default function App() {
           </div>
         )}
 
-        {/* TAB 5: LEADERBOARD & SUIVI DES RECORDS PERSONNELS (PRs) + PLANIFICATEUR */}
+        {/* TAB 5: LEADERBOARD & RECORDS + PLANIFICATEUR MODIFIABLE */}
         {currentTab === 'leaderboard' && (
           <div className="space-y-4">
+            {/* PRs */}
             <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4">
               <h2 className="text-base font-black tracking-tight flex items-center gap-2"><Trophy className="w-5 h-5 text-yellow-500" /> Mes Records Personnels (PRs)</h2>
               <p className="text-xs text-neutral-400">Suivi de tes charges maximales par exercice.</p>
 
-              {/* Formulaire ajout de PR */}
               <form onSubmit={handleAddPR} className="bg-neutral-950 p-3.5 rounded-2xl border border-neutral-800 space-y-3">
                 <span className="text-[11px] font-bold text-orange-400 block">Ajouter un nouveau record</span>
                 <div className="grid grid-cols-3 gap-2">
@@ -1399,7 +1414,6 @@ export default function App() {
                 <button type="submit" className="w-full py-2 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-xl text-xs transition">Enregistrer le PR</button>
               </form>
 
-              {/* Liste des PRs */}
               <div className="space-y-2 pt-1">
                 {personalRecords.map((pr, index) => (
                   <div key={index} className="flex items-center justify-between p-3 bg-neutral-950 rounded-2xl border border-neutral-800">
@@ -1416,17 +1430,32 @@ export default function App() {
               </div>
             </div>
 
-            {/* PLANIFICATEUR DE SEMAINE */}
+            {/* PLANIFICATEUR DE SEMAINE MODIFIABLE */}
             <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4">
               <h2 className="text-base font-black tracking-tight flex items-center gap-2"><Calendar className="w-5 h-5 text-orange-500" /> Planificateur de la semaine</h2>
               <div className="space-y-2.5">
                 {weeklyPlan.map((plan, i) => (
-                  <div key={i} className="bg-neutral-950 p-3 rounded-2xl border border-neutral-800 flex flex-col space-y-1">
+                  <div key={i} className="bg-neutral-950 p-3.5 rounded-2xl border border-neutral-800 flex flex-col space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-bold text-orange-400">{plan.day}</span>
-                      <span className="text-[10px] bg-neutral-900 px-2 py-0.5 rounded text-neutral-300 font-medium">{plan.focus}</span>
+                      {editingDayIndex === i ? (
+                        <button onClick={() => handleSaveWeeklyPlanEdit(i)} className="px-2.5 py-1 bg-green-600 text-white rounded-lg text-[10px] font-bold">Enregistrer</button>
+                      ) : (
+                        <button onClick={() => { setEditingDayIndex(i); setEditFocus(plan.focus); setEditExercisesText(plan.exercisesText); }} className="p-1 text-neutral-400 hover:text-white"><Edit3 className="w-4 h-4" /></button>
+                      )}
                     </div>
-                    <p className="text-[11px] text-neutral-400">Objectif : {plan.exercises.join(', ')}</p>
+
+                    {editingDayIndex === i ? (
+                      <div className="space-y-2 pt-1">
+                        <input type="text" placeholder="Focus (ex: Push)" value={editFocus} onChange={(e) => setEditFocus(e.target.value)} className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-orange-500" />
+                        <input type="text" placeholder="Exercices (ex: Développé couché...)" value={editExercisesText} onChange={(e) => setEditExercisesText(e.target.value)} className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-orange-500" />
+                      </div>
+                    ) : (
+                      <>
+                        <span className="text-[11px] bg-neutral-900 px-2.5 py-1 rounded-lg text-neutral-200 font-medium">{plan.focus}</span>
+                        <p className="text-[11px] text-neutral-400">Exercices : {plan.exercisesText}</p>
+                      </>
+                    )}
                   </div>
                 ))}
               </div>
