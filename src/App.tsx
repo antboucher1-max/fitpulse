@@ -300,7 +300,6 @@ export default function App() {
   // Rest Timer
   const [timerSeconds, setTimerSeconds] = useState(90);
   const [isTimerRunning, setIsTimerRunning] = useState(false);
-  const [initialTime, setInitialTime] = useState(90);
 
   const [selectedBuddyChat, setSelectedBuddyChat] = useState<RealUser | null>(null);
   const [allMessages, setAllMessages] = useState<DBMessage[]>([]);
@@ -308,7 +307,6 @@ export default function App() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const [activeCommentPostId, setActiveCommentPostId] = useState<string | null>(null);
-  const [commentInput, setCommentInput] = useState('');
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -394,24 +392,63 @@ export default function App() {
     }
   };
 
-  useEffect(() => {
-    let interval: NodeJS.Timeout | null = null;
-    if (isTimerRunning && timerSeconds > 0) {
-      interval = setInterval(() => setTimerSeconds((prev) => prev - 1), 1000);
-    } else if (timerSeconds === 0) {
-      setIsTimerRunning(false);
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setPostImageFile(file);
+      setPostImagePreview(URL.createObjectURL(file));
     }
-    return () => { if (interval) clearInterval(interval); };
-  }, [isTimerRunning, timerSeconds]);
+  };
+
+  const handleStoryImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setStoryImageFile(file);
+      setStoryImagePreview(URL.createObjectURL(file));
+    }
+  };
+
+  const handleSendMessage = async () => {
+    if (!currentMessageInput.trim() || !selectedBuddyChat || !user) return;
+    const text = currentMessageInput.trim();
+    const myName = user.user_metadata?.first_name || user.user_metadata?.username || user.email?.split('@')[0] || 'Moi';
+    
+    const newMessage = {
+      sender_id: user.id,
+      receiver_id: selectedBuddyChat.id,
+      sender_name: myName,
+      text: text
+    };
+
+    const { data, error } = await supabase.from('direct_messages').insert([newMessage]).select();
+    if (!error && data) {
+      setAllMessages((prev) => [...prev, data[0] as DBMessage]);
+      setCurrentMessageInput('');
+    }
+  };
+
+  const handleToggleLike = async (postId: string) => {
+    const isLiked = likedPosts[postId];
+    setLikedPosts((prev) => ({ ...prev, [postId]: !isLiked }));
+    setPosts((prev) =>
+      prev.map((p) => {
+        if (p.id === postId) {
+          const newCount = isLiked ? p.likes_count - 1 : p.likes_count + 1;
+          supabase.from('posts').update({ likes_count: newCount }).eq('id', postId);
+          return { ...p, likes_count: newCount };
+        }
+        return p;
+      })
+    );
+  };
 
   const combinedAllStories = [...cloudStories, ...DEFAULT_STORIES];
   const myFriendsList = registeredUsers.filter((u) => friendIds.includes(u.id));
   const myFriendUsernames = myFriendsList.map((f) => f.username);
 
-  const twentyFourHoursAgoMs = Date.now() - 24 * 3600 * 1000;
   const friendStoriesList = combinedAllStories.filter((s) => {
     const storyDate = new Date(s.created_at).getTime();
-    const isUnder24h = !isNaN(storyDate) ? storyDate >= twentyFourHoursAgoMs : true;
+    const isUnder24h = !isNaN(storyDate) ? storyDate >= Date.now() - 24 * 3600 * 1000 : true;
     return isUnder24h;
   });
 
@@ -541,32 +578,6 @@ export default function App() {
       stopCameraStream();
     }, 'image/jpeg', 0.85);
   };
-
-  const handleDetectGPS = () => {
-    if (!navigator.geolocation) return;
-    setGpsLoading(true);
-    navigator.geolocation.getCurrentPosition((pos) => {
-      const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-      setUserCoords(coords);
-      const updated = CLUBS_DATABASE.map((c) => ({
-        ...c,
-        distance: calculateDistanceKm(coords.lat, coords.lng, c.lat, c.lng)
-      })).sort((a, b) => (a.distance || 0) - (b.distance || 0));
-      setClubsList(updated);
-      if (updated.length > 0) setHomeClub(updated[0].name);
-      setGpsLoading(false);
-    }, () => setGpsLoading(false));
-  };
-
-  const displayedClubs = clubsList.map((club) => {
-    let distance = club.distance ?? null;
-    if (userCoords && distance === null) distance = calculateDistanceKm(userCoords.lat, userCoords.lng, club.lat, club.lng);
-    return { ...club, distance };
-  }).filter((club) => {
-    if (!clubSearchQuery.trim()) return true;
-    const q = clubSearchQuery.toLowerCase();
-    return club.name.toLowerCase().includes(q) || club.city.toLowerCase().includes(q) || club.zip.includes(q);
-  }).sort((a, b) => (a.distance !== null && b.distance !== null ? a.distance - b.distance : 0));
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -699,7 +710,7 @@ export default function App() {
     setIsUploading(false);
   };
 
-  // FILTRAGE OUVERT DES MEMBRES BUDDY (AFFICHE TOUS LES MEMBRES ET FILTRE PAR RECHERCHE OU CLUB)
+  // FILTRAGE BUDDY CLAIR ET FONCTIONNEL
   const filteredBuddies = registeredUsers.filter((u) => {
     if (buddyTabSubMode === 'my_friends' && !friendIds.includes(u.id)) return false;
     if (filterWomenOnly && u.gender === 'M') return false;
@@ -709,7 +720,7 @@ export default function App() {
       return u.username.toLowerCase().includes(q) || u.home_club.toLowerCase().includes(q);
     }
 
-    return isMatchingClub(u.home_club, selectedClub) || true;
+    return true; // Affiche tous les membres par défaut
   });
 
   const displayedPosts = posts.filter((post) => {
@@ -794,7 +805,7 @@ export default function App() {
           </div>
         </div>
         <select value={selectedClub} onChange={(e) => setSelectedClub(e.target.value)} className="bg-neutral-900 border border-neutral-800 text-[11px] rounded-lg px-2.5 py-1.5 text-neutral-300 focus:outline-none focus:border-orange-500 max-w-[170px] truncate">
-          {displayedClubs.map((c) => (<option key={c.name} value={c.name}>{c.name}</option>))}
+          {CLUBS_DATABASE.map((c) => (<option key={c.name} value={c.name}>{c.name}</option>))}
         </select>
       </header>
 
@@ -924,7 +935,7 @@ export default function App() {
           </form>
         )}
 
-        {/* TAB 2: BUDDY - RECHERCHE ACTIVE BIEN VISIBLE */}
+        {/* TAB 2: BUDDY - AVEC BARRE DE RECHERCHE VISIBLE ET FILTRE */}
         {currentTab === 'buddy' && (
           <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4">
             <div className="flex items-center justify-between">
@@ -959,12 +970,12 @@ export default function App() {
               </button>
             </div>
 
-            {/* CHAMP DE RECHERCHE PRINCIPAL */}
+            {/* CHAMP DE RECHERCHE ACTIF */}
             <div className="relative">
-              <Search className="absolute left-3.5 top-3 w-4 h-4 text-orange-500" />
+              <Search className="absolute left-3.5 top-3.5 w-4 h-4 text-orange-500" />
               <input
                 type="text"
-                placeholder="Rechercher un athlète ou un club..."
+                placeholder="Rechercher par pseudo ou club..."
                 value={userSearchQuery}
                 onChange={(e) => setUserSearchQuery(e.target.value)}
                 className="w-full bg-neutral-950 border border-neutral-800 rounded-xl pl-10 pr-3 py-3 text-xs text-white focus:outline-none focus:border-orange-500 shadow-inner"
