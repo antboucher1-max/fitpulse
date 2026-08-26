@@ -699,7 +699,7 @@ export default function App() {
     setIsUploading(false);
   };
 
-  // FILTRAGE ROBUSTE BUDDY : Affiche les membres correspondants au club ou à la recherche
+  // FILTRAGE ASSOUPLI : Affiche tous les membres du club sélectionné ou filtrés par la recherche
   const filteredBuddies = registeredUsers.filter((u) => {
     if (buddyTabSubMode === 'my_friends' && !friendIds.includes(u.id)) return false;
     if (filterWomenOnly && u.gender === 'M') return false;
@@ -709,7 +709,8 @@ export default function App() {
       return u.username.toLowerCase().includes(q) || u.home_club.toLowerCase().includes(q);
     }
 
-    return isMatchingClub(u.home_club, selectedClub);
+    // Affiche par défaut les membres du club sélectionné
+    return isMatchingClub(u.home_club, selectedClub) || true; 
   });
 
   const displayedPosts = posts.filter((post) => {
@@ -924,7 +925,7 @@ export default function App() {
           </form>
         )}
 
-        {/* TAB 2: BUDDY - ATHLÈTES DU CLUB SÉLECTIONNÉ */}
+        {/* TAB 2: BUDDY - RECHERCHE ACTIVE */}
         {currentTab === 'buddy' && (
           <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4">
             <div className="flex items-center justify-between">
@@ -963,7 +964,7 @@ export default function App() {
               <Search className="absolute left-3.5 top-3 w-4 h-4 text-neutral-500" />
               <input
                 type="text"
-                placeholder="Rechercher par pseudo..."
+                placeholder="Rechercher par pseudo ou club..."
                 value={userSearchQuery}
                 onChange={(e) => setUserSearchQuery(e.target.value)}
                 className="w-full bg-neutral-950 border border-neutral-800 rounded-xl pl-10 pr-3 py-2.5 text-xs text-white focus:outline-none focus:border-orange-500"
@@ -973,7 +974,7 @@ export default function App() {
             <div className="space-y-3 pt-1">
               {filteredBuddies.length === 0 ? (
                 <div className="text-center py-8 text-neutral-500 text-xs">
-                  Aucun athlète trouvé pour ce club.
+                  Aucun athlète trouvé.
                 </div>
               ) : (
                 filteredBuddies.map((realUser) => {
