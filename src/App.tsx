@@ -27,7 +27,8 @@ import {
   Users,
   MessageCircle,
   X,
-  SendHorizontal
+  SendHorizontal,
+  Maximize2
 } from 'lucide-react';
 import { createClient, User as SupabaseUser } from '@supabase/supabase-js';
 
@@ -57,6 +58,7 @@ interface Post {
   username: string;
   avatar_url: string;
   image_url?: string;
+  image_fit?: 'contain' | 'cover';
   club_name: string;
   session_type: string;
   caption: string;
@@ -114,6 +116,7 @@ export default function App() {
   const [workoutDuration, setWorkoutDuration] = useState(60);
   const [workoutCalories, setWorkoutCalories] = useState(450);
   const [postImage, setPostImage] = useState<string | null>(null);
+  const [imageFitMode, setImageFitMode] = useState<'contain' | 'cover'>('contain');
   const [workoutExercises, setWorkoutExercises] = useState<ExerciseEntry[]>([
     { name: 'Développé couché', sets: 4, reps: 10, weight: 80 }
   ]);
@@ -214,6 +217,7 @@ export default function App() {
           username: 'Antoine_B',
           avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
           image_url: 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?w=800',
+          image_fit: 'contain',
           club_name: 'Basic-Fit Tournai',
           session_type: 'Pectoraux & Triceps',
           caption: 'Grosse congestion aujourd’hui ! Nouveau PR sur les séries de travail au développé couché. 🔥💪',
@@ -238,6 +242,7 @@ export default function App() {
           username: 'Julie_Fit',
           avatar_url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150',
           image_url: 'https://images.unsplash.com/photo-1574680096145-d05b474e2155?w=800',
+          image_fit: 'contain',
           club_name: 'Basic-Fit Tournai',
           session_type: 'Leg Day',
           caption: 'Séance focus fessiers et ischios terminée. 600 calories au compteur.',
@@ -262,11 +267,7 @@ export default function App() {
 
   const handleDeletePost = async (postId: string) => {
     if (!window.confirm("Es-tu sûr de vouloir supprimer cette publication ?")) return;
-
-    // Suppression dans Supabase
     await supabase.from('posts').delete().eq('id', postId);
-
-    // Suppression dans l'affichage local
     setPosts((prev) => prev.filter((p) => p.id !== postId));
   };
 
@@ -387,6 +388,7 @@ export default function App() {
       username: user.user_metadata?.username || user.email?.split('@')[0] || 'Athlète',
       avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
       image_url: postImage || undefined,
+      image_fit: imageFitMode,
       club_name: selectedClub,
       session_type: workoutType,
       caption: workoutCaption,
@@ -560,6 +562,7 @@ export default function App() {
               posts.map((post) => {
                 const isLiked = likedPosts[post.id];
                 const isMyPost = post.user_id === user.id || post.username === (user.user_metadata?.username || user.email?.split('@')[0]);
+                const fitMode = post.image_fit || 'contain';
 
                 return (
                   <article
@@ -599,10 +602,14 @@ export default function App() {
                       </div>
                     </div>
 
-                    {/* Image */}
+                    {/* Image cadrée proprement (sans rognage abusif) */}
                     {post.image_url && (
-                      <div className="rounded-2xl overflow-hidden border border-neutral-800 max-h-80 bg-neutral-950">
-                        <img src={post.image_url} alt="Séance" className="w-full h-full object-cover" />
+                      <div className="rounded-2xl overflow-hidden border border-neutral-800/80 bg-black flex items-center justify-center">
+                        <img
+                          src={post.image_url}
+                          alt="Séance"
+                          className={`w-full max-h-[420px] ${fitMode === 'contain' ? 'object-contain' : 'object-cover'}`}
+                        />
                       </div>
                     )}
 
@@ -720,7 +727,7 @@ export default function App() {
           </div>
         )}
 
-        {/* TAB 3: LOG WORKOUT */}
+        {/* TAB 3: LOG WORKOUT (AVEC SÉLECTEUR DE CADRAGE) */}
         {currentTab === 'workout' && (
           <form onSubmit={handlePublishWorkout} className="space-y-4">
             <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4">
@@ -738,15 +745,47 @@ export default function App() {
                 />
 
                 {postImage ? (
-                  <div className="relative rounded-2xl overflow-hidden border border-neutral-700 max-h-56">
-                    <img src={postImage} alt="Preview" className="w-full h-full object-cover" />
-                    <button
-                      type="button"
-                      onClick={() => setPostImage(null)}
-                      className="absolute top-2 right-2 p-1.5 bg-black/70 hover:bg-black text-white rounded-full transition"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
+                  <div className="space-y-2">
+                    <div className="relative rounded-2xl overflow-hidden border border-neutral-700 bg-black flex items-center justify-center max-h-72">
+                      <img
+                        src={postImage}
+                        alt="Preview"
+                        className={`w-full max-h-72 ${imageFitMode === 'contain' ? 'object-contain' : 'object-cover'}`}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setPostImage(null)}
+                        className="absolute top-2 right-2 p-1.5 bg-black/80 hover:bg-black text-white rounded-full transition"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+
+                    {/* Choix du cadrage */}
+                    <div className="flex items-center justify-center gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => setImageFitMode('contain')}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+                          imageFitMode === 'contain'
+                            ? 'bg-orange-600 text-white'
+                            : 'bg-neutral-800 text-neutral-400 hover:text-white'
+                        }`}
+                      >
+                        Photo entière (Pas de coupe)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setImageFitMode('cover')}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+                          imageFitMode === 'cover'
+                            ? 'bg-orange-600 text-white'
+                            : 'bg-neutral-800 text-neutral-400 hover:text-white'
+                        }`}
+                      >
+                        Remplir l'écran
+                      </button>
+                    </div>
                   </div>
                 ) : (
                   <button
