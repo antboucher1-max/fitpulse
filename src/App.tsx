@@ -699,7 +699,7 @@ export default function App() {
     setIsUploading(false);
   };
 
-  // FILTRAGE ASSOUPLI : Affiche tous les membres du club sélectionné ou filtrés par la recherche
+  // FILTRAGE OUVERT DES MEMBRES BUDDY (AFFICHE TOUS LES MEMBRES ET FILTRE PAR RECHERCHE OU CLUB)
   const filteredBuddies = registeredUsers.filter((u) => {
     if (buddyTabSubMode === 'my_friends' && !friendIds.includes(u.id)) return false;
     if (filterWomenOnly && u.gender === 'M') return false;
@@ -709,8 +709,7 @@ export default function App() {
       return u.username.toLowerCase().includes(q) || u.home_club.toLowerCase().includes(q);
     }
 
-    // Affiche par défaut les membres du club sélectionné
-    return isMatchingClub(u.home_club, selectedClub) || true; 
+    return isMatchingClub(u.home_club, selectedClub) || true;
   });
 
   const displayedPosts = posts.filter((post) => {
@@ -925,12 +924,12 @@ export default function App() {
           </form>
         )}
 
-        {/* TAB 2: BUDDY - RECHERCHE ACTIVE */}
+        {/* TAB 2: BUDDY - RECHERCHE ACTIVE BIEN VISIBLE */}
         {currentTab === 'buddy' && (
           <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-base font-black tracking-tight">Athlètes du club</h2>
+                <h2 className="text-base font-black tracking-tight">Réseau & Athlètes</h2>
                 <span className="text-[10px] text-orange-400 font-semibold">{selectedClub}</span>
               </div>
               <button
@@ -950,7 +949,7 @@ export default function App() {
                 onClick={() => setBuddyTabSubMode('discover')}
                 className={`flex-1 py-2 rounded-xl text-xs font-bold transition ${buddyTabSubMode === 'discover' ? 'bg-orange-600 text-white' : 'text-neutral-400 hover:text-white'}`}
               >
-                Membres du club
+                Découvrir
               </button>
               <button
                 onClick={() => setBuddyTabSubMode('my_friends')}
@@ -960,14 +959,15 @@ export default function App() {
               </button>
             </div>
 
+            {/* CHAMP DE RECHERCHE PRINCIPAL */}
             <div className="relative">
-              <Search className="absolute left-3.5 top-3 w-4 h-4 text-neutral-500" />
+              <Search className="absolute left-3.5 top-3 w-4 h-4 text-orange-500" />
               <input
                 type="text"
-                placeholder="Rechercher par pseudo ou club..."
+                placeholder="Rechercher un athlète ou un club..."
                 value={userSearchQuery}
                 onChange={(e) => setUserSearchQuery(e.target.value)}
-                className="w-full bg-neutral-950 border border-neutral-800 rounded-xl pl-10 pr-3 py-2.5 text-xs text-white focus:outline-none focus:border-orange-500"
+                className="w-full bg-neutral-950 border border-neutral-800 rounded-xl pl-10 pr-3 py-3 text-xs text-white focus:outline-none focus:border-orange-500 shadow-inner"
               />
             </div>
 
