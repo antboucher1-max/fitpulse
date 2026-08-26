@@ -35,7 +35,9 @@ import {
   UserCheck,
   UserX,
   ArrowLeft,
-  Calendar
+  Calendar,
+  Navigation,
+  CheckCircle2
 } from 'lucide-react';
 import { createClient, User as SupabaseUser } from '@supabase/supabase-js';
 
@@ -43,6 +45,33 @@ import { createClient, User as SupabaseUser } from '@supabase/supabase-js';
 const supabaseUrl = 'https://obtahwmcoqrcauscpksv.supabase.co';
 const supabaseAnonKey = 'sb_publishable_O8CKhUtzgq9nO9lKavNE9A__fAdRWoB';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+interface ClubLocation {
+  name: string;
+  city: string;
+  zip: string;
+  lat: number;
+  lng: number;
+}
+
+const CLUBS_DATABASE: ClubLocation[] = [
+  { name: 'Basic-Fit Tournai', city: 'Tournai', zip: '7500', lat: 50.606, lng: 3.388 },
+  { name: 'Basic-Fit Froyennes', city: 'Froyennes', zip: '7503', lat: 50.627, lng: 3.351 },
+  { name: 'Basic-Fit Mouscron', city: 'Mouscron', zip: '7700', lat: 50.743, lng: 3.218 },
+  { name: 'Fitness Park Lille', city: 'Lille', zip: '59000', lat: 50.629, lng: 3.057 },
+  { name: 'Basic-Fit Mons', city: 'Mons', zip: '7000', lat: 50.454, lng: 3.952 }
+];
+
+const calculateDistanceKm = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return Math.round(R * c * 10) / 10;
+};
 
 const compressImage = (file: File, maxWidth = 800, quality = 0.7): Promise<Blob> => {
   return new Promise((resolve) => {
@@ -137,10 +166,23 @@ interface DBMessage {
 
 export default function App() {
   const [user, setUser] = useState<SupabaseUser | null>(null);
+
+  // Formulaire d'inscription / Connexion
+  const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [username, setUsername] = useState('');
-  const [isSignUp, setIsSignUp] = useState(false);
+  const [age, setAge] = useState<number | ''>('');
+  const [gender, setGender] = useState<'M' | 'F'>('M');
+  const [level, setLevel] = useState<'Débutant' | 'Intermédiaire' | 'Avancé'>('Intermédiaire');
+  const [homeClub, setHomeClub] = useState<string>('Basic-Fit Tournai');
+
+  // Sélecteur Club (GPS & Recherche)
+  const [gpsLoading, setGpsLoading] = useState(false);
+  const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [clubSearchQuery, setClubSearchQuery] = useState('');
   const [authLoading, setAuthLoading] = useState(false);
 
   // Navigation
@@ -153,7 +195,7 @@ export default function App() {
   const [feedLoading, setFeedLoading] = useState(false);
   const [likedPosts, setLikedPosts] = useState<Record<string, boolean>>({});
 
-  // Friends & Requests System
+  // Friends System
   const [friendIds, setFriendIds] = useState<string[]>(['b1', 'b2']);
   const [friendRequestsReceived, setFriendRequestsReceived] = useState<string[]>(['b3']);
   const [buddyTabSubMode, setBuddyTabSubMode] = useState<'discover' | 'my_friends'>('discover');
@@ -255,11 +297,19 @@ export default function App() {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
+      const activeUser = session?.user ?? null;
+      setUser(activeUser);
+      if (activeUser?.user_metadata?.home_club) {
+        setSelectedClub(activeUser.user_metadata.home_club);
+      }
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
+      const activeUser = session?.user ?? null;
+      setUser(activeUser);
+      if (activeUser?.user_metadata?.home_club) {
+        setSelectedClub(activeUser.user_metadata.home_club);
+      }
     });
 
     fetchCloudPosts();
@@ -331,28 +381,101 @@ export default function App() {
     };
   }, [isTimerRunning, timerSeconds]);
 
+  // Localisation GPS
+  const handleDetectGPS = () => {
+    if (!navigator.geolocation) {
+      alert("La géolocalisation n'est pas supportée par ton navigateur.");
+      return;
+    }
+    setGpsLoading(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setUserCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        setGpsLoading(false);
+      },
+      (err) => {
+        alert("Impossible d'obtenir ta position GPS : " + err.message);
+        setGpsLoading(false);
+      }
+    );
+  };
+
+  // Liste des clubs triée par distance ou recherche
+  const sortedClubs = [...CLUBS_DATABASE]
+    .map((club) => {
+      let distance: number | null = null;
+      if (userCoords) {
+        distance = calculateDistanceKm(userCoords.lat, userCoords.lng, club.lat, club.lng);
+      }
+      return { ...club, distance };
+    })
+    .filter((club) => {
+      if (!clubSearchQuery.trim()) return true;
+      const q = clubSearchQuery.toLowerCase();
+      return club.name.toLowerCase().includes(q) || club.city.toLowerCase().includes(q) || club.zip.includes(q);
+    })
+    .sort((a, b) => {
+      if (a.distance !== null && b.distance !== null) return a.distance - b.distance;
+      return 0;
+    });
+
+  const handleAuth = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthLoading(true);
+
+    if (isSignUp) {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            first_name: firstName,
+            last_name: lastName,
+            username: username || `${firstName}_${lastName}`.toLowerCase(),
+            age: Number(age) || 25,
+            gender,
+            level,
+            home_club: homeClub
+          }
+        }
+      });
+
+      if (error) {
+        alert("Erreur d'inscription : " + error.message);
+      } else {
+        alert(
+          "Compte créé avec succès ! Un e-mail de confirmation a été envoyé à ton adresse si la validation est activée."
+        );
+        setSelectedClub(homeClub);
+      }
+    } else {
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) alert("Erreur de connexion : " + error.message);
+    }
+    setAuthLoading(false);
+  };
+
   const handleAcceptFriendRequest = (buddyId: string) => {
-    setFriendRequestsReceived(prev => prev.filter(id => id !== buddyId));
-    setFriendIds(prev => [...prev, buddyId]);
+    setFriendRequestsReceived((prev) => prev.filter((id) => id !== buddyId));
+    setFriendIds((prev) => [...prev, buddyId]);
   };
 
   const handleDeclineFriendRequest = (buddyId: string) => {
-    setFriendRequestsReceived(prev => prev.filter(id => id !== buddyId));
+    setFriendRequestsReceived((prev) => prev.filter((id) => id !== buddyId));
   };
 
   const handleToggleFriend = (buddyId: string) => {
     if (friendIds.includes(buddyId)) {
       if (window.confirm("Retirer cet ami de ta liste ?")) {
-        setFriendIds(friendIds.filter(id => id !== buddyId));
+        setFriendIds(friendIds.filter((id) => id !== buddyId));
       }
     } else {
-      setFriendIds(prev => [...prev, buddyId]);
+      setFriendIds((prev) => [...prev, buddyId]);
     }
   };
 
   const handleDeletePost = async (postId: string) => {
     if (!window.confirm("Es-tu sûr de vouloir supprimer cette publication ?")) return;
-
     const { error } = await supabase.from('posts').delete().eq('id', postId);
     if (!error) {
       setPosts((prev) => prev.filter((p) => p.id !== postId));
@@ -386,41 +509,17 @@ export default function App() {
     setIsDragging(false);
   };
 
-  const handleAuth = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setAuthLoading(true);
-
-    if (isSignUp) {
-      const { error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: { data: { username: username || email.split('@')[0] } }
-      });
-      if (error) alert("Erreur d'inscription : " + error.message);
-      else alert('Compte créé avec succès !');
-    } else {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) alert("Erreur de connexion : " + error.message);
-    }
-    setAuthLoading(false);
-  };
-
   const handleToggleLike = async (postId: string) => {
     const isLiked = likedPosts[postId];
-    const post = posts.find(p => p.id === postId);
+    const post = posts.find((p) => p.id === postId);
     if (!post) return;
 
     const newLikesCount = isLiked ? Math.max(0, post.likes_count - 1) : post.likes_count + 1;
 
     setLikedPosts((prev) => ({ ...prev, [postId]: !isLiked }));
-    setPosts((prev) =>
-      prev.map((p) => (p.id === postId ? { ...p, likes_count: newLikesCount } : p))
-    );
+    setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, likes_count: newLikesCount } : p)));
 
-    await supabase
-      .from('posts')
-      .update({ likes_count: newLikesCount })
-      .eq('id', postId);
+    await supabase.from('posts').update({ likes_count: newLikesCount }).eq('id', postId);
   };
 
   const handleAddComment = async (postId: string) => {
@@ -433,16 +532,14 @@ export default function App() {
       created_at: "À l'instant"
     };
 
-    const targetPost = posts.find(p => p.id === postId);
+    const targetPost = posts.find((p) => p.id === postId);
     if (!targetPost) return;
 
     const updatedComments = [...(targetPost.comments || []), newComment];
     const updatedCount = (targetPost.comments_count || 0) + 1;
 
     setPosts((prev) =>
-      prev.map((p) =>
-        p.id === postId ? { ...p, comments: updatedComments, comments_count: updatedCount } : p
-      )
+      prev.map((p) => (p.id === postId ? { ...p, comments: updatedComments, comments_count: updatedCount } : p))
     );
     setCommentInput('');
 
@@ -473,7 +570,6 @@ export default function App() {
     }
   };
 
-  // Suppression d'une conversation par ID de partenaire
   const handleDeleteConversationForBuddy = async (buddyId: string, buddyName: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     if (!user) return;
@@ -498,10 +594,7 @@ export default function App() {
   };
 
   const addExerciseRow = () => {
-    setWorkoutExercises([
-      ...workoutExercises,
-      { name: '', sets: 3, reps: 10, weight: 20 }
-    ]);
+    setWorkoutExercises([...workoutExercises, { name: '', sets: 3, reps: 10, weight: 20 }]);
   };
 
   const updateExerciseField = (index: number, field: keyof ExerciseEntry, value: any) => {
@@ -530,9 +623,7 @@ export default function App() {
           .upload(fileName, compressedBlob, { contentType: 'image/jpeg' });
 
         if (!uploadError && uploadData) {
-          const { data: publicUrlData } = supabase.storage
-            .from('posts')
-            .getPublicUrl(fileName);
+          const { data: publicUrlData } = supabase.storage.from('posts').getPublicUrl(fileName);
           uploadedImageUrl = publicUrlData.publicUrl;
         }
       } catch (err: any) {}
@@ -560,10 +651,7 @@ export default function App() {
       comments: []
     };
 
-    const { data, error } = await supabase
-      .from('posts')
-      .insert([newPostData])
-      .select('*');
+    const { data, error } = await supabase.from('posts').insert([newPostData]).select('*');
 
     if (!error && data && data.length > 0) {
       setPosts([data[0] as Post, ...posts]);
@@ -580,13 +668,11 @@ export default function App() {
     setIsUploading(false);
   };
 
-  const myFriendsList = buddiesList.filter(b => friendIds.includes(b.id));
-  const friendRequestsList = buddiesList.filter(b => friendRequestsReceived.includes(b.id));
+  const myFriendsList = buddiesList.filter((b) => friendIds.includes(b.id));
+  const friendRequestsList = buddiesList.filter((b) => friendRequestsReceived.includes(b.id));
 
   const filteredBuddies = buddiesList.filter((buddy) => {
-    if (buddyTabSubMode === 'my_friends') {
-      return friendIds.includes(buddy.id);
-    }
+    if (buddyTabSubMode === 'my_friends') return friendIds.includes(buddy.id);
     if (buddy.club !== selectedClub) return false;
     if (filterWomenOnly && buddy.gender !== 'F') return false;
     if (filterLevel !== 'all' && !buddy.level.toLowerCase().includes(filterLevel.toLowerCase())) return false;
@@ -594,9 +680,9 @@ export default function App() {
     return true;
   });
 
-  const displayedPosts = posts.filter(post => {
+  const displayedPosts = posts.filter((post) => {
     if (feedFilterMode === 'friends') {
-      const myFriendNames = myFriendsList.map(f => f.name);
+      const myFriendNames = myFriendsList.map((f) => f.name);
       return post.user_id === user?.id || myFriendNames.includes(post.username);
     }
     return true;
@@ -610,62 +696,192 @@ export default function App() {
         (m.sender_id === selectedBuddyChat.id && m.receiver_id === user.id))
   );
 
+  // ==========================================
+  // ÉCRAN AUTHENTIFICATION & CRÉATION COMPLÈTE
+  // ==========================================
   if (!user) {
     return (
-      <div className="min-h-screen bg-neutral-950 text-white flex flex-col justify-center items-center px-4">
-        <div className="w-full max-w-sm bg-neutral-900/90 border border-neutral-800 rounded-3xl p-8 shadow-2xl backdrop-blur-xl">
-          <div className="flex justify-center mb-6">
-            <div className="w-16 h-16 rounded-2xl bg-orange-500/20 border border-orange-500/40 flex items-center justify-center text-orange-500">
-              <Zap className="w-8 h-8" />
+      <div className="min-h-screen bg-neutral-950 text-white flex flex-col justify-center items-center px-4 py-8">
+        <div className="w-full max-w-md bg-neutral-900/90 border border-neutral-800 rounded-3xl p-6 sm:p-8 shadow-2xl backdrop-blur-xl">
+          <div className="flex justify-center mb-4">
+            <div className="w-14 h-14 rounded-2xl bg-orange-500/20 border border-orange-500/40 flex items-center justify-center text-orange-500">
+              <Zap className="w-7 h-7" />
             </div>
           </div>
           <h1 className="text-2xl font-black text-center tracking-tight mb-1">FitPulse</h1>
-          <p className="text-xs text-neutral-400 text-center mb-8">Le réseau social de ta salle de sport</p>
+          <p className="text-xs text-neutral-400 text-center mb-6">
+            {isSignUp ? 'Création de ton profil athlète' : 'Connecte-toi à ton espace'}
+          </p>
 
-          <form onSubmit={handleAuth} className="space-y-4">
+          <form onSubmit={handleAuth} className="space-y-3.5">
             {isSignUp && (
-              <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-1">Pseudo</label>
-                <div className="relative">
-                  <User className="absolute left-3.5 top-3.5 w-4 h-4 text-neutral-500" />
-                  <input
-                    type="text"
-                    required
-                    placeholder="Ex: Antoine99"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-10 py-3 text-sm focus:outline-none focus:border-orange-500 transition"
-                  />
+              <>
+                <div className="grid grid-cols-2 gap-2.5">
+                  <div>
+                    <label className="block text-[11px] font-semibold text-neutral-400 mb-1">Prénom</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Alex"
+                      value={firstName}
+                      onChange={(e) => setFirstName(e.target.value)}
+                      className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-orange-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-semibold text-neutral-400 mb-1">Nom</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Dupont"
+                      value={lastName}
+                      onChange={(e) => setLastName(e.target.value)}
+                      className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-orange-500"
+                    />
+                  </div>
                 </div>
-              </div>
+
+                <div className="grid grid-cols-2 gap-2.5">
+                  <div>
+                    <label className="block text-[11px] font-semibold text-neutral-400 mb-1">Pseudo public</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Alex_Fit"
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                      className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-orange-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-semibold text-neutral-400 mb-1">Âge</label>
+                    <input
+                      type="number"
+                      required
+                      min="14"
+                      max="99"
+                      placeholder="28"
+                      value={age}
+                      onChange={(e) => setAge(Number(e.target.value))}
+                      className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-orange-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2.5">
+                  <div>
+                    <label className="block text-[11px] font-semibold text-neutral-400 mb-1">Genre</label>
+                    <select
+                      value={gender}
+                      onChange={(e) => setGender(e.target.value as 'M' | 'F')}
+                      className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-neutral-300"
+                    >
+                      <option value="M">Homme</option>
+                      <option value="F">Femme</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-semibold text-neutral-400 mb-1">Niveau</label>
+                    <select
+                      value={level}
+                      onChange={(e) => setLevel(e.target.value as any)}
+                      className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-neutral-300"
+                    >
+                      <option value="Débutant">Débutant</option>
+                      <option value="Intermédiaire">Intermédiaire</option>
+                      <option value="Avancé">Avancé</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* SÉLECTION DU CLUB MAISON (GPS & LOCALITÉ) */}
+                <div className="bg-neutral-950 p-3.5 rounded-2xl border border-neutral-800 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[11px] font-bold text-orange-400 uppercase tracking-wider flex items-center gap-1.5">
+                      <MapPin className="w-3.5 h-3.5" /> Choisir mon club "Maison"
+                    </label>
+                    <button
+                      type="button"
+                      onClick={handleDetectGPS}
+                      disabled={gpsLoading}
+                      className="px-2.5 py-1 bg-orange-600/20 hover:bg-orange-600/30 text-orange-400 border border-orange-500/30 rounded-lg text-[10px] font-bold flex items-center gap-1 transition"
+                    >
+                      {gpsLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Navigation className="w-3 h-3" />}
+                      GPS autour de moi
+                    </button>
+                  </div>
+
+                  {/* Recherche par ville ou code postal */}
+                  <div className="relative">
+                    <Search className="absolute left-3 top-2.5 w-3.5 h-3.5 text-neutral-500" />
+                    <input
+                      type="text"
+                      placeholder="Ou tape une ville / code postal (ex: 7500)..."
+                      value={clubSearchQuery}
+                      onChange={(e) => setClubSearchQuery(e.target.value)}
+                      className="w-full bg-neutral-900 border border-neutral-800 rounded-xl pl-9 pr-3 py-1.5 text-xs text-neutral-200 focus:outline-none focus:border-orange-500"
+                    />
+                  </div>
+
+                  {/* Liste de sélection dynamique */}
+                  <div className="max-h-32 overflow-y-auto space-y-1.5 pr-1">
+                    {sortedClubs.map((club) => {
+                      const isSelected = homeClub === club.name;
+                      return (
+                        <div
+                          key={club.name}
+                          onClick={() => setHomeClub(club.name)}
+                          className={`p-2 rounded-xl text-xs flex items-center justify-between cursor-pointer transition border ${
+                            isSelected
+                              ? 'bg-orange-600/20 border-orange-500 text-white font-bold'
+                              : 'bg-neutral-900/60 border-neutral-800/80 text-neutral-400 hover:text-neutral-200'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <CheckCircle2 className={`w-3.5 h-3.5 ${isSelected ? 'text-orange-500' : 'text-neutral-600'}`} />
+                            <span>
+                              {club.name} ({club.city})
+                            </span>
+                          </div>
+                          {club.distance !== null && (
+                            <span className="text-[10px] text-orange-400 font-mono font-semibold">
+                              {club.distance} km
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </>
             )}
 
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-1">Email</label>
+              <label className="block text-[11px] font-semibold text-neutral-400 mb-1">Email</label>
               <div className="relative">
-                <Mail className="absolute left-3.5 top-3.5 w-4 h-4 text-neutral-500" />
+                <Mail className="absolute left-3.5 top-3 w-4 h-4 text-neutral-500" />
                 <input
                   type="email"
                   required
-                  placeholder="nom@exemple.com"
+                  placeholder="alex@exemple.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-10 py-3 text-sm focus:outline-none focus:border-orange-500 transition"
+                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl pl-10 pr-3 py-2 text-xs focus:outline-none focus:border-orange-500"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-1">Mot de passe</label>
+              <label className="block text-[11px] font-semibold text-neutral-400 mb-1">Mot de passe</label>
               <div className="relative">
-                <Lock className="absolute left-3.5 top-3.5 w-4 h-4 text-neutral-500" />
+                <Lock className="absolute left-3.5 top-3 w-4 h-4 text-neutral-500" />
                 <input
                   type="password"
                   required
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-10 py-3 text-sm focus:outline-none focus:border-orange-500 transition"
+                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl pl-10 pr-3 py-2 text-xs focus:outline-none focus:border-orange-500"
                 />
               </div>
             </div>
@@ -673,15 +889,15 @@ export default function App() {
             <button
               type="submit"
               disabled={authLoading}
-              className="w-full bg-gradient-to-r from-orange-600 to-orange-500 hover:from-orange-500 hover:to-orange-400 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-orange-500/20 transition flex items-center justify-center gap-2"
+              className="w-full mt-2 bg-gradient-to-r from-orange-600 to-orange-500 hover:from-orange-500 hover:to-orange-400 text-white font-bold py-3 rounded-xl shadow-lg shadow-orange-500/20 transition flex items-center justify-center gap-2 text-xs"
             >
-              {authLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : isSignUp ? "Créer mon compte" : "Se connecter"}
+              {authLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : isSignUp ? "Créer mon compte" : "Se connecter"}
             </button>
           </form>
 
           <button
             onClick={() => setIsSignUp(!isSignUp)}
-            className="w-full text-center text-xs text-neutral-400 hover:text-white mt-6 transition"
+            className="w-full text-center text-xs text-neutral-400 hover:text-white mt-5 transition"
           >
             {isSignUp ? "Déjà un compte ? Se connecter" : "Pas encore de compte ? S'inscrire"}
           </button>
@@ -711,9 +927,11 @@ export default function App() {
           onChange={(e) => setSelectedClub(e.target.value)}
           className="bg-neutral-900 border border-neutral-800 text-[11px] rounded-lg px-2.5 py-1.5 text-neutral-300 focus:outline-none focus:border-orange-500"
         >
-          <option value="Basic-Fit Tournai">Basic-Fit Tournai</option>
-          <option value="Basic-Fit Froyennes">Basic-Fit Froyennes</option>
-          <option value="Fitness Park Lille">Fitness Park Lille</option>
+          {CLUBS_DATABASE.map((c) => (
+            <option key={c.name} value={c.name}>
+              {c.name}
+            </option>
+          ))}
         </select>
       </header>
 
@@ -726,9 +944,7 @@ export default function App() {
               <button
                 onClick={() => setFeedFilterMode('all')}
                 className={`flex-1 py-2 rounded-xl text-xs font-bold transition ${
-                  feedFilterMode === 'all'
-                    ? 'bg-orange-600 text-white shadow-md'
-                    : 'text-neutral-400 hover:text-white'
+                  feedFilterMode === 'all' ? 'bg-orange-600 text-white shadow-md' : 'text-neutral-400 hover:text-white'
                 }`}
               >
                 Fil du club ({selectedClub})
@@ -736,16 +952,14 @@ export default function App() {
               <button
                 onClick={() => setFeedFilterMode('friends')}
                 className={`flex-1 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 ${
-                  feedFilterMode === 'friends'
-                    ? 'bg-orange-600 text-white shadow-md'
-                    : 'text-neutral-400 hover:text-white'
+                  feedFilterMode === 'friends' ? 'bg-orange-600 text-white shadow-md' : 'text-neutral-400 hover:text-white'
                 }`}
               >
                 <UserCheck className="w-3.5 h-3.5" /> Mes Amis ({myFriendsList.length})
               </button>
             </div>
 
-            {/* Rest Timer Banner */}
+            {/* Rest Timer */}
             <div className="bg-neutral-900/90 border border-neutral-800/80 rounded-2xl p-3 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-orange-500/10 text-orange-500 flex items-center justify-center font-bold text-xs">
@@ -798,11 +1012,7 @@ export default function App() {
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <img
-                          src={post.avatar_url}
-                          alt=""
-                          className="w-10 h-10 rounded-full object-cover border border-neutral-700"
-                        />
+                        <img src={post.avatar_url} alt="" className="w-10 h-10 rounded-full object-cover border border-neutral-700" />
                         <div>
                           <div className="flex items-center gap-1.5 flex-wrap">
                             <h3 className="font-bold text-sm leading-snug">{post.username}</h3>
@@ -849,9 +1059,7 @@ export default function App() {
                       </div>
                     )}
 
-                    {post.caption && (
-                      <p className="text-xs text-neutral-200 leading-relaxed">{post.caption}</p>
-                    )}
+                    {post.caption && <p className="text-xs text-neutral-200 leading-relaxed">{post.caption}</p>}
 
                     <div className="flex items-center gap-2">
                       <span className="flex items-center gap-1 text-[11px] bg-neutral-950 px-2.5 py-1 rounded-lg border border-neutral-800 text-neutral-300">
@@ -870,10 +1078,7 @@ export default function App() {
                           Exercices enregistrés
                         </span>
                         {post.exercises.map((ex, i) => (
-                          <div
-                            key={i}
-                            className="flex items-center justify-between text-xs py-1 border-b border-neutral-900 last:border-none"
-                          >
+                          <div key={i} className="flex items-center justify-between text-xs py-1 border-b border-neutral-900 last:border-none">
                             <span className="font-medium text-neutral-300">{ex.name}</span>
                             <span className="font-mono text-[11px] text-orange-400 font-semibold">
                               {ex.sets} × {ex.reps} {ex.weight > 0 && `@ ${ex.weight} kg`}
@@ -926,9 +1131,7 @@ export default function App() {
                 <button
                   onClick={() => setBuddyTabSubMode('discover')}
                   className={`flex-1 py-2 rounded-xl text-xs font-bold transition ${
-                    buddyTabSubMode === 'discover'
-                      ? 'bg-orange-600 text-white'
-                      : 'text-neutral-400 hover:text-white'
+                    buddyTabSubMode === 'discover' ? 'bg-orange-600 text-white' : 'text-neutral-400 hover:text-white'
                   }`}
                 >
                   Découvrir des partenaires
@@ -936,9 +1139,7 @@ export default function App() {
                 <button
                   onClick={() => setBuddyTabSubMode('my_friends')}
                   className={`flex-1 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 ${
-                    buddyTabSubMode === 'my_friends'
-                      ? 'bg-orange-600 text-white'
-                      : 'text-neutral-400 hover:text-white'
+                    buddyTabSubMode === 'my_friends' ? 'bg-orange-600 text-white' : 'text-neutral-400 hover:text-white'
                   }`}
                 >
                   <UserCheck className="w-3.5 h-3.5" /> Mes Amis ({myFriendsList.length})
@@ -1003,7 +1204,7 @@ export default function App() {
                   <div className="text-center py-8 text-neutral-500 text-xs">
                     {buddyTabSubMode === 'my_friends'
                       ? "Tu n'as pas encore d'amis dans ta liste."
-                      : "Aucun partenaire ne correspond à ces critères."}
+                      : 'Aucun partenaire ne correspond à ces critères.'}
                   </div>
                 ) : (
                   filteredBuddies.map((buddy) => {
@@ -1014,9 +1215,7 @@ export default function App() {
                         key={buddy.id}
                         className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 flex flex-col space-y-3 relative overflow-hidden"
                       >
-                        {buddy.gender === 'F' && (
-                          <div className="absolute top-0 right-0 w-2 h-2 bg-pink-500 rounded-bl-lg" />
-                        )}
+                        {buddy.gender === 'F' && <div className="absolute top-0 right-0 w-2 h-2 bg-pink-500 rounded-bl-lg" />}
 
                         <div className="flex items-center justify-between gap-2">
                           <div className="flex items-center gap-3">
@@ -1067,8 +1266,12 @@ export default function App() {
                         </div>
 
                         <div className="bg-neutral-900/60 rounded-xl p-2.5 text-[11px] space-y-1 text-neutral-300">
-                          <div><strong className="text-neutral-400">Créneaux :</strong> {buddy.schedule}</div>
-                          <div><strong className="text-neutral-400">Objectif :</strong> {buddy.goal}</div>
+                          <div>
+                            <strong className="text-neutral-400">Créneaux :</strong> {buddy.schedule}
+                          </div>
+                          <div>
+                            <strong className="text-neutral-400">Objectif :</strong> {buddy.goal}
+                          </div>
                         </div>
                       </div>
                     );
@@ -1106,13 +1309,7 @@ export default function App() {
 
               <div>
                 <label className="block text-xs font-semibold text-neutral-400 mb-1.5">Photo de la séance</label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  ref={fileInputRef}
-                  onChange={handleImageSelect}
-                  className="hidden"
-                />
+                <input type="file" accept="image/*" ref={fileInputRef} onChange={handleImageSelect} className="hidden" />
 
                 {postImagePreview ? (
                   <div className="space-y-3">
@@ -1243,9 +1440,7 @@ export default function App() {
               </div>
 
               <div className="space-y-3 pt-2">
-                <label className="block text-xs font-bold uppercase tracking-wider text-neutral-400">
-                  Exercices effectués
-                </label>
+                <label className="block text-xs font-bold uppercase tracking-wider text-neutral-400">Exercices effectués</label>
                 {workoutExercises.map((ex, index) => (
                   <div key={index} className="bg-neutral-950 p-3 rounded-2xl border border-neutral-800 space-y-2">
                     <div className="flex items-center justify-between gap-2">
@@ -1257,11 +1452,7 @@ export default function App() {
                         className="flex-1 bg-transparent text-xs font-bold text-white border-b border-neutral-800 focus:outline-none focus:border-orange-500 pb-1"
                       />
                       {workoutExercises.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={() => removeExerciseRow(index)}
-                          className="text-neutral-500 hover:text-red-400 p-1"
-                        >
+                        <button type="button" onClick={() => removeExerciseRow(index)} className="text-neutral-500 hover:text-red-400 p-1">
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       )}
@@ -1311,17 +1502,16 @@ export default function App() {
                 disabled={isUploading}
                 className="w-full bg-gradient-to-r from-orange-600 to-orange-500 hover:from-orange-500 hover:to-orange-400 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-orange-500/20 transition flex items-center justify-center gap-2"
               >
-                {isUploading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Partager ma séance"}
+                {isUploading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Partager ma séance'}
               </button>
             </div>
           </form>
         )}
 
-        {/* TAB 4: CHAT AVEC SUPPRESSION DE CONVERSATIONS DEPUIS LA LISTE */}
+        {/* TAB 4: CHAT */}
         {currentTab === 'chat' && (
           <div className="space-y-4">
             {selectedBuddyChat ? (
-              // VUE CONVERSATION TEMPS RÉEL
               <div className="bg-neutral-900 border border-neutral-800 rounded-3xl overflow-hidden flex flex-col h-[74vh]">
                 <div className="p-3.5 bg-neutral-950 border-b border-neutral-800 flex items-center justify-between">
                   <div className="flex items-center gap-3">
@@ -1347,7 +1537,7 @@ export default function App() {
                       <Calendar className="w-3.5 h-3.5" /> Séance duo
                     </button>
                     <button
-                      onClick={() => handleDeleteConversationForBuddy(selectedBuddyChat.id, selectedBuddyChat.name)}
+                      onClick={(e) => handleDeleteConversationForBuddy(selectedBuddyChat.id, selectedBuddyChat.name, e)}
                       title="Effacer toute la discussion"
                       className="p-2 text-neutral-500 hover:text-red-400 hover:bg-red-500/10 rounded-xl transition"
                     >
@@ -1367,15 +1557,10 @@ export default function App() {
                       const timeStr = new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
                       return (
-                        <div
-                          key={msg.id}
-                          className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}
-                        >
+                        <div key={msg.id} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
                           <div
                             className={`max-w-[80%] rounded-2xl px-3.5 py-2.5 text-xs ${
-                              isMe
-                                ? 'bg-orange-600 text-white rounded-tr-none shadow-md shadow-orange-600/10'
-                                : 'bg-neutral-800 text-neutral-200 rounded-tl-none'
+                              isMe ? 'bg-orange-600 text-white rounded-tr-none shadow-md shadow-orange-600/10' : 'bg-neutral-800 text-neutral-200 rounded-tl-none'
                             }`}
                           >
                             {msg.text}
@@ -1406,7 +1591,6 @@ export default function App() {
                 </div>
               </div>
             ) : (
-              // VUE BOÎTE DE RÉCEPTION & DISCUSSIONS ACTIVES AVEC BOUTON SUPPRIMER
               <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-5">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
@@ -1418,7 +1602,6 @@ export default function App() {
                   </span>
                 </div>
 
-                {/* DEMANDES D'AMIS */}
                 {friendRequestsList.length > 0 && (
                   <div className="space-y-2.5 bg-orange-500/5 border border-orange-500/20 p-3.5 rounded-2xl">
                     <span className="text-xs font-bold text-orange-400 flex items-center gap-1.5">
@@ -1427,10 +1610,7 @@ export default function App() {
 
                     <div className="space-y-2">
                       {friendRequestsList.map((req) => (
-                        <div
-                          key={req.id}
-                          className="bg-neutral-950 p-3 rounded-xl border border-neutral-800 flex items-center justify-between gap-2"
-                        >
+                        <div key={req.id} className="bg-neutral-950 p-3 rounded-xl border border-neutral-800 flex items-center justify-between gap-2">
                           <div className="flex items-center gap-2.5">
                             <img src={req.avatar_url} alt="" className="w-9 h-9 rounded-full object-cover border border-neutral-700" />
                             <div>
@@ -1459,7 +1639,6 @@ export default function App() {
                   </div>
                 )}
 
-                {/* RECHERCHE */}
                 <div className="relative">
                   <Search className="absolute left-3.5 top-3 w-4 h-4 text-neutral-500" />
                   <input
@@ -1471,20 +1650,14 @@ export default function App() {
                   />
                 </div>
 
-                {/* LISTE DES DISCUSSIONS ACTIVES AVEC BOUTON POUBELLE */}
                 <div className="space-y-2">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-500 block">
-                    Discussions actives
-                  </span>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-500 block">Discussions actives</span>
 
                   {myFriendsList
-                    .filter(f => f.name.toLowerCase().includes(chatSearch.toLowerCase()))
+                    .filter((f) => f.name.toLowerCase().includes(chatSearch.toLowerCase()))
                     .map((friend) => {
                       const friendMessages = allMessages.filter(
-                        (m) =>
-                          user &&
-                          ((m.sender_id === user.id && m.receiver_id === friend.id) ||
-                            (m.sender_id === friend.id && m.receiver_id === user.id))
+                        (m) => user && ((m.sender_id === user.id && m.receiver_id === friend.id) || (m.sender_id === friend.id && m.receiver_id === user.id))
                       );
                       const lastMessage = friendMessages[friendMessages.length - 1];
 
@@ -1492,7 +1665,7 @@ export default function App() {
                         <div
                           key={friend.id}
                           onClick={() => setSelectedBuddyChat(friend)}
-                          className="bg-neutral-950 hover:bg-neutral-900/80 p-3 rounded-2xl border border-neutral-800/80 flex items-center justify-between cursor-pointer transition group"
+                          className="bg-neutral-950 hover:bg-neutral-900/80 p-3 rounded-2xl border border-neutral-800/80 flex items-center justify-between cursor-pointer transition"
                         >
                           <div className="flex items-center gap-3">
                             <div className="relative">
@@ -1518,8 +1691,6 @@ export default function App() {
                             <span className="text-[9px] text-neutral-500">
                               {lastMessage ? new Date(lastMessage.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
                             </span>
-                            
-                            {/* BOUTON SUPPRIMER LA CONVERSATION DANS LA LISTE */}
                             {friendMessages.length > 0 && (
                               <button
                                 onClick={(e) => handleDeleteConversationForBuddy(friend.id, friend.name, e)}
@@ -1554,10 +1725,7 @@ export default function App() {
                 { exercise: 'Soulevé de terre', name: 'Thomas L.', weight: '230 kg', rank: '🥇' },
                 { exercise: 'Tractions lestées', name: 'Romain B.', weight: '+45 kg', rank: '🥇' }
               ].map((item, index) => (
-                <div
-                  key={index}
-                  className="flex items-center justify-between p-3 bg-neutral-950 rounded-2xl border border-neutral-800/80"
-                >
+                <div key={index} className="flex items-center justify-between p-3 bg-neutral-950 rounded-2xl border border-neutral-800/80">
                   <div>
                     <span className="text-xs font-bold text-white block">{item.exercise}</span>
                     <span className="text-[11px] text-neutral-400">{item.name}</span>
@@ -1577,18 +1745,18 @@ export default function App() {
           <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-6 text-center space-y-5">
             <div className="w-20 h-20 rounded-full bg-gradient-to-tr from-orange-500 to-amber-500 p-0.5 mx-auto">
               <div className="w-full h-full bg-neutral-950 rounded-full flex items-center justify-center text-orange-400 font-bold text-2xl">
-                {user.email?.[0].toUpperCase() || 'A'}
+                {user.user_metadata?.first_name?.[0]?.toUpperCase() || user.email?.[0]?.toUpperCase() || 'A'}
               </div>
             </div>
 
             <div>
               <h2 className="font-extrabold text-lg leading-tight">
-                {user.user_metadata?.username || user.email?.split('@')[0]}
+                {user.user_metadata?.first_name ? `${user.user_metadata.first_name} ${user.user_metadata.last_name || ''}` : user.email?.split('@')[0]}
               </h2>
-              <p className="text-xs text-neutral-400">{user.email}</p>
+              <p className="text-xs text-neutral-400">@{user.user_metadata?.username || user.email?.split('@')[0]}</p>
               <div className="inline-flex items-center gap-1 text-[11px] text-orange-400 bg-orange-500/10 px-3 py-1 rounded-full border border-orange-500/20 mt-2 font-semibold">
                 <MapPin className="w-3 h-3" />
-                {selectedClub}
+                {user.user_metadata?.home_club || selectedClub}
               </div>
             </div>
 
@@ -1625,10 +1793,7 @@ export default function App() {
           <div className="bg-neutral-900 border border-neutral-800 rounded-t-3xl sm:rounded-3xl max-w-lg w-full max-h-[80vh] flex flex-col overflow-hidden">
             <div className="p-4 border-b border-neutral-800 flex items-center justify-between">
               <h3 className="text-sm font-bold text-white">Commentaires ({activePostForComments.comments?.length || 0})</h3>
-              <button
-                onClick={() => setActiveCommentPostId(null)}
-                className="p-1 rounded-full text-neutral-400 hover:text-white"
-              >
+              <button onClick={() => setActiveCommentPostId(null)} className="p-1 rounded-full text-neutral-400 hover:text-white">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -1668,7 +1833,7 @@ export default function App() {
         </div>
       )}
 
-      {/* Nav */}
+      {/* Nav Bar */}
       <nav className="fixed bottom-0 left-0 right-0 z-40 bg-neutral-950/90 backdrop-blur-xl border-t border-neutral-800/80 px-4 py-2 flex justify-around items-center">
         <button
           onClick={() => setCurrentTab('feed')}
@@ -1710,9 +1875,7 @@ export default function App() {
         >
           <div className="relative">
             <MessageCircle className="w-5 h-5" />
-            {friendRequestsList.length > 0 && (
-              <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-orange-500 rounded-full" />
-            )}
+            {friendRequestsList.length > 0 && <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-orange-500 rounded-full" />}
           </div>
           <span className="text-[10px]">Chat</span>
         </button>
