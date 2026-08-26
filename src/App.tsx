@@ -39,7 +39,9 @@ import {
   Navigation,
   CheckCircle2,
   Building2,
-  Sparkles
+  Sparkles,
+  SwitchCamera,
+  FolderOpen
 } from 'lucide-react';
 import { createClient, User as SupabaseUser } from '@supabase/supabase-js';
 
@@ -376,10 +378,6 @@ export default function App() {
   const [storyUploading, setStoryUploading] = useState(false);
   const storyFileInputRef = useRef<HTMLInputElement>(null);
 
-  // Comments Drawer
-  const [activeCommentPostId, setActiveCommentPostId] = useState<string | null>(null);
-  const [commentInput, setCommentInput] = useState('');
-
   // Workout Form State
   const [workoutType, setWorkoutType] = useState('Musculation (Push)');
   const [workoutCaption, setWorkoutCaption] = useState('');
@@ -400,6 +398,13 @@ export default function App() {
     { name: 'Développé couché', sets: 4, reps: 10, weight: 80 }
   ]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // MODULE CAMÉRA EN DIRECT NATIVE
+  const [isCameraActive, setIsCameraActive] = useState(false);
+  const [cameraTarget, setCameraTarget] = useState<'post' | 'story'>('post');
+  const [facingMode, setFacingMode] = useState<'user' | 'environment'>('environment');
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
 
   // Rest Timer
   const [timerSeconds, setTimerSeconds] = useState(90);
@@ -471,6 +476,10 @@ export default function App() {
   const [currentMessageInput, setCurrentMessageInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // Comments Drawer
+  const [activeCommentPostId, setActiveCommentPostId] = useState<string | null>(null);
+  const [commentInput, setCommentInput] = useState('');
+
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       const activeUser = session?.user ?? null;
@@ -520,6 +529,7 @@ export default function App() {
     return () => {
       subscription.unsubscribe();
       supabase.removeChannel(channel);
+      stopCameraStream();
     };
   }, []);
 
@@ -578,13 +588,12 @@ export default function App() {
     };
   }, [isTimerRunning, timerSeconds]);
 
-  // COMBINAISON DE TOUTES LES STORIES VALIDES (< 24H)
+  // COMBINAISON DES STORIES VALIDES (< 24H)
   const combinedAllStories = [...cloudStories, ...DEFAULT_FRIEND_STORIES];
   const myFriendsList = buddiesList.filter((b) => friendIds.includes(b.id));
   const myFriendNames = myFriendsList.map((f) => f.name);
   const friendRequestsList = buddiesList.filter((b) => friendRequestsReceived.includes(b.id));
 
-  // FILTRE STRICT : Uniquement les amis confirmés OU ma propre story, datant de moins de 24h
   const twentyFourHoursAgoMs = Date.now() - 24 * 3600 * 1000;
   const friendStoriesList = combinedAllStories.filter((s) => {
     const storyDate = new Date(s.created_at).getTime();
@@ -596,7 +605,7 @@ export default function App() {
     return isUnder24h && isFriendOrMe;
   });
 
-  // Défilement automatique de 5 secondes par story
+  // Défilement automatique de 5 secondes
   useEffect(() => {
     if (activeStoryIndex === null || isStoryPaused) {
       return;
@@ -689,6 +698,83 @@ export default function App() {
       setIsStoryPaused(false);
       alert('Réponse envoyée en message direct !');
     }
+  };
+
+  // GESTION DE LA CAMÉRA EN DIRECT NATIVE
+  const startCamera = async (target: 'post' | 'story') => {
+    setCameraTarget(target);
+    setIsCameraActive(true);
+    try {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((t) => t.stop());
+      }
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: facingMode },
+        audio: false
+      });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+    } catch (err: any) {
+      alert("Impossible d'accéder à l'appareil photo : " + err.message);
+      setIsCameraActive(false);
+    }
+  };
+
+  const stopCameraStream = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
+    }
+    setIsCameraActive(false);
+  };
+
+  const switchCameraFacing = async () => {
+    const newFacing = facingMode === 'environment' ? 'user' : 'environment';
+    setFacingMode(newFacing);
+    try {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((t) => t.stop());
+      }
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: newFacing },
+        audio: false
+      });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+    } catch (err) {}
+  };
+
+  const capturePhoto = () => {
+    if (!videoRef.current) return;
+    const video = videoRef.current;
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth || 640;
+    canvas.height = video.videoHeight || 480;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    canvas.toBlob((blob) => {
+      if (!blob) return;
+      const file = new File([blob], `photo-${Date.now()}.jpg`, { type: 'image/jpeg' });
+      const previewUrl = URL.createObjectURL(blob);
+
+      if (cameraTarget === 'post') {
+        setPostImageFile(file);
+        setPostImagePreview(previewUrl);
+        setImageZoom(1);
+        setImagePos({ x: 0, y: 0 });
+      } else {
+        setStoryImageFile(file);
+        setStoryImagePreview(previewUrl);
+        setIsCreatingStory(true);
+      }
+      stopCameraStream();
+    }, 'image/jpeg', 0.85);
   };
 
   const handleDetectGPS = () => {
@@ -1326,7 +1412,7 @@ export default function App() {
         {currentTab === 'feed' && (
           <div className="space-y-4">
             
-            {/* STORIES ROW (HACHURÉ SI VU, COULEUR SI NON VU, RÉSERVÉ AUX AMIS) */}
+            {/* STORIES ROW (HACHURÉ GRIS SANS COULEUR SI VU, COULEUR VIVE SI NON VU) */}
             <div className="bg-neutral-900/60 border border-neutral-800/80 rounded-3xl p-3">
               <div className="flex items-center gap-3.5 overflow-x-auto no-scrollbar py-1">
                 
@@ -1360,14 +1446,14 @@ export default function App() {
                       }}
                       className="flex flex-col items-center gap-1.5 flex-shrink-0 cursor-pointer"
                     >
-                      {/* CERCLE HACHURÉ SI VU / GRADIENT COULEUR SI NON VU */}
+                      {/* ANNEAU HACHURÉ GRIS NEUTRE (AUCUNE COULEUR) SI VU / COULEUR VIVE SI NON VU */}
                       {isViewed ? (
-                        <div className="w-16 h-16 rounded-full border-2 border-dashed border-neutral-600 p-[2px] opacity-75 hover:opacity-100 hover:border-orange-400/60 transition">
+                        <div className="w-16 h-16 rounded-full border-2 border-dashed border-neutral-600 p-[2px] opacity-70 hover:opacity-100 transition">
                           <div className="w-full h-full bg-neutral-950 rounded-full p-[1px]">
                             <img
                               src={story.avatar_url}
                               alt={story.username}
-                              className="w-full h-full rounded-full object-cover grayscale-[15%]"
+                              className="w-full h-full rounded-full object-cover grayscale-[30%]"
                             />
                           </div>
                         </div>
@@ -1383,7 +1469,7 @@ export default function App() {
                         </div>
                       )}
 
-                      <span className="text-[10px] font-medium text-neutral-300 truncate max-w-[64px] text-center">
+                      <span className={`text-[10px] font-medium truncate max-w-[64px] text-center ${isViewed ? 'text-neutral-500' : 'text-neutral-200'}`}>
                         {story.username.split(' ')[0]}
                       </span>
                     </div>
@@ -1735,7 +1821,7 @@ export default function App() {
           </div>
         )}
 
-        {/* TAB 3: WORKOUT */}
+        {/* TAB 3: WORKOUT AVEC DOUBLE CHOIX (CAMÉRA EN DIRECT OU GALERIE) */}
         {currentTab === 'workout' && (
           <form onSubmit={handlePublishWorkout} className="space-y-4">
             <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4">
@@ -1760,6 +1846,7 @@ export default function App() {
                 </div>
               </div>
 
+              {/* Photo Box : Prise directe Caméra ou Galerie */}
               <div>
                 <label className="block text-xs font-semibold text-neutral-400 mb-1.5">Photo de la séance</label>
                 <input type="file" accept="image/*" ref={fileInputRef} onChange={handleImageSelect} className="hidden" />
@@ -1834,14 +1921,25 @@ export default function App() {
                     </div>
                   </div>
                 ) : (
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="w-full py-6 border-2 border-dashed border-neutral-800 hover:border-orange-500/60 rounded-2xl flex flex-col items-center justify-center gap-2 text-neutral-400 hover:text-orange-400 bg-neutral-950 transition"
-                  >
-                    <Camera className="w-6 h-6" />
-                    <span className="text-xs font-medium">Ajouter ou prendre une photo</span>
-                  </button>
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <button
+                      type="button"
+                      onClick={() => startCamera('post')}
+                      className="py-6 border-2 border-dashed border-neutral-800 hover:border-orange-500 rounded-2xl flex flex-col items-center justify-center gap-2 text-neutral-400 hover:text-orange-400 bg-neutral-950 transition"
+                    >
+                      <Camera className="w-6 h-6 text-orange-500" />
+                      <span className="text-xs font-semibold">Prendre une photo</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="py-6 border-2 border-dashed border-neutral-800 hover:border-orange-500 rounded-2xl flex flex-col items-center justify-center gap-2 text-neutral-400 hover:text-orange-400 bg-neutral-950 transition"
+                    >
+                      <FolderOpen className="w-6 h-6 text-neutral-400" />
+                      <span className="text-xs font-semibold">Depuis la galerie</span>
+                    </button>
+                  </div>
                 )}
               </div>
 
@@ -2240,6 +2338,47 @@ export default function App() {
         )}
       </main>
 
+      {/* MODAL CAMÉRA PLEIN ÉCRAN NATIVE */}
+      {isCameraActive && (
+        <div className="fixed inset-0 z-50 bg-black flex flex-col justify-between items-center p-4">
+          <div className="w-full flex items-center justify-between z-10 pt-2">
+            <span className="text-xs font-bold text-white bg-black/50 px-3 py-1.5 rounded-full border border-neutral-800">
+              {cameraTarget === 'post' ? 'Photo de séance' : 'Photo de story'}
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={switchCameraFacing}
+                className="p-2.5 bg-black/60 rounded-full text-white hover:bg-black/80 transition"
+              >
+                <SwitchCamera className="w-5 h-5" />
+              </button>
+              <button
+                type="button"
+                onClick={stopCameraStream}
+                className="p-2.5 bg-black/60 rounded-full text-white hover:bg-black/80 transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+
+          <div className="relative w-full flex-1 max-w-sm my-auto rounded-3xl overflow-hidden bg-neutral-950 flex items-center justify-center border border-neutral-800">
+            <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover" />
+          </div>
+
+          <div className="w-full flex justify-center items-center pb-6 z-10">
+            <button
+              type="button"
+              onClick={capturePhoto}
+              className="w-20 h-20 rounded-full border-4 border-white flex items-center justify-center p-1 hover:scale-105 active:scale-95 transition"
+            >
+              <div className="w-full h-full bg-orange-500 rounded-full shadow-lg" />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* LECTEUR DE STORY PLEIN ÉCRAN */}
       {activeViewingStory && activeStoryIndex !== null && (
         <div className="fixed inset-0 z-50 bg-black flex flex-col justify-between p-4 animate-fade-in select-none">
@@ -2355,7 +2494,7 @@ export default function App() {
         </div>
       )}
 
-      {/* MODAL 2 : PUBLIER UNE STORY */}
+      {/* MODAL 2 : PUBLIER UNE STORY AVEC DOUBLE CHOIX (CAMÉRA OU FICHIER) */}
       {isCreatingStory && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-md w-full p-5 space-y-4">
@@ -2392,14 +2531,25 @@ export default function App() {
                   </button>
                 </div>
               ) : (
-                <button
-                  type="button"
-                  onClick={() => storyFileInputRef.current?.click()}
-                  className="w-full py-10 border-2 border-dashed border-neutral-800 hover:border-orange-500 rounded-2xl flex flex-col items-center justify-center gap-2 text-neutral-400 hover:text-orange-400 bg-neutral-950 transition"
-                >
-                  <Camera className="w-7 h-7" />
-                  <span className="text-xs font-semibold">Prendre ou importer une photo</span>
-                </button>
+                <div className="grid grid-cols-2 gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => startCamera('story')}
+                    className="py-8 border-2 border-dashed border-neutral-800 hover:border-orange-500 rounded-2xl flex flex-col items-center justify-center gap-2 text-neutral-400 hover:text-orange-400 bg-neutral-950 transition"
+                  >
+                    <Camera className="w-6 h-6 text-orange-500" />
+                    <span className="text-xs font-semibold">Prendre photo</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => storyFileInputRef.current?.click()}
+                    className="py-8 border-2 border-dashed border-neutral-800 hover:border-orange-500 rounded-2xl flex flex-col items-center justify-center gap-2 text-neutral-400 hover:text-orange-400 bg-neutral-950 transition"
+                  >
+                    <FolderOpen className="w-6 h-6 text-neutral-400" />
+                    <span className="text-xs font-semibold">Depuis galerie</span>
+                  </button>
+                </div>
               )}
 
               <div>
