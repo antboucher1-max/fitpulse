@@ -187,6 +187,20 @@ interface DBMessage {
   created_at: string;
 }
 
+const DEFAULT_FRIEND_STORIES: Story[] = [
+  {
+    id: 'demo-s1',
+    user_id: 'b1',
+    username: 'Thomas D.',
+    avatar_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150',
+    image_url: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?w=800',
+    caption: 'Prêt pour exploser le PR au dev couché 🔥',
+    club_name: 'Basic-Fit Tournai (Bastion)',
+    likes_count: 3,
+    created_at: new Date().toISOString()
+  }
+];
+
 export default function App() {
   const [user, setUser] = useState<SupabaseUser | null>(null);
 
@@ -221,7 +235,6 @@ export default function App() {
   // Vrais utilisateurs et Amis réels
   const [registeredUsers, setRegisteredUsers] = useState<RealUser[]>([]);
   const [friendIds, setFriendIds] = useState<string[]>([]);
-  const [friendRequestsReceived, setFriendRequestsReceived] = useState<string[]>([]);
   const [buddyTabSubMode, setBuddyTabSubMode] = useState<'discover' | 'my_friends'>('discover');
   const [userSearchQuery, setUserSearchQuery] = useState('');
 
@@ -340,7 +353,6 @@ export default function App() {
     if (!error && data) setAllMessages(data as DBMessage[]);
   };
 
-  // Récupérer les vrais utilisateurs inscrits dans Supabase
   const fetchRealUsers = async () => {
     const { data, error } = await supabase.from('posts').select('user_id, username, club_name, avatar_url').limit(50);
     if (!error && data) {
@@ -370,12 +382,12 @@ export default function App() {
     return () => { if (interval) clearInterval(interval); };
   }, [isTimerRunning, timerSeconds]);
 
+  const combinedAllStories = [...cloudStories, ...DEFAULT_FRIEND_STORIES];
   const myFriendsList = registeredUsers.filter((u) => friendIds.includes(u.id));
   const myFriendUsernames = myFriendsList.map((f) => f.username);
 
-  // FILTRE STORIES : Uniquement les vrais amis confirmés OU ma propre story (< 24h)
   const twentyFourHoursAgoMs = Date.now() - 24 * 3600 * 1000;
-  const friendStoriesList = cloudStories.filter((s) => {
+  const friendStoriesList = combinedAllStories.filter((s) => {
     const storyDate = new Date(s.created_at).getTime();
     const isUnder24h = !isNaN(storyDate) ? storyDate >= twentyFourHoursAgoMs : true;
     const isFriendOrMe = s.user_id === user?.id || friendIds.includes(s.user_id) || myFriendUsernames.includes(s.username);
@@ -879,10 +891,10 @@ export default function App() {
           </form>
         )}
 
-        {/* TAB 2: BUDDY - RECHERCHE DE VRAIS MEMBRES INSCRITS */}
+        {/* TAB 2: BUDDY - VRAIE RECHERCHE FONCTIONNELLE */}
         {currentTab === 'buddy' && (
           <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4">
-            <h2 className="text-base font-black tracking-tight">Rechercher de vrais athlètes</h2>
+            <h2 className="text-base font-black tracking-tight">Rechercher des athlètes</h2>
             
             <div className="relative">
               <Search className="absolute left-3.5 top-3 w-4 h-4 text-neutral-500" />
@@ -900,7 +912,7 @@ export default function App() {
                 .filter((u) => u.username.toLowerCase().includes(userSearchQuery.toLowerCase()))
                 .length === 0 ? (
                 <div className="text-center py-8 text-neutral-500 text-xs">
-                  Aucun autre utilisateur inscrit pour l'instant. Dès que de vrais membres se connecteront, ils apparaîtront ici !
+                  Aucun autre utilisateur trouvé pour l'instant.
                 </div>
               ) : (
                 registeredUsers
@@ -944,7 +956,7 @@ export default function App() {
           </div>
         )}
 
-        {/* TAB 4: CHAT GÉNÉRAL */}
+        {/* TAB 4: CHAT */}
         {currentTab === 'chat' && (
           <div className="space-y-4">
             {selectedBuddyChat ? (
@@ -977,7 +989,7 @@ export default function App() {
                 </div>
                 {myFriendsList.length === 0 ? (
                   <div className="text-center py-8 text-neutral-500 text-xs">
-                    Aucun ami dans ton réseau. Va dans l'onglet **Buddy** pour ajouter de vrais athlètes !
+                    Aucun ami dans ton réseau. Va dans l'onglet **Buddy** pour ajouter des athlètes !
                   </div>
                 ) : (
                   myFriendsList.map((friend) => (
