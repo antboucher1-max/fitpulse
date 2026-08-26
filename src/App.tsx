@@ -170,15 +170,12 @@ interface Story {
   created_at: string;
 }
 
-interface Buddy {
+interface RealUser {
   id: string;
-  name: string;
-  gender: 'F' | 'M';
+  username: string;
+  email: string;
+  home_club: string;
   avatar_url: string;
-  level: string;
-  schedule: string;
-  goal: string;
-  club: string;
 }
 
 interface DBMessage {
@@ -189,20 +186,6 @@ interface DBMessage {
   text: string;
   created_at: string;
 }
-
-const DEFAULT_FRIEND_STORIES: Story[] = [
-  {
-    id: 'demo-s1',
-    user_id: 'b1',
-    username: 'Thomas D.',
-    avatar_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150',
-    image_url: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?w=800',
-    caption: 'Prêt pour exploser le PR au dev couché 🔥',
-    club_name: 'Basic-Fit Tournai (Bastion)',
-    likes_count: 3,
-    created_at: new Date().toISOString()
-  }
-];
 
 export default function App() {
   const [user, setUser] = useState<SupabaseUser | null>(null);
@@ -235,9 +218,12 @@ export default function App() {
 
   const [active3DExercise, setActive3DExercise] = useState<string | null>(null);
 
-  const [friendIds, setFriendIds] = useState<string[]>(['b1', 'b2']);
-  const [friendRequestsReceived, setFriendRequestsReceived] = useState<string[]>(['b3']);
+  // Vrais utilisateurs et Amis réels
+  const [registeredUsers, setRegisteredUsers] = useState<RealUser[]>([]);
+  const [friendIds, setFriendIds] = useState<string[]>([]);
+  const [friendRequestsReceived, setFriendRequestsReceived] = useState<string[]>([]);
   const [buddyTabSubMode, setBuddyTabSubMode] = useState<'discover' | 'my_friends'>('discover');
+  const [userSearchQuery, setUserSearchQuery] = useState('');
 
   // Stories
   const [cloudStories, setCloudStories] = useState<Story[]>([]);
@@ -266,8 +252,6 @@ export default function App() {
 
   const [imageZoom, setImageZoom] = useState(1);
   const [imagePos, setImagePos] = useState({ x: 0, y: 0 });
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
 
   const [workoutExercises, setWorkoutExercises] = useState<ExerciseEntry[]>([
     { name: 'Développé couché', sets: 4, reps: 10, weight: 80 }
@@ -286,19 +270,7 @@ export default function App() {
   const [isTimerRunning, setIsTimerRunning] = useState(false);
   const [initialTime, setInitialTime] = useState(90);
 
-  // Buddy Filters
-  const [filterWomenOnly, setFilterWomenOnly] = useState(false);
-  const [filterLevel, setFilterLevel] = useState<string>('all');
-  const [filterGoal, setFilterGoal] = useState<string>('all');
-
-  const buddiesList: Buddy[] = [
-    { id: 'b1', name: 'Thomas D.', gender: 'M', avatar_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150', level: 'Avancé', schedule: 'Lun, Mer, Ven (18h-20h)', goal: 'Prise de masse & Force', club: 'Basic-Fit Tournai (Bastion)' },
-    { id: 'b2', name: 'Sarah L.', gender: 'F', avatar_url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150', level: 'Intermédiaire', schedule: 'Mardi & Jeudi (12h-13h30)', goal: 'Cardio, HIIT & Tonification', club: 'Basic-Fit Tournai (Bastion)' },
-    { id: 'b3', name: 'Élodie M.', gender: 'F', avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150', level: 'Débutant', schedule: 'Mercredi & Samedi matin', goal: 'Remise en forme & Fessiers', club: 'Basic-Fit Tournai (Froyennes)' }
-  ];
-
-  const [selectedBuddyChat, setSelectedBuddyChat] = useState<Buddy | null>(null);
-  const [chatSearch, setChatSearch] = useState('');
+  const [selectedBuddyChat, setSelectedBuddyChat] = useState<RealUser | null>(null);
   const [allMessages, setAllMessages] = useState<DBMessage[]>([]);
   const [currentMessageInput, setCurrentMessageInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -322,6 +294,7 @@ export default function App() {
     fetchCloudPosts();
     fetchDirectMessages();
     fetchCloudStories();
+    fetchRealUsers();
 
     const channel = supabase
       .channel('schema-db-changes')
@@ -356,7 +329,8 @@ export default function App() {
 
   const fetchCloudStories = async () => {
     try {
-      const { data, error } = await supabase.from('stories').select('*').order('created_at', { ascending: false });
+      const twentyFourHoursAgo = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
+      const { data, error } = await supabase.from('stories').select('*').gte('created_at', twentyFourHoursAgo).order('created_at', { ascending: false });
       if (!error && data) setCloudStories(data as Story[]);
     } catch (err) {}
   };
@@ -364,6 +338,26 @@ export default function App() {
   const fetchDirectMessages = async () => {
     const { data, error } = await supabase.from('direct_messages').select('*').order('created_at', { ascending: true });
     if (!error && data) setAllMessages(data as DBMessage[]);
+  };
+
+  // Récupérer les vrais utilisateurs inscrits dans Supabase
+  const fetchRealUsers = async () => {
+    const { data, error } = await supabase.from('posts').select('user_id, username, club_name, avatar_url').limit(50);
+    if (!error && data) {
+      const uniqueMap = new Map();
+      data.forEach((p) => {
+        if (p.user_id !== user?.id && !uniqueMap.has(p.user_id)) {
+          uniqueMap.set(p.user_id, {
+            id: p.user_id,
+            username: p.username,
+            email: `${p.username}@fitpulse.be`,
+            home_club: p.club_name || 'Basic-Fit Tournai',
+            avatar_url: p.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'
+          });
+        }
+      });
+      setRegisteredUsers(Array.from(uniqueMap.values()));
+    }
   };
 
   useEffect(() => {
@@ -376,16 +370,15 @@ export default function App() {
     return () => { if (interval) clearInterval(interval); };
   }, [isTimerRunning, timerSeconds]);
 
-  const combinedAllStories = [...cloudStories, ...DEFAULT_FRIEND_STORIES];
-  const myFriendsList = buddiesList.filter((b) => friendIds.includes(b.id));
-  const myFriendNames = myFriendsList.map((f) => f.name);
-  const friendRequestsList = buddiesList.filter((b) => friendRequestsReceived.includes(b.id));
+  const myFriendsList = registeredUsers.filter((u) => friendIds.includes(u.id));
+  const myFriendUsernames = myFriendsList.map((f) => f.username);
 
+  // FILTRE STORIES : Uniquement les vrais amis confirmés OU ma propre story (< 24h)
   const twentyFourHoursAgoMs = Date.now() - 24 * 3600 * 1000;
-  const friendStoriesList = combinedAllStories.filter((s) => {
+  const friendStoriesList = cloudStories.filter((s) => {
     const storyDate = new Date(s.created_at).getTime();
     const isUnder24h = !isNaN(storyDate) ? storyDate >= twentyFourHoursAgoMs : true;
-    const isFriendOrMe = s.user_id === user?.id || friendIds.includes(s.user_id) || myFriendNames.includes(s.username);
+    const isFriendOrMe = s.user_id === user?.id || friendIds.includes(s.user_id) || myFriendUsernames.includes(s.username);
     return isUnder24h && isFriendOrMe;
   });
 
@@ -566,7 +559,6 @@ export default function App() {
     setPosts((prev) => prev.filter((p) => p.id !== postId));
   };
 
-  // Suppression d'une conversation par bouton poubelle explicite
   const handleDeleteConversationForBuddy = async (buddyId: string, buddyName: string) => {
     if (!user) return;
     if (!window.confirm(`Effacer toute la conversation avec ${buddyName} ?`)) return;
@@ -674,14 +666,9 @@ export default function App() {
     setIsUploading(false);
   };
 
-  const filteredBuddies = buddiesList.filter((buddy) => {
-    if (buddyTabSubMode === 'my_friends') return friendIds.includes(buddy.id);
-    return isMatchingClub(buddy.club, selectedClub);
-  });
-
   const displayedPosts = posts.filter((post) => {
     if (feedFilterMode === 'all') return isMatchingClub(post.club_name, selectedClub);
-    return post.user_id === user?.id || myFriendNames.includes(post.username);
+    return post.user_id === user?.id || myFriendUsernames.includes(post.username);
   });
 
   const currentChatMessages = allMessages.filter(
@@ -892,33 +879,80 @@ export default function App() {
           </form>
         )}
 
+        {/* TAB 2: BUDDY - RECHERCHE DE VRAIS MEMBRES INSCRITS */}
         {currentTab === 'buddy' && (
           <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4">
-            <h2 className="text-base font-black tracking-tight">Partenaires d'entraînement</h2>
-            {filteredBuddies.map((b) => (
-              <div key={b.id} className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <img src={b.avatar_url} alt="" className="w-12 h-12 rounded-full object-cover" />
-                  <div>
-                    <h3 className="font-bold text-sm">{b.name}</h3>
-                    <span className="text-[11px] text-orange-400">{b.level} • {b.club}</span>
-                  </div>
+            <h2 className="text-base font-black tracking-tight">Rechercher de vrais athlètes</h2>
+            
+            <div className="relative">
+              <Search className="absolute left-3.5 top-3 w-4 h-4 text-neutral-500" />
+              <input
+                type="text"
+                placeholder="Rechercher par pseudo..."
+                value={userSearchQuery}
+                onChange={(e) => setUserSearchQuery(e.target.value)}
+                className="w-full bg-neutral-950 border border-neutral-800 rounded-xl pl-10 pr-3 py-2.5 text-xs text-white focus:outline-none focus:border-orange-500"
+              />
+            </div>
+
+            <div className="space-y-3 pt-1">
+              {registeredUsers
+                .filter((u) => u.username.toLowerCase().includes(userSearchQuery.toLowerCase()))
+                .length === 0 ? (
+                <div className="text-center py-8 text-neutral-500 text-xs">
+                  Aucun autre utilisateur inscrit pour l'instant. Dès que de vrais membres se connecteront, ils apparaîtront ici !
                 </div>
-                <button onClick={() => { setSelectedBuddyChat(b); setCurrentTab('chat'); }} className="p-2 bg-orange-600 text-white rounded-xl"><MessageCircle className="w-4 h-4" /></button>
-              </div>
-            ))}
+              ) : (
+                registeredUsers
+                  .filter((u) => u.username.toLowerCase().includes(userSearchQuery.toLowerCase()))
+                  .map((realUser) => {
+                    const isFriend = friendIds.includes(realUser.id);
+                    return (
+                      <div key={realUser.id} className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <img src={realUser.avatar_url} alt="" className="w-12 h-12 rounded-full object-cover border border-neutral-700" />
+                          <div>
+                            <h3 className="font-bold text-sm text-white">{realUser.username}</h3>
+                            <span className="text-[11px] text-orange-400 font-medium">● {realUser.home_club}</span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => {
+                              if (isFriend) {
+                                setFriendIds(friendIds.filter(id => id !== realUser.id));
+                              } else {
+                                setFriendIds([...friendIds, realUser.id]);
+                              }
+                            }}
+                            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1 ${
+                              isFriend ? 'bg-neutral-900 border border-neutral-700 text-green-400' : 'bg-orange-600 text-white'
+                            }`}
+                          >
+                            {isFriend ? <UserCheck className="w-3.5 h-3.5" /> : <UserPlus className="w-3.5 h-3.5" />}
+                            {isFriend ? 'Ami' : 'Ajouter'}
+                          </button>
+                          <button onClick={() => { setSelectedBuddyChat(realUser); setCurrentTab('chat'); }} className="p-2 bg-neutral-900 border border-neutral-800 hover:border-orange-500 text-neutral-200 rounded-xl">
+                            <MessageCircle className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })
+              )}
+            </div>
           </div>
         )}
 
-        {/* TAB 4: CHAT GÉNÉRAL AVEC BOUTON POUBELLE CLAIR SUR CHAQUE CARTE */}
+        {/* TAB 4: CHAT GÉNÉRAL */}
         {currentTab === 'chat' && (
           <div className="space-y-4">
             {selectedBuddyChat ? (
               <div className="bg-neutral-900 border border-neutral-800 rounded-3xl overflow-hidden flex flex-col h-[74vh]">
                 <div className="p-3.5 bg-neutral-950 border-b border-neutral-800 flex items-center justify-between">
                   <button onClick={() => setSelectedBuddyChat(null)} className="p-1 text-neutral-400 hover:text-white"><ArrowLeft className="w-5 h-5" /></button>
-                  <h3 className="font-bold text-xs text-white">{selectedBuddyChat.name}</h3>
-                  <button onClick={() => handleDeleteConversationForBuddy(selectedBuddyChat.id, selectedBuddyChat.name)} className="p-1.5 text-neutral-500 hover:text-red-400"><Trash2 className="w-4 h-4" /></button>
+                  <h3 className="font-bold text-xs text-white">{selectedBuddyChat.username}</h3>
+                  <button onClick={() => handleDeleteConversationForBuddy(selectedBuddyChat.id, selectedBuddyChat.username)} className="p-1.5 text-neutral-500 hover:text-red-400"><Trash2 className="w-4 h-4" /></button>
                 </div>
                 <div className="flex-1 p-4 overflow-y-auto space-y-3">
                   {currentChatMessages.map((msg) => (
@@ -939,10 +973,12 @@ export default function App() {
               <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-3">
                 <div className="flex items-center justify-between">
                   <h2 className="text-base font-black tracking-tight">Messagerie</h2>
-                  <span className="text-[10px] text-neutral-500">Clique sur la poubelle pour effacer 🗑️</span>
+                  <span className="text-[10px] text-neutral-500">Conversations avec tes amis 💬</span>
                 </div>
                 {myFriendsList.length === 0 ? (
-                  <div className="text-center py-8 text-neutral-500 text-xs">Aucun contact dans ta liste d'amis.</div>
+                  <div className="text-center py-8 text-neutral-500 text-xs">
+                    Aucun ami dans ton réseau. Va dans l'onglet **Buddy** pour ajouter de vrais athlètes !
+                  </div>
                 ) : (
                   myFriendsList.map((friend) => (
                     <div
@@ -953,16 +989,15 @@ export default function App() {
                       <div className="flex items-center gap-3">
                         <img src={friend.avatar_url} alt="" className="w-11 h-11 rounded-full object-cover border border-neutral-800" />
                         <div>
-                          <h3 className="font-bold text-xs text-white">{friend.name}</h3>
-                          <span className="text-[10px] text-neutral-500">{friend.club}</span>
+                          <h3 className="font-bold text-xs text-white">{friend.username}</h3>
+                          <span className="text-[10px] text-neutral-500">{friend.home_club}</span>
                         </div>
                       </div>
 
-                      {/* BOUTON POUBELLE ROUGE DIRECT */}
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleDeleteConversationForBuddy(friend.id, friend.name);
+                          handleDeleteConversationForBuddy(friend.id, friend.username);
                         }}
                         title="Effacer la conversation"
                         className="p-2.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-xl transition border border-red-500/20"
