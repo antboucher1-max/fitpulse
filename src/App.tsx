@@ -390,6 +390,12 @@ export default function App() {
   const [matchGoal, setMatchGoal] = useState('Tous');
   const [matchTime, setMatchTime] = useState('Tous');
 
+  // Avatar utilisateur
+  const [userAvatarUrl, setUserAvatarUrl] = useState<string>(() => {
+    return 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150';
+  });
+  const profileAvatarInputRef = useRef<HTMLInputElement>(null);
+
   // Paramètres Utilisateur Locaux & Cloud
   const [userStreak, setUserStreak] = useState<number>(() => {
     try { return parseInt(localStorage.getItem('fitpulse_streak') || '2', 10); } catch { return 2; }
@@ -489,7 +495,7 @@ export default function App() {
 
   // Caméra
   const [isCameraActive, setIsCameraActive] = useState(false);
-  const [cameraTarget, setCameraTarget] = useState<'post' | 'story' | 'trans_before' | 'trans_after'>('post');
+  const [cameraTarget, setCameraTarget] = useState<'post' | 'story' | 'trans_before' | 'trans_after' | 'profile_avatar'>('post');
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('environment');
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -582,7 +588,7 @@ export default function App() {
     const newComment: Comment = {
       id: 'c-' + Date.now(),
       username: myName,
-      avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+      avatar_url: userAvatarUrl,
       text: postCommentInput.trim(),
       created_at: new Date().toISOString()
     };
@@ -681,7 +687,7 @@ export default function App() {
     const newPostData = {
       user_id: user.id,
       username: myName,
-      avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+      avatar_url: userAvatarUrl,
       image_url: item.after_url,
       club_name: selectedClub,
       session_type: 'Transformation #transformation',
@@ -703,11 +709,39 @@ export default function App() {
     }
   };
 
+  // MISE À JOUR DE LA PHOTO DE PROFIL DANS SUPABASE (METADATA & CLOUD STORAGE)
+  const handleUpdateProfileAvatar = async (fileOrUrl: File | string) => {
+    if (!user) return;
+    let finalAvatarUrl = typeof fileOrUrl === 'string' ? fileOrUrl : '';
+
+    if (typeof fileOrUrl !== 'string') {
+      try {
+        const compressed = await compressImage(fileOrUrl, 400, 0.7);
+        const fileName = `avatar-${user.id}-${Date.now()}.jpg`;
+        const { data: uploadData } = await supabase.storage.from('posts').upload(fileName, compressed, { contentType: 'image/jpeg', upsert: true });
+        if (uploadData) {
+          const { data: publicUrl } = supabase.storage.from('posts').getPublicUrl(fileName);
+          finalAvatarUrl = publicUrl.publicUrl;
+        }
+      } catch (err) {}
+    }
+
+    if (finalAvatarUrl) {
+      setUserAvatarUrl(finalAvatarUrl);
+      // Mettre à jour les métadonnées auth
+      await supabase.auth.updateUser({
+        data: { ...user.user_metadata, avatar_url: finalAvatarUrl }
+      });
+      alert('🌟 Photo de profil mise à jour et enregistrée avec succès !');
+    }
+  };
+
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       const activeUser = session?.user ?? null;
       setUser(activeUser);
       if (activeUser?.user_metadata?.home_club) setSelectedClub(activeUser.user_metadata.home_club);
+      if (activeUser?.user_metadata?.avatar_url) setUserAvatarUrl(activeUser.user_metadata.avatar_url);
       if (activeUser) fetchTransformations(activeUser.id);
     });
 
@@ -715,6 +749,7 @@ export default function App() {
       const activeUser = session?.user ?? null;
       setUser(activeUser);
       if (activeUser?.user_metadata?.home_club) setSelectedClub(activeUser.user_metadata.home_club);
+      if (activeUser?.user_metadata?.avatar_url) setUserAvatarUrl(activeUser.user_metadata.avatar_url);
       if (activeUser) fetchTransformations(activeUser.id);
     });
 
@@ -802,9 +837,13 @@ export default function App() {
         setNewTransBefore(previewUrl);
       } else if (targetType === 'trans_after') {
         setNewTransAfter(previewUrl);
+      } else if (targetType === 'profile_avatar') {
+        handleUpdateProfileAvatar(file);
       } else if (cameraTarget === 'post') {
         setPostImageFile(file);
         setPostImagePreview(previewUrl);
+      } else if (cameraTarget === 'profile_avatar') {
+        handleUpdateProfileAvatar(file);
       } else {
         setStoryImageFile(file);
         setStoryImagePreview(previewUrl);
@@ -944,7 +983,7 @@ export default function App() {
     alert('Réponse envoyée en message direct !');
   };
 
-  const startCamera = async (target: 'post' | 'story' | 'trans_before' | 'trans_after') => {
+  const startCamera = async (target: 'post' | 'story' | 'trans_before' | 'trans_after' | 'profile_avatar') => {
     setCameraTarget(target);
     setIsCameraActive(true);
     try {
@@ -952,7 +991,7 @@ export default function App() {
         streamRef.current.getTracks().forEach((t) => t.stop());
       }
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: 'environment' } },
+        video: { facingMode: { ideal: target === 'profile_avatar' ? 'user' : 'environment' } },
         audio: false
       });
       streamRef.current = stream;
@@ -1007,6 +1046,9 @@ export default function App() {
         setNewTransBefore(previewUrl);
       } else if (cameraTarget === 'trans_after') {
         setNewTransAfter(previewUrl);
+      } else if (cameraTarget === 'profile_avatar') {
+        const file = new File([blob], `avatar-${Date.now()}.jpg`, { type: 'image/jpeg' });
+        handleUpdateProfileAvatar(file);
       } else if (cameraTarget === 'post') {
         const file = new File([blob], `photo-${Date.now()}.jpg`, { type: 'image/jpeg' });
         setPostImageFile(file);
@@ -1028,7 +1070,7 @@ export default function App() {
       const { error } = await supabase.auth.signUp({
         email,
         password,
-        options: { data: { first_name: firstName, last_name: lastName, username: username || `${firstName}_${lastName}`.toLowerCase(), age: Number(age) || 25, gender, level, home_club: homeClub, preferred_time: preferredTime } }
+        options: { data: { first_name: firstName, last_name: lastName, username: username || `${firstName}_${lastName}`.toLowerCase(), age: Number(age) || 25, gender, level, home_club: homeClub, preferred_time: preferredTime, avatar_url: userAvatarUrl } }
       });
       if (error) alert("Erreur d'inscription : " + error.message);
       else setSelectedClub(homeClub);
@@ -1087,14 +1129,14 @@ export default function App() {
       id: 'story-' + Date.now(),
       user_id: user.id,
       username: myName,
-      avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+      avatar_url: userAvatarUrl,
       image_url: uploadedStoryUrl,
       caption: storyCaption,
       club_name: selectedClub,
       likes_count: 0,
       created_at: new Date().toISOString()
     };
-    const { error: storyError } = await supabase.from('stories').insert([{ user_id: user.id, username: myName, avatar_url: newStory.avatar_url, image_url: uploadedStoryUrl, caption: storyCaption, club_name: selectedClub }]);
+    const { error: storyError } = await supabase.from('stories').insert([{ user_id: user.id, username: myName, avatar_url: userAvatarUrl, image_url: uploadedStoryUrl, caption: storyCaption, club_name: selectedClub }]);
     if (storyError) {
       alert("Erreur publication story : " + storyError.message);
     } else {
@@ -1134,7 +1176,7 @@ export default function App() {
     const newPostData = {
       user_id: user.id,
       username: user.user_metadata?.username || user.email?.split('@')[0] || 'Athlète',
-      avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+      avatar_url: userAvatarUrl,
       image_url: uploadedImageUrl || null,
       club_name: selectedClub,
       session_type: workoutType,
@@ -1713,7 +1755,7 @@ export default function App() {
                       <div className="flex items-center gap-3">
                         <img src={realUser.avatar_url} alt="" className="w-12 h-12 rounded-full object-cover border border-neutral-700" />
                         <div>
-                          <h3 className="font-bold text-sm text-white">{realUser.username}</h3>
+                          <h3 className="font-bold text-sm text-white">{realUser.username} {realUser.gender === 'F' && '🚺'}</h3>
                           <span className="text-[11px] text-orange-400 font-medium block">● {realUser.home_club}</span>
                           <div className="flex items-center gap-2 mt-0.5">
                             {realUser.goal && <span className="text-[10px] text-neutral-400 italic">🎯 {realUser.goal}</span>}
@@ -1894,22 +1936,23 @@ export default function App() {
           </div>
         )}
 
-        {/* TAB 6: PROFIL (AVEC MODE PRIVÉ, FLAMMES ET AVANT/APRÈS) */}
+        {/* TAB 6: PROFIL (AVEC PHOTO DE PROFIL PERSISTANTE, MODE PRIVÉ, FLAMMES ET AVANT/APRÈS) */}
         {currentTab === 'profile' && (
           <div className="space-y-4">
-            <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-6 text-center space-y-5">
-              <div className="relative w-24 h-24 mx-auto">
-                <div className="w-full h-full rounded-full bg-gradient-to-tr from-orange-500 to-amber-500 p-0.5 flex items-center justify-center text-white font-bold text-3xl shadow-lg">
-                  <div className="w-full h-full bg-neutral-950 rounded-full flex items-center justify-center">
-                    {user.email?.[0].toUpperCase()}
-                  </div>
+            <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-6 text-center space-y-4">
+              <div className="relative w-24 h-24 mx-auto group cursor-pointer" onClick={() => profileAvatarInputRef.current?.click()}>
+                <img src={userAvatarUrl} alt="Avatar" className="w-full h-full rounded-full object-cover border-2 border-orange-500 shadow-xl" />
+                <div className="absolute inset-0 bg-black/50 rounded-full flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition">
+                  <Camera className="w-6 h-6 text-white" />
+                  <span className="text-[9px] text-white font-bold mt-1">Modifier</span>
                 </div>
-                <div className="absolute -bottom-2 -right-2 bg-neutral-900 rounded-full p-1.5 border border-neutral-800">
+                <div className="absolute -bottom-1 -right-1 bg-neutral-900 rounded-full p-1.5 border border-neutral-800">
                   <div className="bg-orange-500/20 text-orange-500 px-2 py-0.5 rounded-full text-xs font-black flex items-center gap-1">
                     <Flame className="w-3.5 h-3.5" /> {userStreak}
                   </div>
                 </div>
               </div>
+              <input type="file" accept="image/*" ref={profileAvatarInputRef} onChange={(e) => handleImageSelect(e, 'profile_avatar')} className="hidden" />
               
               <div>
                 <h2 className="font-extrabold text-xl">{user.user_metadata?.first_name || user.email?.split('@')[0]}</h2>
@@ -2035,7 +2078,6 @@ export default function App() {
                 </select>
               </div>
 
-              {/* Rappel du filtre femmes entre femmes intégré dans le match */}
               <div className="flex items-center justify-between pt-1">
                 <span className="text-[11px] text-neutral-400">Filtrer uniquement entre femmes :</span>
                 <button
