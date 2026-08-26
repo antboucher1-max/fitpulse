@@ -375,7 +375,7 @@ export default function App() {
   const [gender, setGender] = useState<'M' | 'F'>('M');
   const [level, setLevel] = useState<'Débutant' | 'Intermédiaire' | 'Avancé'>('Intermédiaire');
   const [homeClub, setHomeClub] = useState<string>('Club Tournai (Bastion)');
-  const [preferredTime, setPreferredTime] = useState<string>(TIME_SLOTS[2]); // Soir par défaut
+  const [preferredTime, setPreferredTime] = useState<string>(TIME_SLOTS[2]);
 
   const [authLoading, setAuthLoading] = useState(false);
 
@@ -385,12 +385,12 @@ export default function App() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [feedLoading, setFeedLoading] = useState(false);
 
-  // Pop-up Matchmaking Buddy
+  // Pop-up Matchmaking Partner
   const [isMatchModalOpen, setIsMatchModalOpen] = useState(false);
   const [matchGoal, setMatchGoal] = useState('Tous');
   const [matchTime, setMatchTime] = useState('Tous');
 
-  // Paramètres Utilisateur Locaux (Flammes, Mode Privé & Avant/Après sur Supabase)
+  // Paramètres Utilisateur Locaux & Cloud
   const [userStreak, setUserStreak] = useState<number>(() => {
     try { return parseInt(localStorage.getItem('fitpulse_streak') || '2', 10); } catch { return 2; }
   });
@@ -1180,6 +1180,7 @@ export default function App() {
 
   const matchedBuddiesList = registeredUsers.filter((u) => {
     if (u.id === user?.id) return false;
+    if (filterWomenOnly && u.gender === 'M') return false;
     const matchG = matchGoal === 'Tous' || (u.goal && u.goal.toLowerCase().includes(matchGoal.toLowerCase()));
     const matchT = matchTime === 'Tous' || (u.preferred_time && u.preferred_time.includes(matchTime));
     return matchG && matchT;
@@ -1644,7 +1645,7 @@ export default function App() {
                       : 'bg-neutral-950 text-neutral-400 hover:text-white border border-neutral-800'
                   }`}
                 >
-                  <span>🚺</span> {filterWomenOnly && '✓'}
+                  <span>🚺</span> Entre femmes {filterWomenOnly && '✓'}
                 </button>
               </div>
             </div>
@@ -2033,19 +2034,30 @@ export default function App() {
                   ))}
                 </select>
               </div>
+
+              {/* Rappel du filtre femmes entre femmes intégré dans le match */}
+              <div className="flex items-center justify-between pt-1">
+                <span className="text-[11px] text-neutral-400">Filtrer uniquement entre femmes :</span>
+                <button
+                  onClick={() => setFilterWomenOnly(!filterWomenOnly)}
+                  className={`px-3 py-1 rounded-lg text-xs font-bold transition ${filterWomenOnly ? 'bg-pink-600 text-white' : 'bg-neutral-950 text-neutral-400 border border-neutral-800'}`}
+                >
+                  {filterWomenOnly ? 'Activé (🚺)' : 'Désactivé'}
+                </button>
+              </div>
             </div>
 
             <div className="space-y-2 pt-2 border-t border-neutral-800 max-h-60 overflow-y-auto">
               <span className="text-[11px] font-bold text-orange-400 block mb-1">Résultats du match ({matchedBuddiesList.length}) :</span>
               {matchedBuddiesList.length === 0 ? (
-                <div className="text-center py-6 text-neutral-500 text-xs">Aucun athlète ne correspond exactement à ces critères dans ce club.</div>
+                <div className="text-center py-6 text-neutral-500 text-xs">Aucun athlète ne correspond exactement à ces critères.</div>
               ) : (
                 matchedBuddiesList.map((buddy) => (
                   <div key={buddy.id} className="bg-neutral-950 p-3 rounded-2xl border border-neutral-800 flex items-center justify-between">
                     <div className="flex items-center gap-2.5">
                       <img src={buddy.avatar_url} alt="" className="w-10 h-10 rounded-full object-cover border border-neutral-700" />
                       <div>
-                        <h4 className="font-bold text-xs text-white">{buddy.username}</h4>
+                        <h4 className="font-bold text-xs text-white">{buddy.username} {buddy.gender === 'F' && '🚺'}</h4>
                         <span className="text-[10px] text-orange-400 block">{buddy.goal || 'Sportif'}</span>
                         <span className="text-[9px] text-amber-400">🕒 {buddy.preferred_time || 'Créneau flexible'}</span>
                       </div>
