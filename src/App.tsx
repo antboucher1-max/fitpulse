@@ -281,6 +281,7 @@ interface Post {
   caption: string;
   exercises: ExerciseEntry[];
   likes_count: number;
+  liked_by?: string[]; // Liste des IDs ayant liké pour éviter les doublons
   comments_count: number;
   comments?: Comment[];
   created_at: string;
@@ -399,8 +400,6 @@ export default function App() {
   useEffect(() => { localStorage.setItem('fitpulse_streak', userStreak.toString()); }, [userStreak]);
   useEffect(() => { localStorage.setItem('fitpulse_private', isPrivateMode.toString()); }, [isPrivateMode]);
   useEffect(() => { localStorage.setItem('fitpulse_transformations', JSON.stringify(transformations)); }, [transformations]);
-
-  const [likedPosts, setLikedPosts] = useState<Record<string, boolean>>({});
 
   const [likedStories, setLikedStories] = useState<Record<string, boolean>>(() => {
     try {
@@ -589,7 +588,6 @@ export default function App() {
     const updatedComments = [...(targetPost.comments || []), newComment];
     const newCount = updatedComments.length;
 
-    // Mise à jour sur Supabase
     const { error } = await supabase
       .from('posts')
       .update({ comments: updatedComments, comments_count: newCount })
@@ -642,6 +640,7 @@ export default function App() {
       caption: `Bilan évolution (${item.weight} kg) : ${item.note} #pr #gym`,
       exercises: [],
       likes_count: 0,
+      liked_by: [],
       comments_count: 0,
       comments: [],
       is_private: isPrivateMode
@@ -781,21 +780,35 @@ export default function App() {
     }
   };
 
-  // PERSISTANCE DES LIKES SUR SUPABASE
+  // GESTION ANTI-MULTIPLE LIKES SÉCURISÉE SUR SUPABASE
   const handleToggleLike = async (postId: string) => {
+    if (!user) return;
     const post = posts.find(p => p.id === postId);
     if (!post) return;
 
-    const isCurrentlyLiked = likedPosts[postId];
-    const newLikedState = !isCurrentlyLiked;
-    const newCount = newLikedState ? post.likes_count + 1 : Math.max(0, post.likes_count - 1);
+    const likedByList = post.liked_by || [];
+    const hasAlreadyLiked = likedByList.includes(user.id);
 
-    setLikedPosts(prev => ({ ...prev, [postId]: newLikedState }));
-    setPosts(prev => prev.map(p => p.id === postId ? { ...p, likes_count: newCount } : p));
+    let updatedLikedBy = [...likedByList];
+    let newCount = post.likes_count;
 
+    if (hasAlreadyLiked) {
+      // Retirer le like
+      updatedLikedBy = updatedLikedBy.filter(id => id !== user.id);
+      newCount = Math.max(0, newCount - 1);
+    } else {
+      // Ajouter le like une seule fois
+      updatedLikedBy.push(user.id);
+      newCount += 1;
+    }
+
+    // Mise à jour immédiate de l'interface
+    setPosts(prev => prev.map(p => p.id === postId ? { ...p, likes_count: newCount, liked_by: updatedLikedBy } : p));
+
+    // Sauvegarde en base de données Supabase
     await supabase
       .from('posts')
-      .update({ likes_count: newCount })
+      .update({ likes_count: newCount, liked_by: updatedLikedBy })
       .eq('id', postId);
   };
 
@@ -1082,6 +1095,7 @@ export default function App() {
       caption: workoutCaption,
       exercises: validExercises,
       likes_count: 0,
+      liked_by: [],
       comments_count: 0,
       comments: [],
       is_private: isPrivateMode
@@ -1276,82 +1290,88 @@ export default function App() {
             ) : displayedPosts.length === 0 ? (
               <div className="text-center py-16 text-neutral-500 text-xs bg-neutral-900/50 rounded-3xl border border-neutral-800/60 p-6">Aucune publication pour l'instant dans ce club.</div>
             ) : (
-              displayedPosts.map((post) => (
-                <article key={post.id} className="bg-neutral-900/70 border border-neutral-800 rounded-3xl p-4 space-y-3.5 shadow-sm overflow-hidden relative">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <img src={post.avatar_url} alt="" className="w-10 h-10 rounded-full object-cover border border-neutral-700" />
-                      <div>
-                        <div className="flex items-center gap-1.5">
-                          <h3 className="font-bold text-sm leading-snug">{post.username}</h3>
-                          {post.is_private && (
-                            <span title="Publication privée (Visible par les amis uniquement)">
-                              <Lock className="w-3 h-3 text-neutral-500" />
-                            </span>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-1 text-[11px] text-orange-400 font-medium">
-                          <MapPin className="w-3 h-3" />{post.club_name}
-                        </div>
-                      </div>
-                    </div>
-                    {post.user_id === user.id && (
-                      <button onClick={() => handleDeletePost(post.id)} className="p-1.5 text-neutral-500 hover:text-red-400 rounded-lg"><Trash2 className="w-4 h-4" /></button>
-                    )}
-                  </div>
-
-                  <div className="rounded-2xl overflow-hidden border border-neutral-800 bg-neutral-950 relative shadow-inner">
-                    {post.image_url ? (
-                      <div className="h-72 w-full relative flex items-center justify-center">
-                        <img src={post.image_url} alt="" className="max-h-full max-w-full object-contain pointer-events-none" />
-                        <div className="absolute top-3 left-3 bg-black/70 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/10 flex items-center gap-2">
-                          <Flame className="w-4 h-4 text-orange-500 animate-pulse" />
-                          <span className="text-xs font-black text-white">{post.session_type}</span>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="p-6 bg-gradient-to-br from-neutral-900 to-neutral-950 flex flex-col justify-center items-center text-center space-y-2">
-                        <Dumbbell className="w-10 h-10 text-orange-500 mb-1" />
-                        <span className="text-sm font-black text-white">{post.session_type}</span>
-                        <span className="text-[11px] text-neutral-400">Séance validée à {post.club_name}</span>
-                      </div>
-                    )}
-                  </div>
-
-                  {post.caption && <p className="text-xs text-neutral-200 leading-relaxed font-medium">{renderCaptionWithHashtags(post.caption)}</p>}
-
-                  {/* EXERCICES & REPOS */}
-                  {post.exercises && post.exercises.length > 0 && (
-                    <div className="bg-neutral-950/80 rounded-2xl p-3.5 border border-neutral-800/80 space-y-2.5">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider flex items-center gap-1.5">
-                          <Dumbbell className="w-3.5 h-3.5 text-orange-500" /> Exercices réalisés
-                        </span>
-                        <div className="flex items-center gap-1.5">
-                          <button onClick={() => startRestTimer(60)} className="px-2 py-0.5 bg-neutral-900 hover:bg-orange-600 text-neutral-300 hover:text-white rounded text-[10px] transition">⏱ 60s</button>
-                          <button onClick={() => startRestTimer(90)} className="px-2 py-0.5 bg-neutral-900 hover:bg-orange-600 text-neutral-300 hover:text-white rounded text-[10px] transition">⏱ 90s</button>
-                        </div>
-                      </div>
-                      {post.exercises.map((ex, i) => (
-                        <div key={i} className="flex items-center justify-between text-xs py-1.5 border-b border-neutral-900 last:border-none">
-                          <span className="font-semibold text-neutral-200">{ex.name}</span>
-                          <div className="flex items-center gap-2">
-                            <span className="font-mono text-[11px] text-orange-400 font-bold">{ex.sets} séries × {ex.reps} reps ({ex.weight} kg)</span>
-                            <button onClick={() => setActiveAnatomyExercise(ex.name)} className="p-1 bg-orange-600/20 hover:bg-orange-600 text-orange-400 hover:text-white rounded-lg flex items-center gap-1 text-[10px] transition">
-                              <Activity className="w-3 h-3" /> Muscles 2D
-                            </button>
+              displayedPosts.map((post) => {
+                const isAlreadyLikedByMe = user ? (post.liked_by || []).includes(user.id) : false;
+                return (
+                  <article key={post.id} className="bg-neutral-900/70 border border-neutral-800 rounded-3xl p-4 space-y-3.5 shadow-sm overflow-hidden relative">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <img src={post.avatar_url} alt="" className="w-10 h-10 rounded-full object-cover border border-neutral-700" />
+                        <div>
+                          <div className="flex items-center gap-1.5">
+                            <h3 className="font-bold text-sm leading-snug">{post.username}</h3>
+                            {post.is_private && (
+                              <span title="Publication privée (Visible par les amis uniquement)">
+                                <Lock className="w-3 h-3 text-neutral-500" />
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1 text-[11px] text-orange-400 font-medium">
+                            <MapPin className="w-3 h-3" />{post.club_name}
                           </div>
                         </div>
-                      ))}
+                      </div>
+                      {post.user_id === user?.id && (
+                        <button onClick={() => handleDeletePost(post.id)} className="p-1.5 text-neutral-500 hover:text-red-400 rounded-lg"><Trash2 className="w-4 h-4" /></button>
+                      )}
                     </div>
-                  )}
 
-                  <div className="flex items-center justify-between pt-2 border-t border-neutral-800/60 text-neutral-400 text-xs">
-                    <button onClick={() => handleToggleLike(post.id)} className={`flex items-center gap-1.5 ${likedPosts[post.id] ? 'text-red-500 font-bold' : ''}`}><Heart className="w-4 h-4" /><span>{post.likes_count}</span></button>
-                    <button onClick={() => setActiveCommentPostId(post.id)} className="flex items-center gap-1.5"><MessageSquare className="w-4 h-4" /><span>{post.comments_count || 0}</span></button>
-                  </div>
-                </article>
-              ))
+                    <div className="rounded-2xl overflow-hidden border border-neutral-800 bg-neutral-950 relative shadow-inner">
+                      {post.image_url ? (
+                        <div className="h-72 w-full relative flex items-center justify-center">
+                          <img src={post.image_url} alt="" className="max-h-full max-w-full object-contain pointer-events-none" />
+                          <div className="absolute top-3 left-3 bg-black/70 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/10 flex items-center gap-2">
+                            <Flame className="w-4 h-4 text-orange-500 animate-pulse" />
+                            <span className="text-xs font-black text-white">{post.session_type}</span>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="p-6 bg-gradient-to-br from-neutral-900 to-neutral-950 flex flex-col justify-center items-center text-center space-y-2">
+                          <Dumbbell className="w-10 h-10 text-orange-500 mb-1" />
+                          <span className="text-sm font-black text-white">{post.session_type}</span>
+                          <span className="text-[11px] text-neutral-400">Séance validée à {post.club_name}</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {post.caption && <p className="text-xs text-neutral-200 leading-relaxed font-medium">{renderCaptionWithHashtags(post.caption)}</p>}
+
+                    {/* EXERCICES & REPOS */}
+                    {post.exercises && post.exercises.length > 0 && (
+                      <div className="bg-neutral-950/80 rounded-2xl p-3.5 border border-neutral-800/80 space-y-2.5">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider flex items-center gap-1.5">
+                            <Dumbbell className="w-3.5 h-3.5 text-orange-500" /> Exercices réalisés
+                          </span>
+                          <div className="flex items-center gap-1.5">
+                            <button onClick={() => startRestTimer(60)} className="px-2 py-0.5 bg-neutral-900 hover:bg-orange-600 text-neutral-300 hover:text-white rounded text-[10px] transition">⏱ 60s</button>
+                            <button onClick={() => startRestTimer(90)} className="px-2 py-0.5 bg-neutral-900 hover:bg-orange-600 text-neutral-300 hover:text-white rounded text-[10px] transition">⏱ 90s</button>
+                          </div>
+                        </div>
+                        {post.exercises.map((ex, i) => (
+                          <div key={i} className="flex items-center justify-between text-xs py-1.5 border-b border-neutral-900 last:border-none">
+                            <span className="font-semibold text-neutral-200">{ex.name}</span>
+                            <div className="flex items-center gap-2">
+                              <span className="font-mono text-[11px] text-orange-400 font-bold">{ex.sets} séries × {ex.reps} reps ({ex.weight} kg)</span>
+                              <button onClick={() => setActiveAnatomyExercise(ex.name)} className="p-1 bg-orange-600/20 hover:bg-orange-600 text-orange-400 hover:text-white rounded-lg flex items-center gap-1 text-[10px] transition">
+                                <Activity className="w-3 h-3" /> Muscles 2D
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    <div className="flex items-center justify-between pt-2 border-t border-neutral-800/60 text-neutral-400 text-xs">
+                      <button onClick={() => handleToggleLike(post.id)} className={`flex items-center gap-1.5 transition ${isAlreadyLikedByMe ? 'text-red-500 font-bold' : 'hover:text-white'}`}>
+                        <Heart className={`w-4 h-4 ${isAlreadyLikedByMe ? 'fill-red-500 text-red-500' : ''}`} />
+                        <span>{post.likes_count}</span>
+                      </button>
+                      <button onClick={() => setActiveCommentPostId(post.id)} className="flex items-center gap-1.5 hover:text-white transition"><MessageSquare className="w-4 h-4" /><span>{post.comments_count || 0}</span></button>
+                    </div>
+                  </article>
+                );
+              })
             )}
           </div>
         )}
