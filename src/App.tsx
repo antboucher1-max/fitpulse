@@ -86,6 +86,14 @@ const CLUBS_DATABASE: ClubLocation[] = [
   { name: 'Club Arlon (Hydrion)', address: "Parc Commercial de l'Hydrion 31b", city: 'Arlon', zip: '6700', lat: 49.6841, lng: 5.8173 }
 ];
 
+const TIME_SLOTS = [
+  '🌅 Matin (6h - 9h)',
+  '☀️ Midi (12h - 14h)',
+  '🌆 Soir (17h - 20h)',
+  '🌙 Nocturne (20h+)',
+  '📅 Week-end flexible'
+];
+
 interface ExerciseGuide {
   id: string;
   name: string;
@@ -308,6 +316,7 @@ interface RealUser {
   gender?: 'M' | 'F';
   goal?: string;
   home_club: string;
+  preferred_time?: string;
   avatar_url: string;
 }
 
@@ -321,10 +330,10 @@ interface DBMessage {
 }
 
 const DEFAULT_MEMBERS: RealUser[] = [
-  { id: 'b1', username: 'Thomas D.', email: 'thomas@fitpulse.be', gender: 'M', goal: 'Prise de masse & Force', home_club: 'Club Tournai (Bastion)', avatar_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150' },
-  { id: 'b2', username: 'Sarah L.', email: 'sarah@fitpulse.be', gender: 'F', goal: 'Cardio & HIIT', home_club: 'Club Tournai (Bastion)', avatar_url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150' },
-  { id: 'b3', username: 'Élodie M.', email: 'elodie@fitpulse.be', gender: 'F', goal: 'Remise en forme', home_club: 'Club Tournai (Froyennes)', avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150' },
-  { id: 'b4', username: 'Maxime V.', email: 'maxime@fitpulse.be', gender: 'M', goal: 'Prise de masse & Force', home_club: 'Club Mouscron', avatar_url: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150' }
+  { id: 'b1', username: 'Thomas D.', email: 'thomas@fitpulse.be', gender: 'M', goal: 'Prise de masse & Force', home_club: 'Club Tournai (Bastion)', preferred_time: '🌆 Soir (17h - 20h)', avatar_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150' },
+  { id: 'b2', username: 'Sarah L.', email: 'sarah@fitpulse.be', gender: 'F', goal: 'Cardio & HIIT', home_club: 'Club Tournai (Bastion)', preferred_time: '🌅 Matin (6h - 9h)', avatar_url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150' },
+  { id: 'b3', username: 'Élodie M.', email: 'elodie@fitpulse.be', gender: 'F', goal: 'Remise en forme', home_club: 'Club Tournai (Froyennes)', preferred_time: '☀️ Midi (12h - 14h)', avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150' },
+  { id: 'b4', username: 'Maxime V.', email: 'maxime@fitpulse.be', gender: 'M', goal: 'Prise de masse & Force', home_club: 'Club Mouscron', preferred_time: '🌆 Soir (17h - 20h)', avatar_url: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150' }
 ];
 
 const DEFAULT_STORIES: Story[] = [
@@ -366,6 +375,7 @@ export default function App() {
   const [gender, setGender] = useState<'M' | 'F'>('M');
   const [level, setLevel] = useState<'Débutant' | 'Intermédiaire' | 'Avancé'>('Intermédiaire');
   const [homeClub, setHomeClub] = useState<string>('Club Tournai (Bastion)');
+  const [preferredTime, setPreferredTime] = useState<string>(TIME_SLOTS[2]); // Soir par défaut
 
   const [authLoading, setAuthLoading] = useState(false);
 
@@ -374,6 +384,11 @@ export default function App() {
 
   const [posts, setPosts] = useState<Post[]>([]);
   const [feedLoading, setFeedLoading] = useState(false);
+
+  // Pop-up Matchmaking Buddy
+  const [isMatchModalOpen, setIsMatchModalOpen] = useState(false);
+  const [matchGoal, setMatchGoal] = useState('Tous');
+  const [matchTime, setMatchTime] = useState('Tous');
 
   // Paramètres Utilisateur Locaux (Flammes, Mode Privé & Avant/Après sur Supabase)
   const [userStreak, setUserStreak] = useState<number>(() => {
@@ -487,7 +502,6 @@ export default function App() {
   const [activeCommentPostId, setActiveCommentPostId] = useState<string | null>(null);
   const [postCommentInput, setPostCommentInput] = useState('');
 
-  // Ajout d'un exercice dynamique dans le formulaire de séance
   const handleAddExerciseRow = () => {
     setWorkoutExercises([...workoutExercises, { name: '', sets: 3, reps: 10, weight: 50 }]);
   };
@@ -496,7 +510,6 @@ export default function App() {
     setWorkoutExercises(workoutExercises.filter((_, i) => i !== index));
   };
 
-  // FONCTION POUR METTRE EN COULEUR LES HASHTAGS (Orange)
   const renderCaptionWithHashtags = (text: string) => {
     if (!text) return null;
     return text.split(' ').map((word, i) => {
@@ -561,7 +574,6 @@ export default function App() {
     setStoryCaption((prev) => (prev ? `${prev} ${tag}` : tag));
   };
 
-  // PERSISTANCE DES COMMENTAIRES SUR SUPABASE
   const handleAddPostComment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!postCommentInput.trim() || !activeCommentPostId || !user) return;
@@ -599,7 +611,6 @@ export default function App() {
     }
   };
 
-  // AJOUT D'UNE TRANSFORMATION SUR SUPABASE (PERSISTANTE)
   const handleAddTransformation = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !newTransBefore || !newTransAfter || newTransWeight === '') return;
@@ -607,7 +618,6 @@ export default function App() {
     let beforeUrl = newTransBefore;
     let afterUrl = newTransAfter;
 
-    // Upload des images Avant/Après dans le Storage Supabase si ce sont des blobs locaux
     try {
       if (newTransBefore.startsWith('blob:')) {
         const resB = await fetch(newTransBefore);
@@ -647,7 +657,7 @@ export default function App() {
 
     const { data, error } = await supabase.from('transformations').insert([newItem]).select('*');
     if (error) {
-      alert("Erreur enregistrement carnet : " + error.message + "\n(Vérifie que la table 'transformations' existe dans Supabase)");
+      alert("Erreur enregistrement carnet : " + error.message);
     } else if (data && data.length > 0) {
       setTransformations([data[0] as TransformationPhoto, ...transformations]);
       setNewTransBefore(null);
@@ -658,7 +668,6 @@ export default function App() {
     }
   };
 
-  // Charger les transformations depuis Supabase
   const fetchTransformations = async (userId: string) => {
     const { data, error } = await supabase.from('transformations').select('*').eq('user_id', userId).order('date', { ascending: false });
     if (!error && data) {
@@ -666,7 +675,6 @@ export default function App() {
     }
   };
 
-  // Partager un Avant/Après sur le fil d'actualité
   const handleShareTransformationToFeed = async (item: TransformationPhoto) => {
     if (!user) return;
     const myName = user.user_metadata?.username || user.email?.split('@')[0] || 'Athlète';
@@ -777,6 +785,7 @@ export default function App() {
             gender: 'M',
             goal: 'Prise de masse & Force',
             home_club: p.club_name || selectedClub,
+            preferred_time: '🌆 Soir (17h - 20h)',
             avatar_url: p.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'
           });
         }
@@ -822,7 +831,6 @@ export default function App() {
     }
   };
 
-  // GESTION ANTI-MULTIPLE LIKES SÉCURISÉE SUR SUPABASE
   const handleToggleLike = async (postId: string) => {
     if (!user) return;
     const post = posts.find(p => p.id === postId);
@@ -1020,7 +1028,7 @@ export default function App() {
       const { error } = await supabase.auth.signUp({
         email,
         password,
-        options: { data: { first_name: firstName, last_name: lastName, username: username || `${firstName}_${lastName}`.toLowerCase(), age: Number(age) || 25, gender, level, home_club: homeClub } }
+        options: { data: { first_name: firstName, last_name: lastName, username: username || `${firstName}_${lastName}`.toLowerCase(), age: Number(age) || 25, gender, level, home_club: homeClub, preferred_time: preferredTime } }
       });
       if (error) alert("Erreur d'inscription : " + error.message);
       else setSelectedClub(homeClub);
@@ -1170,6 +1178,13 @@ export default function App() {
     return true;
   });
 
+  const matchedBuddiesList = registeredUsers.filter((u) => {
+    if (u.id === user?.id) return false;
+    const matchG = matchGoal === 'Tous' || (u.goal && u.goal.toLowerCase().includes(matchGoal.toLowerCase()));
+    const matchT = matchTime === 'Tous' || (u.preferred_time && u.preferred_time.includes(matchTime));
+    return matchG && matchT;
+  });
+
   const displayedPosts = posts.filter((post) => {
     if (post.is_private) {
       if (post.user_id !== user?.id && !friendIds.includes(post.user_id)) {
@@ -1219,6 +1234,14 @@ export default function App() {
                     <label className="block text-[11px] font-semibold text-neutral-400 mb-1">Âge</label>
                     <input type="number" required min="14" max="99" placeholder="28" value={age} onChange={(e) => setAge(Number(e.target.value))} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-orange-500" />
                   </div>
+                </div>
+                <div>
+                  <label className="block text-[11px] font-semibold text-neutral-400 mb-1">Créneau horaire préféré</label>
+                  <select value={preferredTime} onChange={(e) => setPreferredTime(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-orange-500">
+                    {TIME_SLOTS.map((slot) => (
+                      <option key={slot} value={slot}>{slot}</option>
+                    ))}
+                  </select>
                 </div>
               </>
             )}
@@ -1606,16 +1629,24 @@ export default function App() {
                 <h2 className="text-base font-black tracking-tight">Réseau & Athlètes</h2>
                 <span className="text-[10px] text-orange-400 font-semibold">{selectedClub}</span>
               </div>
-              <button
-                onClick={() => setFilterWomenOnly(!filterWomenOnly)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition ${
-                  filterWomenOnly
-                    ? 'bg-gradient-to-r from-pink-600 to-purple-600 text-white ring-2 ring-pink-400 shadow-md'
-                    : 'bg-neutral-950 text-neutral-400 hover:text-white border border-neutral-800'
-                }`}
-              >
-                <span>🚺</span> Entre femmes {filterWomenOnly && '✓'}
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setIsMatchModalOpen(true)}
+                  className="px-3 py-1.5 bg-gradient-to-r from-orange-600 to-amber-500 text-white rounded-xl text-xs font-bold flex items-center gap-1 shadow-md hover:opacity-90 transition"
+                >
+                  <Sparkles className="w-3.5 h-3.5" /> Match Partner
+                </button>
+                <button
+                  onClick={() => setFilterWomenOnly(!filterWomenOnly)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition ${
+                    filterWomenOnly
+                      ? 'bg-gradient-to-r from-pink-600 to-purple-600 text-white ring-2 ring-pink-400 shadow-md'
+                      : 'bg-neutral-950 text-neutral-400 hover:text-white border border-neutral-800'
+                  }`}
+                >
+                  <span>🚺</span> {filterWomenOnly && '✓'}
+                </button>
+              </div>
             </div>
             
             <div className="bg-neutral-950 p-1.5 rounded-2xl border border-neutral-800 flex items-center gap-1">
@@ -1683,7 +1714,10 @@ export default function App() {
                         <div>
                           <h3 className="font-bold text-sm text-white">{realUser.username}</h3>
                           <span className="text-[11px] text-orange-400 font-medium block">● {realUser.home_club}</span>
-                          {realUser.goal && <span className="text-[10px] text-neutral-400 italic">🎯 {realUser.goal}</span>}
+                          <div className="flex items-center gap-2 mt-0.5">
+                            {realUser.goal && <span className="text-[10px] text-neutral-400 italic">🎯 {realUser.goal}</span>}
+                            {realUser.preferred_time && <span className="text-[10px] text-amber-400/80 font-medium">🕒 {realUser.preferred_time.split(' ')[1]}</span>}
+                          </div>
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
@@ -1967,6 +2001,76 @@ export default function App() {
           </div>
         )}
       </main>
+
+      {/* POP-UP MATCHMAKING PARTNER */}
+      {isMatchModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-md w-full p-5 space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between pb-2 border-b border-neutral-800">
+              <h3 className="text-sm font-black text-white flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-orange-500" /> Trouver un partenaire (Match)
+              </h3>
+              <button onClick={() => setIsMatchModalOpen(false)} className="p-1 text-neutral-400 hover:text-white"><X className="w-5 h-5" /></button>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="block text-[11px] font-semibold text-neutral-400 mb-1">Objectif recherché :</label>
+                <select value={matchGoal} onChange={(e) => setMatchGoal(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-orange-500">
+                  <option value="Tous">Tous les objectifs</option>
+                  <option value="masse">Prise de masse & Force</option>
+                  <option value="cardio">Cardio & HIIT</option>
+                  <option value="remise">Remise en forme</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-neutral-400 mb-1">Créneau horaire :</label>
+                <select value={matchTime} onChange={(e) => setMatchTime(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-orange-500">
+                  <option value="Tous">Tous les créneaux</option>
+                  {TIME_SLOTS.map((slot) => (
+                    <option key={slot} value={slot.split(' ')[1]}>{slot}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="space-y-2 pt-2 border-t border-neutral-800 max-h-60 overflow-y-auto">
+              <span className="text-[11px] font-bold text-orange-400 block mb-1">Résultats du match ({matchedBuddiesList.length}) :</span>
+              {matchedBuddiesList.length === 0 ? (
+                <div className="text-center py-6 text-neutral-500 text-xs">Aucun athlète ne correspond exactement à ces critères dans ce club.</div>
+              ) : (
+                matchedBuddiesList.map((buddy) => (
+                  <div key={buddy.id} className="bg-neutral-950 p-3 rounded-2xl border border-neutral-800 flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <img src={buddy.avatar_url} alt="" className="w-10 h-10 rounded-full object-cover border border-neutral-700" />
+                      <div>
+                        <h4 className="font-bold text-xs text-white">{buddy.username}</h4>
+                        <span className="text-[10px] text-orange-400 block">{buddy.goal || 'Sportif'}</span>
+                        <span className="text-[9px] text-amber-400">🕒 {buddy.preferred_time || 'Créneau flexible'}</span>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setIsMatchModalOpen(false);
+                        setSelectedBuddyChat(buddy);
+                        setCurrentTab('chat');
+                      }}
+                      className="px-3 py-1.5 bg-orange-600 hover:bg-orange-500 text-white rounded-xl text-xs font-bold transition flex items-center gap-1"
+                    >
+                      <MessageCircle className="w-3.5 h-3.5" /> Contacter
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <button onClick={() => setIsMatchModalOpen(false)} className="w-full py-3 bg-neutral-950 hover:bg-neutral-800 text-white font-bold rounded-xl text-xs transition border border-neutral-800">
+              Fermer
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* MODAL LECTURE DES COMMENTAIRES D'UN POST */}
       {activeCommentPostId && activePostForComments && (
