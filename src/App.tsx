@@ -57,7 +57,7 @@ interface ClubLocation {
   distance?: number | null;
 }
 
-// Base officielle avec les coordonnées GPS
+// Base officielle avec coordonnées GPS
 const CLUBS_DATABASE: ClubLocation[] = [
   {
     name: 'Basic-Fit Tournai (Bastion)',
@@ -156,6 +156,36 @@ const CLUBS_DATABASE: ClubLocation[] = [
     lng: 5.8173
   }
 ];
+
+// Comparaison intelligente pour faire correspondre anciens et nouveaux noms de salles
+const isMatchingClub = (postClubName?: string, selectedClubName?: string): boolean => {
+  if (!postClubName || !selectedClubName) return false;
+  if (postClubName === selectedClubName) return true;
+
+  const normalize = (str: string) =>
+    str.toLowerCase().replace(/basic-fit\s*/gi, '').replace(/[()]/g, '').trim();
+
+  const p = normalize(postClubName);
+  const s = normalize(selectedClubName);
+
+  if (p === s) return true;
+
+  // Rapprochements spécifiques
+  if (p.includes('froyennes') && s.includes('froyennes')) return true;
+  if ((p === 'tournai' || p.includes('bastion')) && (s === 'tournai' || s.includes('bastion'))) return true;
+  if (p.includes('mouscron') && s.includes('mouscron')) return true;
+  if (p.includes('mons') && s.includes('mons')) return true;
+  if (p.includes('louvière') && s.includes('louvière')) return true;
+  if (p.includes('charleroi') && s.includes('charleroi')) return true;
+  if (p.includes('namur') && s.includes('namur')) return true;
+  if (p.includes('waterloo') && s.includes('waterloo')) return true;
+  if (p.includes('wavre') && s.includes('wavre')) return true;
+  if (p.includes('arlon') && s.includes('arlon')) return true;
+  if (p.includes('ans') && s.includes('ans')) return true;
+  if (p.includes('lambert') && s.includes('lambert')) return true;
+
+  return false;
+};
 
 const calculateDistanceKm = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
   const R = 6371;
@@ -477,7 +507,6 @@ export default function App() {
     };
   }, [isTimerRunning, timerSeconds]);
 
-  // Localisation GPS native
   const handleDetectGPS = () => {
     if (!navigator.geolocation) {
       alert("La géolocalisation n'est pas supportée par ton navigateur.");
@@ -508,7 +537,6 @@ export default function App() {
     );
   };
 
-  // Liste triée par distance ou filtrée par recherche textuelle
   const displayedClubs = clubsList
     .map((club) => {
       let distance = club.distance ?? null;
@@ -785,17 +813,17 @@ export default function App() {
   // Filtrage des partenaires selon le club sélectionné
   const filteredBuddies = buddiesList.filter((buddy) => {
     if (buddyTabSubMode === 'my_friends') return friendIds.includes(buddy.id);
-    if (buddy.club !== selectedClub) return false;
+    if (!isMatchingClub(buddy.club, selectedClub)) return false;
     if (filterWomenOnly && buddy.gender !== 'F') return false;
     if (filterLevel !== 'all' && !buddy.level.toLowerCase().includes(filterLevel.toLowerCase())) return false;
     if (filterGoal !== 'all' && !buddy.goal.toLowerCase().includes(filterGoal.toLowerCase())) return false;
     return true;
   });
 
-  // FILTRAGE DU FIL D'ACTUALITÉ : Uniquement le club sélectionné pour "all", ou les amis pour "friends"
+  // FILTRAGE DU FIL D'ACTUALITÉ : Match intelligent de la salle sélectionnée
   const displayedPosts = posts.filter((post) => {
     if (feedFilterMode === 'all') {
-      return post.club_name === selectedClub;
+      return isMatchingClub(post.club_name, selectedClub);
     }
     if (feedFilterMode === 'friends') {
       const myFriendNames = myFriendsList.map((f) => f.name);
@@ -812,9 +840,6 @@ export default function App() {
         (m.sender_id === selectedBuddyChat.id && m.receiver_id === user.id))
   );
 
-  // ==========================================
-  // ÉCRAN AUTHENTIFICATION & CRÉATION
-  // ==========================================
   if (!user) {
     return (
       <div className="min-h-screen bg-neutral-950 text-white flex flex-col justify-center items-center px-4 py-8">
@@ -910,7 +935,6 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* SÉLECTION OFFICIELLE BASIC-FIT (GPS & RECHERCHE) */}
                 <div className="bg-neutral-950 p-3.5 rounded-2xl border border-neutral-800 space-y-2.5">
                   <div className="flex items-center justify-between">
                     <label className="text-[11px] font-bold text-orange-400 uppercase tracking-wider flex items-center gap-1.5">
