@@ -400,13 +400,7 @@ export default function App() {
   useEffect(() => { localStorage.setItem('fitpulse_private', isPrivateMode.toString()); }, [isPrivateMode]);
   useEffect(() => { localStorage.setItem('fitpulse_transformations', JSON.stringify(transformations)); }, [transformations]);
 
-  // GESTION DU LOCAL STORAGE POUR ÉVITER LES DOUBLES LIKES
-  const [likedPosts, setLikedPosts] = useState<Record<string, boolean>>(() => {
-    try {
-      const saved = localStorage.getItem('fitpulse_liked_posts');
-      return saved ? JSON.parse(saved) : {};
-    } catch { return {}; }
-  });
+  const [likedPosts, setLikedPosts] = useState<Record<string, boolean>>({});
 
   const [likedStories, setLikedStories] = useState<Record<string, boolean>>(() => {
     try {
@@ -419,10 +413,9 @@ export default function App() {
     try {
       const saved = localStorage.getItem('fitpulse_viewed_stories');
       return saved ? JSON.parse(saved) : [];
-    } catch { return []; }
+    } catch { return {}; }
   });
 
-  useEffect(() => { localStorage.setItem('fitpulse_liked_posts', JSON.stringify(likedPosts)); }, [likedPosts]);
   useEffect(() => { localStorage.setItem('fitpulse_liked_stories', JSON.stringify(likedStories)); }, [likedStories]);
   useEffect(() => { localStorage.setItem('fitpulse_viewed_stories', JSON.stringify(viewedStoryIds)); }, [viewedStoryIds]);
 
@@ -475,7 +468,7 @@ export default function App() {
   const [storyUploading, setStoryUploading] = useState(false);
   const storyFileInputRef = useRef<HTMLInputElement>(null);
 
-  // Workout Creation State (Liste des exercices vide par défaut pour éviter l'exemple indésirable)
+  // Workout Creation State
   const [workoutType, setWorkoutType] = useState('Musculation (Push)');
   const [workoutCaption, setWorkoutCaption] = useState('');
   const [postImageFile, setPostImageFile] = useState<File | null>(null);
@@ -576,6 +569,7 @@ export default function App() {
     setStoryCaption((prev) => (prev ? `${prev} ${tag}` : tag));
   };
 
+  // PERSISTANCE DES COMMENTAIRES SUR SUPABASE
   const handleAddPostComment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!postCommentInput.trim() || !activeCommentPostId || !user) return;
@@ -589,15 +583,29 @@ export default function App() {
       created_at: new Date().toISOString()
     };
 
-    setPosts(prev => prev.map(p => {
-      if (p.id === activeCommentPostId) {
-        const updatedComments = [...(p.comments || []), newComment];
-        return { ...p, comments: updatedComments, comments_count: updatedComments.length };
-      }
-      return p;
-    }));
-    
-    setPostCommentInput('');
+    const targetPost = posts.find(p => p.id === activeCommentPostId);
+    if (!targetPost) return;
+
+    const updatedComments = [...(targetPost.comments || []), newComment];
+    const newCount = updatedComments.length;
+
+    // Mise à jour sur Supabase
+    const { error } = await supabase
+      .from('posts')
+      .update({ comments: updatedComments, comments_count: newCount })
+      .eq('id', activeCommentPostId);
+
+    if (!error) {
+      setPosts(prev => prev.map(p => {
+        if (p.id === activeCommentPostId) {
+          return { ...p, comments: updatedComments, comments_count: newCount };
+        }
+        return p;
+      }));
+      setPostCommentInput('');
+    } else {
+      alert("Erreur lors de l'enregistrement du commentaire : " + error.message);
+    }
   };
 
   // Ajout d'un Avant/Après personnel
@@ -676,6 +684,9 @@ export default function App() {
       })
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'stories' }, (payload) => {
         setCloudStories((prev) => [payload.new as Story, ...prev]);
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'posts' }, (payload) => {
+        setPosts((prev) => prev.map(p => p.id === payload.new.id ? payload.new as Post : p));
       })
       .subscribe();
 
@@ -770,19 +781,22 @@ export default function App() {
     }
   };
 
+  // PERSISTANCE DES LIKES SUR SUPABASE
   const handleToggleLike = async (postId: string) => {
-    const isLiked = likedPosts[postId];
-    setLikedPosts((prev) => ({ ...prev, [postId]: !isLiked }));
-    setPosts((prev) =>
-      prev.map((p) => {
-        if (p.id === postId) {
-          const newCount = isLiked ? Math.max(0, p.likes_count - 1) : p.likes_count + 1;
-          supabase.from('posts').update({ likes_count: newCount }).eq('id', postId);
-          return { ...p, likes_count: newCount };
-        }
-        return p;
-      })
-    );
+    const post = posts.find(p => p.id === postId);
+    if (!post) return;
+
+    const isCurrentlyLiked = likedPosts[postId];
+    const newLikedState = !isCurrentlyLiked;
+    const newCount = newLikedState ? post.likes_count + 1 : Math.max(0, post.likes_count - 1);
+
+    setLikedPosts(prev => ({ ...prev, [postId]: newLikedState }));
+    setPosts(prev => prev.map(p => p.id === postId ? { ...p, likes_count: newCount } : p));
+
+    await supabase
+      .from('posts')
+      .update({ likes_count: newCount })
+      .eq('id', postId);
   };
 
   const combinedAllStories = [...cloudStories, ...DEFAULT_STORIES];
