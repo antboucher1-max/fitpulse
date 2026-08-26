@@ -28,7 +28,8 @@ import {
   MessageCircle,
   X,
   SendHorizontal,
-  Maximize2
+  ZoomIn,
+  Move
 } from 'lucide-react';
 import { createClient, User as SupabaseUser } from '@supabase/supabase-js';
 
@@ -58,7 +59,9 @@ interface Post {
   username: string;
   avatar_url: string;
   image_url?: string;
-  image_fit?: 'contain' | 'cover';
+  image_zoom?: number;
+  image_pos_x?: number;
+  image_pos_y?: number;
   club_name: string;
   session_type: string;
   caption: string;
@@ -116,7 +119,13 @@ export default function App() {
   const [workoutDuration, setWorkoutDuration] = useState(60);
   const [workoutCalories, setWorkoutCalories] = useState(450);
   const [postImage, setPostImage] = useState<string | null>(null);
-  const [imageFitMode, setImageFitMode] = useState<'contain' | 'cover'>('contain');
+
+  // Image Framing State (Zoom & Pan)
+  const [imageZoom, setImageZoom] = useState(1);
+  const [imagePos, setImagePos] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+
   const [workoutExercises, setWorkoutExercises] = useState<ExerciseEntry[]>([
     { name: 'Développé couché', sets: 4, reps: 10, weight: 80 }
   ]);
@@ -217,7 +226,9 @@ export default function App() {
           username: 'Antoine_B',
           avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
           image_url: 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?w=800',
-          image_fit: 'contain',
+          image_zoom: 1,
+          image_pos_x: 0,
+          image_pos_y: 0,
           club_name: 'Basic-Fit Tournai',
           session_type: 'Pectoraux & Triceps',
           caption: 'Grosse congestion aujourd’hui ! Nouveau PR sur les séries de travail au développé couché. 🔥💪',
@@ -242,7 +253,9 @@ export default function App() {
           username: 'Julie_Fit',
           avatar_url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150',
           image_url: 'https://images.unsplash.com/photo-1574680096145-d05b474e2155?w=800',
-          image_fit: 'contain',
+          image_zoom: 1,
+          image_pos_x: 0,
+          image_pos_y: 0,
           club_name: 'Basic-Fit Tournai',
           session_type: 'Leg Day',
           caption: 'Séance focus fessiers et ischios terminée. 600 calories au compteur.',
@@ -277,9 +290,29 @@ export default function App() {
       const reader = new FileReader();
       reader.onloadend = () => {
         setPostImage(reader.result as string);
+        setImageZoom(1);
+        setImagePos({ x: 0, y: 0 });
       };
       reader.readAsDataURL(file);
     }
+  };
+
+  // Drag handlers for mouse & touch
+  const handleStartDrag = (clientX: number, clientY: number) => {
+    setIsDragging(true);
+    setDragStart({ x: clientX - imagePos.x, y: clientY - imagePos.y });
+  };
+
+  const handleMoveDrag = (clientX: number, clientY: number) => {
+    if (!isDragging) return;
+    setImagePos({
+      x: clientX - dragStart.x,
+      y: clientY - dragStart.y
+    });
+  };
+
+  const handleEndDrag = () => {
+    setIsDragging(false);
   };
 
   const handleAuth = async (e: React.FormEvent) => {
@@ -388,7 +421,9 @@ export default function App() {
       username: user.user_metadata?.username || user.email?.split('@')[0] || 'Athlète',
       avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
       image_url: postImage || undefined,
-      image_fit: imageFitMode,
+      image_zoom: imageZoom,
+      image_pos_x: imagePos.x,
+      image_pos_y: imagePos.y,
       club_name: selectedClub,
       session_type: workoutType,
       caption: workoutCaption,
@@ -406,6 +441,8 @@ export default function App() {
     setPosts([newPost, ...posts]);
     setWorkoutCaption('');
     setPostImage(null);
+    setImageZoom(1);
+    setImagePos({ x: 0, y: 0 });
     setWorkoutExercises([{ name: '', sets: 3, reps: 10, weight: 20 }]);
     setCurrentTab('feed');
     setSubmittingWorkout(false);
@@ -494,7 +531,7 @@ export default function App() {
   const activePostForComments = posts.find((p) => p.id === activeCommentPostId);
 
   return (
-    <div className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col font-sans">
+    <div className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col font-sans select-none">
       {/* Top Header */}
       <header className="sticky top-0 z-40 bg-neutral-950/80 backdrop-blur-md border-b border-neutral-900 px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2.5">
@@ -562,7 +599,6 @@ export default function App() {
               posts.map((post) => {
                 const isLiked = likedPosts[post.id];
                 const isMyPost = post.user_id === user.id || post.username === (user.user_metadata?.username || user.email?.split('@')[0]);
-                const fitMode = post.image_fit || 'contain';
 
                 return (
                   <article
@@ -602,13 +638,17 @@ export default function App() {
                       </div>
                     </div>
 
-                    {/* Image cadrée proprement (sans rognage abusif) */}
+                    {/* Image cadrée selon le choix de l'utilisateur */}
                     {post.image_url && (
-                      <div className="rounded-2xl overflow-hidden border border-neutral-800/80 bg-black flex items-center justify-center">
+                      <div className="rounded-2xl overflow-hidden border border-neutral-800 bg-neutral-950 h-72 w-full relative flex items-center justify-center">
                         <img
                           src={post.image_url}
                           alt="Séance"
-                          className={`w-full max-h-[420px] ${fitMode === 'contain' ? 'object-contain' : 'object-cover'}`}
+                          style={{
+                            transform: `translate(${post.image_pos_x || 0}px, ${post.image_pos_y || 0}px) scale(${post.image_zoom || 1})`,
+                            transformOrigin: 'center center'
+                          }}
+                          className="max-h-full max-w-full object-contain pointer-events-none transition-transform duration-75"
                         />
                       </div>
                     )}
@@ -727,13 +767,13 @@ export default function App() {
           </div>
         )}
 
-        {/* TAB 3: LOG WORKOUT (AVEC SÉLECTEUR DE CADRAGE) */}
+        {/* TAB 3: LOG WORKOUT (AVEC RECADRAGE ET GLISSER-DÉPLACER) */}
         {currentTab === 'workout' && (
           <form onSubmit={handlePublishWorkout} className="space-y-4">
             <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4">
               <h2 className="text-base font-black tracking-tight">Enregistrer une séance</h2>
 
-              {/* Photo Box */}
+              {/* Photo Box & Crop / Move Tool */}
               <div>
                 <label className="block text-xs font-semibold text-neutral-400 mb-1.5">Photo de la séance</label>
                 <input
@@ -745,45 +785,73 @@ export default function App() {
                 />
 
                 {postImage ? (
-                  <div className="space-y-2">
-                    <div className="relative rounded-2xl overflow-hidden border border-neutral-700 bg-black flex items-center justify-center max-h-72">
+                  <div className="space-y-3">
+                    {/* Cadre de recadrage interactif */}
+                    <div
+                      className="relative rounded-2xl overflow-hidden border-2 border-orange-500/50 bg-neutral-950 h-72 w-full flex items-center justify-center cursor-grab active:cursor-grabbing touch-none select-none"
+                      onMouseDown={(e) => handleStartDrag(e.clientX, e.clientY)}
+                      onMouseMove={(e) => handleMoveDrag(e.clientX, e.clientY)}
+                      onMouseUp={handleEndDrag}
+                      onMouseLeave={handleEndDrag}
+                      onTouchStart={(e) => {
+                        const touch = e.touches[0];
+                        handleStartDrag(touch.clientX, touch.clientY);
+                      }}
+                      onTouchMove={(e) => {
+                        const touch = e.touches[0];
+                        handleMoveDrag(touch.clientX, touch.clientY);
+                      }}
+                      onTouchEnd={handleEndDrag}
+                    >
                       <img
                         src={postImage}
                         alt="Preview"
-                        className={`w-full max-h-72 ${imageFitMode === 'contain' ? 'object-contain' : 'object-cover'}`}
+                        style={{
+                          transform: `translate(${imagePos.x}px, ${imagePos.y}px) scale(${imageZoom})`,
+                          transformOrigin: 'center center'
+                        }}
+                        className="max-h-full max-w-full object-contain pointer-events-none transition-transform duration-75"
                       />
+
+                      {/* Indicateur pour guider l'utilisateur */}
+                      <div className="absolute top-2 left-2 px-2.5 py-1 bg-black/70 backdrop-blur-md rounded-lg text-[10px] text-neutral-300 flex items-center gap-1.5 pointer-events-none">
+                        <Move className="w-3 h-3 text-orange-400" /> Glisse pour ajuster
+                      </div>
+
                       <button
                         type="button"
-                        onClick={() => setPostImage(null)}
-                        className="absolute top-2 right-2 p-1.5 bg-black/80 hover:bg-black text-white rounded-full transition"
+                        onClick={() => {
+                          setPostImage(null);
+                          setImageZoom(1);
+                          setImagePos({ x: 0, y: 0 });
+                        }}
+                        className="absolute top-2 right-2 p-1.5 bg-black/80 hover:bg-black text-white rounded-full transition z-10"
                       >
                         <X className="w-4 h-4" />
                       </button>
                     </div>
 
-                    {/* Choix du cadrage */}
-                    <div className="flex items-center justify-center gap-2 pt-1">
+                    {/* Curseur de Zoom & Réinitialisation */}
+                    <div className="bg-neutral-950 p-3 rounded-2xl border border-neutral-800 flex items-center gap-3">
+                      <ZoomIn className="w-4 h-4 text-neutral-400" />
+                      <input
+                        type="range"
+                        min="1"
+                        max="3"
+                        step="0.05"
+                        value={imageZoom}
+                        onChange={(e) => setImageZoom(parseFloat(e.target.value))}
+                        className="flex-1 accent-orange-500 cursor-pointer"
+                      />
                       <button
                         type="button"
-                        onClick={() => setImageFitMode('contain')}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
-                          imageFitMode === 'contain'
-                            ? 'bg-orange-600 text-white'
-                            : 'bg-neutral-800 text-neutral-400 hover:text-white'
-                        }`}
+                        onClick={() => {
+                          setImageZoom(1);
+                          setImagePos({ x: 0, y: 0 });
+                        }}
+                        className="text-[11px] text-neutral-400 hover:text-white px-2 py-1 rounded bg-neutral-900 border border-neutral-800"
                       >
-                        Photo entière (Pas de coupe)
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setImageFitMode('cover')}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
-                          imageFitMode === 'cover'
-                            ? 'bg-orange-600 text-white'
-                            : 'bg-neutral-800 text-neutral-400 hover:text-white'
-                        }`}
-                      >
-                        Remplir l'écran
+                        Centrer
                       </button>
                     </div>
                   </div>
