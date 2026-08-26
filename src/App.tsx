@@ -47,7 +47,12 @@ import {
   Info,
   Timer,
   Edit3,
-  Check
+  Check,
+  Flower2,
+  Phone,
+  Instagram,
+  Facebook,
+  ExternalLink
 } from 'lucide-react';
 import { createClient, User as SupabaseUser } from '@supabase/supabase-js';
 
@@ -359,7 +364,7 @@ export default function App() {
   const [clubSearchQuery, setClubSearchQuery] = useState('');
   const [authLoading, setAuthLoading] = useState(false);
 
-  const [currentTab, setCurrentTab] = useState<'feed' | 'buddy' | 'workout' | 'exercises' | 'chat' | 'leaderboard' | 'profile'>('feed');
+  const [currentTab, setCurrentTab] = useState<'feed' | 'buddy' | 'workout' | 'exercises' | 'institut' | 'chat' | 'leaderboard' | 'profile'>('feed');
   const [selectedClub, setSelectedClub] = useState<string>('Basic-Fit Tournai (Bastion)');
 
   const [posts, setPosts] = useState<Post[]>([]);
@@ -1221,6 +1226,62 @@ export default function App() {
           </div>
         )}
 
+        {/* TAB INSTITUT FLEUR DE LYS (MADÉROTHÉRAPIE) */}
+        {currentTab === 'institut' && (
+          <div className="space-y-4">
+            <div className="bg-gradient-to-br from-pink-950/40 via-neutral-900 to-neutral-900 border border-pink-500/30 rounded-3xl p-6 space-y-5 shadow-2xl">
+              <div className="flex items-center gap-3.5">
+                <div className="w-12 h-12 rounded-2xl bg-pink-500/20 border border-pink-500/40 flex items-center justify-center text-pink-400">
+                  <Flower2 className="w-6 h-6" />
+                </div>
+                <div>
+                  <h2 className="text-base font-black tracking-tight text-white">Institut Fleur de Lys</h2>
+                  <span className="text-[11px] text-pink-400 font-semibold flex items-center gap-1"><MapPin className="w-3 h-3" /> Laplaigne (Belgique)</span>
+                </div>
+              </div>
+
+              <div className="rounded-2xl overflow-hidden border border-neutral-800 h-52 relative shadow-md">
+                <img src="https://images.unsplash.com/photo-1540555700478-4be289fbecef?w=800" alt="Madérothérapie" className="w-full h-full object-cover" />
+                <div className="absolute inset-0 bg-gradient-to-t from-neutral-950/80 via-transparent to-transparent flex items-end p-4">
+                  <span className="text-xs font-bold text-white bg-pink-600/80 px-3 py-1 rounded-full">Spécialiste Madérothérapie & Drainage</span>
+                </div>
+              </div>
+
+              <div className="space-y-3 text-xs">
+                <div className="bg-neutral-950/80 p-4 rounded-2xl border border-neutral-800 space-y-1.5">
+                  <h3 className="font-bold text-pink-400 flex items-center gap-1.5"><Sparkles className="w-4 h-4" /> Qu'est-ce que la Madérothérapie ?</h3>
+                  <p className="text-neutral-300 leading-relaxed">
+                    Technique de modelage sculptant 100% naturelle utilisant des instruments en bois anatomiques. Idéale pour les sportifs après l'effort : elle stimule le système lymphatique, draine les toxines, réduit la cellulite et détend profondément les tensions musculaires.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2.5">
+                  <div className="bg-neutral-950/80 p-3.5 rounded-2xl border border-neutral-800 space-y-1">
+                    <span className="font-bold text-white block">Drainage Sportif</span>
+                    <p className="text-[11px] text-neutral-400">Récupération musculaire et élimination de l'acide lactique.</p>
+                  </div>
+                  <div className="bg-neutral-950/80 p-3.5 rounded-2xl border border-neutral-800 space-y-1">
+                    <span className="font-bold text-white block">Remodelage</span>
+                    <p className="text-[11px] text-neutral-400">Affine la silhouette et raffermit les tissus cutanés.</p>
+                  </div>
+                </div>
+
+                <div className="bg-neutral-950/80 p-4 rounded-2xl border border-neutral-800 space-y-2.5">
+                  <span className="font-bold text-white block">Prendre rendez-vous / Contact :</span>
+                  <div className="flex flex-col gap-2">
+                    <a href="tel:+32000000000" className="flex items-center gap-2 p-2.5 bg-neutral-900 hover:bg-neutral-800 rounded-xl text-neutral-200 transition">
+                      <Phone className="w-4 h-4 text-pink-400" /> <span>+32 (0) ... (Laplaigne)</span>
+                    </a>
+                    <a href="https://instagram.com" target="_blank" rel="noreferrer" className="flex items-center gap-2 p-2.5 bg-neutral-900 hover:bg-neutral-800 rounded-xl text-neutral-200 transition">
+                      <Instagram className="w-4 h-4 text-pink-400" /> <span>Instagram : @InstitutFleurDeLys</span>
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* TAB 2: BUDDY */}
         {currentTab === 'buddy' && (
           <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4">
@@ -1405,7 +1466,7 @@ export default function App() {
           </div>
         )}
 
-        {/* TAB 5: LEADERBOARD & RECORDS + PLANIFICATEUR MODIFIABLE AVEC CHOIX */}
+        {/* TAB 5: LEADERBOARD & RECORDS + PLANIFICATEUR MODIFIABLE */}
         {currentTab === 'leaderboard' && (
           <div className="space-y-4">
             {/* PRs */}
@@ -1688,18 +1749,19 @@ export default function App() {
         </div>
       )}
 
-      {/* BOTTOM NAV */}
-      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-neutral-950/90 backdrop-blur-xl border-t border-neutral-800/80 px-4 py-2 flex justify-around items-center">
-        <button onClick={() => setCurrentTab('feed')} className={`flex flex-col items-center gap-1 ${currentTab === 'feed' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Home className="w-5 h-5" /><span className="text-[10px]">Accueil</span></button>
-        <button onClick={() => setCurrentTab('buddy')} className={`flex flex-col items-center gap-1 ${currentTab === 'buddy' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Users className="w-5 h-5" /><span className="text-[10px]">Buddy</span></button>
-        <button onClick={() => setCurrentTab('exercises')} className={`flex flex-col items-center gap-1 ${currentTab === 'exercises' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><BookOpen className="w-5 h-5" /><span className="text-[10px]">Exercices</span></button>
+      {/* BOTTOM NAV AVEC L'ONGLET INSTITUT FLEUR DE LYS */}
+      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-neutral-950/90 backdrop-blur-xl border-t border-neutral-800/80 px-2 py-2 flex justify-around items-center">
+        <button onClick={() => setCurrentTab('feed')} className={`flex flex-col items-center gap-1 ${currentTab === 'feed' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Home className="w-4 h-4" /><span className="text-[9px]">Accueil</span></button>
+        <button onClick={() => setCurrentTab('buddy')} className={`flex flex-col items-center gap-1 ${currentTab === 'buddy' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Users className="w-4 h-4" /><span className="text-[9px]">Buddy</span></button>
+        <button onClick={() => setCurrentTab('exercises')} className={`flex flex-col items-center gap-1 ${currentTab === 'exercises' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><BookOpen className="w-4 h-4" /><span className="text-[9px]">Exercices</span></button>
         <button onClick={() => setCurrentTab('workout')} className={`flex flex-col items-center gap-1 ${currentTab === 'workout' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}>
-          <div className="w-8 h-8 rounded-xl bg-orange-600 text-white flex items-center justify-center -mt-2.5 shadow-lg"><Plus className="w-5 h-5" /></div>
-          <span className="text-[10px]">Séance</span>
+          <div className="w-7 h-7 rounded-xl bg-orange-600 text-white flex items-center justify-center -mt-2 shadow-lg"><Plus className="w-4 h-4" /></div>
+          <span className="text-[9px]">Séance</span>
         </button>
-        <button onClick={() => setCurrentTab('chat')} className={`flex flex-col items-center gap-1 ${currentTab === 'chat' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><MessageCircle className="w-5 h-5" /><span className="text-[10px]">Chat</span></button>
-        <button onClick={() => setCurrentTab('leaderboard')} className={`flex flex-col items-center gap-1 ${currentTab === 'leaderboard' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Trophy className="w-5 h-5" /><span className="text-[10px]">Records</span></button>
-        <button onClick={() => setCurrentTab('profile')} className={`flex flex-col items-center gap-1 ${currentTab === 'profile' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><User className="w-5 h-5" /><span className="text-[10px]">Profil</span></button>
+        <button onClick={() => setCurrentTab('institut')} className={`flex flex-col items-center gap-1 ${currentTab === 'institut' ? 'text-pink-500 font-bold' : 'text-neutral-500'}`}><Flower2 className="w-4 h-4" /><span className="text-[9px]">Madéro</span></button>
+        <button onClick={() => setCurrentTab('chat')} className={`flex flex-col items-center gap-1 ${currentTab === 'chat' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><MessageCircle className="w-4 h-4" /><span className="text-[9px]">Chat</span></button>
+        <button onClick={() => setCurrentTab('leaderboard')} className={`flex flex-col items-center gap-1 ${currentTab === 'leaderboard' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Trophy className="w-4 h-4" /><span className="text-[9px]">Records</span></button>
+        <button onClick={() => setCurrentTab('profile')} className={`flex flex-col items-center gap-1 ${currentTab === 'profile' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><User className="w-4 h-4" /><span className="text-[9px]">Profil</span></button>
       </nav>
     </div>
   );
