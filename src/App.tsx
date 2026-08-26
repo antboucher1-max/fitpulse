@@ -475,16 +475,14 @@ export default function App() {
   const [storyUploading, setStoryUploading] = useState(false);
   const storyFileInputRef = useRef<HTMLInputElement>(null);
 
-  // Workout Creation State
+  // Workout Creation State (Liste des exercices vide par défaut pour éviter l'exemple indésirable)
   const [workoutType, setWorkoutType] = useState('Musculation (Push)');
   const [workoutCaption, setWorkoutCaption] = useState('');
   const [postImageFile, setPostImageFile] = useState<File | null>(null);
   const [postImagePreview, setPostImagePreview] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
 
-  const [workoutExercises, setWorkoutExercises] = useState<ExerciseEntry[]>([
-    { name: 'Développé couché', sets: 4, reps: 10, weight: 80 }
-  ]);
+  const [workoutExercises, setWorkoutExercises] = useState<ExerciseEntry[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const beforeFileInputRef = useRef<HTMLInputElement>(null);
   const afterFileInputRef = useRef<HTMLInputElement>(null);
@@ -503,6 +501,15 @@ export default function App() {
 
   const [activeCommentPostId, setActiveCommentPostId] = useState<string | null>(null);
   const [postCommentInput, setPostCommentInput] = useState('');
+
+  // Ajout d'un exercice dynamique dans le formulaire de séance
+  const handleAddExerciseRow = () => {
+    setWorkoutExercises([...workoutExercises, { name: '', sets: 3, reps: 10, weight: 50 }]);
+  };
+
+  const handleRemoveExerciseRow = (index: number) => {
+    setWorkoutExercises(workoutExercises.filter((_, i) => i !== index));
+  };
 
   // FONCTION POUR METTRE EN COULEUR LES HASHTAGS (Orange)
   const renderCaptionWithHashtags = (text: string) => {
@@ -1074,7 +1081,7 @@ export default function App() {
       setWorkoutCaption('');
       setPostImageFile(null);
       setPostImagePreview(null);
-      setWorkoutExercises([{ name: '', sets: 3, reps: 10, weight: 20 }]);
+      setWorkoutExercises([]);
       setCurrentTab('feed');
       fetchCloudPosts();
     }
@@ -1348,6 +1355,16 @@ export default function App() {
                 )}
               </div>
 
+              {/* Type de séance */}
+              <div className="space-y-1">
+                <label className="block text-[11px] font-semibold text-neutral-400">Type de séance :</label>
+                <select value={workoutType} onChange={(e) => setWorkoutType(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-orange-500">
+                  {WORKOUT_CHOICES.map((choice) => (
+                    <option key={choice} value={choice}>{choice}</option>
+                  ))}
+                </select>
+              </div>
+
               <div className="grid grid-cols-2 gap-2.5">
                 <button type="button" onClick={() => startCamera('post')} className="py-6 border-2 border-dashed border-neutral-800 hover:border-orange-500 rounded-2xl flex flex-col items-center justify-center gap-2 text-neutral-400 hover:text-orange-400 bg-neutral-950 transition">
                   <Camera className="w-6 h-6 text-orange-500" /><span className="text-xs font-semibold">Prendre photo</span>
@@ -1364,8 +1381,51 @@ export default function App() {
                 </div>
               )}
               
-              <div className="space-y-2">
-                <label className="block text-[11px] font-semibold text-neutral-400">Description de la séance & Hashtags :</label>
+              {/* Liste dynamique des exercices réalisés */}
+              <div className="space-y-2 pt-2 border-t border-neutral-800">
+                <div className="flex items-center justify-between">
+                  <label className="block text-[11px] font-semibold text-orange-400 uppercase tracking-wider">Exercices de la séance :</label>
+                  <button type="button" onClick={handleAddExerciseRow} className="px-2.5 py-1 bg-orange-600/20 hover:bg-orange-600 text-orange-400 hover:text-white rounded-lg text-[10px] font-bold transition flex items-center gap-1">
+                    <Plus className="w-3 h-3" /> Ajouter un exercice
+                  </button>
+                </div>
+
+                {workoutExercises.map((ex, index) => (
+                  <div key={index} className="bg-neutral-950 p-3 rounded-2xl border border-neutral-800 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <input 
+                        type="text" 
+                        placeholder="Nom de l'exercice (ex: Développé couché)" 
+                        value={ex.name} 
+                        onChange={(e) => {
+                          const updated = [...workoutExercises];
+                          updated[index].name = e.target.value;
+                          setWorkoutExercises(updated);
+                        }} 
+                        className="flex-1 bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-orange-500" 
+                      />
+                      <button type="button" onClick={() => handleRemoveExerciseRow(index)} className="p-1.5 text-neutral-500 hover:text-red-400"><Trash2 className="w-4 h-4" /></button>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div>
+                        <span className="text-[9px] text-neutral-400 block mb-0.5">Séries</span>
+                        <input type="number" placeholder="Séries" value={ex.sets} onChange={(e) => { const updated = [...workoutExercises]; updated[index].sets = Number(e.target.value); setWorkoutExercises(updated); }} className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-2 py-1 text-xs text-white text-center focus:outline-none focus:border-orange-500" />
+                      </div>
+                      <div>
+                        <span className="text-[9px] text-neutral-400 block mb-0.5">Reps</span>
+                        <input type="number" placeholder="Reps" value={ex.reps} onChange={(e) => { const updated = [...workoutExercises]; updated[index].reps = Number(e.target.value); setWorkoutExercises(updated); }} className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-2 py-1 text-xs text-white text-center focus:outline-none focus:border-orange-500" />
+                      </div>
+                      <div>
+                        <span className="text-[9px] text-neutral-400 block mb-0.5">Poids (kg)</span>
+                        <input type="number" placeholder="Poids" value={ex.weight} onChange={(e) => { const updated = [...workoutExercises]; updated[index].weight = Number(e.target.value); setWorkoutExercises(updated); }} className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-2 py-1 text-xs text-white text-center focus:outline-none focus:border-orange-500" />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="space-y-2 pt-2 border-t border-neutral-800">
+                <label className="block text-[11px] font-semibold text-neutral-400">Description & Hashtags :</label>
                 <textarea rows={3} placeholder="Comment s'est passée la séance ?" value={workoutCaption} onChange={(e) => setWorkoutCaption(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-orange-500" />
                 
                 <div className="pt-1.5 pb-2">
@@ -1915,7 +1975,7 @@ export default function App() {
         </div>
       )}
 
-      {/* MODAL VISUALISEUR ANATOMIE 2D */}
+      {/* MODAL VISUALISEUR ANATOMIE 2D AMÉLIORÉ */}
       {activeAnatomyExercise && (
         <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex flex-col justify-between p-4">
           <div className="flex items-center justify-between pt-2">
@@ -1926,16 +1986,18 @@ export default function App() {
           </div>
           
           <div className="flex-1 w-full flex flex-col items-center justify-center my-auto space-y-4">
-            <div className="relative w-full max-w-sm h-80 rounded-3xl bg-neutral-900 border border-neutral-800 flex items-center justify-center shadow-2xl overflow-hidden p-4">
-              <img src="https://images.unsplash.com/photo-1554244933-d876deb6b2ff?w=800" alt="Anatomie" className="max-w-full max-h-full object-contain mix-blend-screen opacity-80" />
-              <div className="absolute inset-0 bg-gradient-to-t from-neutral-900 via-transparent to-transparent" />
-              <div className="absolute bottom-4 left-0 right-0 text-center">
-                  <span className="text-sm font-black text-orange-500 bg-black/60 px-4 py-1.5 rounded-full border border-orange-500/30">Ciblage musculaire</span>
+            <div className="relative w-full max-w-sm h-72 rounded-3xl bg-neutral-900 border border-neutral-800 flex flex-col items-center justify-center shadow-2xl overflow-hidden p-6 text-center space-y-3">
+              <div className="w-12 h-12 rounded-2xl bg-orange-500/20 border border-orange-500/40 flex items-center justify-center text-orange-500 mx-auto">
+                <Activity className="w-6 h-6 animate-pulse" />
               </div>
+              <h3 className="text-base font-black text-white">{activeAnatomyExercise}</h3>
+              <p className="text-xs text-neutral-300 leading-relaxed">
+                Cet exercice sollicite principalement les fibres musculaires cibles avec un recrutement synergique des stabilisateurs profonds.
+              </p>
+              <span className="text-[10px] bg-orange-500/10 text-orange-400 px-3 py-1 rounded-full border border-orange-500/20 font-bold">
+                Ciblage haute précision 2D
+              </span>
             </div>
-            <span className="text-sm text-neutral-400 bg-neutral-900 px-4 py-3 rounded-xl border border-neutral-800 text-center max-w-sm leading-relaxed">
-              Aperçu 2D des groupes musculaires sollicités par cet exercice lors de la phase concentrique et excentrique.
-            </span>
           </div>
         </div>
       )}
