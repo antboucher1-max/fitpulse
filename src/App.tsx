@@ -126,12 +126,13 @@ interface Buddy {
   club: string;
 }
 
-interface DirectMessage {
+interface DBMessage {
   id: string;
-  sender: string;
+  sender_id: string;
+  receiver_id: string;
+  sender_name: string;
   text: string;
-  time: string;
-  isMe: boolean;
+  created_at: string;
 }
 
 export default function App() {
@@ -245,23 +246,12 @@ export default function App() {
     }
   ];
 
-  // Chat Hub & Messaging State
+  // Chat Hub & Realtime Messages
   const [selectedBuddyChat, setSelectedBuddyChat] = useState<Buddy | null>(null);
   const [chatSearch, setChatSearch] = useState('');
-  const [messages, setMessages] = useState<Record<string, DirectMessage[]>>({
-    b1: [
-      { id: '1', sender: 'Thomas D.', text: 'Salut ! Tu t’entraînes aujourd’hui à Tournai ?', time: '10:15', isMe: false },
-      { id: '2', sender: 'Moi', text: 'Salut Thomas ! Oui, séance Push prévue vers 18h.', time: '10:18', isMe: true },
-      { id: '3', sender: 'Thomas D.', text: 'Top, on tourne ensemble sur le dev couché ! 💪', time: '10:20', isMe: false }
-    ],
-    b2: [
-      { id: '1', sender: 'Sarah L.', text: 'Hello ! Dispo pour une séance fractionné demain midi ?', time: 'Hier', isMe: false }
-    ],
-    b3: [
-      { id: '1', sender: 'Élodie M.', text: 'Salut ! J’ai vu que tu t’entraînes aussi à Tournai, on se fait une séance ?', time: 'Hier', isMe: false }
-    ]
-  });
+  const [allMessages, setAllMessages] = useState<DBMessage[]>([]);
   const [currentMessageInput, setCurrentMessageInput] = useState('');
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -273,8 +263,36 @@ export default function App() {
     });
 
     fetchCloudPosts();
-    return () => subscription.unsubscribe();
+    fetchDirectMessages();
+
+    // Supabase Realtime Subscription pour le chat instantané
+    const channel = supabase
+      .channel('schema-db-changes')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'direct_messages' },
+        (payload) => {
+          setAllMessages((prev) => [...prev, payload.new as DBMessage]);
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'DELETE', schema: 'public', table: 'direct_messages' },
+        (payload) => {
+          setAllMessages((prev) => prev.filter((m) => m.id !== payload.old.id));
+        }
+      )
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+      supabase.removeChannel(channel);
+    };
   }, []);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [allMessages, selectedBuddyChat]);
 
   const fetchCloudPosts = async () => {
     setFeedLoading(true);
@@ -287,6 +305,17 @@ export default function App() {
       setPosts(data as Post[]);
     }
     setFeedLoading(false);
+  };
+
+  const fetchDirectMessages = async () => {
+    const { data, error } = await supabase
+      .from('direct_messages')
+      .select('*')
+      .order('created_at', { ascending: true });
+
+    if (!error && data) {
+      setAllMessages(data as DBMessage[]);
+    }
   };
 
   useEffect(() => {
@@ -303,7 +332,6 @@ export default function App() {
     };
   }, [isTimerRunning, timerSeconds]);
 
-  // Friend actions
   const handleAcceptFriendRequest = (buddyId: string) => {
     setFriendRequestsReceived(prev => prev.filter(id => id !== buddyId));
     setFriendIds(prev => [...prev, buddyId]);
@@ -425,23 +453,49 @@ export default function App() {
       .eq('id', postId);
   };
 
-  const handleSendMessage = (textToSend?: string) => {
+  // Envoi et sauvegarde permanente des messages en base
+  const handleSendMessage = async (textToSend?: string) => {
     const content = textToSend || currentMessageInput;
-    if (!content.trim() || !selectedBuddyChat) return;
-    const buddyId = selectedBuddyChat.id;
-    const newMsg: DirectMessage = {
-      id: String(Date.now()),
-      sender: 'Moi',
-      text: content,
-      time: 'À l’instant',
-      isMe: true
+    if (!content.trim() || !selectedBuddyChat || !user) return;
+
+    const myName = user.user_metadata?.username || user.email?.split('@')[0] || 'Moi';
+
+    const newMessagePayload = {
+      sender_id: user.id,
+      receiver_id: selectedBuddyChat.id,
+      sender_name: myName,
+      text: content.trim()
     };
 
-    setMessages((prev) => ({
-      ...prev,
-      [buddyId]: [...(prev[buddyId] || []), newMsg]
-    }));
     setCurrentMessageInput('');
+
+    const { error } = await supabase.from('direct_messages').insert([newMessagePayload]);
+    if (error) {
+      alert("Erreur d'envoi du message : " + error.message);
+    }
+  };
+
+  // Supprimer toute la conversation avec cet ami
+  const handleDeleteConversation = async () => {
+    if (!selectedBuddyChat || !user) return;
+    if (!window.confirm(`Effacer tous les messages avec ${selectedBuddyChat.name} ?`)) return;
+
+    await supabase
+      .from('direct_messages')
+      .delete()
+      .or(
+        `and(sender_id.eq.${user.id},receiver_id.eq.${selectedBuddyChat.id}),and(sender_id.eq.${selectedBuddyChat.id},receiver_id.eq.${user.id})`
+      );
+
+    setAllMessages((prev) =>
+      prev.filter(
+        (m) =>
+          !(
+            (m.sender_id === user.id && m.receiver_id === selectedBuddyChat.id) ||
+            (m.sender_id === selectedBuddyChat.id && m.receiver_id === user.id)
+          )
+      )
+    );
   };
 
   const addExerciseRow = () => {
@@ -548,6 +602,15 @@ export default function App() {
     }
     return true;
   });
+
+  // Messages filtrés pour la conversation active
+  const currentChatMessages = allMessages.filter(
+    (m) =>
+      selectedBuddyChat &&
+      user &&
+      ((m.sender_id === user.id && m.receiver_id === selectedBuddyChat.id) ||
+        (m.sender_id === selectedBuddyChat.id && m.receiver_id === user.id))
+  );
 
   if (!user) {
     return (
@@ -1256,11 +1319,11 @@ export default function App() {
           </form>
         )}
 
-        {/* TAB 4: CHAT & MESSAGERIE COMPLÈTE (BOÎTE DE RÉCEPTION + DEMANDES D'AMIS) */}
+        {/* TAB 4: CHAT EN DIRECT CONNECTÉ À SUPABASE */}
         {currentTab === 'chat' && (
           <div className="space-y-4">
             {selectedBuddyChat ? (
-              // VUE 1 : CONVERSATION INDIVIDUELLE
+              // VUE CONVERSATION TEMPS RÉEL
               <div className="bg-neutral-900 border border-neutral-800 rounded-3xl overflow-hidden flex flex-col h-[74vh]">
                 <div className="p-3.5 bg-neutral-950 border-b border-neutral-800 flex items-center justify-between">
                   <div className="flex items-center gap-3">
@@ -1273,37 +1336,58 @@ export default function App() {
                     <img src={selectedBuddyChat.avatar_url} alt="" className="w-9 h-9 rounded-full object-cover border border-orange-500/30" />
                     <div>
                       <h3 className="font-bold text-xs text-white">{selectedBuddyChat.name}</h3>
-                      <span className="text-[10px] text-green-400 font-medium">● En ligne à {selectedBuddyChat.club}</span>
+                      <span className="text-[10px] text-green-400 font-medium">● Direct ({selectedBuddyChat.club})</span>
                     </div>
                   </div>
 
-                  <button
-                    onClick={() => handleSendMessage("Dispo pour une séance ensemble aujourd'hui ? 🏋️‍♂️")}
-                    title="Proposer une séance"
-                    className="px-2.5 py-1.5 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-orange-400 text-[11px] font-bold flex items-center gap-1 border border-neutral-700"
-                  >
-                    <Calendar className="w-3.5 h-3.5" /> Séance duo
-                  </button>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => handleSendMessage("Dispo pour une séance ensemble aujourd'hui ? 🏋️‍♂️")}
+                      title="Proposer une séance duo"
+                      className="px-2.5 py-1.5 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-orange-400 text-[11px] font-bold flex items-center gap-1 border border-neutral-700"
+                    >
+                      <Calendar className="w-3.5 h-3.5" /> Séance duo
+                    </button>
+                    <button
+                      onClick={handleDeleteConversation}
+                      title="Effacer toute la discussion"
+                      className="p-2 text-neutral-500 hover:text-red-400 hover:bg-red-500/10 rounded-xl transition"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
 
                 <div className="flex-1 p-4 overflow-y-auto space-y-3">
-                  {(messages[selectedBuddyChat.id] || []).map((msg) => (
-                    <div
-                      key={msg.id}
-                      className={`flex flex-col ${msg.isMe ? 'items-end' : 'items-start'}`}
-                    >
-                      <div
-                        className={`max-w-[80%] rounded-2xl px-3.5 py-2.5 text-xs ${
-                          msg.isMe
-                            ? 'bg-orange-600 text-white rounded-tr-none shadow-md shadow-orange-600/10'
-                            : 'bg-neutral-800 text-neutral-200 rounded-tl-none'
-                        }`}
-                      >
-                        {msg.text}
-                      </div>
-                      <span className="text-[9px] text-neutral-500 mt-1 px-1">{msg.time}</span>
+                  {currentChatMessages.length === 0 ? (
+                    <div className="text-center py-12 text-neutral-500 text-xs">
+                      Aucun message. Envoie le premier message pour lancer la discussion !
                     </div>
-                  ))}
+                  ) : (
+                    currentChatMessages.map((msg) => {
+                      const isMe = msg.sender_id === user?.id;
+                      const timeStr = new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+                      return (
+                        <div
+                          key={msg.id}
+                          className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}
+                        >
+                          <div
+                            className={`max-w-[80%] rounded-2xl px-3.5 py-2.5 text-xs ${
+                              isMe
+                                ? 'bg-orange-600 text-white rounded-tr-none shadow-md shadow-orange-600/10'
+                                : 'bg-neutral-800 text-neutral-200 rounded-tl-none'
+                            }`}
+                          >
+                            {msg.text}
+                          </div>
+                          <span className="text-[9px] text-neutral-500 mt-1 px-1">{timeStr}</span>
+                        </div>
+                      );
+                    })
+                  )}
+                  <div ref={messagesEndRef} />
                 </div>
 
                 <div className="p-3 bg-neutral-950 border-t border-neutral-800 flex items-center gap-2">
@@ -1324,26 +1408,24 @@ export default function App() {
                 </div>
               </div>
             ) : (
-              // VUE 2 : BOÎTE DE RÉCEPTION & DEMANDES D'AMIS
+              // VUE BOÎTE DE RÉCEPTION & CONTACTS
               <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-5">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <MessageSquare className="w-5 h-5 text-orange-500" />
-                    <h2 className="text-base font-black tracking-tight">Messagerie & Demandes</h2>
+                    <h2 className="text-base font-black tracking-tight">Messagerie Directe</h2>
                   </div>
                   <span className="text-[11px] text-orange-400 font-bold bg-orange-500/10 px-2.5 py-1 rounded-full border border-orange-500/20">
                     {myFriendsList.length} contact{myFriendsList.length > 1 ? 's' : ''}
                   </span>
                 </div>
 
-                {/* SECTION 1 : DEMANDES D'AMIS EN ATTENTE */}
+                {/* DEMANDES D'AMIS */}
                 {friendRequestsList.length > 0 && (
                   <div className="space-y-2.5 bg-orange-500/5 border border-orange-500/20 p-3.5 rounded-2xl">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-orange-400 flex items-center gap-1.5">
-                        <UserPlus className="w-3.5 h-3.5" /> Demandes d'amis reçues ({friendRequestsList.length})
-                      </span>
-                    </div>
+                    <span className="text-xs font-bold text-orange-400 flex items-center gap-1.5">
+                      <UserPlus className="w-3.5 h-3.5" /> Demandes d'amis reçues ({friendRequestsList.length})
+                    </span>
 
                     <div className="space-y-2">
                       {friendRequestsList.map((req) => (
@@ -1379,7 +1461,7 @@ export default function App() {
                   </div>
                 )}
 
-                {/* BARRE DE RECHERCHE DE CONVERSATION */}
+                {/* RECHERCHE */}
                 <div className="relative">
                   <Search className="absolute left-3.5 top-3 w-4 h-4 text-neutral-500" />
                   <input
@@ -1391,17 +1473,22 @@ export default function App() {
                   />
                 </div>
 
-                {/* LISTE DES MESSAGES / AMIS */}
+                {/* LISTE DES DISCUSSIONS */}
                 <div className="space-y-2">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-500 block">
-                    Discussions récentes
+                    Discussions actives
                   </span>
 
                   {myFriendsList
                     .filter(f => f.name.toLowerCase().includes(chatSearch.toLowerCase()))
                     .map((friend) => {
-                      const chatHistory = messages[friend.id] || [];
-                      const lastMessage = chatHistory[chatHistory.length - 1];
+                      const friendMessages = allMessages.filter(
+                        (m) =>
+                          user &&
+                          ((m.sender_id === user.id && m.receiver_id === friend.id) ||
+                            (m.sender_id === friend.id && m.receiver_id === user.id))
+                      );
+                      const lastMessage = friendMessages[friendMessages.length - 1];
 
                       return (
                         <div
@@ -1421,7 +1508,7 @@ export default function App() {
                               </div>
                               <p className="text-[11px] text-neutral-400 line-clamp-1 mt-0.5">
                                 {lastMessage ? (
-                                  <span>{lastMessage.isMe ? 'Moi : ' : ''}{lastMessage.text}</span>
+                                  <span>{lastMessage.sender_id === user?.id ? 'Moi : ' : ''}{lastMessage.text}</span>
                                 ) : (
                                   <span className="italic text-neutral-500">Commencer la conversation...</span>
                                 )}
@@ -1430,17 +1517,13 @@ export default function App() {
                           </div>
 
                           <div className="text-right">
-                            <span className="text-[9px] text-neutral-500">{lastMessage?.time || ''}</span>
+                            <span className="text-[9px] text-neutral-500">
+                              {lastMessage ? new Date(lastMessage.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                            </span>
                           </div>
                         </div>
                       );
                     })}
-
-                  {myFriendsList.length === 0 && (
-                    <div className="text-center py-10 text-neutral-500 text-xs bg-neutral-950 rounded-2xl border border-neutral-800/60 p-4">
-                      Tu n'as pas encore de contact. Ajoute des amis dans l'onglet Buddy pour échanger et t'entraîner ensemble !
-                    </div>
-                  )}
                 </div>
               </div>
             )}
