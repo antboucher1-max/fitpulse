@@ -9,11 +9,9 @@ import {
   Trophy,
   User,
   Home,
-  Bookmark,
   MessageSquare,
   Plus,
   Trash2,
-  Award,
   LogOut,
   Lock,
   Mail,
@@ -21,17 +19,17 @@ import {
   Loader2,
   Clock,
   Flame,
-  TrendingUp,
   Share2,
   Heart,
   Play,
   Pause,
   RotateCcw,
-  Check
+  Image as ImageIcon,
+  X
 } from 'lucide-react';
 import { createClient, User as SupabaseUser } from '@supabase/supabase-js';
 
-// Supabase Client Configuration
+// Configuration Supabase
 const supabaseUrl = 'https://obtahwmcoqrcauscpksv.supabase.co';
 const supabaseAnonKey = 'sb_publishable_O8CKhUtzgq9nO9lKavNE9A__fAdRWoB';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
@@ -48,6 +46,7 @@ interface Post {
   user_id: string;
   username: string;
   avatar_url: string;
+  image_url?: string;
   club_name: string;
   session_type: string;
   caption: string;
@@ -67,31 +66,32 @@ export default function App() {
   const [isSignUp, setIsSignUp] = useState(false);
   const [authLoading, setAuthLoading] = useState(false);
 
-  // App Navigation
-  const [currentTab, setCurrentTab] = useState<'feed' | 'explore' | 'workout' | 'leaderboard' | 'profile'>('feed');
+  // Navigation
+  const [currentTab, setCurrentTab] = useState<'feed' | 'workout' | 'leaderboard' | 'profile'>('feed');
   const [selectedClub, setSelectedClub] = useState<string>('Basic-Fit Tournai');
 
-  // Posts Feed State
+  // Feed State
   const [posts, setPosts] = useState<Post[]>([]);
   const [feedLoading, setFeedLoading] = useState(false);
   const [likedPosts, setLikedPosts] = useState<Record<string, boolean>>({});
 
-  // Workout Builder State
+  // Workout & Photo Form State
   const [workoutType, setWorkoutType] = useState('Musculation (Push)');
   const [workoutCaption, setWorkoutCaption] = useState('');
   const [workoutDuration, setWorkoutDuration] = useState(60);
   const [workoutCalories, setWorkoutCalories] = useState(450);
+  const [postImage, setPostImage] = useState<string | null>(null);
   const [workoutExercises, setWorkoutExercises] = useState<ExerciseEntry[]>([
     { name: 'Développé couché', sets: 4, reps: 10, weight: 80 }
   ]);
   const [submittingWorkout, setSubmittingWorkout] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Rest Timer State
+  // Timer State
   const [timerSeconds, setTimerSeconds] = useState(90);
   const [isTimerRunning, setIsTimerRunning] = useState(false);
   const [initialTime, setInitialTime] = useState(90);
 
-  // Authentication Listener & Initial Load
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
@@ -105,7 +105,6 @@ export default function App() {
     return () => subscription.unsubscribe();
   }, []);
 
-  // Timer Tick
   useEffect(() => {
     let interval: NodeJS.Timeout | null = null;
     if (isTimerRunning && timerSeconds > 0) {
@@ -130,49 +129,61 @@ export default function App() {
     if (!error && data && data.length > 0) {
       setPosts(data as Post[]);
     } else {
-      // Fallback sample data if database is fresh
       setPosts([
         {
           id: 'demo-1',
           user_id: '1',
-          username: 'Alex_Fit',
+          username: 'Antoine_B',
           avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+          image_url: 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?w=800',
           club_name: 'Basic-Fit Tournai',
           session_type: 'Pectoraux & Triceps',
-          caption: 'Gros focus sur la surcharge progressive aujourd’hui. Nouveau record personnel validé ! 🔥',
+          caption: 'Grosse congestion aujourd’hui ! Nouveau PR sur les séries de travail au développé couché. 🔥💪',
           duration_minutes: 75,
-          calories_burned: 520,
+          calories_burned: 540,
           exercises: [
             { name: 'Développé couché', sets: 4, reps: 8, weight: 100 },
-            { name: 'Écarté incliné haltères', sets: 3, reps: 12, weight: 24 },
-            { name: 'Dips lestés', sets: 3, reps: 10, weight: 15 }
+            { name: 'Écarté incliné', sets: 3, reps: 12, weight: 26 },
+            { name: 'Dips machine', sets: 3, reps: 10, weight: 85 }
           ],
-          likes_count: 14,
-          comments_count: 3,
+          likes_count: 18,
+          comments_count: 4,
           created_at: 'Il y a 2h'
         },
         {
           id: 'demo-2',
           user_id: '2',
-          username: 'Thomas_G',
-          avatar_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150',
+          username: 'Julie_Fit',
+          avatar_url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150',
+          image_url: 'https://images.unsplash.com/photo-1574680096145-d05b474e2155?w=800',
           club_name: 'Basic-Fit Tournai',
           session_type: 'Leg Day',
-          caption: 'Séance jambes complétée. Les fessiers et ischios sont en feu.',
-          duration_minutes: 60,
-          calories_burned: 610,
+          caption: 'Séance focus fessiers et ischios terminée. Fin de séance avec 15 min de tapis incliné.',
+          duration_minutes: 65,
+          calories_burned: 580,
           exercises: [
-            { name: 'Squat barre libre', sets: 5, reps: 5, weight: 130 },
-            { name: 'Presse à cuisses', sets: 4, reps: 12, weight: 260 },
-            { name: 'Leg curl allongé', sets: 3, reps: 15, weight: 55 }
+            { name: 'Squat guidé', sets: 4, reps: 10, weight: 70 },
+            { name: 'Hip Thrust', sets: 4, reps: 12, weight: 110 },
+            { name: 'Presse 45°', sets: 3, reps: 15, weight: 140 }
           ],
-          likes_count: 22,
-          comments_count: 5,
+          likes_count: 24,
+          comments_count: 6,
           created_at: 'Il y a 5h'
         }
       ]);
     }
     setFeedLoading(false);
+  };
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPostImage(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const handleAuth = async (e: React.FormEvent) => {
@@ -235,6 +246,7 @@ export default function App() {
       user_id: user.id,
       username: user.user_metadata?.username || user.email?.split('@')[0] || 'Athlète',
       avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+      image_url: postImage || undefined,
       club_name: selectedClub,
       session_type: workoutType,
       caption: workoutCaption,
@@ -249,11 +261,11 @@ export default function App() {
 
     if (!error) {
       setWorkoutCaption('');
+      setPostImage(null);
       setWorkoutExercises([{ name: '', sets: 3, reps: 10, weight: 20 }]);
       setCurrentTab('feed');
       fetchPosts();
     } else {
-      // Local addition fallback
       setPosts([
         {
           ...(newPost as Post),
@@ -262,6 +274,7 @@ export default function App() {
         },
         ...posts
       ]);
+      setPostImage(null);
       setCurrentTab('feed');
     }
     setSubmittingWorkout(false);
@@ -288,7 +301,7 @@ export default function App() {
                   <input
                     type="text"
                     required
-                    placeholder="Ex: Warrior99"
+                    placeholder="Ex: Antoine99"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
                     className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-10 py-3 text-sm focus:outline-none focus:border-orange-500 transition"
@@ -349,7 +362,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col font-sans">
-      {/* Top App Bar */}
+      {/* Top Header */}
       <header className="sticky top-0 z-40 bg-neutral-950/80 backdrop-blur-md border-b border-neutral-900 px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-xl bg-orange-500/20 flex items-center justify-center text-orange-500">
@@ -361,25 +374,23 @@ export default function App() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <select
-            value={selectedClub}
-            onChange={(e) => setSelectedClub(e.target.value)}
-            className="bg-neutral-900 border border-neutral-800 text-[11px] rounded-lg px-2.5 py-1.5 text-neutral-300 focus:outline-none focus:border-orange-500"
-          >
-            <option value="Basic-Fit Tournai">Basic-Fit Tournai</option>
-            <option value="Basic-Fit Froyennes">Basic-Fit Froyennes</option>
-            <option value="Fitness Park Lille">Fitness Park Lille</option>
-          </select>
-        </div>
+        <select
+          value={selectedClub}
+          onChange={(e) => setSelectedClub(e.target.value)}
+          className="bg-neutral-900 border border-neutral-800 text-[11px] rounded-lg px-2.5 py-1.5 text-neutral-300 focus:outline-none focus:border-orange-500"
+        >
+          <option value="Basic-Fit Tournai">Basic-Fit Tournai</option>
+          <option value="Basic-Fit Froyennes">Basic-Fit Froyennes</option>
+          <option value="Fitness Park Lille">Fitness Park Lille</option>
+        </select>
       </header>
 
-      {/* Main App Container */}
+      {/* Main Screen */}
       <main className="flex-1 max-w-lg w-full mx-auto px-4 py-4 pb-24">
-        {/* TAB 1: FEED */}
+        {/* FEED TAB */}
         {currentTab === 'feed' && (
           <div className="space-y-4">
-            {/* Quick Status / Rest Timer Pill */}
+            {/* Rest Timer Banner */}
             <div className="bg-neutral-900/90 border border-neutral-800/80 rounded-2xl p-3 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-orange-500/10 text-orange-500 flex items-center justify-center font-bold text-xs">
@@ -409,7 +420,7 @@ export default function App() {
               </div>
             </div>
 
-            {/* Posts Stream */}
+            {/* Posts Feed */}
             {feedLoading ? (
               <div className="flex justify-center py-12">
                 <Loader2 className="w-8 h-8 text-orange-500 animate-spin" />
@@ -420,9 +431,9 @@ export default function App() {
                 return (
                   <article
                     key={post.id}
-                    className="bg-neutral-900/70 border border-neutral-800 rounded-3xl p-4.5 space-y-3.5 shadow-sm"
+                    className="bg-neutral-900/70 border border-neutral-800 rounded-3xl p-4 space-y-3 shadow-sm overflow-hidden"
                   >
-                    {/* Author & Club Header */}
+                    {/* Header */}
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <img
@@ -443,12 +454,23 @@ export default function App() {
                       </span>
                     </div>
 
+                    {/* Image / Photo */}
+                    {post.image_url && (
+                      <div className="rounded-2xl overflow-hidden border border-neutral-800 max-h-80 bg-neutral-950">
+                        <img
+                          src={post.image_url}
+                          alt="Séance"
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    )}
+
                     {/* Caption */}
                     {post.caption && (
                       <p className="text-xs text-neutral-200 leading-relaxed">{post.caption}</p>
                     )}
 
-                    {/* Workout Metric Badges */}
+                    {/* Badges */}
                     <div className="flex items-center gap-2">
                       <span className="flex items-center gap-1 text-[11px] bg-neutral-950 px-2.5 py-1 rounded-lg border border-neutral-800 text-neutral-300">
                         <Clock className="w-3 h-3 text-orange-500" />
@@ -460,7 +482,7 @@ export default function App() {
                       </span>
                     </div>
 
-                    {/* Exercise Breakdown List */}
+                    {/* Exercises */}
                     {post.exercises && post.exercises.length > 0 && (
                       <div className="bg-neutral-950/70 rounded-2xl p-3 border border-neutral-800/60 space-y-1.5">
                         <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">
@@ -480,7 +502,7 @@ export default function App() {
                       </div>
                     )}
 
-                    {/* Post Footer Actions */}
+                    {/* Actions */}
                     <div className="flex items-center justify-between pt-2 border-t border-neutral-800/60 text-neutral-400 text-xs">
                       <button
                         onClick={() => handleToggleLike(post.id)}
@@ -506,15 +528,49 @@ export default function App() {
           </div>
         )}
 
-        {/* TAB 2: LOG WORKOUT */}
+        {/* WORKOUT / CREATE TAB */}
         {currentTab === 'workout' && (
           <form onSubmit={handlePublishWorkout} className="space-y-4">
             <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4">
               <h2 className="text-base font-black tracking-tight">Enregistrer une séance</h2>
 
+              {/* Photo Upload Box */}
+              <div>
+                <label className="block text-xs font-semibold text-neutral-400 mb-1.5">Photo de séance / Forme</label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  ref={fileInputRef}
+                  onChange={handleImageUpload}
+                  className="hidden"
+                />
+
+                {postImage ? (
+                  <div className="relative rounded-2xl overflow-hidden border border-neutral-700 max-h-56">
+                    <img src={postImage} alt="Preview" className="w-full h-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => setPostImage(null)}
+                      className="absolute top-2 right-2 p-1.5 bg-black/70 hover:bg-black text-white rounded-full transition"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="w-full py-6 border-2 border-dashed border-neutral-800 hover:border-orange-500/60 rounded-2xl flex flex-col items-center justify-center gap-2 text-neutral-400 hover:text-orange-400 bg-neutral-950 transition"
+                  >
+                    <Camera className="w-6 h-6" />
+                    <span className="text-xs font-medium">Ajouter ou prendre une photo</span>
+                  </button>
+                )}
+              </div>
+
               {/* Workout Type */}
               <div>
-                <label className="block text-xs font-semibold text-neutral-400 mb-1.5">Type de séance</label>
+                <label className="block text-xs font-semibold text-neutral-400 mb-1.5">Type d'entraînement</label>
                 <select
                   value={workoutType}
                   onChange={(e) => setWorkoutType(e.target.value)}
@@ -528,7 +584,7 @@ export default function App() {
                 </select>
               </div>
 
-              {/* Duration and Calories */}
+              {/* Metrics */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-neutral-400 mb-1.5">Durée (minutes)</label>
@@ -540,7 +596,7 @@ export default function App() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-neutral-400 mb-1.5">Calories brûlées</label>
+                  <label className="block text-xs font-semibold text-neutral-400 mb-1.5">Calories</label>
                   <input
                     type="number"
                     value={workoutCalories}
@@ -550,29 +606,29 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Notes / Caption */}
+              {/* Caption */}
               <div>
-                <label className="block text-xs font-semibold text-neutral-400 mb-1.5">Commentaires & sensations</label>
+                <label className="block text-xs font-semibold text-neutral-400 mb-1.5">Description / Sensations</label>
                 <textarea
                   rows={2}
-                  placeholder="Ex: Excellente séance, bonnes charges au squat !"
+                  placeholder="Ex: Séance très intense, super sensations !"
                   value={workoutCaption}
                   onChange={(e) => setWorkoutCaption(e.target.value)}
                   className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3.5 py-2 text-xs text-neutral-200 placeholder-neutral-500 focus:outline-none focus:border-orange-500"
                 />
               </div>
 
-              {/* Dynamic Exercise Rows */}
+              {/* Dynamic Exercise Inputs */}
               <div className="space-y-3 pt-2">
                 <label className="block text-xs font-bold uppercase tracking-wider text-neutral-400">
-                  Détail des exercices
+                  Exercices effectués
                 </label>
                 {workoutExercises.map((ex, index) => (
                   <div key={index} className="bg-neutral-950 p-3 rounded-2xl border border-neutral-800 space-y-2">
                     <div className="flex items-center justify-between gap-2">
                       <input
                         type="text"
-                        placeholder="Nom de l'exercice (ex: Squat)"
+                        placeholder="Exercice (ex: Développé couché)"
                         value={ex.name}
                         onChange={(e) => updateExerciseField(index, 'name', e.target.value)}
                         className="flex-1 bg-transparent text-xs font-bold text-white border-b border-neutral-800 focus:outline-none focus:border-orange-500 pb-1"
@@ -607,7 +663,7 @@ export default function App() {
                         />
                       </div>
                       <div>
-                        <span className="text-[10px] text-neutral-500 block">Charge (kg)</span>
+                        <span className="text-[10px] text-neutral-500 block">Poids (kg)</span>
                         <input
                           type="number"
                           value={ex.weight}
@@ -627,7 +683,7 @@ export default function App() {
                 </button>
               </div>
 
-              {/* Submit Workout Button */}
+              {/* Submit */}
               <button
                 type="submit"
                 disabled={submittingWorkout}
@@ -639,42 +695,40 @@ export default function App() {
           </form>
         )}
 
-        {/* TAB 3: LEADERBOARD & PRs */}
+        {/* LEADERBOARD TAB */}
         {currentTab === 'leaderboard' && (
-          <div className="space-y-4">
-            <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4">
-              <div className="flex items-center gap-2">
-                <Trophy className="w-5 h-5 text-yellow-500" />
-                <h2 className="text-base font-black tracking-tight">Records du club ({selectedClub})</h2>
-              </div>
+          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4">
+            <div className="flex items-center gap-2">
+              <Trophy className="w-5 h-5 text-yellow-500" />
+              <h2 className="text-base font-black tracking-tight">Records du club ({selectedClub})</h2>
+            </div>
 
-              <div className="space-y-2">
-                {[
-                  { exercise: 'Développé couché', name: 'Maxime R.', weight: '145 kg', rank: '🥇' },
-                  { exercise: 'Squat', name: 'Julien D.', weight: '200 kg', rank: '🥇' },
-                  { exercise: 'Soulevé de terre', name: 'Thomas L.', weight: '230 kg', rank: '🥇' },
-                  { exercise: 'Tractions lestées', name: 'Romain B.', weight: '+45 kg', rank: '🥇' }
-                ].map((item, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center justify-between p-3 bg-neutral-950 rounded-2xl border border-neutral-800/80"
-                  >
-                    <div>
-                      <span className="text-xs font-bold text-white block">{item.exercise}</span>
-                      <span className="text-[11px] text-neutral-400">{item.name}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-black font-mono text-orange-400">{item.weight}</span>
-                      <span className="text-base">{item.rank}</span>
-                    </div>
+            <div className="space-y-2">
+              {[
+                { exercise: 'Développé couché', name: 'Maxime R.', weight: '145 kg', rank: '🥇' },
+                { exercise: 'Squat', name: 'Julien D.', weight: '200 kg', rank: '🥇' },
+                { exercise: 'Soulevé de terre', name: 'Thomas L.', weight: '230 kg', rank: '🥇' },
+                { exercise: 'Tractions lestées', name: 'Romain B.', weight: '+45 kg', rank: '🥇' }
+              ].map((item, index) => (
+                <div
+                  key={index}
+                  className="flex items-center justify-between p-3 bg-neutral-950 rounded-2xl border border-neutral-800/80"
+                >
+                  <div>
+                    <span className="text-xs font-bold text-white block">{item.exercise}</span>
+                    <span className="text-[11px] text-neutral-400">{item.name}</span>
                   </div>
-                ))}
-              </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-black font-mono text-orange-400">{item.weight}</span>
+                    <span className="text-base">{item.rank}</span>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         )}
 
-        {/* TAB 4: PROFILE */}
+        {/* PROFILE TAB */}
         {currentTab === 'profile' && (
           <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-6 text-center space-y-5">
             <div className="w-20 h-20 rounded-full bg-gradient-to-tr from-orange-500 to-amber-500 p-0.5 mx-auto">
@@ -694,7 +748,6 @@ export default function App() {
               </div>
             </div>
 
-            {/* Profile Statistics Summary */}
             <div className="grid grid-cols-3 gap-2 pt-2">
               <div className="bg-neutral-950 p-3 rounded-2xl border border-neutral-800">
                 <span className="text-base font-black text-white block">18</span>
@@ -722,7 +775,7 @@ export default function App() {
         )}
       </main>
 
-      {/* Bottom Floating Navigation Bar */}
+      {/* Navigation Bar */}
       <nav className="fixed bottom-0 left-0 right-0 z-50 bg-neutral-950/90 backdrop-blur-xl border-t border-neutral-800/80 px-6 py-2.5 flex justify-around items-center">
         <button
           onClick={() => setCurrentTab('feed')}
