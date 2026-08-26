@@ -221,17 +221,6 @@ const isMatchingClub = (postClubName?: string, selectedClubName?: string): boole
   return p === s || p.includes(s) || s.includes(p);
 };
 
-const calculateDistanceKm = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
-  const R = 6371;
-  const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLon = ((lon2 - lon1) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return Math.round(R * c * 10) / 10;
-};
-
 const compressImage = (file: File, maxWidth = 800, quality = 0.7): Promise<Blob> => {
   return new Promise((resolve) => {
     const reader = new FileReader();
@@ -339,7 +328,7 @@ const DEFAULT_STORIES: Story[] = [
     username: 'Thomas D.',
     avatar_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150',
     image_url: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?w=800',
-    caption: 'Prêt pour exploser le PR au dev couché 🔥',
+    caption: 'Prêt pour exploser le PR au dev couché #pr #pushday 🔥',
     club_name: 'Basic-Fit Tournai (Bastion)',
     likes_count: 3,
     created_at: new Date().toISOString()
@@ -350,7 +339,7 @@ const DEFAULT_STORIES: Story[] = [
     username: 'Sarah L.',
     avatar_url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150',
     image_url: 'https://images.unsplash.com/photo-1518611012118-696072aa579a?w=800',
-    caption: 'Fin de séance HIIT cardio, les jambes en feu 💦',
+    caption: 'Fin de séance HIIT cardio, les jambes en feu #cardio #hiit 💦',
     club_name: 'Basic-Fit Tournai (Bastion)',
     likes_count: 5,
     created_at: new Date().toISOString()
@@ -373,9 +362,6 @@ export default function App() {
   const [homeClub, setHomeClub] = useState<string>('Basic-Fit Tournai (Bastion)');
 
   const [clubsList, setClubsList] = useState<ClubLocation[]>(CLUBS_DATABASE);
-  const [gpsLoading, setGpsLoading] = useState(false);
-  const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(null);
-  const [clubSearchQuery, setClubSearchQuery] = useState('');
   const [authLoading, setAuthLoading] = useState(false);
 
   const [currentTab, setCurrentTab] = useState<'feed' | 'buddy' | 'workout' | 'exercises' | 'institut' | 'chat' | 'leaderboard' | 'profile'>('feed');
@@ -467,7 +453,7 @@ export default function App() {
   const [storyUploading, setStoryUploading] = useState(false);
   const storyFileInputRef = useRef<HTMLInputElement>(null);
 
-  // Workout
+  // Workout Creation State
   const [workoutType, setWorkoutType] = useState('Musculation (Push)');
   const [workoutCaption, setWorkoutCaption] = useState('');
   const [workoutDuration, setWorkoutDuration] = useState(60);
@@ -496,7 +482,7 @@ export default function App() {
 
   const [activeCommentPostId, setActiveCommentPostId] = useState<string | null>(null);
 
-  // Helper pour colorer les hashtags dans la description du fil d'actualité
+  // FONCTION POUR METTRE EN COULEUR LES HASHTAGS (Orange)
   const renderCaptionWithHashtags = (text: string) => {
     if (!text) return null;
     return text.split(' ').map((word, i) => {
@@ -551,9 +537,16 @@ export default function App() {
     setEditingDayIndex(null);
   };
 
-  const handleAddHashtag = (tag: string) => {
+  // Ajout du hashtag pour une séance (Workout)
+  const handleAddWorkoutHashtag = (tag: string) => {
     if (workoutCaption.includes(tag)) return;
     setWorkoutCaption((prev) => (prev ? `${prev} ${tag}` : tag));
+  };
+
+  // Ajout du hashtag pour une Story
+  const handleAddStoryHashtag = (tag: string) => {
+    if (storyCaption.includes(tag)) return;
+    setStoryCaption((prev) => (prev ? `${prev} ${tag}` : tag));
   };
 
   useEffect(() => {
@@ -644,16 +637,13 @@ export default function App() {
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      setPostImageFile(file);
-      setPostImagePreview(URL.createObjectURL(file));
-    }
-  };
-
-  const handleStoryImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      setStoryImageFile(file);
-      setStoryImagePreview(URL.createObjectURL(file));
+      if (cameraTarget === 'post') {
+         setPostImageFile(file);
+         setPostImagePreview(URL.createObjectURL(file));
+      } else {
+         setStoryImageFile(file);
+         setStoryImagePreview(URL.createObjectURL(file));
+      }
     }
   };
 
@@ -1084,7 +1074,7 @@ export default function App() {
             {/* STORIES ROW */}
             <div className="bg-neutral-900/60 border border-neutral-800/80 rounded-3xl p-3">
               <div className="flex items-center gap-3.5 overflow-x-auto no-scrollbar py-1">
-                <div onClick={() => setIsCreatingStory(true)} className="flex flex-col items-center gap-1.5 flex-shrink-0 cursor-pointer group">
+                <div onClick={() => { setCameraTarget('story'); setIsCreatingStory(true); }} className="flex flex-col items-center gap-1.5 flex-shrink-0 cursor-pointer group">
                   <div className="relative w-16 h-16 rounded-full border-2 border-dashed border-orange-500/50 flex items-center justify-center p-0.5 group-hover:border-orange-500 transition">
                     <div className="w-full h-full bg-neutral-950 rounded-full flex items-center justify-center text-orange-400 font-bold text-lg">+</div>
                     <div className="absolute bottom-0 right-0 w-5 h-5 bg-gradient-to-tr from-orange-600 to-amber-500 rounded-full flex items-center justify-center text-white border-2 border-neutral-950 shadow-md">
@@ -1120,7 +1110,7 @@ export default function App() {
               </div>
             </div>
 
-            {/* Posts Feed */}
+            {/* Posts Feed - AFFICHAGE DES HASHTAGS COLORES */}
             {feedLoading ? (
               <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 text-orange-500 animate-spin" /></div>
             ) : displayedPosts.length === 0 ? (
@@ -1143,7 +1133,6 @@ export default function App() {
                     )}
                   </div>
 
-                  {/* CARTE VISUELLE DE LA SÉANCE */}
                   <div className="rounded-2xl overflow-hidden border border-neutral-800 bg-neutral-950 relative shadow-inner">
                     {post.image_url ? (
                       <div className="h-72 w-full relative flex items-center justify-center">
@@ -1162,7 +1151,7 @@ export default function App() {
                     )}
                   </div>
 
-                  {/* DESCRIPTION AVEC HASHTAGS COLORES */}
+                  {/* ICI LES HASHTAGS SONT COLORES EN ORANGE */}
                   {post.caption && <p className="text-xs text-neutral-200 leading-relaxed font-medium">{renderCaptionWithHashtags(post.caption)}</p>}
 
                   {/* EXERCICES & REPOS */}
@@ -1181,7 +1170,7 @@ export default function App() {
                         <div key={i} className="flex items-center justify-between text-xs py-1.5 border-b border-neutral-900 last:border-none">
                           <span className="font-semibold text-neutral-200">{ex.name}</span>
                           <div className="flex items-center gap-2">
-                            <span className="font-mono text-[11px] text-orange-400 font-bold">{ex.sets} × {ex.reps} ({ex.weight} kg)</span>
+                            <span className="font-mono text-[11px] text-orange-400 font-bold">{ex.sets} séries × {ex.reps} reps ({ex.weight} kg)</span>
                             <button onClick={() => setActive3DExercise(ex.name)} className="p-1 bg-orange-600/20 hover:bg-orange-600 text-orange-400 hover:text-white rounded-lg flex items-center gap-1 text-[10px] transition">
                               <Box className="w-3 h-3" /> 3D
                             </button>
@@ -1201,13 +1190,13 @@ export default function App() {
           </div>
         )}
 
-        {/* TAB 4: WORKOUT / SÉANCE */}
+        {/* TAB WORKOUT / SEANCE - LES HASHTAGS SONT LÀ */}
         {currentTab === 'workout' && (
           <form onSubmit={handlePublishWorkout} className="space-y-4">
             <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4">
               <h2 className="text-base font-black tracking-tight">Enregistrer une séance</h2>
               <div className="grid grid-cols-2 gap-2.5">
-                <button type="button" onClick={() => startCamera('post')} className="py-6 border-2 border-dashed border-neutral-800 hover:border-orange-500 rounded-2xl flex flex-col items-center justify-center gap-2 text-neutral-400 hover:text-orange-400 bg-neutral-950 transition">
+                <button type="button" onClick={() => { setCameraTarget('post'); setIsCameraActive(true); }} className="py-6 border-2 border-dashed border-neutral-800 hover:border-orange-500 rounded-2xl flex flex-col items-center justify-center gap-2 text-neutral-400 hover:text-orange-400 bg-neutral-950 transition">
                   <Camera className="w-6 h-6 text-orange-500" /><span className="text-xs font-semibold">Prendre photo</span>
                 </button>
                 <button type="button" onClick={() => fileInputRef.current?.click()} className="py-6 border-2 border-dashed border-neutral-800 hover:border-orange-500 rounded-2xl flex flex-col items-center justify-center gap-2 text-neutral-400 hover:text-orange-400 bg-neutral-950 transition">
@@ -1222,22 +1211,22 @@ export default function App() {
                 </div>
               )}
               
-              <div className="space-y-1.5">
+              <div className="space-y-2">
                 <label className="block text-[11px] font-semibold text-neutral-400">Description de la séance & Hashtags :</label>
-                <textarea rows={2} placeholder="Comment s'est passée la séance ?" value={workoutCaption} onChange={(e) => setWorkoutCaption(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-orange-500" />
+                <textarea rows={3} placeholder="Comment s'est passée la séance ?" value={workoutCaption} onChange={(e) => setWorkoutCaption(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-orange-500" />
                 
                 {/* SÉLECTEUR DE HASHTAGS EN UN CLIC (Bien visible ici) */}
-                <div className="pt-1">
-                  <span className="text-[10px] text-neutral-400 font-medium flex items-center gap-1 mb-1.5">
+                <div className="pt-1.5 pb-2">
+                  <span className="text-[10px] text-neutral-400 font-medium flex items-center gap-1 mb-2">
                     <Hash className="w-3 h-3 text-orange-500" /> Ajouter des hashtags rapides :
                   </span>
-                  <div className="flex flex-wrap gap-1.5">
+                  <div className="flex flex-wrap gap-2">
                     {POPULAR_HASHTAGS.map((tag) => (
                       <button
                         key={tag}
                         type="button"
-                        onClick={() => handleAddHashtag(tag)}
-                        className="px-2.5 py-1 bg-neutral-950 hover:bg-orange-600/20 border border-neutral-800 hover:border-orange-500 text-neutral-300 hover:text-orange-400 rounded-lg text-[10px] font-semibold transition"
+                        onClick={() => handleAddWorkoutHashtag(tag)}
+                        className="px-2.5 py-1.5 bg-neutral-950 hover:bg-orange-600/20 border border-neutral-800 hover:border-orange-500 text-neutral-300 hover:text-orange-400 rounded-lg text-[10px] font-semibold transition"
                       >
                         {tag}
                       </button>
@@ -1757,7 +1746,7 @@ export default function App() {
         </div>
       )}
 
-      {/* LECTEUR DE STORY */}
+      {/* LECTEUR DE STORY (AVEC HASHTAGS COLORES) */}
       {activeViewingStory && activeStoryIndex !== null && (
         <div className="fixed inset-0 z-50 bg-black flex flex-col justify-between p-4 select-none">
           <div className="w-full flex items-center gap-1.5 pt-2 z-20">
@@ -1790,7 +1779,7 @@ export default function App() {
 
           {activeViewingStory.caption && (
             <div className="bg-neutral-950/80 backdrop-blur-lg px-3.5 py-2 rounded-xl border border-neutral-800 text-center mb-2 z-20">
-              <p className="text-xs text-neutral-100 font-medium">{activeViewingStory.caption}</p>
+              <p className="text-xs text-neutral-100 font-medium">{renderCaptionWithHashtags(activeViewingStory.caption)}</p>
             </div>
           )}
 
@@ -1838,7 +1827,30 @@ export default function App() {
                   </button>
                 </div>
               )}
-              <input type="text" placeholder="Légende de la story..." value={storyCaption} onChange={(e) => setStoryCaption(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-orange-500" />
+              
+              <div className="space-y-2">
+                <input type="text" placeholder="Légende de la story..." value={storyCaption} onChange={(e) => setStoryCaption(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-orange-500" />
+                
+                {/* SÉLECTEUR DE HASHTAGS POUR LA STORY AUSSI */}
+                <div className="pt-1.5 pb-2">
+                  <span className="text-[10px] text-neutral-400 font-medium flex items-center gap-1 mb-2">
+                    <Hash className="w-3 h-3 text-orange-500" /> Hashtags rapides :
+                  </span>
+                  <div className="flex flex-wrap gap-2">
+                    {POPULAR_HASHTAGS.slice(0, 6).map((tag) => (
+                      <button
+                        key={tag}
+                        type="button"
+                        onClick={() => handleAddStoryHashtag(tag)}
+                        className="px-2.5 py-1.5 bg-neutral-950 hover:bg-orange-600/20 border border-neutral-800 hover:border-orange-500 text-neutral-300 hover:text-orange-400 rounded-lg text-[10px] font-semibold transition"
+                      >
+                        {tag}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
               <button type="submit" disabled={storyUploading || !storyImageFile} className="w-full bg-orange-600 hover:bg-orange-500 text-white font-bold py-3 rounded-xl shadow-lg transition flex items-center justify-center gap-2 text-xs">
                 {storyUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Partager ma story"}
               </button>
