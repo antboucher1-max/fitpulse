@@ -37,7 +37,8 @@ import {
   ArrowLeft,
   Calendar,
   Navigation,
-  CheckCircle2
+  CheckCircle2,
+  Building2
 } from 'lucide-react';
 import { createClient, User as SupabaseUser } from '@supabase/supabase-js';
 
@@ -52,14 +53,41 @@ interface ClubLocation {
   zip: string;
   lat: number;
   lng: number;
+  distance?: number | null;
 }
 
-const CLUBS_DATABASE: ClubLocation[] = [
+// Base de départ étendue (Belgique & Nord de France)
+const DEFAULT_BASIC_FIT_CLUBS: ClubLocation[] = [
+  // Hainaut Occidental & Wallonie Picarde
   { name: 'Basic-Fit Tournai', city: 'Tournai', zip: '7500', lat: 50.606, lng: 3.388 },
   { name: 'Basic-Fit Froyennes', city: 'Froyennes', zip: '7503', lat: 50.627, lng: 3.351 },
   { name: 'Basic-Fit Mouscron', city: 'Mouscron', zip: '7700', lat: 50.743, lng: 3.218 },
-  { name: 'Fitness Park Lille', city: 'Lille', zip: '59000', lat: 50.629, lng: 3.057 },
-  { name: 'Basic-Fit Mons', city: 'Mons', zip: '7000', lat: 50.454, lng: 3.952 }
+  { name: 'Basic-Fit Péruwelz', city: 'Péruwelz', zip: '7600', lat: 50.509, lng: 3.593 },
+  { name: 'Basic-Fit Ath', city: 'Ath', zip: '7800', lat: 50.631, lng: 3.778 },
+  { name: 'Basic-Fit Leuze-en-Hainaut', city: 'Leuze', zip: '7900', lat: 50.598, lng: 3.619 },
+  { name: 'Basic-Fit Lessines', city: 'Lessines', zip: '7860', lat: 50.712, lng: 3.829 },
+  // Mons & Borinage
+  { name: 'Basic-Fit Mons Grands Prés', city: 'Mons', zip: '7000', lat: 50.457, lng: 3.936 },
+  { name: 'Basic-Fit Mons Centre', city: 'Mons', zip: '7000', lat: 50.454, lng: 3.952 },
+  { name: 'Basic-Fit Jemappes', city: 'Jemappes', zip: '7012', lat: 50.448, lng: 3.895 },
+  { name: 'Basic-Fit Hornu', city: 'Hornu', zip: '7301', lat: 50.435, lng: 3.829 },
+  { name: 'Basic-Fit La Louvière', city: 'La Louvière', zip: '7100', lat: 50.479, lng: 4.187 },
+  // Flandre / Courtrai
+  { name: 'Basic-Fit Kortrijk Ring', city: 'Kortrijk', zip: '8500', lat: 50.819, lng: 3.273 },
+  { name: 'Basic-Fit Kortrijk Centrum', city: 'Kortrijk', zip: '8500', lat: 50.828, lng: 3.265 },
+  { name: 'Basic-Fit Menen', city: 'Menen', zip: '8930', lat: 50.797, lng: 3.124 },
+  { name: 'Basic-Fit Waregem', city: 'Waregem', zip: '8790', lat: 50.887, lng: 3.432 },
+  // Nord de France
+  { name: 'Basic-Fit Roubaix Grand Rue', city: 'Roubaix', zip: '59100', lat: 50.692, lng: 3.174 },
+  { name: 'Basic-Fit Tourcoing Centre', city: 'Tourcoing', zip: '59200', lat: 50.723, lng: 3.159 },
+  { name: 'Basic-Fit Villeneuve-d’Ascq V2', city: 'Villeneuve-d’Ascq', zip: '59650', lat: 50.619, lng: 3.131 },
+  { name: 'Basic-Fit Lille Faidherbe', city: 'Lille', zip: '59000', lat: 50.637, lng: 3.069 },
+  { name: 'Basic-Fit Lille Gambetta', city: 'Lille', zip: '59000', lat: 50.627, lng: 3.049 },
+  { name: 'Basic-Fit Valenciennes', city: 'Valenciennes', zip: '59300', lat: 50.358, lng: 3.523 },
+  // Bruxelles
+  { name: 'Basic-Fit Bruxelles Louise', city: 'Bruxelles', zip: '1050', lat: 50.831, lng: 4.359 },
+  { name: 'Basic-Fit Bruxelles Rogier', city: 'Bruxelles', zip: '1210', lat: 50.855, lng: 4.357 },
+  { name: 'Basic-Fit Bruxelles Schuman', city: 'Bruxelles', zip: '1040', lat: 50.842, lng: 4.383 }
 ];
 
 const calculateDistanceKm = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
@@ -179,7 +207,8 @@ export default function App() {
   const [level, setLevel] = useState<'Débutant' | 'Intermédiaire' | 'Avancé'>('Intermédiaire');
   const [homeClub, setHomeClub] = useState<string>('Basic-Fit Tournai');
 
-  // Sélecteur Club (GPS & Recherche)
+  // Sélecteur Club (GPS & API Dynamique)
+  const [clubsList, setClubsList] = useState<ClubLocation[]>(DEFAULT_BASIC_FIT_CLUBS);
   const [gpsLoading, setGpsLoading] = useState(false);
   const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [clubSearchQuery, setClubSearchQuery] = useState('');
@@ -381,6 +410,53 @@ export default function App() {
     };
   }, [isTimerRunning, timerSeconds]);
 
+  // RECHERCHE EN DIRECT DES BASIC-FIT AUTOUR VIA OPENSTREETMAP API
+  const fetchBasicFitNearby = async (lat: number, lng: number) => {
+    try {
+      const overpassQuery = `[out:json][timeout:10];(node["name"~"Basic-Fit",i](around:40000,${lat},${lng});way["name"~"Basic-Fit",i](around:40000,${lat},${lng}););out center;`;
+      const response = await fetch(`https://overpass-api.de/api/interpreter?data=${encodeURIComponent(overpassQuery)}`);
+      const data = await response.json();
+
+      if (data && data.elements && data.elements.length > 0) {
+        const fetchedClubs: ClubLocation[] = data.elements.map((el: any) => {
+          const clubLat = el.lat || el.center?.lat;
+          const clubLng = el.lon || el.center?.lon;
+          const clubCity = el.tags?.['addr:city'] || el.tags?.['addr:town'] || el.tags?.['name'] || 'Basic-Fit';
+          const clubName = el.tags?.name || `Basic-Fit ${clubCity}`;
+          const distance = calculateDistanceKm(lat, lng, clubLat, clubLng);
+
+          return {
+            name: clubName,
+            city: clubCity,
+            zip: el.tags?.['addr:postcode'] || '',
+            lat: clubLat,
+            lng: clubLng,
+            distance
+          };
+        });
+
+        // Fusionner sans doublons avec les clubs locaux
+        const combined = [...fetchedClubs];
+        DEFAULT_BASIC_FIT_CLUBS.forEach((dc) => {
+          if (!combined.some((c) => c.name.toLowerCase() === dc.name.toLowerCase())) {
+            combined.push({
+              ...dc,
+              distance: calculateDistanceKm(lat, lng, dc.lat, dc.lng)
+            });
+          }
+        });
+
+        combined.sort((a, b) => (a.distance || 0) - (b.distance || 0));
+        setClubsList(combined);
+        if (combined.length > 0) {
+          setHomeClub(combined[0].name);
+        }
+      }
+    } catch (e) {
+      console.log('Utilisation de la base interne étendue');
+    }
+  };
+
   // Localisation GPS
   const handleDetectGPS = () => {
     if (!navigator.geolocation) {
@@ -389,22 +465,25 @@ export default function App() {
     }
     setGpsLoading(true);
     navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setUserCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+      async (pos) => {
+        const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        setUserCoords(coords);
+        await fetchBasicFitNearby(coords.lat, coords.lng);
         setGpsLoading(false);
       },
       (err) => {
         alert("Impossible d'obtenir ta position GPS : " + err.message);
         setGpsLoading(false);
-      }
+      },
+      { timeout: 10000, enableHighAccuracy: true }
     );
   };
 
-  // Liste des clubs triée par distance ou recherche
-  const sortedClubs = [...CLUBS_DATABASE]
+  // Liste triée par distance ou recherche textuelle
+  const displayedClubs = clubsList
     .map((club) => {
-      let distance: number | null = null;
-      if (userCoords) {
+      let distance = club.distance ?? null;
+      if (userCoords && distance === null) {
         distance = calculateDistanceKm(userCoords.lat, userCoords.lng, club.lat, club.lng);
       }
       return { ...club, distance };
@@ -424,7 +503,7 @@ export default function App() {
     setAuthLoading(true);
 
     if (isSignUp) {
-      const { data, error } = await supabase.auth.signUp({
+      const { error } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -443,9 +522,7 @@ export default function App() {
       if (error) {
         alert("Erreur d'inscription : " + error.message);
       } else {
-        alert(
-          "Compte créé avec succès ! Un e-mail de confirmation a été envoyé à ton adresse si la validation est activée."
-        );
+        alert("Compte créé avec succès ! Bienvenue sur FitPulse.");
         setSelectedClub(homeClub);
       }
     } else {
@@ -697,7 +774,7 @@ export default function App() {
   );
 
   // ==========================================
-  // ÉCRAN AUTHENTIFICATION & CRÉATION COMPLÈTE
+  // ÉCRAN AUTHENTIFICATION & CRÉATION
   // ==========================================
   if (!user) {
     return (
@@ -794,11 +871,11 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* SÉLECTION DU CLUB MAISON (GPS & LOCALITÉ) */}
+                {/* SÉLECTION TOUS LES BASIC-FIT (GPS & RECHERCHE GLOBALE) */}
                 <div className="bg-neutral-950 p-3.5 rounded-2xl border border-neutral-800 space-y-2.5">
                   <div className="flex items-center justify-between">
                     <label className="text-[11px] font-bold text-orange-400 uppercase tracking-wider flex items-center gap-1.5">
-                      <MapPin className="w-3.5 h-3.5" /> Choisir mon club "Maison"
+                      <Building2 className="w-3.5 h-3.5" /> Mon Basic-Fit "Maison"
                     </label>
                     <button
                       type="button"
@@ -811,21 +888,19 @@ export default function App() {
                     </button>
                   </div>
 
-                  {/* Recherche par ville ou code postal */}
                   <div className="relative">
                     <Search className="absolute left-3 top-2.5 w-3.5 h-3.5 text-neutral-500" />
                     <input
                       type="text"
-                      placeholder="Ou tape une ville / code postal (ex: 7500)..."
+                      placeholder="Ville ou code postal (ex: Tournai, Mons, Lille, 7500)..."
                       value={clubSearchQuery}
                       onChange={(e) => setClubSearchQuery(e.target.value)}
                       className="w-full bg-neutral-900 border border-neutral-800 rounded-xl pl-9 pr-3 py-1.5 text-xs text-neutral-200 focus:outline-none focus:border-orange-500"
                     />
                   </div>
 
-                  {/* Liste de sélection dynamique */}
-                  <div className="max-h-32 overflow-y-auto space-y-1.5 pr-1">
-                    {sortedClubs.map((club) => {
+                  <div className="max-h-36 overflow-y-auto space-y-1.5 pr-1">
+                    {displayedClubs.map((club) => {
                       const isSelected = homeClub === club.name;
                       return (
                         <div
@@ -840,7 +915,7 @@ export default function App() {
                           <div className="flex items-center gap-2">
                             <CheckCircle2 className={`w-3.5 h-3.5 ${isSelected ? 'text-orange-500' : 'text-neutral-600'}`} />
                             <span>
-                              {club.name} ({club.city})
+                              {club.name} {club.zip && `(${club.zip})`}
                             </span>
                           </div>
                           {club.distance !== null && (
@@ -925,9 +1000,9 @@ export default function App() {
         <select
           value={selectedClub}
           onChange={(e) => setSelectedClub(e.target.value)}
-          className="bg-neutral-900 border border-neutral-800 text-[11px] rounded-lg px-2.5 py-1.5 text-neutral-300 focus:outline-none focus:border-orange-500"
+          className="bg-neutral-900 border border-neutral-800 text-[11px] rounded-lg px-2.5 py-1.5 text-neutral-300 focus:outline-none focus:border-orange-500 max-w-[160px] truncate"
         >
-          {CLUBS_DATABASE.map((c) => (
+          {displayedClubs.map((c) => (
             <option key={c.name} value={c.name}>
               {c.name}
             </option>
@@ -943,11 +1018,11 @@ export default function App() {
             <div className="bg-neutral-900 p-1.5 rounded-2xl border border-neutral-800 flex items-center gap-1">
               <button
                 onClick={() => setFeedFilterMode('all')}
-                className={`flex-1 py-2 rounded-xl text-xs font-bold transition ${
+                className={`flex-1 py-2 rounded-xl text-xs font-bold transition truncate px-2 ${
                   feedFilterMode === 'all' ? 'bg-orange-600 text-white shadow-md' : 'text-neutral-400 hover:text-white'
                 }`}
               >
-                Fil du club ({selectedClub})
+                Fil du club ({selectedClub.replace('Basic-Fit ', '')})
               </button>
               <button
                 onClick={() => setFeedFilterMode('friends')}
@@ -1665,7 +1740,7 @@ export default function App() {
                         <div
                           key={friend.id}
                           onClick={() => setSelectedBuddyChat(friend)}
-                          className="bg-neutral-950 hover:bg-neutral-900/80 p-3 rounded-2xl border border-neutral-800/80 flex items-center justify-between cursor-pointer transition"
+                          className="bg-neutral-950 hover:bg-neutral-900/80 p-3 rounded-2xl border border-neutral-800/80 flex items-center justify-between cursor-pointer transition group"
                         >
                           <div className="flex items-center gap-3">
                             <div className="relative">
