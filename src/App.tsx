@@ -277,6 +277,7 @@ interface Story {
   image_url: string;
   caption?: string;
   club_name?: string;
+  likes_count?: number;
   created_at: string;
 }
 
@@ -337,11 +338,37 @@ export default function App() {
   const [friendRequestsReceived, setFriendRequestsReceived] = useState<string[]>(['b3']);
   const [buddyTabSubMode, setBuddyTabSubMode] = useState<'discover' | 'my_friends'>('discover');
 
-  // Stories State
-  const [stories, setStories] = useState<Story[]>([]);
+  // Stories State & Likes / Comments
+  const [stories, setStories] = useState<Story[]>([
+    {
+      id: 'demo-s1',
+      user_id: 'b1',
+      username: 'Thomas D.',
+      avatar_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150',
+      image_url: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?w=800',
+      caption: 'Prêt pour exploser le PR au dev couché 🔥',
+      club_name: 'Basic-Fit Tournai (Bastion)',
+      likes_count: 3,
+      created_at: new Date(Date.now() - 2 * 3600 * 1000).toISOString()
+    },
+    {
+      id: 'demo-s2',
+      user_id: 'b2',
+      username: 'Sarah L.',
+      avatar_url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150',
+      image_url: 'https://images.unsplash.com/photo-1518611012118-696072aa579a?w=800',
+      caption: 'Fin de séance HIIT cardio, les jambes en feu 💦',
+      club_name: 'Basic-Fit Tournai (Bastion)',
+      likes_count: 5,
+      created_at: new Date(Date.now() - 5 * 3600 * 1000).toISOString()
+    }
+  ]);
   const [viewedStoryIds, setViewedStoryIds] = useState<string[]>([]);
   const [activeStoryIndex, setActiveStoryIndex] = useState<number | null>(null);
   const [storyProgress, setStoryProgress] = useState(0);
+  const [isStoryPaused, setIsStoryPaused] = useState(false);
+  const [likedStories, setLikedStories] = useState<Record<string, boolean>>({});
+  const [storyCommentInput, setStoryCommentInput] = useState('');
   const [isCreatingStory, setIsCreatingStory] = useState(false);
   const [storyImageFile, setStoryImageFile] = useState<File | null>(null);
   const [storyImagePreview, setStoryImagePreview] = useState<string | null>(null);
@@ -524,10 +551,8 @@ export default function App() {
   const fetchCloudStories = async () => {
     const twentyFourHoursAgo = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
 
-    // Supprimer dans Supabase les stories de plus de 24h
     await supabase.from('stories').delete().lt('created_at', twentyFourHoursAgo);
 
-    // Charger les stories récentes
     const { data, error } = await supabase
       .from('stories')
       .select('*')
@@ -564,10 +589,9 @@ export default function App() {
     };
   }, [isTimerRunning, timerSeconds]);
 
-  // Défilement automatique de 5 secondes par story
+  // Défilement automatique de 5 secondes par story (avec mise en pause lors de l'écriture d'un commentaire)
   useEffect(() => {
-    if (activeStoryIndex === null) {
-      setStoryProgress(0);
+    if (activeStoryIndex === null || isStoryPaused) {
       return;
     }
 
@@ -590,13 +614,14 @@ export default function App() {
     }, interval);
 
     return () => clearInterval(timer);
-  }, [activeStoryIndex, stories, friendIds]);
+  }, [activeStoryIndex, isStoryPaused, stories, friendIds]);
 
   const handleNextStory = () => {
     if (activeStoryIndex === null) return;
     if (activeStoryIndex < friendStoriesList.length - 1) {
       setActiveStoryIndex(activeStoryIndex + 1);
       setStoryProgress(0);
+      setStoryCommentInput('');
     } else {
       setActiveStoryIndex(null);
     }
@@ -607,8 +632,57 @@ export default function App() {
     if (activeStoryIndex > 0) {
       setActiveStoryIndex(activeStoryIndex - 1);
       setStoryProgress(0);
+      setStoryCommentInput('');
     } else {
       setStoryProgress(0);
+    }
+  };
+
+  const handleToggleStoryLike = async (storyId: string) => {
+    const isLiked = likedStories[storyId];
+    setLikedStories((prev) => ({ ...prev, [storyId]: !isLiked }));
+
+    const story = stories.find((s) => s.id === storyId);
+    if (!story || !user) return;
+
+    // Envoyer une notification de réaction dans le chat de l'ami
+    if (!isLiked) {
+      const myName = user.user_metadata?.first_name || user.user_metadata?.username || user.email?.split('@')[0] || 'Moi';
+      await supabase.from('direct_messages').insert([
+        {
+          sender_id: user.id,
+          receiver_id: story.user_id,
+          sender_name: myName,
+          text: `❤️ A aimé ta story !`
+        }
+      ]);
+    }
+  };
+
+  const handleSendStoryComment = async (e?: React.FormEvent, quickEmoji?: string) => {
+    if (e) e.preventDefault();
+    const textToSend = quickEmoji || storyCommentInput.trim();
+    if (!textToSend || activeStoryIndex === null || !user) return;
+
+    const story = friendStoriesList[activeStoryIndex];
+    if (!story) return;
+
+    const myName = user.user_metadata?.first_name || user.user_metadata?.username || user.email?.split('@')[0] || 'Moi';
+
+    // Envoi direct du commentaire dans la messagerie privée de l'ami
+    const { error } = await supabase.from('direct_messages').insert([
+      {
+        sender_id: user.id,
+        receiver_id: story.user_id,
+        sender_name: myName,
+        text: `📸 En réponse à ta story : "${textToSend}"`
+      }
+    ]);
+
+    if (!error) {
+      setStoryCommentInput('');
+      setIsStoryPaused(false);
+      alert('Réponse envoyée en message direct !');
     }
   };
 
@@ -774,6 +848,7 @@ export default function App() {
       image_url: uploadedStoryUrl,
       caption: storyCaption,
       club_name: selectedClub,
+      likes_count: 0,
       created_at: new Date().toISOString()
     };
 
@@ -979,7 +1054,7 @@ export default function App() {
   const myFriendNames = myFriendsList.map((f) => f.name);
   const friendRequestsList = buddiesList.filter((b) => friendRequestsReceived.includes(b.id));
 
-  // FILTRE STORIES : Uniquement les amis confirmés OU ma propre story (valides < 24h)
+  // FILTRE STRICT DES STORIES : Uniquement mes amis confirmés (+ ma story), valides < 24h
   const twentyFourHoursAgoMs = Date.now() - 24 * 3600 * 1000;
   const friendStoriesList = stories.filter((s) => {
     const storyDate = new Date(s.created_at).getTime();
@@ -1262,7 +1337,7 @@ export default function App() {
         {currentTab === 'feed' && (
           <div className="space-y-4">
             
-            {/* STORIES ROW (UNIQUEMENT AMIS + MOI, EXPIRATION 24H) */}
+            {/* STORIES ROW (HACHURÉ SI VU, COULEUR SI NON VU, RÉSERVÉ AUX AMIS) */}
             <div className="bg-neutral-900/60 border border-neutral-800/80 rounded-3xl p-3">
               <div className="flex items-center gap-3.5 overflow-x-auto no-scrollbar py-1">
                 
@@ -1292,24 +1367,33 @@ export default function App() {
                       onClick={() => {
                         setActiveStoryIndex(index);
                         setStoryProgress(0);
+                        setIsStoryPaused(false);
                       }}
                       className="flex flex-col items-center gap-1.5 flex-shrink-0 cursor-pointer"
                     >
-                      <div
-                        className={`w-16 h-16 rounded-full p-[2.5px] transition transform hover:scale-105 ${
-                          isViewed
-                            ? 'border-2 border-neutral-700 p-[1px]'
-                            : 'bg-gradient-to-tr from-orange-500 via-pink-500 to-amber-400 shadow-sm'
-                        }`}
-                      >
-                        <div className="w-full h-full bg-neutral-950 rounded-full p-[2px]">
-                          <img
-                            src={story.avatar_url}
-                            alt={story.username}
-                            className="w-full h-full rounded-full object-cover"
-                          />
+                      {/* CERCLE HACHURÉ SI VU / GRADIENT COULEUR SI NON VU */}
+                      {isViewed ? (
+                        <div className="w-16 h-16 rounded-full border-2 border-dashed border-neutral-600 p-[2px] opacity-75 hover:opacity-100 hover:border-orange-400/60 transition">
+                          <div className="w-full h-full bg-neutral-950 rounded-full p-[1px]">
+                            <img
+                              src={story.avatar_url}
+                              alt={story.username}
+                              className="w-full h-full rounded-full object-cover grayscale-[15%]"
+                            />
+                          </div>
                         </div>
-                      </div>
+                      ) : (
+                        <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-orange-500 via-pink-500 to-amber-400 p-[2.5px] shadow-sm hover:scale-105 transition transform">
+                          <div className="w-full h-full bg-neutral-950 rounded-full p-[2px]">
+                            <img
+                              src={story.avatar_url}
+                              alt={story.username}
+                              className="w-full h-full rounded-full object-cover"
+                            />
+                          </div>
+                        </div>
+                      )}
+
                       <span className="text-[10px] font-medium text-neutral-300 truncate max-w-[64px] text-center">
                         {story.username.split(' ')[0]}
                       </span>
@@ -2167,7 +2251,7 @@ export default function App() {
         )}
       </main>
 
-      {/* LECTEUR DE STORY PLEIN ÉCRAN INSTAGRAM-STYLE */}
+      {/* LECTEUR DE STORY PLEIN ÉCRAN AVEC LIKES & COMMENTAIRES */}
       {activeViewingStory && activeStoryIndex !== null && (
         <div className="fixed inset-0 z-50 bg-black flex flex-col justify-between p-4 animate-fade-in select-none">
           {/* Barres de progression multiples en haut */}
@@ -2206,7 +2290,10 @@ export default function App() {
               </div>
             </div>
             <button
-              onClick={() => setActiveStoryIndex(null)}
+              onClick={() => {
+                setActiveStoryIndex(null);
+                setIsStoryPaused(false);
+              }}
               className="p-2 bg-black/60 backdrop-blur-md rounded-full text-neutral-300 hover:text-white transition"
             >
               <X className="w-6 h-6" />
@@ -2214,17 +2301,9 @@ export default function App() {
           </div>
 
           {/* Zones tactiles Invisibles Gauche / Droite pour passer les stories */}
-          <div className="absolute inset-0 z-10 flex">
-            {/* Côté Gauche : Story précédente */}
-            <div
-              className="w-1/3 h-full cursor-pointer"
-              onClick={handlePrevStory}
-            />
-            {/* Côté Droit : Story suivante */}
-            <div
-              className="w-2/3 h-full cursor-pointer"
-              onClick={handleNextStory}
-            />
+          <div className="absolute inset-0 z-10 flex" style={{ bottom: '90px' }}>
+            <div className="w-1/3 h-full cursor-pointer" onClick={handlePrevStory} />
+            <div className="w-2/3 h-full cursor-pointer" onClick={handleNextStory} />
           </div>
 
           {/* Image de la Story */}
@@ -2232,16 +2311,67 @@ export default function App() {
             <img
               src={activeViewingStory.image_url}
               alt="Story"
-              className="max-h-[65vh] w-auto max-w-full rounded-2xl object-contain shadow-2xl border border-neutral-800"
+              className="max-h-[60vh] w-auto max-w-full rounded-2xl object-contain shadow-2xl border border-neutral-800"
             />
           </div>
 
-          {/* Légende / Bas de la Story */}
+          {/* Légende */}
           {activeViewingStory.caption && (
-            <div className="bg-neutral-950/80 backdrop-blur-lg p-3.5 rounded-2xl border border-neutral-800 text-center mb-4 z-20">
+            <div className="bg-neutral-950/80 backdrop-blur-lg px-3.5 py-2 rounded-xl border border-neutral-800/80 text-center mb-2 z-20">
               <p className="text-xs text-neutral-100 font-medium">{activeViewingStory.caption}</p>
             </div>
           )}
+
+          {/* BARRE D'INTERACTION : RÉACTION, LIKE & COMMENTAIRE DIRECT */}
+          <div className="z-30 space-y-2">
+            {/* Emojis réactions rapides */}
+            <div className="flex justify-center gap-4 py-1">
+              {['🔥', '💪', '👏', '❤️'].map((emoji) => (
+                <button
+                  key={emoji}
+                  onClick={() => handleSendStoryComment(undefined, emoji)}
+                  className="text-xl hover:scale-125 transition transform active:scale-95 bg-neutral-900/80 p-1.5 rounded-full border border-neutral-800"
+                >
+                  {emoji}
+                </button>
+              ))}
+            </div>
+
+            {/* Formulaire de commentaire + Bouton Like */}
+            <div className="flex items-center gap-2">
+              <form
+                onSubmit={(e) => handleSendStoryComment(e)}
+                className="flex-1 flex items-center bg-neutral-900/90 border border-neutral-800 rounded-2xl px-3 py-1.5 backdrop-blur-md"
+              >
+                <input
+                  type="text"
+                  placeholder={`Répondre à ${activeViewingStory.username.split(' ')[0]}...`}
+                  value={storyCommentInput}
+                  onFocus={() => setIsStoryPaused(true)}
+                  onBlur={() => !storyCommentInput && setIsStoryPaused(false)}
+                  onChange={(e) => setStoryCommentInput(e.target.value)}
+                  className="flex-1 bg-transparent text-xs text-white placeholder-neutral-500 focus:outline-none"
+                />
+                {storyCommentInput.trim() && (
+                  <button type="submit" className="text-orange-400 hover:text-orange-300 p-1 transition">
+                    <SendHorizontal className="w-4 h-4" />
+                  </button>
+                )}
+              </form>
+
+              {/* Bouton Like Story */}
+              <button
+                onClick={() => handleToggleStoryLike(activeViewingStory.id)}
+                className="p-3 bg-neutral-900/90 border border-neutral-800 rounded-2xl text-white hover:text-red-400 backdrop-blur-md transition flex items-center justify-center"
+              >
+                <Heart
+                  className={`w-5 h-5 transition ${
+                    likedStories[activeViewingStory.id] ? 'fill-red-500 text-red-500 scale-110' : 'text-white'
+                  }`}
+                />
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
