@@ -49,6 +49,7 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 interface ClubLocation {
   name: string;
+  address?: string;
   city: string;
   zip: string;
   lat: number;
@@ -56,38 +57,104 @@ interface ClubLocation {
   distance?: number | null;
 }
 
-// Base de départ étendue (Belgique & Nord de France)
-const DEFAULT_BASIC_FIT_CLUBS: ClubLocation[] = [
-  // Hainaut Occidental & Wallonie Picarde
-  { name: 'Basic-Fit Tournai', city: 'Tournai', zip: '7500', lat: 50.606, lng: 3.388 },
-  { name: 'Basic-Fit Froyennes', city: 'Froyennes', zip: '7503', lat: 50.627, lng: 3.351 },
-  { name: 'Basic-Fit Mouscron', city: 'Mouscron', zip: '7700', lat: 50.743, lng: 3.218 },
-  { name: 'Basic-Fit Péruwelz', city: 'Péruwelz', zip: '7600', lat: 50.509, lng: 3.593 },
-  { name: 'Basic-Fit Ath', city: 'Ath', zip: '7800', lat: 50.631, lng: 3.778 },
-  { name: 'Basic-Fit Leuze-en-Hainaut', city: 'Leuze', zip: '7900', lat: 50.598, lng: 3.619 },
-  { name: 'Basic-Fit Lessines', city: 'Lessines', zip: '7860', lat: 50.712, lng: 3.829 },
-  // Mons & Borinage
-  { name: 'Basic-Fit Mons Grands Prés', city: 'Mons', zip: '7000', lat: 50.457, lng: 3.936 },
-  { name: 'Basic-Fit Mons Centre', city: 'Mons', zip: '7000', lat: 50.454, lng: 3.952 },
-  { name: 'Basic-Fit Jemappes', city: 'Jemappes', zip: '7012', lat: 50.448, lng: 3.895 },
-  { name: 'Basic-Fit Hornu', city: 'Hornu', zip: '7301', lat: 50.435, lng: 3.829 },
-  { name: 'Basic-Fit La Louvière', city: 'La Louvière', zip: '7100', lat: 50.479, lng: 4.187 },
-  // Flandre / Courtrai
-  { name: 'Basic-Fit Kortrijk Ring', city: 'Kortrijk', zip: '8500', lat: 50.819, lng: 3.273 },
-  { name: 'Basic-Fit Kortrijk Centrum', city: 'Kortrijk', zip: '8500', lat: 50.828, lng: 3.265 },
-  { name: 'Basic-Fit Menen', city: 'Menen', zip: '8930', lat: 50.797, lng: 3.124 },
-  { name: 'Basic-Fit Waregem', city: 'Waregem', zip: '8790', lat: 50.887, lng: 3.432 },
-  // Nord de France
-  { name: 'Basic-Fit Roubaix Grand Rue', city: 'Roubaix', zip: '59100', lat: 50.692, lng: 3.174 },
-  { name: 'Basic-Fit Tourcoing Centre', city: 'Tourcoing', zip: '59200', lat: 50.723, lng: 3.159 },
-  { name: 'Basic-Fit Villeneuve-d’Ascq V2', city: 'Villeneuve-d’Ascq', zip: '59650', lat: 50.619, lng: 3.131 },
-  { name: 'Basic-Fit Lille Faidherbe', city: 'Lille', zip: '59000', lat: 50.637, lng: 3.069 },
-  { name: 'Basic-Fit Lille Gambetta', city: 'Lille', zip: '59000', lat: 50.627, lng: 3.049 },
-  { name: 'Basic-Fit Valenciennes', city: 'Valenciennes', zip: '59300', lat: 50.358, lng: 3.523 },
-  // Bruxelles
-  { name: 'Basic-Fit Bruxelles Louise', city: 'Bruxelles', zip: '1050', lat: 50.831, lng: 4.359 },
-  { name: 'Basic-Fit Bruxelles Rogier', city: 'Bruxelles', zip: '1210', lat: 50.855, lng: 4.357 },
-  { name: 'Basic-Fit Bruxelles Schuman', city: 'Bruxelles', zip: '1040', lat: 50.842, lng: 4.383 }
+// Base officielle avec les coordonnées GPS fournies
+const CLUBS_DATABASE: ClubLocation[] = [
+  {
+    name: 'Basic-Fit Tournai (Bastion)',
+    address: 'Chaussée de Lille 322',
+    city: 'Tournai',
+    zip: '7500',
+    lat: 50.6095,
+    lng: 3.3762
+  },
+  {
+    name: 'Basic-Fit Tournai (Froyennes)',
+    address: 'Boulevard des Déportés 30',
+    city: 'Tournai',
+    zip: '7500',
+    lat: 50.6051,
+    lng: 3.3934
+  },
+  {
+    name: 'Basic-Fit Mouscron',
+    address: 'Rue de Menin 435',
+    city: 'Mouscron',
+    zip: '7700',
+    lat: 50.7423,
+    lng: 3.2091
+  },
+  {
+    name: 'Basic-Fit Mons',
+    address: 'Chaussée de Binche 113',
+    city: 'Mons',
+    zip: '7000',
+    lat: 50.4542,
+    lng: 3.9658
+  },
+  {
+    name: 'Basic-Fit La Louvière',
+    address: 'Rue de Bouvy 50',
+    city: 'La Louvière',
+    zip: '7100',
+    lat: 50.4812,
+    lng: 4.1905
+  },
+  {
+    name: 'Basic-Fit Charleroi (Ville 2)',
+    address: 'Rue de Couillet 31',
+    city: 'Charleroi',
+    zip: '6000',
+    lat: 50.4131,
+    lng: 4.4447
+  },
+  {
+    name: 'Basic-Fit Waterloo',
+    address: 'Chaussée de Bruxelles 254',
+    city: 'Waterloo',
+    zip: '1410',
+    lat: 50.7224,
+    lng: 4.3981
+  },
+  {
+    name: 'Basic-Fit Wavre',
+    address: 'Chaussée de Louvain 20',
+    city: 'Wavre',
+    zip: '1300',
+    lat: 50.7183,
+    lng: 4.6072
+  },
+  {
+    name: 'Basic-Fit Namur (Bouge)',
+    address: 'Chaussée de Louvain 445',
+    city: 'Bouge (Namur)',
+    zip: '5004',
+    lat: 50.4735,
+    lng: 4.8712
+  },
+  {
+    name: 'Basic-Fit Liège (Saint-Lambert)',
+    address: 'Place Saint-Lambert 32',
+    city: 'Liège',
+    zip: '4000',
+    lat: 50.6452,
+    lng: 5.5734
+  },
+  {
+    name: 'Basic-Fit Liège (Ans)',
+    address: 'Chaussée du Roi Albert 7/13',
+    city: 'Ans',
+    zip: '4430',
+    lat: 50.6548,
+    lng: 5.5291
+  },
+  {
+    name: 'Basic-Fit Arlon (Hydrion)',
+    address: "Parc Commercial de l'Hydrion 31b",
+    city: 'Arlon',
+    zip: '6700',
+    lat: 49.6841,
+    lng: 5.8173
+  }
 ];
 
 const calculateDistanceKm = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
@@ -205,10 +272,10 @@ export default function App() {
   const [age, setAge] = useState<number | ''>('');
   const [gender, setGender] = useState<'M' | 'F'>('M');
   const [level, setLevel] = useState<'Débutant' | 'Intermédiaire' | 'Avancé'>('Intermédiaire');
-  const [homeClub, setHomeClub] = useState<string>('Basic-Fit Tournai');
+  const [homeClub, setHomeClub] = useState<string>('Basic-Fit Tournai (Bastion)');
 
-  // Sélecteur Club (GPS & API Dynamique)
-  const [clubsList, setClubsList] = useState<ClubLocation[]>(DEFAULT_BASIC_FIT_CLUBS);
+  // Sélecteur Club (GPS & Recherche)
+  const [clubsList, setClubsList] = useState<ClubLocation[]>(CLUBS_DATABASE);
   const [gpsLoading, setGpsLoading] = useState(false);
   const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [clubSearchQuery, setClubSearchQuery] = useState('');
@@ -217,7 +284,7 @@ export default function App() {
   // Navigation
   const [currentTab, setCurrentTab] = useState<'feed' | 'buddy' | 'workout' | 'chat' | 'leaderboard' | 'profile'>('feed');
   const [feedFilterMode, setFeedFilterMode] = useState<'all' | 'friends'>('all');
-  const [selectedClub, setSelectedClub] = useState<string>('Basic-Fit Tournai');
+  const [selectedClub, setSelectedClub] = useState<string>('Basic-Fit Tournai (Bastion)');
 
   // Posts Feed & Likes
   const [posts, setPosts] = useState<Post[]>([]);
@@ -273,7 +340,7 @@ export default function App() {
       level: 'Avancé',
       schedule: 'Lun, Mer, Ven (18h-20h)',
       goal: 'Prise de masse & Force',
-      club: 'Basic-Fit Tournai'
+      club: 'Basic-Fit Tournai (Bastion)'
     },
     {
       id: 'b2',
@@ -283,7 +350,7 @@ export default function App() {
       level: 'Intermédiaire',
       schedule: 'Mardi & Jeudi (12h-13h30)',
       goal: 'Cardio, HIIT & Tonification',
-      club: 'Basic-Fit Tournai'
+      club: 'Basic-Fit Tournai (Bastion)'
     },
     {
       id: 'b3',
@@ -293,7 +360,7 @@ export default function App() {
       level: 'Débutant',
       schedule: 'Mercredi & Samedi matin',
       goal: 'Remise en forme & Fessiers',
-      club: 'Basic-Fit Tournai'
+      club: 'Basic-Fit Tournai (Froyennes)'
     },
     {
       id: 'b4',
@@ -303,7 +370,7 @@ export default function App() {
       level: 'Avancé',
       schedule: 'Samedi & Dimanche matin',
       goal: 'Powerlifting (Squat / Dev couché)',
-      club: 'Basic-Fit Froyennes'
+      club: 'Basic-Fit Mouscron'
     },
     {
       id: 'b5',
@@ -313,7 +380,7 @@ export default function App() {
       level: 'Intermédiaire',
       schedule: 'Tous les soirs (17h30-19h)',
       goal: 'Prise de masse & Musculation',
-      club: 'Basic-Fit Froyennes'
+      club: 'Basic-Fit Mons'
     }
   ];
 
@@ -410,54 +477,7 @@ export default function App() {
     };
   }, [isTimerRunning, timerSeconds]);
 
-  // RECHERCHE EN DIRECT DES BASIC-FIT AUTOUR VIA OPENSTREETMAP API
-  const fetchBasicFitNearby = async (lat: number, lng: number) => {
-    try {
-      const overpassQuery = `[out:json][timeout:10];(node["name"~"Basic-Fit",i](around:40000,${lat},${lng});way["name"~"Basic-Fit",i](around:40000,${lat},${lng}););out center;`;
-      const response = await fetch(`https://overpass-api.de/api/interpreter?data=${encodeURIComponent(overpassQuery)}`);
-      const data = await response.json();
-
-      if (data && data.elements && data.elements.length > 0) {
-        const fetchedClubs: ClubLocation[] = data.elements.map((el: any) => {
-          const clubLat = el.lat || el.center?.lat;
-          const clubLng = el.lon || el.center?.lon;
-          const clubCity = el.tags?.['addr:city'] || el.tags?.['addr:town'] || el.tags?.['name'] || 'Basic-Fit';
-          const clubName = el.tags?.name || `Basic-Fit ${clubCity}`;
-          const distance = calculateDistanceKm(lat, lng, clubLat, clubLng);
-
-          return {
-            name: clubName,
-            city: clubCity,
-            zip: el.tags?.['addr:postcode'] || '',
-            lat: clubLat,
-            lng: clubLng,
-            distance
-          };
-        });
-
-        // Fusionner sans doublons avec les clubs locaux
-        const combined = [...fetchedClubs];
-        DEFAULT_BASIC_FIT_CLUBS.forEach((dc) => {
-          if (!combined.some((c) => c.name.toLowerCase() === dc.name.toLowerCase())) {
-            combined.push({
-              ...dc,
-              distance: calculateDistanceKm(lat, lng, dc.lat, dc.lng)
-            });
-          }
-        });
-
-        combined.sort((a, b) => (a.distance || 0) - (b.distance || 0));
-        setClubsList(combined);
-        if (combined.length > 0) {
-          setHomeClub(combined[0].name);
-        }
-      }
-    } catch (e) {
-      console.log('Utilisation de la base interne étendue');
-    }
-  };
-
-  // Localisation GPS
+  // Localisation GPS native
   const handleDetectGPS = () => {
     if (!navigator.geolocation) {
       alert("La géolocalisation n'est pas supportée par ton navigateur.");
@@ -465,10 +485,19 @@ export default function App() {
     }
     setGpsLoading(true);
     navigator.geolocation.getCurrentPosition(
-      async (pos) => {
+      (pos) => {
         const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
         setUserCoords(coords);
-        await fetchBasicFitNearby(coords.lat, coords.lng);
+
+        const updated = CLUBS_DATABASE.map((c) => ({
+          ...c,
+          distance: calculateDistanceKm(coords.lat, coords.lng, c.lat, c.lng)
+        })).sort((a, b) => (a.distance || 0) - (b.distance || 0));
+
+        setClubsList(updated);
+        if (updated.length > 0) {
+          setHomeClub(updated[0].name);
+        }
         setGpsLoading(false);
       },
       (err) => {
@@ -479,7 +508,7 @@ export default function App() {
     );
   };
 
-  // Liste triée par distance ou recherche textuelle
+  // Liste triée par distance ou filtrée par recherche textuelle
   const displayedClubs = clubsList
     .map((club) => {
       let distance = club.distance ?? null;
@@ -491,7 +520,12 @@ export default function App() {
     .filter((club) => {
       if (!clubSearchQuery.trim()) return true;
       const q = clubSearchQuery.toLowerCase();
-      return club.name.toLowerCase().includes(q) || club.city.toLowerCase().includes(q) || club.zip.includes(q);
+      return (
+        club.name.toLowerCase().includes(q) ||
+        club.city.toLowerCase().includes(q) ||
+        club.zip.includes(q) ||
+        (club.address && club.address.toLowerCase().includes(q))
+      );
     })
     .sort((a, b) => {
       if (a.distance !== null && b.distance !== null) return a.distance - b.distance;
@@ -871,7 +905,7 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* SÉLECTION TOUS LES BASIC-FIT (GPS & RECHERCHE GLOBALE) */}
+                {/* SÉLECTION OFFICIELLE BASIC-FIT (GPS & RECHERCHE) */}
                 <div className="bg-neutral-950 p-3.5 rounded-2xl border border-neutral-800 space-y-2.5">
                   <div className="flex items-center justify-between">
                     <label className="text-[11px] font-bold text-orange-400 uppercase tracking-wider flex items-center gap-1.5">
@@ -892,34 +926,37 @@ export default function App() {
                     <Search className="absolute left-3 top-2.5 w-3.5 h-3.5 text-neutral-500" />
                     <input
                       type="text"
-                      placeholder="Ville ou code postal (ex: Tournai, Mons, Lille, 7500)..."
+                      placeholder="Ville, code postal, rue (ex: Tournai, 7500, Bastion)..."
                       value={clubSearchQuery}
                       onChange={(e) => setClubSearchQuery(e.target.value)}
                       className="w-full bg-neutral-900 border border-neutral-800 rounded-xl pl-9 pr-3 py-1.5 text-xs text-neutral-200 focus:outline-none focus:border-orange-500"
                     />
                   </div>
 
-                  <div className="max-h-36 overflow-y-auto space-y-1.5 pr-1">
+                  <div className="max-h-40 overflow-y-auto space-y-1.5 pr-1">
                     {displayedClubs.map((club) => {
                       const isSelected = homeClub === club.name;
                       return (
                         <div
                           key={club.name}
                           onClick={() => setHomeClub(club.name)}
-                          className={`p-2 rounded-xl text-xs flex items-center justify-between cursor-pointer transition border ${
+                          className={`p-2.5 rounded-xl text-xs flex items-center justify-between cursor-pointer transition border ${
                             isSelected
                               ? 'bg-orange-600/20 border-orange-500 text-white font-bold'
                               : 'bg-neutral-900/60 border-neutral-800/80 text-neutral-400 hover:text-neutral-200'
                           }`}
                         >
-                          <div className="flex items-center gap-2">
-                            <CheckCircle2 className={`w-3.5 h-3.5 ${isSelected ? 'text-orange-500' : 'text-neutral-600'}`} />
-                            <span>
-                              {club.name} {club.zip && `(${club.zip})`}
-                            </span>
+                          <div className="flex items-start gap-2">
+                            <CheckCircle2 className={`w-3.5 h-3.5 mt-0.5 ${isSelected ? 'text-orange-500' : 'text-neutral-600'}`} />
+                            <div>
+                              <span className="block leading-tight text-neutral-200">{club.name}</span>
+                              <span className="text-[10px] text-neutral-500 leading-tight">
+                                {club.address ? `${club.address}, ` : ''}{club.zip} {club.city}
+                              </span>
+                            </div>
                           </div>
                           {club.distance !== null && (
-                            <span className="text-[10px] text-orange-400 font-mono font-semibold">
+                            <span className="text-[10px] text-orange-400 font-mono font-semibold ml-2 whitespace-nowrap">
                               {club.distance} km
                             </span>
                           )}
@@ -993,14 +1030,14 @@ export default function App() {
           </div>
           <div>
             <h1 className="text-base font-black tracking-tight leading-none">FitPulse</h1>
-            <span className="text-[10px] text-orange-400 font-semibold">{selectedClub}</span>
+            <span className="text-[10px] text-orange-400 font-semibold truncate block max-w-[150px]">{selectedClub}</span>
           </div>
         </div>
 
         <select
           value={selectedClub}
           onChange={(e) => setSelectedClub(e.target.value)}
-          className="bg-neutral-900 border border-neutral-800 text-[11px] rounded-lg px-2.5 py-1.5 text-neutral-300 focus:outline-none focus:border-orange-500 max-w-[160px] truncate"
+          className="bg-neutral-900 border border-neutral-800 text-[11px] rounded-lg px-2.5 py-1.5 text-neutral-300 focus:outline-none focus:border-orange-500 max-w-[170px] truncate"
         >
           {displayedClubs.map((c) => (
             <option key={c.name} value={c.name}>
@@ -1073,7 +1110,7 @@ export default function App() {
               <div className="text-center py-16 text-neutral-500 text-xs bg-neutral-900/50 rounded-3xl border border-neutral-800/60 p-6">
                 {feedFilterMode === 'friends'
                   ? "Aucune publication de tes amis pour l'instant."
-                  : "Aucune publication enregistrée dans la base."}
+                  : "Aucune publication enregistrée dans ce club."}
               </div>
             ) : (
               displayedPosts.map((post) => {
@@ -1279,7 +1316,7 @@ export default function App() {
                   <div className="text-center py-8 text-neutral-500 text-xs">
                     {buddyTabSubMode === 'my_friends'
                       ? "Tu n'as pas encore d'amis dans ta liste."
-                      : 'Aucun partenaire ne correspond à ces critères.'}
+                      : 'Aucun partenaire ne correspond à ces critères dans ce club.'}
                   </div>
                 ) : (
                   filteredBuddies.map((buddy) => {
