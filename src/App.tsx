@@ -326,6 +326,7 @@ export default function App() {
     fetchCloudPosts();
     fetchDirectMessages();
     fetchCloudStories();
+    fetchRealUsers();
 
     const channel = supabase
       .channel('schema-db-changes')
@@ -354,7 +355,7 @@ export default function App() {
   const fetchCloudPosts = async () => {
     setFeedLoading(true);
     const { data, error } = await supabase.from('posts').select('*').order('created_at', { ascending: false });
-    if (!error && data && data.length > 0) setPosts(data as Post[]);
+    if (!error && data) setPosts(data as Post[]);
     setFeedLoading(false);
   };
 
@@ -370,6 +371,27 @@ export default function App() {
   const fetchDirectMessages = async () => {
     const { data, error } = await supabase.from('direct_messages').select('*').order('created_at', { ascending: true });
     if (!error && data) setAllMessages(data as DBMessage[]);
+  };
+
+  const fetchRealUsers = async () => {
+    const { data, error } = await supabase.from('posts').select('user_id, username, club_name, avatar_url').limit(50);
+    if (!error && data) {
+      const uniqueMap = new Map();
+      DEFAULT_MEMBERS.forEach((m) => uniqueMap.set(m.id, m));
+      data.forEach((p) => {
+        if (p.user_id !== user?.id && !uniqueMap.has(p.user_id)) {
+          uniqueMap.set(p.user_id, {
+            id: p.user_id,
+            username: p.username,
+            email: `${p.username}@fitpulse.be`,
+            gender: 'M',
+            home_club: p.club_name || selectedClub,
+            avatar_url: p.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'
+          });
+        }
+      });
+      setRegisteredUsers(Array.from(uniqueMap.values()));
+    }
   };
 
   useEffect(() => {
@@ -677,17 +699,17 @@ export default function App() {
     setIsUploading(false);
   };
 
-  // FILTRAGE AMÉLIORÉ DE L'ONGLET BUDDY
+  // FILTRAGE ROBUSTE BUDDY : Affiche les membres correspondants au club ou à la recherche
   const filteredBuddies = registeredUsers.filter((u) => {
     if (buddyTabSubMode === 'my_friends' && !friendIds.includes(u.id)) return false;
     if (filterWomenOnly && u.gender === 'M') return false;
-    
+
     if (userSearchQuery.trim()) {
-      return u.username.toLowerCase().includes(userSearchQuery.toLowerCase()) || u.home_club.toLowerCase().includes(userSearchQuery.toLowerCase());
+      const q = userSearchQuery.toLowerCase();
+      return u.username.toLowerCase().includes(q) || u.home_club.toLowerCase().includes(q);
     }
 
-    // Par défaut, affiche les membres du club sélectionné ou tous si le club correspond
-    return isMatchingClub(u.home_club, selectedClub) || u.home_club.toLowerCase().includes(selectedClub.toLowerCase());
+    return isMatchingClub(u.home_club, selectedClub);
   });
 
   const displayedPosts = posts.filter((post) => {
@@ -902,7 +924,7 @@ export default function App() {
           </form>
         )}
 
-        {/* TAB 2: BUDDY - MEMBRES DE TON CLUB SÉLECTIONNÉ */}
+        {/* TAB 2: BUDDY - ATHLÈTES DU CLUB SÉLECTIONNÉ */}
         {currentTab === 'buddy' && (
           <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4">
             <div className="flex items-center justify-between">
@@ -941,7 +963,7 @@ export default function App() {
               <Search className="absolute left-3.5 top-3 w-4 h-4 text-neutral-500" />
               <input
                 type="text"
-                placeholder="Filtrer par pseudo..."
+                placeholder="Rechercher par pseudo..."
                 value={userSearchQuery}
                 onChange={(e) => setUserSearchQuery(e.target.value)}
                 className="w-full bg-neutral-950 border border-neutral-800 rounded-xl pl-10 pr-3 py-2.5 text-xs text-white focus:outline-none focus:border-orange-500"
