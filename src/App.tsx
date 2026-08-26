@@ -865,10 +865,18 @@ export default function App() {
     setCameraTarget(target);
     setIsCameraActive(true);
     try {
-      if (streamRef.current) streamRef.current.getTracks().forEach((t) => t.stop());
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode }, audio: false });
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((t) => t.stop());
+      }
+      // On force directement 'environment' (caméra arrière) au démarrage
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: 'environment' } },
+        audio: false
+      });
       streamRef.current = stream;
-      if (videoRef.current) videoRef.current.srcObject = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
     } catch (err: any) {
       alert("Impossible d'accéder à la caméra : " + err.message);
       setIsCameraActive(false);
@@ -887,10 +895,17 @@ export default function App() {
     const newFacing = facingMode === 'environment' ? 'user' : 'environment';
     setFacingMode(newFacing);
     try {
-      if (streamRef.current) streamRef.current.getTracks().forEach((t) => t.stop());
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: newFacing }, audio: false });
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((t) => t.stop());
+      }
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: newFacing },
+        audio: false
+      });
       streamRef.current = stream;
-      if (videoRef.current) videoRef.current.srcObject = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
     } catch (err) {}
   };
 
@@ -1046,7 +1061,7 @@ export default function App() {
       setPostImagePreview(null);
       setWorkoutExercises([{ name: '', sets: 3, reps: 10, weight: 20 }]);
       setCurrentTab('feed');
-      fetchCloudPosts(); // Rafraîchissement instantané du flux
+      fetchCloudPosts();
     }
     setIsUploading(false);
   };
@@ -1319,7 +1334,7 @@ export default function App() {
               </div>
 
               <div className="grid grid-cols-2 gap-2.5">
-                <button type="button" onClick={() => { setCameraTarget('post'); setIsCameraActive(true); }} className="py-6 border-2 border-dashed border-neutral-800 hover:border-orange-500 rounded-2xl flex flex-col items-center justify-center gap-2 text-neutral-400 hover:text-orange-400 bg-neutral-950 transition">
+                <button type="button" onClick={() => { setCameraTarget('post'); startCamera('post'); }} className="py-6 border-2 border-dashed border-neutral-800 hover:border-orange-500 rounded-2xl flex flex-col items-center justify-center gap-2 text-neutral-400 hover:text-orange-400 bg-neutral-950 transition">
                   <Camera className="w-6 h-6 text-orange-500" /><span className="text-xs font-semibold">Prendre photo</span>
                 </button>
                 <button type="button" onClick={() => fileInputRef.current?.click()} className="py-6 border-2 border-dashed border-neutral-800 hover:border-orange-500 rounded-2xl flex flex-col items-center justify-center gap-2 text-neutral-400 hover:text-orange-400 bg-neutral-950 transition">
