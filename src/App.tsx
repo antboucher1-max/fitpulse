@@ -188,15 +188,14 @@ interface DBMessage {
   created_at: string;
 }
 
-// Membres par défaut du club pour que l'onglet Buddy ne soit jamais vide
-const INITIAL_CLUB_MEMBERS: RealUser[] = [
+const DEFAULT_MEMBERS: RealUser[] = [
   { id: 'b1', username: 'Thomas D.', email: 'thomas@fitpulse.be', gender: 'M', home_club: 'Basic-Fit Tournai (Bastion)', avatar_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150' },
   { id: 'b2', username: 'Sarah L.', email: 'sarah@fitpulse.be', gender: 'F', home_club: 'Basic-Fit Tournai (Bastion)', avatar_url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150' },
   { id: 'b3', username: 'Élodie M.', email: 'elodie@fitpulse.be', gender: 'F', home_club: 'Basic-Fit Tournai (Froyennes)', avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150' },
   { id: 'b4', username: 'Maxime V.', email: 'maxime@fitpulse.be', gender: 'M', home_club: 'Basic-Fit Mouscron', avatar_url: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150' }
 ];
 
-const DEFAULT_FRIEND_STORIES: Story[] = [
+const DEFAULT_STORIES: Story[] = [
   {
     id: 'demo-s1',
     user_id: 'b1',
@@ -243,7 +242,6 @@ export default function App() {
   const [authLoading, setAuthLoading] = useState(false);
 
   const [currentTab, setCurrentTab] = useState<'feed' | 'buddy' | 'workout' | 'chat' | 'leaderboard' | 'profile'>('feed');
-  const [feedFilterMode, setFeedFilterMode] = useState<'all' | 'friends'>('all');
   const [selectedClub, setSelectedClub] = useState<string>('Basic-Fit Tournai (Bastion)');
 
   const [posts, setPosts] = useState<Post[]>([]);
@@ -252,15 +250,15 @@ export default function App() {
 
   const [active3DExercise, setActive3DExercise] = useState<string | null>(null);
 
-  // Utilisateurs réels et Amis
-  const [registeredUsers, setRegisteredUsers] = useState<RealUser[]>(INITIAL_CLUB_MEMBERS);
+  // Membres et Amis
+  const [registeredUsers, setRegisteredUsers] = useState<RealUser[]>(DEFAULT_MEMBERS);
   const [friendIds, setFriendIds] = useState<string[]>(['b1', 'b2']);
   const [buddyTabSubMode, setBuddyTabSubMode] = useState<'discover' | 'my_friends'>('discover');
   const [userSearchQuery, setUserSearchQuery] = useState('');
   const [filterWomenOnly, setFilterWomenOnly] = useState(false);
 
   // Stories
-  const [cloudStories, setCloudStories] = useState<Story[]>([]);
+  const [cloudStories, setCloudStories] = useState<Story[]>(DEFAULT_STORIES);
   const [viewedStoryIds, setViewedStoryIds] = useState<string[]>([]);
   const [activeStoryIndex, setActiveStoryIndex] = useState<number | null>(null);
   const [storyProgress, setStoryProgress] = useState(0);
@@ -328,7 +326,6 @@ export default function App() {
     fetchCloudPosts();
     fetchDirectMessages();
     fetchCloudStories();
-    fetchRealUsers();
 
     const channel = supabase
       .channel('schema-db-changes')
@@ -357,42 +354,22 @@ export default function App() {
   const fetchCloudPosts = async () => {
     setFeedLoading(true);
     const { data, error } = await supabase.from('posts').select('*').order('created_at', { ascending: false });
-    if (!error && data) setPosts(data as Post[]);
+    if (!error && data && data.length > 0) setPosts(data as Post[]);
     setFeedLoading(false);
   };
 
   const fetchCloudStories = async () => {
     try {
-      const twentyFourHoursAgo = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
-      const { data, error } = await supabase.from('stories').select('*').gte('created_at', twentyFourHoursAgo).order('created_at', { ascending: false });
-      if (!error && data) setCloudStories(data as Story[]);
+      const { data, error } = await supabase.from('stories').select('*').order('created_at', { ascending: false });
+      if (!error && data && data.length > 0) {
+        setCloudStories((prev) => [...data as Story[], ...prev]);
+      }
     } catch (err) {}
   };
 
   const fetchDirectMessages = async () => {
     const { data, error } = await supabase.from('direct_messages').select('*').order('created_at', { ascending: true });
     if (!error && data) setAllMessages(data as DBMessage[]);
-  };
-
-  const fetchRealUsers = async () => {
-    const { data, error } = await supabase.from('posts').select('user_id, username, club_name, avatar_url').limit(50);
-    if (!error && data) {
-      const uniqueMap = new Map();
-      INITIAL_CLUB_MEMBERS.forEach((m) => uniqueMap.set(m.id, m));
-      data.forEach((p) => {
-        if (p.user_id !== user?.id && !uniqueMap.has(p.user_id)) {
-          uniqueMap.set(p.user_id, {
-            id: p.user_id,
-            username: p.username,
-            email: `${p.username}@fitpulse.be`,
-            gender: 'M',
-            home_club: p.club_name || selectedClub,
-            avatar_url: p.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'
-          });
-        }
-      });
-      setRegisteredUsers(Array.from(uniqueMap.values()));
-    }
   };
 
   useEffect(() => {
@@ -405,7 +382,7 @@ export default function App() {
     return () => { if (interval) clearInterval(interval); };
   }, [isTimerRunning, timerSeconds]);
 
-  const combinedAllStories = [...cloudStories, ...DEFAULT_FRIEND_STORIES];
+  const combinedAllStories = [...cloudStories, ...DEFAULT_STORIES];
   const myFriendsList = registeredUsers.filter((u) => friendIds.includes(u.id));
   const myFriendUsernames = myFriendsList.map((f) => f.username);
 
@@ -413,8 +390,7 @@ export default function App() {
   const friendStoriesList = combinedAllStories.filter((s) => {
     const storyDate = new Date(s.created_at).getTime();
     const isUnder24h = !isNaN(storyDate) ? storyDate >= twentyFourHoursAgoMs : true;
-    const isFriendOrMe = s.user_id === user?.id || friendIds.includes(s.user_id) || myFriendUsernames.includes(s.username);
-    return isUnder24h && isFriendOrMe;
+    return isUnder24h;
   });
 
   useEffect(() => {
@@ -701,24 +677,21 @@ export default function App() {
     setIsUploading(false);
   };
 
-  // FILTRAGE : Uniquement les membres du club sélectionné (ou filtrés par recherche pseudo)
+  // FILTRAGE AMÉLIORÉ DE L'ONGLET BUDDY
   const filteredBuddies = registeredUsers.filter((u) => {
     if (buddyTabSubMode === 'my_friends' && !friendIds.includes(u.id)) return false;
     if (filterWomenOnly && u.gender === 'M') return false;
     
-    // Si l'utilisateur tape un mot-clé dans la recherche, on cherche sur le pseudo ou le club
     if (userSearchQuery.trim()) {
-      const q = userSearchQuery.toLowerCase();
-      return u.username.toLowerCase().includes(q) || u.home_club.toLowerCase().includes(q);
+      return u.username.toLowerCase().includes(userSearchQuery.toLowerCase()) || u.home_club.toLowerCase().includes(userSearchQuery.toLowerCase());
     }
 
-    // Sinon, on affiche les membres de TON basic-fit sélectionné en haut
-    return isMatchingClub(u.home_club, selectedClub);
+    // Par défaut, affiche les membres du club sélectionné ou tous si le club correspond
+    return isMatchingClub(u.home_club, selectedClub) || u.home_club.toLowerCase().includes(selectedClub.toLowerCase());
   });
 
   const displayedPosts = posts.filter((post) => {
-    if (feedFilterMode === 'all') return isMatchingClub(post.club_name, selectedClub);
-    return post.user_id === user?.id || myFriendUsernames.includes(post.username);
+    return isMatchingClub(post.club_name, selectedClub);
   });
 
   const currentChatMessages = allMessages.filter(
@@ -849,7 +822,7 @@ export default function App() {
             {feedLoading ? (
               <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 text-orange-500 animate-spin" /></div>
             ) : displayedPosts.length === 0 ? (
-              <div className="text-center py-16 text-neutral-500 text-xs bg-neutral-900/50 rounded-3xl border border-neutral-800/60 p-6">Aucune publication pour l'instant.</div>
+              <div className="text-center py-16 text-neutral-500 text-xs bg-neutral-900/50 rounded-3xl border border-neutral-800/60 p-6">Aucune publication pour l'instant dans ce club.</div>
             ) : (
               displayedPosts.map((post) => (
                 <article key={post.id} className="bg-neutral-900/70 border border-neutral-800 rounded-3xl p-4 space-y-3 shadow-sm overflow-hidden relative">
@@ -929,13 +902,13 @@ export default function App() {
           </form>
         )}
 
-        {/* TAB 2: BUDDY - MEMBRES DE TON BASIC-FIT SÉLECTIONNÉ */}
+        {/* TAB 2: BUDDY - MEMBRES DE TON CLUB SÉLECTIONNÉ */}
         {currentTab === 'buddy' && (
           <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-base font-black tracking-tight">Athlètes de ton club</h2>
-                <span className="text-[10px] text-orange-400 font-medium">{selectedClub}</span>
+                <h2 className="text-base font-black tracking-tight">Athlètes du club</h2>
+                <span className="text-[10px] text-orange-400 font-semibold">{selectedClub}</span>
               </div>
               <button
                 onClick={() => setFilterWomenOnly(!filterWomenOnly)}
@@ -968,7 +941,7 @@ export default function App() {
               <Search className="absolute left-3.5 top-3 w-4 h-4 text-neutral-500" />
               <input
                 type="text"
-                placeholder="Rechercher par pseudo..."
+                placeholder="Filtrer par pseudo..."
                 value={userSearchQuery}
                 onChange={(e) => setUserSearchQuery(e.target.value)}
                 className="w-full bg-neutral-950 border border-neutral-800 rounded-xl pl-10 pr-3 py-2.5 text-xs text-white focus:outline-none focus:border-orange-500"
@@ -978,7 +951,7 @@ export default function App() {
             <div className="space-y-3 pt-1">
               {filteredBuddies.length === 0 ? (
                 <div className="text-center py-8 text-neutral-500 text-xs">
-                  Aucun athlète trouvé pour ce club pour l'instant.
+                  Aucun athlète trouvé pour ce club.
                 </div>
               ) : (
                 filteredBuddies.map((realUser) => {
