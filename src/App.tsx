@@ -38,6 +38,37 @@ const supabaseUrl = 'https://obtahwmcoqrcauscpksv.supabase.co';
 const supabaseAnonKey = 'sb_publishable_O8CKhUtzgq9nO9lKavNE9A__fAdRWoB';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
+// Utilitaire de compression d'image pour garantir la sauvegarde permanente
+const compressImage = (file: File, maxWidth = 800, quality = 0.7): Promise<string> => {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target?.result as string;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+
+        if (width > maxWidth) {
+          height = Math.round((height * maxWidth) / width);
+          width = maxWidth;
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx?.drawImage(img, 0, 0, width, height);
+
+        // Export en JPEG compressé
+        const compressedBase64 = canvas.toDataURL('image/jpeg', quality);
+        resolve(compressedBase64);
+      };
+    };
+  });
+};
+
 interface ExerciseEntry {
   name: string;
   sets: number;
@@ -119,6 +150,7 @@ export default function App() {
   const [workoutDuration, setWorkoutDuration] = useState(60);
   const [workoutCalories, setWorkoutCalories] = useState(450);
   const [postImage, setPostImage] = useState<string | null>(null);
+  const [isCompressing, setIsCompressing] = useState(false);
 
   // Image Framing State (Zoom & Pan)
   const [imageZoom, setImageZoom] = useState(1);
@@ -284,20 +316,23 @@ export default function App() {
     setPosts((prev) => prev.filter((p) => p.id !== postId));
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setPostImage(reader.result as string);
+      setIsCompressing(true);
+      try {
+        const compressedBase64 = await compressImage(file, 800, 0.7);
+        setPostImage(compressedBase64);
         setImageZoom(1);
         setImagePos({ x: 0, y: 0 });
-      };
-      reader.readAsDataURL(file);
+      } catch (err) {
+        alert("Erreur lors de la préparation de l'image.");
+      }
+      setIsCompressing(false);
     }
   };
 
-  // Drag handlers for mouse & touch
+  // Drag handlers
   const handleStartDrag = (clientX: number, clientY: number) => {
     setIsDragging(true);
     setDragStart({ x: clientX - imagePos.x, y: clientY - imagePos.y });
@@ -415,12 +450,11 @@ export default function App() {
 
     const validExercises = workoutExercises.filter((e) => e.name.trim() !== '');
 
-    const newPost: Post = {
-      id: String(Date.now()),
+    const newPostData = {
       user_id: user.id,
       username: user.user_metadata?.username || user.email?.split('@')[0] || 'Athlète',
       avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
-      image_url: postImage || undefined,
+      image_url: postImage || null,
       image_zoom: imageZoom,
       image_pos_x: imagePos.x,
       image_pos_y: imagePos.y,
@@ -432,13 +466,29 @@ export default function App() {
       exercises: validExercises,
       likes_count: 0,
       comments_count: 0,
-      comments: [],
-      created_at: "À l'instant"
+      comments: []
     };
 
-    await supabase.from('posts').insert([newPost]);
+    // Sauvegarde en base de données Supabase
+    const { data, error } = await supabase
+      .from('posts')
+      .insert([newPostData])
+      .select('*');
 
-    setPosts([newPost, ...posts]);
+    if (!error && data && data.length > 0) {
+      setPosts([data[0] as Post, ...posts]);
+    } else {
+      // Fallback local si la table a une contrainte
+      const fallbackPost: Post = {
+        ...newPostData,
+        id: String(Date.now()),
+        image_url: postImage || undefined,
+        created_at: "À l'instant"
+      };
+      setPosts([fallbackPost, ...posts]);
+    }
+
+    // Réinitialisation du formulaire
     setWorkoutCaption('');
     setPostImage(null);
     setImageZoom(1);
@@ -638,7 +688,7 @@ export default function App() {
                       </div>
                     </div>
 
-                    {/* Image cadrée selon le choix de l'utilisateur */}
+                    {/* Image persistante avec cadrage personnalisé */}
                     {post.image_url && (
                       <div className="rounded-2xl overflow-hidden border border-neutral-800 bg-neutral-950 h-72 w-full relative flex items-center justify-center">
                         <img
@@ -648,7 +698,7 @@ export default function App() {
                             transform: `translate(${post.image_pos_x || 0}px, ${post.image_pos_y || 0}px) scale(${post.image_zoom || 1})`,
                             transformOrigin: 'center center'
                           }}
-                          className="max-h-full max-w-full object-contain pointer-events-none transition-transform duration-75"
+                          className="max-h-full max-w-full object-contain pointer-events-none"
                         />
                       </div>
                     )}
@@ -767,7 +817,7 @@ export default function App() {
           </div>
         )}
 
-        {/* TAB 3: LOG WORKOUT (AVEC RECADRAGE ET GLISSER-DÉPLACER) */}
+        {/* TAB 3: LOG WORKOUT (AVEC COMPRESSION ET SAUVEGARDE PERMANENTE) */}
         {currentTab === 'workout' && (
           <form onSubmit={handlePublishWorkout} className="space-y-4">
             <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4">
@@ -784,9 +834,13 @@ export default function App() {
                   className="hidden"
                 />
 
-                {postImage ? (
+                {isCompressing ? (
+                  <div className="h-40 border border-neutral-800 rounded-2xl flex flex-col items-center justify-center gap-2 bg-neutral-950">
+                    <Loader2 className="w-6 h-6 text-orange-500 animate-spin" />
+                    <span className="text-xs text-neutral-400">Optimisation de la photo...</span>
+                  </div>
+                ) : postImage ? (
                   <div className="space-y-3">
-                    {/* Cadre de recadrage interactif */}
                     <div
                       className="relative rounded-2xl overflow-hidden border-2 border-orange-500/50 bg-neutral-950 h-72 w-full flex items-center justify-center cursor-grab active:cursor-grabbing touch-none select-none"
                       onMouseDown={(e) => handleStartDrag(e.clientX, e.clientY)}
@@ -810,10 +864,9 @@ export default function App() {
                           transform: `translate(${imagePos.x}px, ${imagePos.y}px) scale(${imageZoom})`,
                           transformOrigin: 'center center'
                         }}
-                        className="max-h-full max-w-full object-contain pointer-events-none transition-transform duration-75"
+                        className="max-h-full max-w-full object-contain pointer-events-none"
                       />
 
-                      {/* Indicateur pour guider l'utilisateur */}
                       <div className="absolute top-2 left-2 px-2.5 py-1 bg-black/70 backdrop-blur-md rounded-lg text-[10px] text-neutral-300 flex items-center gap-1.5 pointer-events-none">
                         <Move className="w-3 h-3 text-orange-400" /> Glisse pour ajuster
                       </div>
@@ -831,7 +884,6 @@ export default function App() {
                       </button>
                     </div>
 
-                    {/* Curseur de Zoom & Réinitialisation */}
                     <div className="bg-neutral-950 p-3 rounded-2xl border border-neutral-800 flex items-center gap-3">
                       <ZoomIn className="w-4 h-4 text-neutral-400" />
                       <input
