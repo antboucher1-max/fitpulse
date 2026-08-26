@@ -48,12 +48,11 @@ import {
   Timer,
   Edit3,
   Check,
-  Flower2,
-  Phone,
-  Instagram,
-  Facebook,
-  ExternalLink,
-  Hash
+  Hash,
+  Activity,
+  ShieldAlert,
+  ShieldCheck,
+  Image as ImageIcon
 } from 'lucide-react';
 import { createClient, User as SupabaseUser } from '@supabase/supabase-js';
 
@@ -73,18 +72,18 @@ interface ClubLocation {
 }
 
 const CLUBS_DATABASE: ClubLocation[] = [
-  { name: 'Basic-Fit Tournai (Bastion)', address: 'Chaussée de Lille 322', city: 'Tournai', zip: '7500', lat: 50.6095, lng: 3.3762 },
-  { name: 'Basic-Fit Tournai (Froyennes)', address: 'Boulevard des Déportés 30', city: 'Tournai', zip: '7500', lat: 50.6051, lng: 3.3934 },
-  { name: 'Basic-Fit Mouscron', address: 'Rue de Menin 435', city: 'Mouscron', zip: '7700', lat: 50.7423, lng: 3.2091 },
-  { name: 'Basic-Fit Mons', address: 'Chaussée de Binche 113', city: 'Mons', zip: '7000', lat: 50.4542, lng: 3.9658 },
-  { name: 'Basic-Fit La Louvière', address: 'Rue de Bouvy 50', city: 'La Louvière', zip: '7100', lat: 50.4812, lng: 4.1905 },
-  { name: 'Basic-Fit Charleroi (Ville 2)', address: 'Rue de Couillet 31', city: 'Charleroi', zip: '6000', lat: 50.4131, lng: 4.4447 },
-  { name: 'Basic-Fit Waterloo', address: 'Chaussée de Bruxelles 254', city: 'Waterloo', zip: '1410', lat: 50.7224, lng: 4.3981 },
-  { name: 'Basic-Fit Wavre', address: 'Chaussée de Louvain 20', city: 'Wavre', zip: '1300', lat: 50.7183, lng: 4.6072 },
-  { name: 'Basic-Fit Namur (Bouge)', address: 'Chaussée de Louvain 445', city: 'Bouge (Namur)', zip: '5004', lat: 50.4735, lng: 4.8712 },
-  { name: 'Basic-Fit Liège (Saint-Lambert)', address: 'Place Saint-Lambert 32', city: 'Liège', zip: '4000', lat: 50.6452, lng: 5.5734 },
-  { name: 'Basic-Fit Liège (Ans)', address: 'Chaussée du Roi Albert 7/13', city: 'Ans', zip: '4430', lat: 50.6548, lng: 5.5291 },
-  { name: 'Basic-Fit Arlon (Hydrion)', address: "Parc Commercial de l'Hydrion 31b", city: 'Arlon', zip: '6700', lat: 49.6841, lng: 5.8173 }
+  { name: 'Club Tournai (Bastion)', address: 'Chaussée de Lille 322', city: 'Tournai', zip: '7500', lat: 50.6095, lng: 3.3762 },
+  { name: 'Club Tournai (Froyennes)', address: 'Boulevard des Déportés 30', city: 'Tournai', zip: '7500', lat: 50.6051, lng: 3.3934 },
+  { name: 'Club Mouscron', address: 'Rue de Menin 435', city: 'Mouscron', zip: '7700', lat: 50.7423, lng: 3.2091 },
+  { name: 'Club Mons', address: 'Chaussée de Binche 113', city: 'Mons', zip: '7000', lat: 50.4542, lng: 3.9658 },
+  { name: 'Club La Louvière', address: 'Rue de Bouvy 50', city: 'La Louvière', zip: '7100', lat: 50.4812, lng: 4.1905 },
+  { name: 'Club Charleroi (Ville 2)', address: 'Rue de Couillet 31', city: 'Charleroi', zip: '6000', lat: 50.4131, lng: 4.4447 },
+  { name: 'Club Waterloo', address: 'Chaussée de Bruxelles 254', city: 'Waterloo', zip: '1410', lat: 50.7224, lng: 4.3981 },
+  { name: 'Club Wavre', address: 'Chaussée de Louvain 20', city: 'Wavre', zip: '1300', lat: 50.7183, lng: 4.6072 },
+  { name: 'Club Namur (Bouge)', address: 'Chaussée de Louvain 445', city: 'Bouge (Namur)', zip: '5004', lat: 50.4735, lng: 4.8712 },
+  { name: 'Club Liège (Saint-Lambert)', address: 'Place Saint-Lambert 32', city: 'Liège', zip: '4000', lat: 50.6452, lng: 5.5734 },
+  { name: 'Club Liège (Ans)', address: 'Chaussée du Roi Albert 7/13', city: 'Ans', zip: '4430', lat: 50.6548, lng: 5.5291 },
+  { name: 'Club Arlon (Hydrion)', address: "Parc Commercial de l'Hydrion 31b", city: 'Arlon', zip: '6700', lat: 49.6841, lng: 5.8173 }
 ];
 
 interface ExerciseGuide {
@@ -181,6 +180,15 @@ interface WeeklyPlan {
   exercisesText: string;
 }
 
+interface TransformationPhoto {
+  id: string;
+  before_url: string;
+  after_url: string;
+  date: string;
+  weight: number;
+  note: string;
+}
+
 const WORKOUT_CHOICES = [
   'Push (Pectoraux, Épaules, Triceps)',
   'Pull (Dos, Biceps)',
@@ -195,7 +203,7 @@ const POPULAR_HASHTAGS = [
   '#pushday',
   '#pullday',
   '#pr',
-  '#basicfit',
+  '#gym',
   '#cardio',
   '#hiit',
   '#nopainnogain',
@@ -215,7 +223,7 @@ const DEFAULT_WEEKLY_PLAN: WeeklyPlan[] = [
 const isMatchingClub = (postClubName?: string, selectedClubName?: string): boolean => {
   if (!postClubName || !selectedClubName) return false;
   if (postClubName === selectedClubName) return true;
-  const normalize = (str: string) => str.toLowerCase().replace(/basic-fit\s*/gi, '').replace(/[()]/g, '').trim();
+  const normalize = (str: string) => str.toLowerCase().replace(/[()]/g, '').trim();
   const p = normalize(postClubName);
   const s = normalize(selectedClubName);
   return p === s || p.includes(s) || s.includes(p);
@@ -268,19 +276,15 @@ interface Post {
   avatar_url: string;
   partner_name?: string;
   image_url?: string;
-  image_zoom?: number;
-  image_pos_x?: number;
-  image_pos_y?: number;
   club_name: string;
   session_type: string;
   caption: string;
-  duration_minutes: number;
-  calories_burned: number;
   exercises: ExerciseEntry[];
   likes_count: number;
   comments_count: number;
   comments?: Comment[];
   created_at: string;
+  is_private?: boolean;
 }
 
 interface Story {
@@ -315,10 +319,10 @@ interface DBMessage {
 }
 
 const DEFAULT_MEMBERS: RealUser[] = [
-  { id: 'b1', username: 'Thomas D.', email: 'thomas@fitpulse.be', gender: 'M', goal: 'Prise de masse & Force', home_club: 'Basic-Fit Tournai (Bastion)', avatar_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150' },
-  { id: 'b2', username: 'Sarah L.', email: 'sarah@fitpulse.be', gender: 'F', goal: 'Cardio & HIIT', home_club: 'Basic-Fit Tournai (Bastion)', avatar_url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150' },
-  { id: 'b3', username: 'Élodie M.', email: 'elodie@fitpulse.be', gender: 'F', goal: 'Remise en forme', home_club: 'Basic-Fit Tournai (Froyennes)', avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150' },
-  { id: 'b4', username: 'Maxime V.', email: 'maxime@fitpulse.be', gender: 'M', goal: 'Prise de masse & Force', home_club: 'Basic-Fit Mouscron', avatar_url: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150' }
+  { id: 'b1', username: 'Thomas D.', email: 'thomas@fitpulse.be', gender: 'M', goal: 'Prise de masse & Force', home_club: 'Club Tournai (Bastion)', avatar_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150' },
+  { id: 'b2', username: 'Sarah L.', email: 'sarah@fitpulse.be', gender: 'F', goal: 'Cardio & HIIT', home_club: 'Club Tournai (Bastion)', avatar_url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150' },
+  { id: 'b3', username: 'Élodie M.', email: 'elodie@fitpulse.be', gender: 'F', goal: 'Remise en forme', home_club: 'Club Tournai (Froyennes)', avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150' },
+  { id: 'b4', username: 'Maxime V.', email: 'maxime@fitpulse.be', gender: 'M', goal: 'Prise de masse & Force', home_club: 'Club Mouscron', avatar_url: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150' }
 ];
 
 const DEFAULT_STORIES: Story[] = [
@@ -329,7 +333,7 @@ const DEFAULT_STORIES: Story[] = [
     avatar_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150',
     image_url: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?w=800',
     caption: 'Prêt pour exploser le PR au dev couché #pr #pushday 🔥',
-    club_name: 'Basic-Fit Tournai (Bastion)',
+    club_name: 'Club Tournai (Bastion)',
     likes_count: 3,
     created_at: new Date().toISOString()
   },
@@ -340,7 +344,7 @@ const DEFAULT_STORIES: Story[] = [
     avatar_url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150',
     image_url: 'https://images.unsplash.com/photo-1518611012118-696072aa579a?w=800',
     caption: 'Fin de séance HIIT cardio, les jambes en feu #cardio #hiit 💦',
-    club_name: 'Basic-Fit Tournai (Bastion)',
+    club_name: 'Club Tournai (Bastion)',
     likes_count: 5,
     created_at: new Date().toISOString()
   }
@@ -359,16 +363,42 @@ export default function App() {
   const [age, setAge] = useState<number | ''>('');
   const [gender, setGender] = useState<'M' | 'F'>('M');
   const [level, setLevel] = useState<'Débutant' | 'Intermédiaire' | 'Avancé'>('Intermédiaire');
-  const [homeClub, setHomeClub] = useState<string>('Basic-Fit Tournai (Bastion)');
+  const [homeClub, setHomeClub] = useState<string>('Club Tournai (Bastion)');
 
-  const [clubsList, setClubsList] = useState<ClubLocation[]>(CLUBS_DATABASE);
   const [authLoading, setAuthLoading] = useState(false);
 
-  const [currentTab, setCurrentTab] = useState<'feed' | 'buddy' | 'workout' | 'exercises' | 'institut' | 'chat' | 'leaderboard' | 'profile'>('feed');
-  const [selectedClub, setSelectedClub] = useState<string>('Basic-Fit Tournai (Bastion)');
+  const [currentTab, setCurrentTab] = useState<'feed' | 'buddy' | 'workout' | 'exercises' | 'chat' | 'leaderboard' | 'profile'>('feed');
+  const [selectedClub, setSelectedClub] = useState<string>('Club Tournai (Bastion)');
 
   const [posts, setPosts] = useState<Post[]>([]);
   const [feedLoading, setFeedLoading] = useState(false);
+
+  // Paramètres Utilisateur Locaux (Flammes, Mode Privé & Avant/Après)
+  const [userStreak, setUserStreak] = useState<number>(() => {
+    try { return parseInt(localStorage.getItem('fitpulse_streak') || '2', 10); } catch { return 2; }
+  });
+  
+  const [isPrivateMode, setIsPrivateMode] = useState<boolean>(() => {
+    try { return localStorage.getItem('fitpulse_private') === 'true'; } catch { return false; }
+  });
+
+  const [transformations, setTransformations] = useState<TransformationPhoto[]>(() => {
+    try {
+      const saved = localStorage.getItem('fitpulse_transformations');
+      return saved ? JSON.parse(saved) : [
+        { id: 't-1', before_url: 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?w=600', after_url: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=600', date: '2026-06-01', weight: 78, note: 'Début de prise de masse propre' }
+      ];
+    } catch { return []; }
+  });
+
+  const [newTransNote, setNewTransNote] = useState('');
+  const [newTransWeight, setNewTransWeight] = useState<number | ''>('');
+  const [newTransBefore, setNewTransBefore] = useState<string | null>(null);
+  const [newTransAfter, setNewTransAfter] = useState<string | null>(null);
+
+  useEffect(() => { localStorage.setItem('fitpulse_streak', userStreak.toString()); }, [userStreak]);
+  useEffect(() => { localStorage.setItem('fitpulse_private', isPrivateMode.toString()); }, [isPrivateMode]);
+  useEffect(() => { localStorage.setItem('fitpulse_transformations', JSON.stringify(transformations)); }, [transformations]);
 
   // GESTION DU LOCAL STORAGE POUR ÉVITER LES DOUBLES LIKES
   const [likedPosts, setLikedPosts] = useState<Record<string, boolean>>(() => {
@@ -392,19 +422,11 @@ export default function App() {
     } catch { return []; }
   });
 
-  useEffect(() => {
-    localStorage.setItem('fitpulse_liked_posts', JSON.stringify(likedPosts));
-  }, [likedPosts]);
+  useEffect(() => { localStorage.setItem('fitpulse_liked_posts', JSON.stringify(likedPosts)); }, [likedPosts]);
+  useEffect(() => { localStorage.setItem('fitpulse_liked_stories', JSON.stringify(likedStories)); }, [likedStories]);
+  useEffect(() => { localStorage.setItem('fitpulse_viewed_stories', JSON.stringify(viewedStoryIds)); }, [viewedStoryIds]);
 
-  useEffect(() => {
-    localStorage.setItem('fitpulse_liked_stories', JSON.stringify(likedStories));
-  }, [likedStories]);
-
-  useEffect(() => {
-    localStorage.setItem('fitpulse_viewed_stories', JSON.stringify(viewedStoryIds));
-  }, [viewedStoryIds]);
-
-  const [active3DExercise, setActive3DExercise] = useState<string | null>(null);
+  const [activeAnatomyExercise, setActiveAnatomyExercise] = useState<string | null>(null);
 
   // Chronomètre de repos intelligent
   const [restTimerSeconds, setRestTimerSeconds] = useState(90);
@@ -456,9 +478,6 @@ export default function App() {
   // Workout Creation State
   const [workoutType, setWorkoutType] = useState('Musculation (Push)');
   const [workoutCaption, setWorkoutCaption] = useState('');
-  const [workoutDuration, setWorkoutDuration] = useState(60);
-  const [workoutCalories, setWorkoutCalories] = useState(450);
-  const [taggedPartner, setTaggedPartner] = useState<string>('');
   const [postImageFile, setPostImageFile] = useState<File | null>(null);
   const [postImagePreview, setPostImagePreview] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -467,10 +486,12 @@ export default function App() {
     { name: 'Développé couché', sets: 4, reps: 10, weight: 80 }
   ]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const beforeFileInputRef = useRef<HTMLInputElement>(null);
+  const afterFileInputRef = useRef<HTMLInputElement>(null);
 
   // Caméra
   const [isCameraActive, setIsCameraActive] = useState(false);
-  const [cameraTarget, setCameraTarget] = useState<'post' | 'story'>('post');
+  const [cameraTarget, setCameraTarget] = useState<'post' | 'story' | 'trans_before' | 'trans_after'>('post');
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('environment');
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -481,6 +502,7 @@ export default function App() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const [activeCommentPostId, setActiveCommentPostId] = useState<string | null>(null);
+  const [postCommentInput, setPostCommentInput] = useState('');
 
   // FONCTION POUR METTRE EN COULEUR LES HASHTAGS (Orange)
   const renderCaptionWithHashtags = (text: string) => {
@@ -537,16 +559,83 @@ export default function App() {
     setEditingDayIndex(null);
   };
 
-  // Ajout du hashtag pour une séance (Workout)
   const handleAddWorkoutHashtag = (tag: string) => {
     if (workoutCaption.includes(tag)) return;
     setWorkoutCaption((prev) => (prev ? `${prev} ${tag}` : tag));
   };
 
-  // Ajout du hashtag pour une Story
   const handleAddStoryHashtag = (tag: string) => {
     if (storyCaption.includes(tag)) return;
     setStoryCaption((prev) => (prev ? `${prev} ${tag}` : tag));
+  };
+
+  const handleAddPostComment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!postCommentInput.trim() || !activeCommentPostId || !user) return;
+    
+    const myName = user.user_metadata?.first_name || user.user_metadata?.username || user.email?.split('@')[0] || 'Moi';
+    const newComment: Comment = {
+      id: 'c-' + Date.now(),
+      username: myName,
+      avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+      text: postCommentInput.trim(),
+      created_at: new Date().toISOString()
+    };
+
+    setPosts(prev => prev.map(p => {
+      if (p.id === activeCommentPostId) {
+        const updatedComments = [...(p.comments || []), newComment];
+        return { ...p, comments: updatedComments, comments_count: updatedComments.length };
+      }
+      return p;
+    }));
+    
+    setPostCommentInput('');
+  };
+
+  // Ajout d'un Avant/Après personnel
+  const handleAddTransformation = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTransBefore || !newTransAfter || newTransWeight === '') return;
+    const item: TransformationPhoto = {
+      id: 'trans-' + Date.now(),
+      before_url: newTransBefore,
+      after_url: newTransAfter,
+      date: new Date().toISOString().split('T')[0],
+      weight: Number(newTransWeight),
+      note: newTransNote || 'Évolution physique'
+    };
+    setTransformations([item, ...transformations]);
+    setNewTransBefore(null);
+    setNewTransAfter(null);
+    setNewTransNote('');
+    setNewTransWeight('');
+    alert('📸 Transformation enregistrée dans ton carnet personnel !');
+  };
+
+  // Partager un Avant/Après sur le fil d'actualité
+  const handleShareTransformationToFeed = async (item: TransformationPhoto) => {
+    if (!user) return;
+    const myName = user.user_metadata?.username || user.email?.split('@')[0] || 'Athlète';
+    const newPostData = {
+      user_id: user.id,
+      username: myName,
+      avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+      image_url: item.after_url,
+      club_name: selectedClub,
+      session_type: 'Transformation #transformation',
+      caption: `Bilan évolution (${item.weight} kg) : ${item.note} #pr #gym`,
+      exercises: [],
+      likes_count: 0,
+      comments_count: 0,
+      comments: [],
+      is_private: isPrivateMode
+    };
+    const { data } = await supabase.from('posts').insert([newPostData]).select('*');
+    if (data && data.length > 0) {
+      setPosts([data[0] as Post, ...posts]);
+      alert('✨ Bilan partagé avec succès sur le fil d’actualité !');
+    }
   };
 
   useEffect(() => {
@@ -634,15 +723,20 @@ export default function App() {
     }
   };
 
-  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>, targetType?: string) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      if (cameraTarget === 'post') {
-         setPostImageFile(file);
-         setPostImagePreview(URL.createObjectURL(file));
+      const previewUrl = URL.createObjectURL(file);
+      if (targetType === 'trans_before') {
+        setNewTransBefore(previewUrl);
+      } else if (targetType === 'trans_after') {
+        setNewTransAfter(previewUrl);
+      } else if (cameraTarget === 'post') {
+        setPostImageFile(file);
+        setPostImagePreview(previewUrl);
       } else {
-         setStoryImageFile(file);
-         setStoryImagePreview(URL.createObjectURL(file));
+        setStoryImageFile(file);
+        setStoryImagePreview(previewUrl);
       }
     }
   };
@@ -767,7 +861,7 @@ export default function App() {
     alert('Réponse envoyée en message direct !');
   };
 
-  const startCamera = async (target: 'post' | 'story') => {
+  const startCamera = async (target: 'post' | 'story' | 'trans_before' | 'trans_after') => {
     setCameraTarget(target);
     setIsCameraActive(true);
     try {
@@ -811,12 +905,17 @@ export default function App() {
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
     canvas.toBlob((blob) => {
       if (!blob) return;
-      const file = new File([blob], `photo-${Date.now()}.jpg`, { type: 'image/jpeg' });
       const previewUrl = URL.createObjectURL(blob);
-      if (cameraTarget === 'post') {
+      if (cameraTarget === 'trans_before') {
+        setNewTransBefore(previewUrl);
+      } else if (cameraTarget === 'trans_after') {
+        setNewTransAfter(previewUrl);
+      } else if (cameraTarget === 'post') {
+        const file = new File([blob], `photo-${Date.now()}.jpg`, { type: 'image/jpeg' });
         setPostImageFile(file);
         setPostImagePreview(previewUrl);
       } else {
+        const file = new File([blob], `photo-${Date.now()}.jpg`, { type: 'image/jpeg' });
         setStoryImageFile(file);
         setStoryImagePreview(previewUrl);
         setIsCreatingStory(true);
@@ -928,23 +1027,21 @@ export default function App() {
       user_id: user.id,
       username: user.user_metadata?.username || user.email?.split('@')[0] || 'Athlète',
       avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
-      partner_name: taggedPartner || null,
       image_url: uploadedImageUrl || null,
       club_name: selectedClub,
       session_type: workoutType,
       caption: workoutCaption,
-      duration_minutes: workoutDuration,
-      calories_burned: workoutCalories,
       exercises: validExercises,
       likes_count: 0,
       comments_count: 0,
-      comments: []
+      comments: [],
+      is_private: isPrivateMode
     };
     const { data } = await supabase.from('posts').insert([newPostData]).select('*');
     if (data && data.length > 0) {
       setPosts([data[0] as Post, ...posts]);
+      setUserStreak(prev => prev + 1);
       setWorkoutCaption('');
-      setTaggedPartner('');
       setPostImageFile(null);
       setPostImagePreview(null);
       setWorkoutExercises([{ name: '', sets: 3, reps: 10, weight: 20 }]);
@@ -970,6 +1067,11 @@ export default function App() {
   });
 
   const displayedPosts = posts.filter((post) => {
+    if (post.is_private) {
+      if (post.user_id !== user?.id && !friendIds.includes(post.user_id)) {
+        return false;
+      }
+    }
     return isMatchingClub(post.club_name, selectedClub);
   });
 
@@ -1050,9 +1152,15 @@ export default function App() {
             <span className="text-[10px] text-orange-400 font-semibold truncate block max-w-[150px]">{selectedClub}</span>
           </div>
         </div>
-        <select value={selectedClub} onChange={(e) => setSelectedClub(e.target.value)} className="bg-neutral-900 border border-neutral-800 text-[11px] rounded-lg px-2.5 py-1.5 text-neutral-300 focus:outline-none focus:border-orange-500 max-w-[170px] truncate">
-          {CLUBS_DATABASE.map((c) => (<option key={c.name} value={c.name}>{c.name}</option>))}
-        </select>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1 bg-orange-500/10 px-2.5 py-1.5 rounded-full border border-orange-500/20">
+            <Flame className="w-3.5 h-3.5 text-orange-500" />
+            <span className="text-xs font-black text-orange-500">{userStreak}</span>
+          </div>
+          <select value={selectedClub} onChange={(e) => setSelectedClub(e.target.value)} className="bg-neutral-900 border border-neutral-800 text-[11px] rounded-lg px-2 py-1.5 text-neutral-300 focus:outline-none focus:border-orange-500 max-w-[130px] truncate">
+            {CLUBS_DATABASE.map((c) => (<option key={c.name} value={c.name}>{c.name}</option>))}
+          </select>
+        </div>
       </header>
 
       {/* CHRONOMÈTRE DE REPOS FLOTTANT */}
@@ -1110,7 +1218,7 @@ export default function App() {
               </div>
             </div>
 
-            {/* Posts Feed - AFFICHAGE DES HASHTAGS COLORES */}
+            {/* Posts Feed */}
             {feedLoading ? (
               <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 text-orange-500 animate-spin" /></div>
             ) : displayedPosts.length === 0 ? (
@@ -1122,7 +1230,10 @@ export default function App() {
                     <div className="flex items-center gap-3">
                       <img src={post.avatar_url} alt="" className="w-10 h-10 rounded-full object-cover border border-neutral-700" />
                       <div>
-                        <h3 className="font-bold text-sm leading-snug">{post.username}</h3>
+                        <div className="flex items-center gap-1.5">
+                          <h3 className="font-bold text-sm leading-snug">{post.username}</h3>
+                          {post.is_private && <Lock className="w-3 h-3 text-neutral-500" title="Publication privée (Visible par les amis uniquement)" />}
+                        </div>
                         <div className="flex items-center gap-1 text-[11px] text-orange-400 font-medium">
                           <MapPin className="w-3 h-3" />{post.club_name}
                         </div>
@@ -1151,7 +1262,6 @@ export default function App() {
                     )}
                   </div>
 
-                  {/* ICI LES HASHTAGS SONT COLORES EN ORANGE */}
                   {post.caption && <p className="text-xs text-neutral-200 leading-relaxed font-medium">{renderCaptionWithHashtags(post.caption)}</p>}
 
                   {/* EXERCICES & REPOS */}
@@ -1171,8 +1281,8 @@ export default function App() {
                           <span className="font-semibold text-neutral-200">{ex.name}</span>
                           <div className="flex items-center gap-2">
                             <span className="font-mono text-[11px] text-orange-400 font-bold">{ex.sets} séries × {ex.reps} reps ({ex.weight} kg)</span>
-                            <button onClick={() => setActive3DExercise(ex.name)} className="p-1 bg-orange-600/20 hover:bg-orange-600 text-orange-400 hover:text-white rounded-lg flex items-center gap-1 text-[10px] transition">
-                              <Box className="w-3 h-3" /> 3D
+                            <button onClick={() => setActiveAnatomyExercise(ex.name)} className="p-1 bg-orange-600/20 hover:bg-orange-600 text-orange-400 hover:text-white rounded-lg flex items-center gap-1 text-[10px] transition">
+                              <Activity className="w-3 h-3" /> Muscles 2D
                             </button>
                           </div>
                         </div>
@@ -1190,11 +1300,15 @@ export default function App() {
           </div>
         )}
 
-        {/* TAB WORKOUT / SEANCE - LES HASHTAGS SONT LÀ */}
+        {/* TAB WORKOUT / SEANCE */}
         {currentTab === 'workout' && (
           <form onSubmit={handlePublishWorkout} className="space-y-4">
             <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4">
-              <h2 className="text-base font-black tracking-tight">Enregistrer une séance</h2>
+              <div className="flex items-center justify-between">
+                <h2 className="text-base font-black tracking-tight">Enregistrer une séance</h2>
+                {isPrivateMode && <ShieldCheck className="w-5 h-5 text-green-500" title="Cette séance sera publiée en Privé" />}
+              </div>
+
               <div className="grid grid-cols-2 gap-2.5">
                 <button type="button" onClick={() => { setCameraTarget('post'); setIsCameraActive(true); }} className="py-6 border-2 border-dashed border-neutral-800 hover:border-orange-500 rounded-2xl flex flex-col items-center justify-center gap-2 text-neutral-400 hover:text-orange-400 bg-neutral-950 transition">
                   <Camera className="w-6 h-6 text-orange-500" /><span className="text-xs font-semibold">Prendre photo</span>
@@ -1215,7 +1329,6 @@ export default function App() {
                 <label className="block text-[11px] font-semibold text-neutral-400">Description de la séance & Hashtags :</label>
                 <textarea rows={3} placeholder="Comment s'est passée la séance ?" value={workoutCaption} onChange={(e) => setWorkoutCaption(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-orange-500" />
                 
-                {/* SÉLECTEUR DE HASHTAGS EN UN CLIC (Bien visible ici) */}
                 <div className="pt-1.5 pb-2">
                   <span className="text-[10px] text-neutral-400 font-medium flex items-center gap-1 mb-2">
                     <Hash className="w-3 h-3 text-orange-500" /> Ajouter des hashtags rapides :
@@ -1238,6 +1351,7 @@ export default function App() {
               <button type="submit" disabled={isUploading} className="w-full bg-orange-600 hover:bg-orange-500 text-white font-bold py-3.5 rounded-xl shadow-lg transition flex items-center justify-center gap-2">
                 {isUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Partager ma séance'}
               </button>
+              {isPrivateMode && <p className="text-center text-[10px] text-neutral-500 mt-2">🔒 Ton profil est privé. Seuls tes Buddies verront ce post.</p>}
             </div>
           </form>
         )}
@@ -1248,21 +1362,21 @@ export default function App() {
             <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <h2 className="text-base font-black tracking-tight flex items-center gap-2">
-                    <BookOpen className="w-5 h-5 text-orange-500" /> Guide des Exercices & Machines
+                  <h2 className="text-lg font-black tracking-tight flex items-center gap-2">
+                    <BookOpen className="w-6 h-6 text-orange-500" /> Guide des Exercices
                   </h2>
-                  <span className="text-[10px] text-neutral-400">Photos explicatives, réglages et posture</span>
+                  <span className="text-xs text-neutral-400">Photos explicatives, réglages et posture</span>
                 </div>
               </div>
 
               <div className="relative">
-                <Search className="absolute left-3.5 top-3.5 w-4 h-4 text-orange-500" />
+                <Search className="absolute left-3.5 top-3.5 w-5 h-5 text-orange-500" />
                 <input
                   type="text"
-                  placeholder="Rechercher un exercice ou une machine..."
+                  placeholder="Rechercher un exercice..."
                   value={exerciseSearch}
                   onChange={(e) => setExerciseSearch(e.target.value)}
-                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl pl-10 pr-3 py-3 text-xs text-white focus:outline-none focus:border-orange-500 shadow-inner"
+                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl pl-10 pr-4 py-3.5 text-sm text-white focus:outline-none focus:border-orange-500 shadow-inner"
                 />
               </div>
 
@@ -1271,7 +1385,7 @@ export default function App() {
                   <button
                     key={cat}
                     onClick={() => setSelectedCategoryFilter(cat)}
-                    className={`px-3 py-1.5 rounded-xl text-[11px] font-bold whitespace-nowrap transition border ${
+                    className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition border ${
                       selectedCategoryFilter === cat
                         ? 'bg-orange-500 text-white border-orange-400 shadow-md'
                         : 'bg-neutral-950 text-neutral-400 border-neutral-800 hover:text-white'
@@ -1282,7 +1396,7 @@ export default function App() {
                 ))}
               </div>
 
-              <div className="space-y-2.5 pt-1">
+              <div className="space-y-3 pt-1">
                 {EXERCISES_DATABASE.filter((ex) => {
                   const matchCat = selectedCategoryFilter === 'Tous' || ex.category === selectedCategoryFilter;
                   const matchSearch = ex.name.toLowerCase().includes(exerciseSearch.toLowerCase()) || ex.targetMuscles.toLowerCase().includes(exerciseSearch.toLowerCase());
@@ -1291,79 +1405,23 @@ export default function App() {
                   <div
                     key={ex.id}
                     onClick={() => setSelectedExerciseDetail(ex)}
-                    className="bg-neutral-950 p-3 rounded-2xl border border-neutral-800 hover:border-orange-500/50 cursor-pointer transition flex items-center justify-between group"
+                    className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 hover:border-orange-500/50 cursor-pointer transition flex items-center justify-between group"
                   >
-                    <div className="flex items-center gap-3">
-                      <img src={ex.image_url} alt="" className="w-14 h-14 rounded-xl object-cover border border-neutral-800 flex-shrink-0" />
-                      <div className="space-y-1">
+                    <div className="flex items-center gap-4">
+                      <img src={ex.image_url} alt="" className="w-16 h-16 rounded-xl object-cover border border-neutral-800 flex-shrink-0" />
+                      <div className="space-y-1.5">
                         <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold text-white group-hover:text-orange-400 transition">{ex.name}</span>
-                          <span className="text-[9px] bg-orange-500/10 text-orange-400 px-2 py-0.5 rounded-md border border-orange-500/20 font-medium">{ex.category}</span>
+                          <span className="text-sm font-bold text-white group-hover:text-orange-400 transition">{ex.name}</span>
+                          <span className="text-xs bg-orange-500/10 text-orange-400 px-2 py-0.5 rounded-md border border-orange-500/20 font-medium">{ex.category}</span>
                         </div>
-                        <p className="text-[11px] text-neutral-400">🎯 Cible : {ex.targetMuscles}</p>
+                        <p className="text-xs text-neutral-400">🎯 Cible : {ex.targetMuscles}</p>
                       </div>
                     </div>
-                    <div className="w-8 h-8 rounded-xl bg-neutral-900 border border-neutral-800 flex items-center justify-center text-orange-400 group-hover:bg-orange-600 group-hover:text-white transition flex-shrink-0">
-                      <Info className="w-4 h-4" />
+                    <div className="w-10 h-10 rounded-xl bg-neutral-900 border border-neutral-800 flex items-center justify-center text-orange-400 group-hover:bg-orange-600 group-hover:text-white transition flex-shrink-0">
+                      <Info className="w-5 h-5" />
                     </div>
                   </div>
                 ))}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* TAB INSTITUT FLEUR DE LYS (MADÉROTHÉRAPIE) */}
-        {currentTab === 'institut' && (
-          <div className="space-y-4">
-            <div className="bg-gradient-to-br from-pink-950/40 via-neutral-900 to-neutral-900 border border-pink-500/30 rounded-3xl p-6 space-y-5 shadow-2xl">
-              <div className="flex items-center gap-3.5">
-                <div className="w-12 h-12 rounded-2xl bg-pink-500/20 border border-pink-500/40 flex items-center justify-center text-pink-400">
-                  <Flower2 className="w-6 h-6" />
-                </div>
-                <div>
-                  <h2 className="text-base font-black tracking-tight text-white">Institut Fleur de Lys</h2>
-                  <span className="text-[11px] text-pink-400 font-semibold flex items-center gap-1"><MapPin className="w-3 h-3" /> Laplaigne (Belgique)</span>
-                </div>
-              </div>
-
-              <div className="rounded-2xl overflow-hidden border border-neutral-800 h-52 relative shadow-md">
-                <img src="https://images.unsplash.com/photo-1540555700478-4be289fbecef?w=800" alt="Madérothérapie" className="w-full h-full object-cover" />
-                <div className="absolute inset-0 bg-gradient-to-t from-neutral-950/80 via-transparent to-transparent flex items-end p-4">
-                  <span className="text-xs font-bold text-white bg-pink-600/80 px-3 py-1 rounded-full">Spécialiste Madérothérapie & Drainage</span>
-                </div>
-              </div>
-
-              <div className="space-y-3 text-xs">
-                <div className="bg-neutral-950/80 p-4 rounded-2xl border border-neutral-800 space-y-1.5">
-                  <h3 className="font-bold text-pink-400 flex items-center gap-1.5"><Sparkles className="w-4 h-4" /> Qu'est-ce que la Madérothérapie ?</h3>
-                  <p className="text-neutral-300 leading-relaxed">
-                    Technique de modelage sculptant 100% naturelle utilisant des instruments en bois anatomiques. Idéale pour les sportifs après l'effort : elle stimule le système lymphatique, draine les toxines, réduit la cellulite et détend profondément les tensions musculaires.
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2.5">
-                  <div className="bg-neutral-950/80 p-3.5 rounded-2xl border border-neutral-800 space-y-1">
-                    <span className="font-bold text-white block">Drainage Sportif</span>
-                    <p className="text-[11px] text-neutral-400">Récupération musculaire et élimination de l'acide lactique.</p>
-                  </div>
-                  <div className="bg-neutral-950/80 p-3.5 rounded-2xl border border-neutral-800 space-y-1">
-                    <span className="font-bold text-white block">Remodelage</span>
-                    <p className="text-[11px] text-neutral-400">Affine la silhouette et raffermit les tissus cutanés.</p>
-                  </div>
-                </div>
-
-                <div className="bg-neutral-950/80 p-4 rounded-2xl border border-neutral-800 space-y-2.5">
-                  <span className="font-bold text-white block">Prendre rendez-vous / Contact :</span>
-                  <div className="flex flex-col gap-2">
-                    <a href="tel:+32000000000" className="flex items-center gap-2 p-2.5 bg-neutral-900 hover:bg-neutral-800 rounded-xl text-neutral-200 transition">
-                      <Phone className="w-4 h-4 text-pink-400" /> <span>+32 (0) ... (Laplaigne)</span>
-                    </a>
-                    <a href="https://instagram.com" target="_blank" rel="noreferrer" className="flex items-center gap-2 p-2.5 bg-neutral-900 hover:bg-neutral-800 rounded-xl text-neutral-200 transition">
-                      <Instagram className="w-4 h-4 text-pink-400" /> <span>Instagram : @InstitutFleurDeLys</span>
-                    </a>
-                  </div>
-                </div>
               </div>
             </div>
           </div>
@@ -1630,21 +1688,143 @@ export default function App() {
           </div>
         )}
 
+        {/* TAB 6: PROFIL (AVEC MODE PRIVÉ, FLAMMES ET AVANT/APRÈS) */}
         {currentTab === 'profile' && (
-          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-6 text-center space-y-5">
-            <div className="w-20 h-20 rounded-full bg-gradient-to-tr from-orange-500 to-amber-500 p-0.5 mx-auto flex items-center justify-center text-white font-bold text-2xl">
-              {user.email?.[0].toUpperCase()}
+          <div className="space-y-4">
+            <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-6 text-center space-y-5">
+              <div className="relative w-24 h-24 mx-auto">
+                <div className="w-full h-full rounded-full bg-gradient-to-tr from-orange-500 to-amber-500 p-0.5 flex items-center justify-center text-white font-bold text-3xl shadow-lg">
+                  <div className="w-full h-full bg-neutral-950 rounded-full flex items-center justify-center">
+                    {user.email?.[0].toUpperCase()}
+                  </div>
+                </div>
+                <div className="absolute -bottom-2 -right-2 bg-neutral-900 rounded-full p-1.5 border border-neutral-800">
+                  <div className="bg-orange-500/20 text-orange-500 px-2 py-0.5 rounded-full text-xs font-black flex items-center gap-1">
+                    <Flame className="w-3.5 h-3.5" /> {userStreak}
+                  </div>
+                </div>
+              </div>
+              
+              <div>
+                <h2 className="font-extrabold text-xl">{user.user_metadata?.first_name || user.email?.split('@')[0]}</h2>
+                <span className="text-xs text-orange-400 bg-orange-500/10 px-3 py-1 rounded-full border border-orange-500/20 inline-block mt-2">{selectedClub}</span>
+              </div>
             </div>
-            <div>
-              <h2 className="font-extrabold text-lg">{user.user_metadata?.first_name || user.email?.split('@')[0]}</h2>
-              <span className="text-[11px] text-orange-400 bg-orange-500/10 px-3 py-1 rounded-full border border-orange-500/20">{selectedClub}</span>
+
+            {/* SECTION AVANT / APRÈS PERSONNEL & PARTAGE */}
+            <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="font-bold text-sm text-white flex items-center gap-2">
+                  <ImageIcon className="w-4 h-4 text-orange-500" /> Carnet Avant / Après
+                </h3>
+                <span className="text-[10px] text-neutral-400">Suivi personnel & partage sécurisé</span>
+              </div>
+
+              {/* Formulaire ajout avant/après */}
+              <form onSubmit={handleAddTransformation} className="bg-neutral-950 p-3.5 rounded-2xl border border-neutral-800 space-y-3">
+                <span className="text-[11px] font-bold text-orange-400 block">Ajouter un point d'évolution</span>
+                <div className="grid grid-cols-2 gap-2">
+                  <button type="button" onClick={() => beforeFileInputRef.current?.click()} className="p-3 bg-neutral-900 border border-neutral-800 rounded-xl text-xs text-neutral-300 flex items-center justify-center gap-1.5 hover:border-orange-500">
+                    <Camera className="w-4 h-4 text-orange-500" /> {newTransBefore ? 'Photo Avant (✓)' : 'Photo Avant'}
+                  </button>
+                  <button type="button" onClick={() => afterFileInputRef.current?.click()} className="p-3 bg-neutral-900 border border-neutral-800 rounded-xl text-xs text-neutral-300 flex items-center justify-center gap-1.5 hover:border-orange-500">
+                    <Camera className="w-4 h-4 text-orange-500" /> {newTransAfter ? 'Photo Après (✓)' : 'Photo Après'}
+                  </button>
+                </div>
+                <input type="file" accept="image/*" ref={beforeFileInputRef} onChange={(e) => handleImageSelect(e, 'trans_before')} className="hidden" />
+                <input type="file" accept="image/*" ref={afterFileInputRef} onChange={(e) => handleImageSelect(e, 'trans_after')} className="hidden" />
+
+                <div className="grid grid-cols-2 gap-2">
+                  <input type="number" step="0.1" placeholder="Poids actuel (kg)" value={newTransWeight} onChange={(e) => setNewTransWeight(Number(e.target.value))} className="bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-orange-500" />
+                  <input type="text" placeholder="Note (ex: Fin de sèche)" value={newTransNote} onChange={(e) => setNewTransNote(e.target.value)} className="bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-orange-500" />
+                </div>
+                <button type="submit" className="w-full py-2 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-xl text-xs transition">Enregistrer dans mon carnet</button>
+              </form>
+
+              {/* Liste des transformations enregistrées */}
+              <div className="space-y-3 pt-1">
+                {transformations.map((item) => (
+                  <div key={item.id} className="bg-neutral-950 p-3.5 rounded-2xl border border-neutral-800 space-y-3">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-bold text-orange-400">📅 {item.date} — {item.weight} kg</span>
+                      <span className="text-neutral-400 italic">{item.note}</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="relative rounded-xl overflow-hidden h-36 bg-neutral-900 border border-neutral-800">
+                        <img src={item.before_url} alt="Avant" className="w-full h-full object-cover" />
+                        <span className="absolute bottom-1 left-1 bg-black/70 text-[9px] text-white px-2 py-0.5 rounded">Avant</span>
+                      </div>
+                      <div className="relative rounded-xl overflow-hidden h-36 bg-neutral-900 border border-neutral-800">
+                        <img src={item.after_url} alt="Après" className="w-full h-full object-cover" />
+                        <span className="absolute bottom-1 left-1 bg-black/70 text-[9px] text-white px-2 py-0.5 rounded">Après</span>
+                      </div>
+                    </div>
+                    <button onClick={() => handleShareTransformationToFeed(item)} className="w-full py-2 bg-neutral-900 hover:bg-orange-600/20 border border-neutral-800 hover:border-orange-500 text-neutral-300 hover:text-orange-400 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5">
+                      <Share2 className="w-3.5 h-3.5" /> Partager ce bilan (Privé ou Public)
+                    </button>
+                  </div>
+                ))}
+              </div>
             </div>
-            <button onClick={() => supabase.auth.signOut()} className="w-full py-3 bg-neutral-950 hover:bg-neutral-800 text-red-400 rounded-xl text-xs font-bold transition border border-neutral-800 flex items-center justify-center gap-2">
-              <LogOut className="w-4 h-4" /> Se déconnecter
+
+            <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4">
+              <h3 className="font-bold text-sm text-white flex items-center gap-2">
+                <ShieldAlert className="w-4 h-4 text-orange-500" /> Confidentialité
+              </h3>
+              
+              <div className="flex items-center justify-between p-4 bg-neutral-950 rounded-2xl border border-neutral-800">
+                <div>
+                  <span className="font-bold text-sm text-white block">Compte Privé</span>
+                  <p className="text-[10px] text-neutral-400 max-w-[200px] mt-1">Si activé, tes nouvelles séances seront visibles uniquement par tes amis (Buddies).</p>
+                </div>
+                <button 
+                  onClick={() => setIsPrivateMode(!isPrivateMode)}
+                  className={`relative w-12 h-6 rounded-full transition-colors ${isPrivateMode ? 'bg-orange-500' : 'bg-neutral-800'}`}
+                >
+                  <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform ${isPrivateMode ? 'translate-x-7' : 'translate-x-1'}`} />
+                </button>
+              </div>
+            </div>
+
+            <button onClick={() => supabase.auth.signOut()} className="w-full py-4 bg-neutral-900 hover:bg-neutral-800 text-red-400 rounded-3xl text-sm font-bold transition border border-neutral-800 flex items-center justify-center gap-2 shadow-sm">
+              <LogOut className="w-5 h-5" /> Déconnexion de l'espace
             </button>
           </div>
         )}
       </main>
+
+      {/* MODAL LECTURE DES COMMENTAIRES D'UN POST */}
+      {activeCommentPostId && activePostForComments && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex flex-col justify-end">
+          <div className="bg-neutral-900 border-t border-neutral-800 rounded-t-3xl h-[70vh] flex flex-col shadow-2xl">
+            <div className="flex items-center justify-between p-4 border-b border-neutral-800">
+              <h3 className="font-bold text-sm text-white flex items-center gap-2"><MessageSquare className="w-4 h-4 text-orange-500" /> Commentaires ({activePostForComments.comments_count || 0})</h3>
+              <button onClick={() => setActiveCommentPostId(null)} className="p-1.5 bg-neutral-800 text-white rounded-full"><X className="w-4 h-4" /></button>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              {(!activePostForComments.comments || activePostForComments.comments.length === 0) ? (
+                <div className="text-center text-neutral-500 text-xs py-8">Aucun commentaire pour le moment. Sois le premier à réagir !</div>
+              ) : (
+                activePostForComments.comments.map(c => (
+                  <div key={c.id} className="flex gap-3">
+                    <img src={c.avatar_url} className="w-8 h-8 rounded-full object-cover border border-neutral-700" />
+                    <div className="flex-1 bg-neutral-950 p-3 rounded-2xl rounded-tl-none border border-neutral-800">
+                      <span className="font-bold text-xs text-white block mb-1">{c.username}</span>
+                      <p className="text-xs text-neutral-300">{c.text}</p>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <form onSubmit={handleAddPostComment} className="p-4 bg-neutral-950 border-t border-neutral-800 flex items-center gap-2">
+              <input type="text" placeholder="Ajouter un commentaire..." value={postCommentInput} onChange={e => setPostCommentInput(e.target.value)} className="flex-1 bg-neutral-900 border border-neutral-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-orange-500" />
+              <button type="submit" disabled={!postCommentInput.trim()} className="p-2.5 bg-orange-600 disabled:bg-neutral-800 disabled:text-neutral-500 text-white rounded-xl transition"><SendHorizontal className="w-4 h-4" /></button>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* MODAL FICHE EXPLICATIVE EXERCICE / MACHINE */}
       {selectedExerciseDetail && (
@@ -1662,64 +1842,60 @@ export default function App() {
               <img src={selectedExerciseDetail.image_url} alt="" className="w-full h-full object-cover" />
             </div>
 
-            <div className="space-y-3 text-xs">
+            <div className="space-y-3 text-sm">
               <div className="bg-neutral-950 p-3.5 rounded-2xl border border-neutral-800/80 space-y-1">
-                <span className="font-bold text-orange-400 uppercase text-[10px] tracking-wider block">Équipement & Matériel</span>
+                <span className="font-bold text-orange-400 uppercase text-[11px] tracking-wider block">Équipement & Matériel</span>
                 <p className="text-neutral-200">{selectedExerciseDetail.equipment}</p>
               </div>
 
               <div className="bg-neutral-950 p-3.5 rounded-2xl border border-neutral-800/80 space-y-1">
-                <span className="font-bold text-orange-400 uppercase text-[10px] tracking-wider block">Muscles Ciblés</span>
+                <span className="font-bold text-orange-400 uppercase text-[11px] tracking-wider block">Muscles Ciblés</span>
                 <p className="text-neutral-200">{selectedExerciseDetail.targetMuscles}</p>
               </div>
 
               <div className="bg-neutral-950 p-3.5 rounded-2xl border border-neutral-800/80 space-y-1">
-                <span className="font-bold text-orange-400 uppercase text-[10px] tracking-wider block">Réglages de la Machine</span>
+                <span className="font-bold text-orange-400 uppercase text-[11px] tracking-wider block">Réglages de la Machine</span>
                 <p className="text-neutral-200">{selectedExerciseDetail.settings}</p>
               </div>
 
               <div className="bg-neutral-950 p-3.5 rounded-2xl border border-neutral-800/80 space-y-1">
-                <span className="font-bold text-orange-400 uppercase text-[10px] tracking-wider block">Exécution du Mouvement</span>
+                <span className="font-bold text-orange-400 uppercase text-[11px] tracking-wider block">Exécution du Mouvement</span>
                 <p className="text-neutral-200 leading-relaxed">{selectedExerciseDetail.execution}</p>
               </div>
 
               <div className="bg-orange-950/20 p-3.5 rounded-2xl border border-orange-500/20 space-y-1">
-                <span className="font-bold text-orange-400 uppercase text-[10px] tracking-wider block">Conseil Coach</span>
+                <span className="font-bold text-orange-400 uppercase text-[11px] tracking-wider block">Conseil Coach</span>
                 <p className="text-neutral-200 italic">{selectedExerciseDetail.tips}</p>
               </div>
             </div>
 
-            <button onClick={() => setSelectedExerciseDetail(null)} className="w-full py-3 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-xl text-xs transition">
+            <button onClick={() => setSelectedExerciseDetail(null)} className="w-full py-3 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-xl text-sm transition">
               Fermer la fiche
             </button>
           </div>
         </div>
       )}
 
-      {/* MODAL VISUALISEUR 3D */}
-      {active3DExercise && (
+      {/* MODAL VISUALISEUR ANATOMIE 2D */}
+      {activeAnatomyExercise && (
         <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex flex-col justify-between p-4">
           <div className="flex items-center justify-between pt-2">
             <div className="flex items-center gap-2 text-orange-400 font-bold text-sm">
-              <Box className="w-5 h-5" /> Vue 3D Anatomique : {active3DExercise}
+              <Dumbbell className="w-5 h-5" /> Anatomie : {activeAnatomyExercise}
             </div>
-            <button onClick={() => setActive3DExercise(null)} className="p-2 bg-neutral-800 text-white rounded-full"><X className="w-5 h-5" /></button>
+            <button onClick={() => setActiveAnatomyExercise(null)} className="p-2 bg-neutral-800 text-white rounded-full"><X className="w-5 h-5" /></button>
           </div>
           
           <div className="flex-1 w-full flex flex-col items-center justify-center my-auto space-y-4">
-            <div className="relative w-64 h-64 rounded-3xl bg-neutral-900 border border-neutral-800 flex items-center justify-center shadow-2xl overflow-hidden group">
-              <div className="absolute inset-0 flex items-center justify-center opacity-20">
-                <div className="w-48 h-48 rounded-full border border-dashed border-orange-500" />
-              </div>
-              <div className="flex flex-col items-center space-y-3 z-10 animate-pulse">
-                <div className="w-20 h-28 bg-gradient-to-tr from-orange-600 to-amber-500 rounded-2xl shadow-lg flex items-center justify-center text-white font-black text-xl border border-orange-400">
-                  3D
-                </div>
-                <span className="text-xs font-bold text-neutral-300">Ciblage : {active3DExercise}</span>
+            <div className="relative w-full max-w-sm h-80 rounded-3xl bg-neutral-900 border border-neutral-800 flex items-center justify-center shadow-2xl overflow-hidden p-4">
+              <img src="https://images.unsplash.com/photo-1554244933-d876deb6b2ff?w=800" alt="Anatomie" className="max-w-full max-h-full object-contain mix-blend-screen opacity-80" />
+              <div className="absolute inset-0 bg-gradient-to-t from-neutral-900 via-transparent to-transparent" />
+              <div className="absolute bottom-4 left-0 right-0 text-center">
+                  <span className="text-sm font-black text-orange-500 bg-black/60 px-4 py-1.5 rounded-full border border-orange-500/30">Ciblage musculaire</span>
               </div>
             </div>
-            <span className="text-[11px] text-neutral-400 bg-neutral-900 px-4 py-1.5 rounded-full border border-neutral-800">
-              Modélisation 3D interactive des fibres musculaires en temps réel
+            <span className="text-sm text-neutral-400 bg-neutral-900 px-4 py-3 rounded-xl border border-neutral-800 text-center max-w-sm leading-relaxed">
+              Aperçu 2D des groupes musculaires sollicités par cet exercice lors de la phase concentrique et excentrique.
             </span>
           </div>
         </div>
@@ -1746,7 +1922,7 @@ export default function App() {
         </div>
       )}
 
-      {/* LECTEUR DE STORY (AVEC HASHTAGS COLORES) */}
+      {/* LECTEUR DE STORY */}
       {activeViewingStory && activeStoryIndex !== null && (
         <div className="fixed inset-0 z-50 bg-black flex flex-col justify-between p-4 select-none">
           <div className="w-full flex items-center gap-1.5 pt-2 z-20">
@@ -1811,7 +1987,7 @@ export default function App() {
               <button onClick={() => setIsCreatingStory(false)} className="p-1 text-neutral-400 hover:text-white"><X className="w-5 h-5" /></button>
             </div>
             <form onSubmit={handlePublishStory} className="space-y-3.5">
-              <input type="file" accept="image/*" ref={storyFileInputRef} onChange={handleStoryImageSelect} className="hidden" />
+              <input type="file" accept="image/*" ref={storyFileInputRef} onChange={handleImageSelect} className="hidden" />
               {storyImagePreview ? (
                 <div className="relative rounded-2xl overflow-hidden border border-neutral-700 bg-neutral-950 h-56 flex items-center justify-center">
                   <img src={storyImagePreview} alt="" className="max-h-full object-contain" />
@@ -1831,7 +2007,6 @@ export default function App() {
               <div className="space-y-2">
                 <input type="text" placeholder="Légende de la story..." value={storyCaption} onChange={(e) => setStoryCaption(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-orange-500" />
                 
-                {/* SÉLECTEUR DE HASHTAGS POUR LA STORY AUSSI */}
                 <div className="pt-1.5 pb-2">
                   <span className="text-[10px] text-neutral-400 font-medium flex items-center gap-1 mb-2">
                     <Hash className="w-3 h-3 text-orange-500" /> Hashtags rapides :
@@ -1861,17 +2036,16 @@ export default function App() {
 
       {/* BOTTOM NAV */}
       <nav className="fixed bottom-0 left-0 right-0 z-40 bg-neutral-950/90 backdrop-blur-xl border-t border-neutral-800/80 px-2 py-2 flex justify-around items-center">
-        <button onClick={() => setCurrentTab('feed')} className={`flex flex-col items-center gap-1 ${currentTab === 'feed' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Home className="w-4 h-4" /><span className="text-[9px]">Accueil</span></button>
-        <button onClick={() => setCurrentTab('buddy')} className={`flex flex-col items-center gap-1 ${currentTab === 'buddy' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Users className="w-4 h-4" /><span className="text-[9px]">Buddy</span></button>
-        <button onClick={() => setCurrentTab('exercises')} className={`flex flex-col items-center gap-1 ${currentTab === 'exercises' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><BookOpen className="w-4 h-4" /><span className="text-[9px]">Exercices</span></button>
+        <button onClick={() => setCurrentTab('feed')} className={`flex flex-col items-center gap-1 ${currentTab === 'feed' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Home className="w-5 h-5" /><span className="text-[10px]">Accueil</span></button>
+        <button onClick={() => setCurrentTab('buddy')} className={`flex flex-col items-center gap-1 ${currentTab === 'buddy' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Users className="w-5 h-5" /><span className="text-[10px]">Buddy</span></button>
+        <button onClick={() => setCurrentTab('exercises')} className={`flex flex-col items-center gap-1 ${currentTab === 'exercises' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><BookOpen className="w-5 h-5" /><span className="text-[10px]">Exercices</span></button>
         <button onClick={() => setCurrentTab('workout')} className={`flex flex-col items-center gap-1 ${currentTab === 'workout' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}>
-          <div className="w-7 h-7 rounded-xl bg-orange-600 text-white flex items-center justify-center -mt-2 shadow-lg"><Plus className="w-4 h-4" /></div>
-          <span className="text-[9px]">Séance</span>
+          <div className="w-8 h-8 rounded-xl bg-orange-600 text-white flex items-center justify-center -mt-2.5 shadow-lg"><Plus className="w-5 h-5" /></div>
+          <span className="text-[10px]">Séance</span>
         </button>
-        <button onClick={() => setCurrentTab('institut')} className={`flex flex-col items-center gap-1 ${currentTab === 'institut' ? 'text-pink-500 font-bold' : 'text-neutral-500'}`}><Flower2 className="w-4 h-4" /><span className="text-[9px]">Madéro</span></button>
-        <button onClick={() => setCurrentTab('chat')} className={`flex flex-col items-center gap-1 ${currentTab === 'chat' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><MessageCircle className="w-4 h-4" /><span className="text-[9px]">Chat</span></button>
-        <button onClick={() => setCurrentTab('leaderboard')} className={`flex flex-col items-center gap-1 ${currentTab === 'leaderboard' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Trophy className="w-4 h-4" /><span className="text-[9px]">Records</span></button>
-        <button onClick={() => setCurrentTab('profile')} className={`flex flex-col items-center gap-1 ${currentTab === 'profile' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><User className="w-4 h-4" /><span className="text-[9px]">Profil</span></button>
+        <button onClick={() => setCurrentTab('chat')} className={`flex flex-col items-center gap-1 ${currentTab === 'chat' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><MessageCircle className="w-5 h-5" /><span className="text-[10px]">Chat</span></button>
+        <button onClick={() => setCurrentTab('leaderboard')} className={`flex flex-col items-center gap-1 ${currentTab === 'leaderboard' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Trophy className="w-5 h-5" /><span className="text-[10px]">Records</span></button>
+        <button onClick={() => setCurrentTab('profile')} className={`flex flex-col items-center gap-1 ${currentTab === 'profile' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><User className="w-5 h-5" /><span className="text-[10px]">Profil</span></button>
       </nav>
     </div>
   );
