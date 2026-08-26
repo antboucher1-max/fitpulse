@@ -42,7 +42,9 @@ import {
   Sparkles,
   SwitchCamera,
   FolderOpen,
-  Box
+  Box,
+  BookOpen,
+  Info
 } from 'lucide-react';
 import { createClient, User as SupabaseUser } from '@supabase/supabase-js';
 
@@ -74,6 +76,101 @@ const CLUBS_DATABASE: ClubLocation[] = [
   { name: 'Basic-Fit Liège (Saint-Lambert)', address: 'Place Saint-Lambert 32', city: 'Liège', zip: '4000', lat: 50.6452, lng: 5.5734 },
   { name: 'Basic-Fit Liège (Ans)', address: 'Chaussée du Roi Albert 7/13', city: 'Ans', zip: '4430', lat: 50.6548, lng: 5.5291 },
   { name: 'Basic-Fit Arlon (Hydrion)', address: "Parc Commercial de l'Hydrion 31b", city: 'Arlon', zip: '6700', lat: 49.6841, lng: 5.8173 }
+];
+
+// Base de données des exercices et explications des machines Basic-Fit
+interface ExerciseGuide {
+  id: string;
+  name: string;
+  category: 'Pectoraux' | 'Dos' | 'Jambes' | 'Épaules' | 'Bras' | 'Core';
+  equipment: string;
+  targetMuscles: string;
+  settings: string;
+  execution: string;
+  tips: string;
+}
+
+const EXERCISES_DATABASE: ExerciseGuide[] = [
+  {
+    id: 'ex-1',
+    name: 'Développé couché (Barre / Haltères)',
+    category: 'Pectoraux',
+    equipment: 'Banc de musculation & Barre olympique',
+    targetMuscles: 'Pectoraux, Triceps, Deltoïdes antérieurs',
+    settings: 'Régler le banc à plat. Allonge-toi les yeux sous la barre. Pieds bien à plat au sol.',
+    execution: 'Saisir la barre un peu plus large que les épaules. Descendre la barre de manière contrôlée jusqu’au milieu de la poitrine, puis pousser en expirant.',
+    tips: 'Garde les omoplates serrées contre le banc et évite de cambrer excessivement le dos.'
+  },
+  {
+    id: 'ex-2',
+    name: 'Développé chest press (Machine)',
+    category: 'Pectoraux',
+    equipment: 'Machine Chest Press convergente',
+    targetMuscles: 'Pectoraux, Triceps',
+    settings: 'Régler la hauteur du siège pour que les poignées soient alignées au milieu de ta poitrine.',
+    execution: 'Garde le dos bien collé au dossier. Pousse les poignées vers l’avant en tendant les bras sans verrouiller les coudes, puis reviens lentement.',
+    tips: 'Idéal pour l’isolation et la sécurité en fin de séance.'
+  },
+  {
+    id: 'ex-3',
+    name: 'Tirage vertical / Lat Pulldown',
+    category: 'Dos',
+    equipment: 'Poulie haute avec barre large',
+    targetMuscles: 'Grand dorsal, Biceps, Ronds majeurs',
+    settings: 'Ajuste les boudins de cuisses pour être bien calé. Saisis la barre avec une prise large.',
+    execution: 'Tire la barre vers le haut de ta poitrine en sortant la poitrine et en tirant les coudes vers le bas et l’arrière. Reviens en contrôlant la charge.',
+    tips: 'Évite de te pencher trop en arrière ; garde le buste légèrement incliné.'
+  },
+  {
+    id: 'ex-4',
+    name: 'Rowing poulie basse / Seated Row',
+    category: 'Dos',
+    equipment: 'Poulie basse',
+    targetMuscles: 'Trapèzes, Rhomboïdes, Grand dorsal, Biceps',
+    settings: 'Place tes pieds sur les cale-pieds, genoux légèrement fléchis. Saisis la poignée.',
+    execution: 'Tire la poignée vers ton nombril en gardant le dos droit. Resserre tes omoplates en fin de mouvement.',
+    tips: 'Ne arrondis surtout pas le bas du dos lors de la phase de relâchement.'
+  },
+  {
+    id: 'ex-5',
+    name: 'Squat à la machine (Guided / Smith)',
+    category: 'Jambes',
+    equipment: 'Machine Smith / Guidée ou Squat libre',
+    targetMuscles: 'Quadriceps, Fessiers,ischio-jambiers',
+    settings: 'Place la barre sur tes trapèzes (haut du dos). Élargissement des pieds largeur d’épaules.',
+    execution: 'Fléchis les genoux et descends les fesses vers l’arrière comme pour t’asseoir sur une chaise, le dos bien droit, puis remonte en poussant sur les talons.',
+    tips: 'Garde les genoux bien alignés dans l’axe des pointes de pieds.'
+  },
+  {
+    id: 'ex-6',
+    name: 'Leg Press (Presse à cuisses)',
+    category: 'Jambes',
+    equipment: 'Machine Leg Press inclinée',
+    targetMuscles: 'Quadriceps, Fessiers',
+    settings: 'Assieds-toi, place tes pieds au milieu de la plateforme largeur d’épaules. Déverrouille les sécurités.',
+    execution: 'Fléchis les jambes pour ramener le chariot vers toi (angle à 90° aux genoux) puis pousse puissamment sans tendre complètement les genoux.',
+    tips: 'Ne décolle jamais le bas du dos ou les talons du dossier pendant le mouvement.'
+  },
+  {
+    id: 'ex-7',
+    name: 'Élévations latérales (Haltères)',
+    category: 'Épaules',
+    equipment: 'Haltères légers',
+    targetMuscles: 'Deltoïdes latéraux (faisceau moyen)',
+    settings: 'Debout, un haltère dans chaque main le long du corps.',
+    execution: 'Monte les bras sur les côtés jusqu’à l’horizontale (niveau des épaules) en gardant une très légère flexion aux coudes.',
+    tips: 'Mouvement strict sans balancer le buste (évite de prendre trop lourd).'
+  },
+  {
+    id: 'ex-8',
+    name: 'Curl Biceps (Poulie ou Haltères)',
+    category: 'Bras',
+    equipment: 'Poulie basse ou Haltères',
+    targetMuscles: 'Biceps brachial, Brachial antérieur',
+    settings: 'Debout face à la poulie, saisis la barre droite ou la poignée.',
+    execution: 'Fléchis les coudes pour ramener la charge vers tes épaules en gardant les coudes fixes le long du corps.',
+    tips: 'Ne bouge pas les épaules vers l’avant.'
+  }
 ];
 
 const isMatchingClub = (postClubName?: string, selectedClubName?: string): boolean => {
@@ -242,7 +339,7 @@ export default function App() {
   const [clubSearchQuery, setClubSearchQuery] = useState('');
   const [authLoading, setAuthLoading] = useState(false);
 
-  const [currentTab, setCurrentTab] = useState<'feed' | 'buddy' | 'workout' | 'chat' | 'leaderboard' | 'profile'>('feed');
+  const [currentTab, setCurrentTab] = useState<'feed' | 'buddy' | 'workout' | 'exercises' | 'chat' | 'leaderboard' | 'profile'>('feed');
   const [selectedClub, setSelectedClub] = useState<string>('Basic-Fit Tournai (Bastion)');
 
   const [posts, setPosts] = useState<Post[]>([]);
@@ -251,7 +348,12 @@ export default function App() {
 
   const [active3DExercise, setActive3DExercise] = useState<string | null>(null);
 
-  // Membres et Amis & Filtres d'objectifs
+  // Guide des exercices & machines
+  const [exerciseSearch, setExerciseSearch] = useState('');
+  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>('Tous');
+  const [selectedExerciseDetail, setSelectedExerciseDetail] = useState<ExerciseGuide | null>(null);
+
+  // Membres et Amis & Filtres
   const [registeredUsers, setRegisteredUsers] = useState<RealUser[]>(DEFAULT_MEMBERS);
   const [friendIds, setFriendIds] = useState<string[]>(['b1', 'b2']);
   const [buddyTabSubMode, setBuddyTabSubMode] = useState<'discover' | 'my_friends'>('discover');
@@ -274,7 +376,7 @@ export default function App() {
   const [storyUploading, setStoryUploading] = useState(false);
   const storyFileInputRef = useRef<HTMLInputElement>(null);
 
-  // Workout Creation State
+  // Workout
   const [workoutType, setWorkoutType] = useState('Musculation (Push)');
   const [workoutCaption, setWorkoutCaption] = useState('');
   const [workoutDuration, setWorkoutDuration] = useState(60);
@@ -298,10 +400,6 @@ export default function App() {
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('environment');
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
-
-  // Rest Timer
-  const [timerSeconds, setTimerSeconds] = useState(90);
-  const [isTimerRunning, setIsTimerRunning] = useState(false);
 
   const [selectedBuddyChat, setSelectedBuddyChat] = useState<RealUser | null>(null);
   const [allMessages, setAllMessages] = useState<DBMessage[]>([]);
@@ -864,7 +962,7 @@ export default function App() {
               </div>
             </div>
 
-            {/* Posts Feed avec affichage complet des exercices et de la vue 3D */}
+            {/* Posts Feed */}
             {feedLoading ? (
               <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 text-orange-500 animate-spin" /></div>
             ) : displayedPosts.length === 0 ? (
@@ -893,7 +991,7 @@ export default function App() {
                   )}
                   {post.caption && <p className="text-xs text-neutral-200 leading-relaxed">{post.caption}</p>}
 
-                  {/* VISUALISEUR 3D & EXERCICES DE LA SÉANCE */}
+                  {/* EXERCICES & VISUALISEUR 3D */}
                   {post.exercises && post.exercises.length > 0 && (
                     <div className="bg-neutral-950/70 rounded-2xl p-3 border border-neutral-800/60 space-y-2">
                       <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block">Exercices & Vue 3D Anatomique</span>
@@ -946,6 +1044,77 @@ export default function App() {
               </button>
             </div>
           </form>
+        )}
+
+        {/* TAB 3: EXERCICES ET GUIDE DES MACHINES */}
+        {currentTab === 'exercises' && (
+          <div className="space-y-4">
+            <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-base font-black tracking-tight flex items-center gap-2">
+                    <BookOpen className="w-5 h-5 text-orange-500" /> Guide des Exercices & Machines
+                  </h2>
+                  <span className="text-[10px] text-neutral-400">Explications, réglages et posture idéale</span>
+                </div>
+              </div>
+
+              {/* Barre de recherche d'exercices */}
+              <div className="relative">
+                <Search className="absolute left-3.5 top-3.5 w-4 h-4 text-orange-500" />
+                <input
+                  type="text"
+                  placeholder="Rechercher un exercice ou une machine..."
+                  value={exerciseSearch}
+                  onChange={(e) => setExerciseSearch(e.target.value)}
+                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl pl-10 pr-3 py-3 text-xs text-white focus:outline-none focus:border-orange-500 shadow-inner"
+                />
+              </div>
+
+              {/* Filtres par catégorie musculaire */}
+              <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+                {['Tous', 'Pectoraux', 'Dos', 'Jambes', 'Épaules', 'Bras'].map((cat) => (
+                  <button
+                    key={cat}
+                    onClick={() => setSelectedCategoryFilter(cat)}
+                    className={`px-3 py-1.5 rounded-xl text-[11px] font-bold whitespace-nowrap transition border ${
+                      selectedCategoryFilter === cat
+                        ? 'bg-orange-500 text-white border-orange-400 shadow-md'
+                        : 'bg-neutral-950 text-neutral-400 border-neutral-800 hover:text-white'
+                    }`}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+
+              {/* Liste des exercices */}
+              <div className="space-y-2.5 pt-1">
+                {EXERCISES_DATABASE.filter((ex) => {
+                  const matchCat = selectedCategoryFilter === 'Tous' || ex.category === selectedCategoryFilter;
+                  const matchSearch = ex.name.toLowerCase().includes(exerciseSearch.toLowerCase()) || ex.targetMuscles.toLowerCase().includes(exerciseSearch.toLowerCase());
+                  return matchCat && matchSearch;
+                }).map((ex) => (
+                  <div
+                    key={ex.id}
+                    onClick={() => setSelectedExerciseDetail(ex)}
+                    className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 hover:border-orange-500/50 cursor-pointer transition flex items-center justify-between group"
+                  >
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-white group-hover:text-orange-400 transition">{ex.name}</span>
+                        <span className="text-[10px] bg-orange-500/10 text-orange-400 px-2 py-0.5 rounded-md border border-orange-500/20 font-medium">{ex.category}</span>
+                      </div>
+                      <p className="text-[11px] text-neutral-400">🎯 Cible : {ex.targetMuscles}</p>
+                    </div>
+                    <div className="w-8 h-8 rounded-xl bg-neutral-900 border border-neutral-800 flex items-center justify-center text-orange-400 group-hover:bg-orange-600 group-hover:text-white transition">
+                      <Info className="w-4 h-4" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
         )}
 
         {/* TAB 2: BUDDY */}
@@ -1164,6 +1333,52 @@ export default function App() {
         )}
       </main>
 
+      {/* MODAL FICHE EXPLICATIVE EXERCICE / MACHINE */}
+      {selectedExerciseDetail && (
+        <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex flex-col justify-end sm:justify-center p-4">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-lg w-full mx-auto p-6 space-y-4 max-h-[85vh] overflow-y-auto shadow-2xl">
+            <div className="flex items-center justify-between pb-3 border-b border-neutral-800">
+              <div className="flex items-center gap-2">
+                <span className="text-xs bg-orange-500/20 text-orange-400 px-2.5 py-1 rounded-lg font-bold">{selectedExerciseDetail.category}</span>
+                <h3 className="text-base font-black text-white">{selectedExerciseDetail.name}</h3>
+              </div>
+              <button onClick={() => setSelectedExerciseDetail(null)} className="p-1.5 bg-neutral-800 text-white rounded-full"><X className="w-5 h-5" /></button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div className="bg-neutral-950 p-3.5 rounded-2xl border border-neutral-800/80 space-y-1">
+                <span className="font-bold text-orange-400 uppercase text-[10px] tracking-wider block">Équipement & Matériel</span>
+                <p className="text-neutral-200">{selectedExerciseDetail.equipment}</p>
+              </div>
+
+              <div className="bg-neutral-950 p-3.5 rounded-2xl border border-neutral-800/80 space-y-1">
+                <span className="font-bold text-orange-400 uppercase text-[10px] tracking-wider block">Muscles Ciblés</span>
+                <p className="text-neutral-200">{selectedExerciseDetail.targetMuscles}</p>
+              </div>
+
+              <div className="bg-neutral-950 p-3.5 rounded-2xl border border-neutral-800/80 space-y-1">
+                <span className="font-bold text-orange-400 uppercase text-[10px] tracking-wider block">Réglages de la Machine</span>
+                <p className="text-neutral-200">{selectedExerciseDetail.settings}</p>
+              </div>
+
+              <div className="bg-neutral-950 p-3.5 rounded-2xl border border-neutral-800/80 space-y-1">
+                <span className="font-bold text-orange-400 uppercase text-[10px] tracking-wider block">Exécution du Mouvement</span>
+                <p className="text-neutral-200 leading-relaxed">{selectedExerciseDetail.execution}</p>
+              </div>
+
+              <div className="bg-orange-950/20 p-3.5 rounded-2xl border border-orange-500/20 space-y-1">
+                <span className="font-bold text-orange-400 uppercase text-[10px] tracking-wider block">Conseil Coach</span>
+                <p className="text-neutral-200 italic">{selectedExerciseDetail.tips}</p>
+              </div>
+            </div>
+
+            <button onClick={() => setSelectedExerciseDetail(null)} className="w-full py-3 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-xl text-xs transition">
+              Fermer la fiche
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* MODAL VISUALISEUR 3D */}
       {active3DExercise && (
         <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex flex-col justify-between p-4">
@@ -1304,15 +1519,16 @@ export default function App() {
         </div>
       )}
 
+      {/* BOTTOM NAV AVEC L'ONGLET EXERCICES */}
       <nav className="fixed bottom-0 left-0 right-0 z-40 bg-neutral-950/90 backdrop-blur-xl border-t border-neutral-800/80 px-4 py-2 flex justify-around items-center">
         <button onClick={() => setCurrentTab('feed')} className={`flex flex-col items-center gap-1 ${currentTab === 'feed' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Home className="w-5 h-5" /><span className="text-[10px]">Accueil</span></button>
         <button onClick={() => setCurrentTab('buddy')} className={`flex flex-col items-center gap-1 ${currentTab === 'buddy' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Users className="w-5 h-5" /><span className="text-[10px]">Buddy</span></button>
+        <button onClick={() => setCurrentTab('exercises')} className={`flex flex-col items-center gap-1 ${currentTab === 'exercises' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><BookOpen className="w-5 h-5" /><span className="text-[10px]">Exercices</span></button>
         <button onClick={() => setCurrentTab('workout')} className={`flex flex-col items-center gap-1 ${currentTab === 'workout' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}>
           <div className="w-8 h-8 rounded-xl bg-orange-600 text-white flex items-center justify-center -mt-2.5 shadow-lg"><Plus className="w-5 h-5" /></div>
           <span className="text-[10px]">Séance</span>
         </button>
         <button onClick={() => setCurrentTab('chat')} className={`flex flex-col items-center gap-1 ${currentTab === 'chat' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><MessageCircle className="w-5 h-5" /><span className="text-[10px]">Chat</span></button>
-        <button onClick={() => setCurrentTab('leaderboard')} className={`flex flex-col items-center gap-1 ${currentTab === 'leaderboard' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Trophy className="w-5 h-5" /><span className="text-[10px]">Records</span></button>
         <button onClick={() => setCurrentTab('profile')} className={`flex flex-col items-center gap-1 ${currentTab === 'profile' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><User className="w-5 h-5" /><span className="text-[10px]">Profil</span></button>
       </nav>
     </div>
