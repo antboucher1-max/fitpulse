@@ -39,7 +39,9 @@ import {
   Navigation,
   CheckCircle2,
   Building2,
-  Sparkles
+  Sparkles,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { createClient, User as SupabaseUser } from '@supabase/supabase-js';
 
@@ -330,7 +332,7 @@ export default function App() {
   const [feedLoading, setFeedLoading] = useState(false);
   const [likedPosts, setLikedPosts] = useState<Record<string, boolean>>({});
 
-  // Stories State
+  // Stories State & 24H Logic
   const [stories, setStories] = useState<Story[]>([
     {
       id: 'demo-s1',
@@ -340,7 +342,7 @@ export default function App() {
       image_url: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?w=800',
       caption: 'Prêt pour exploser le PR au dev couché 🔥',
       club_name: 'Basic-Fit Tournai (Bastion)',
-      created_at: 'Il y a 2h'
+      created_at: new Date(Date.now() - 2 * 3600 * 1000).toISOString() // Il y a 2h
     },
     {
       id: 'demo-s2',
@@ -350,10 +352,12 @@ export default function App() {
       image_url: 'https://images.unsplash.com/photo-1518611012118-696072aa579a?w=800',
       caption: 'Fin de séance HIIT cardio, les jambes en feu 💦',
       club_name: 'Basic-Fit Tournai (Bastion)',
-      created_at: 'Il y a 4h'
+      created_at: new Date(Date.now() - 5 * 3600 * 1000).toISOString() // Il y a 5h
     }
   ]);
-  const [activeViewingStory, setActiveViewingStory] = useState<Story | null>(null);
+  const [viewedStoryIds, setViewedStoryIds] = useState<string[]>([]);
+  const [activeStoryIndex, setActiveStoryIndex] = useState<number | null>(null);
+  const [storyProgress, setStoryProgress] = useState(0);
   const [isCreatingStory, setIsCreatingStory] = useState(false);
   const [storyImageFile, setStoryImageFile] = useState<File | null>(null);
   const [storyImagePreview, setStoryImagePreview] = useState<string | null>(null);
@@ -530,10 +534,18 @@ export default function App() {
     setFeedLoading(false);
   };
 
+  // Filtrage et nettoyage automatique des stories > 24 heures
   const fetchCloudStories = async () => {
+    const twentyFourHoursAgo = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
+
+    // 1. Supprimer en base celles qui ont dépassé 24h
+    await supabase.from('stories').delete().lt('created_at', twentyFourHoursAgo);
+
+    // 2. Récupérer uniquement les stories actives (< 24h)
     const { data, error } = await supabase
       .from('stories')
       .select('*')
+      .gte('created_at', twentyFourHoursAgo)
       .order('created_at', { ascending: false });
 
     if (!error && data && data.length > 0) {
@@ -565,6 +577,56 @@ export default function App() {
       if (interval) clearInterval(interval);
     };
   }, [isTimerRunning, timerSeconds]);
+
+  // Chronomètre de défilement automatique des stories (5 secondes)
+  useEffect(() => {
+    if (activeStoryIndex === null) {
+      setStoryProgress(0);
+      return;
+    }
+
+    const currentStory = validStories[activeStoryIndex];
+    if (currentStory && !viewedStoryIds.includes(currentStory.id)) {
+      setViewedStoryIds((prev) => [...prev, currentStory.id]);
+    }
+
+    const interval = 50; // 50ms interval
+    const step = (interval / 5000) * 100; // 5000ms total duration
+
+    const timer = setInterval(() => {
+      setStoryProgress((prev) => {
+        if (prev >= 100) {
+          handleNextStory();
+          return 0;
+        }
+        return prev + step;
+      });
+    }, interval);
+
+    return () => clearInterval(timer);
+  }, [activeStoryIndex]);
+
+  // Passage à la story suivante
+  const handleNextStory = () => {
+    if (activeStoryIndex === null) return;
+    if (activeStoryIndex < validStories.length - 1) {
+      setActiveStoryIndex(activeStoryIndex + 1);
+      setStoryProgress(0);
+    } else {
+      setActiveStoryIndex(null); // Fin des stories
+    }
+  };
+
+  // Retour à la story précédente
+  const handlePrevStory = () => {
+    if (activeStoryIndex === null) return;
+    if (activeStoryIndex > 0) {
+      setActiveStoryIndex(activeStoryIndex - 1);
+      setStoryProgress(0);
+    } else {
+      setStoryProgress(0);
+    }
+  };
 
   const handleDetectGPS = () => {
     if (!navigator.geolocation) {
@@ -728,7 +790,7 @@ export default function App() {
       image_url: uploadedStoryUrl,
       caption: storyCaption,
       club_name: selectedClub,
-      created_at: "À l'instant"
+      created_at: new Date().toISOString()
     };
 
     const { data } = await supabase.from('stories').insert([{
@@ -932,6 +994,13 @@ export default function App() {
   const myFriendsList = buddiesList.filter((b) => friendIds.includes(b.id));
   const friendRequestsList = buddiesList.filter((b) => friendRequestsReceived.includes(b.id));
 
+  // Filtrage des Stories actives (< 24h)
+  const twentyFourHoursAgoMs = Date.now() - 24 * 3600 * 1000;
+  const validStories = stories.filter((s) => {
+    const storyDate = new Date(s.created_at).getTime();
+    return !isNaN(storyDate) ? storyDate >= twentyFourHoursAgoMs : true;
+  });
+
   const filteredBuddies = buddiesList.filter((buddy) => {
     if (buddyTabSubMode === 'my_friends') return friendIds.includes(buddy.id);
     if (!isMatchingClub(buddy.club, selectedClub)) return false;
@@ -959,6 +1028,8 @@ export default function App() {
       ((m.sender_id === user.id && m.receiver_id === selectedBuddyChat.id) ||
         (m.sender_id === selectedBuddyChat.id && m.receiver_id === user.id))
   );
+
+  const activeViewingStory = activeStoryIndex !== null ? validStories[activeStoryIndex] : null;
 
   if (!user) {
     return (
@@ -1198,11 +1269,11 @@ export default function App() {
 
       {/* Main Screen Container */}
       <main className="flex-1 max-w-lg w-full mx-auto px-4 py-3 pb-24">
-        {/* TAB 1: FEED AVEC STORIES INSTAGRAM */}
+        {/* TAB 1: FEED AVEC STORIES INSTAGRAM DYNAMIQUES */}
         {currentTab === 'feed' && (
           <div className="space-y-4">
             
-            {/* STORIES ROW (STYLE INSTAGRAM) */}
+            {/* STORIES ROW (STYLE INSTAGRAM AVEC ÉTAT VU/NON-VU ET 24H) */}
             <div className="bg-neutral-900/60 border border-neutral-800/80 rounded-3xl p-3">
               <div className="flex items-center gap-3.5 overflow-x-auto no-scrollbar py-1">
                 
@@ -1223,26 +1294,40 @@ export default function App() {
                 </div>
 
                 {/* Bulles Stories des Amis */}
-                {stories.map((story) => (
-                  <div
-                    key={story.id}
-                    onClick={() => setActiveViewingStory(story)}
-                    className="flex flex-col items-center gap-1.5 flex-shrink-0 cursor-pointer"
-                  >
-                    <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-orange-500 via-pink-500 to-amber-400 p-[2.5px] shadow-sm hover:scale-105 transition transform">
-                      <div className="w-full h-full bg-neutral-950 rounded-full p-[2px]">
-                        <img
-                          src={story.avatar_url}
-                          alt={story.username}
-                          className="w-full h-full rounded-full object-cover"
-                        />
+                {validStories.map((story, index) => {
+                  const isViewed = viewedStoryIds.includes(story.id);
+
+                  return (
+                    <div
+                      key={story.id}
+                      onClick={() => {
+                        setActiveStoryIndex(index);
+                        setStoryProgress(0);
+                      }}
+                      className="flex flex-col items-center gap-1.5 flex-shrink-0 cursor-pointer"
+                    >
+                      {/* Anneau gradient Instagram si non vu, ou gris discret si déjà vu */}
+                      <div
+                        className={`w-16 h-16 rounded-full p-[2.5px] transition transform hover:scale-105 ${
+                          isViewed
+                            ? 'border-2 border-neutral-700 p-[1px]'
+                            : 'bg-gradient-to-tr from-orange-500 via-pink-500 to-amber-400 shadow-sm'
+                        }`}
+                      >
+                        <div className="w-full h-full bg-neutral-950 rounded-full p-[2px]">
+                          <img
+                            src={story.avatar_url}
+                            alt={story.username}
+                            className="w-full h-full rounded-full object-cover"
+                          />
+                        </div>
                       </div>
+                      <span className="text-[10px] font-medium text-neutral-300 truncate max-w-[64px] text-center">
+                        {story.username.split(' ')[0]}
+                      </span>
                     </div>
-                    <span className="text-[10px] font-medium text-neutral-300 truncate max-w-[64px] text-center">
-                      {story.username.split(' ')[0]}
-                    </span>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
 
@@ -2094,36 +2179,68 @@ export default function App() {
         )}
       </main>
 
-      {/* MODAL 1 : VISUALISEUR PLEIN ÉCRAN DE STORY (INSTAGRAM STYLE) */}
-      {activeViewingStory && (
+      {/* LECTEUR DE STORY PLEIN ÉCRAN INSTAGRAM-STYLE (AVEC TOUCHES GAUCHE/DROITE ET PROGRESSION) */}
+      {activeViewingStory && activeStoryIndex !== null && (
         <div className="fixed inset-0 z-50 bg-black flex flex-col justify-between p-4 animate-fade-in select-none">
-          {/* Barre de progression story */}
-          <div className="w-full flex items-center gap-1 pt-2">
-            <div className="h-1 bg-white rounded-full flex-1 animate-pulse" />
+          {/* Barres de progression multiples en haut */}
+          <div className="w-full flex items-center gap-1.5 pt-2 z-20">
+            {validStories.map((_, idx) => (
+              <div key={idx} className="h-1 bg-white/30 rounded-full flex-1 overflow-hidden">
+                <div
+                  className="h-full bg-white transition-all ease-linear"
+                  style={{
+                    width:
+                      idx < activeStoryIndex
+                        ? '100%'
+                        : idx === activeStoryIndex
+                        ? `${storyProgress}%`
+                        : '0%'
+                  }}
+                />
+              </div>
+            ))}
           </div>
 
           {/* En-tête de la Story */}
-          <div className="flex items-center justify-between pt-2">
+          <div className="flex items-center justify-between pt-3 z-20">
             <div className="flex items-center gap-2.5">
-              <img src={activeViewingStory.avatar_url} alt="" className="w-10 h-10 rounded-full object-cover border-2 border-orange-500" />
+              <img
+                src={activeViewingStory.avatar_url}
+                alt=""
+                className="w-10 h-10 rounded-full object-cover border-2 border-orange-500"
+              />
               <div>
                 <h4 className="font-bold text-xs text-white leading-tight">{activeViewingStory.username}</h4>
                 <span className="text-[10px] text-neutral-400">
                   {activeViewingStory.club_name ? `${activeViewingStory.club_name.replace('Basic-Fit ', '')} • ` : ''}
-                  {activeViewingStory.created_at}
+                  {new Date(activeViewingStory.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </span>
               </div>
             </div>
             <button
-              onClick={() => setActiveViewingStory(null)}
+              onClick={() => setActiveStoryIndex(null)}
               className="p-2 bg-black/60 backdrop-blur-md rounded-full text-neutral-300 hover:text-white transition"
             >
               <X className="w-6 h-6" />
             </button>
           </div>
 
-          {/* Photo de la Story */}
-          <div className="flex-1 flex items-center justify-center py-4">
+          {/* Zones tactiles Invisibles Gauche / Droite pour passer les stories */}
+          <div className="absolute inset-0 z-10 flex">
+            {/* Côté Gauche : Story précédente */}
+            <div
+              className="w-1/3 h-full cursor-pointer"
+              onClick={handlePrevStory}
+            />
+            {/* Côté Droit : Story suivante */}
+            <div
+              className="w-2/3 h-full cursor-pointer"
+              onClick={handleNextStory}
+            />
+          </div>
+
+          {/* Image de la Story */}
+          <div className="flex-1 flex items-center justify-center py-4 z-0 pointer-events-none">
             <img
               src={activeViewingStory.image_url}
               alt="Story"
@@ -2133,7 +2250,7 @@ export default function App() {
 
           {/* Légende / Bas de la Story */}
           {activeViewingStory.caption && (
-            <div className="bg-neutral-950/80 backdrop-blur-lg p-3.5 rounded-2xl border border-neutral-800 text-center mb-4">
+            <div className="bg-neutral-950/80 backdrop-blur-lg p-3.5 rounded-2xl border border-neutral-800 text-center mb-4 z-20">
               <p className="text-xs text-neutral-100 font-medium">{activeViewingStory.caption}</p>
             </div>
           )}
@@ -2146,7 +2263,7 @@ export default function App() {
           <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-md w-full p-5 space-y-4">
             <div className="flex items-center justify-between pb-2 border-b border-neutral-800">
               <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-orange-500" /> Ajouter à ma story
+                <Sparkles className="w-4 h-4 text-orange-500" /> Ajouter à ma story (24h)
               </h3>
               <button onClick={() => setIsCreatingStory(false)} className="p-1 text-neutral-400 hover:text-white">
                 <X className="w-5 h-5" />
@@ -2191,7 +2308,7 @@ export default function App() {
                 <label className="block text-[11px] font-semibold text-neutral-400 mb-1">Texte / Humeur</label>
                 <input
                   type="text"
-                  placeholder="Ex: Séance pectoraux au top aujourd'hui ! 🔥"
+                  placeholder="Ex: Prêt pour la séance de ce soir ! 🔥"
                   value={storyCaption}
                   onChange={(e) => setStoryCaption(e.target.value)}
                   className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-orange-500"
@@ -2203,7 +2320,7 @@ export default function App() {
                 disabled={storyUploading || !storyImageFile}
                 className="w-full bg-gradient-to-r from-orange-600 to-orange-500 hover:from-orange-500 hover:to-orange-400 disabled:opacity-50 text-white font-bold py-3 rounded-xl shadow-lg shadow-orange-500/20 transition flex items-center justify-center gap-2 text-xs"
               >
-                {storyUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Partager ma story"}
+                {storyUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Partager ma story (24h)"}
               </button>
             </form>
           </div>
