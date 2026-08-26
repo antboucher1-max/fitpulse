@@ -383,7 +383,40 @@ export default function App() {
 
   const [posts, setPosts] = useState<Post[]>([]);
   const [feedLoading, setFeedLoading] = useState(false);
-  const [likedPosts, setLikedPosts] = useState<Record<string, boolean>>({});
+
+  // GESTION DU LOCAL STORAGE POUR ÉVITER LES DOUBLES LIKES AU RAFRAICHISSEMENT
+  const [likedPosts, setLikedPosts] = useState<Record<string, boolean>>(() => {
+    try {
+      const saved = localStorage.getItem('fitpulse_liked_posts');
+      return saved ? JSON.parse(saved) : {};
+    } catch { return {}; }
+  });
+
+  const [likedStories, setLikedStories] = useState<Record<string, boolean>>(() => {
+    try {
+      const saved = localStorage.getItem('fitpulse_liked_stories');
+      return saved ? JSON.parse(saved) : {};
+    } catch { return {}; }
+  });
+
+  const [viewedStoryIds, setViewedStoryIds] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('fitpulse_viewed_stories');
+      return saved ? JSON.parse(saved) : [];
+    } catch { return []; }
+  });
+
+  useEffect(() => {
+    localStorage.setItem('fitpulse_liked_posts', JSON.stringify(likedPosts));
+  }, [likedPosts]);
+
+  useEffect(() => {
+    localStorage.setItem('fitpulse_liked_stories', JSON.stringify(likedStories));
+  }, [likedStories]);
+
+  useEffect(() => {
+    localStorage.setItem('fitpulse_viewed_stories', JSON.stringify(viewedStoryIds));
+  }, [viewedStoryIds]);
 
   const [active3DExercise, setActive3DExercise] = useState<string | null>(null);
 
@@ -423,11 +456,9 @@ export default function App() {
 
   // Stories
   const [cloudStories, setCloudStories] = useState<Story[]>([]);
-  const [viewedStoryIds, setViewedStoryIds] = useState<string[]>([]);
   const [activeStoryIndex, setActiveStoryIndex] = useState<number | null>(null);
   const [storyProgress, setStoryProgress] = useState(0);
   const [isStoryPaused, setIsStoryPaused] = useState(false);
-  const [likedStories, setLikedStories] = useState<Record<string, boolean>>({});
   const [storyCommentInput, setStoryCommentInput] = useState('');
   const [isCreatingStory, setIsCreatingStory] = useState(false);
   const [storyImageFile, setStoryImageFile] = useState<File | null>(null);
@@ -640,7 +671,7 @@ export default function App() {
     setPosts((prev) =>
       prev.map((p) => {
         if (p.id === postId) {
-          const newCount = isLiked ? p.likes_count - 1 : p.likes_count + 1;
+          const newCount = isLiked ? Math.max(0, p.likes_count - 1) : p.likes_count + 1;
           supabase.from('posts').update({ likes_count: newCount }).eq('id', postId);
           return { ...p, likes_count: newCount };
         }
