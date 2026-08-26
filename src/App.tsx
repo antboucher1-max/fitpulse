@@ -24,8 +24,12 @@ import {
   Play,
   Pause,
   RotateCcw,
-  Image as ImageIcon,
-  X
+  Users,
+  MessageCircle,
+  X,
+  Sparkles,
+  ChevronRight,
+  SendHorizontal
 } from 'lucide-react';
 import { createClient, User as SupabaseUser } from '@supabase/supabase-js';
 
@@ -39,6 +43,14 @@ interface ExerciseEntry {
   sets: number;
   reps: number;
   weight: number;
+}
+
+interface Comment {
+  id: string;
+  username: string;
+  avatar_url: string;
+  text: string;
+  created_at: string;
 }
 
 interface Post {
@@ -55,7 +67,26 @@ interface Post {
   exercises: ExerciseEntry[];
   likes_count: number;
   comments_count: number;
+  comments?: Comment[];
   created_at: string;
+}
+
+interface Buddy {
+  id: string;
+  name: string;
+  avatar_url: string;
+  level: string;
+  schedule: string;
+  goal: string;
+  club: string;
+}
+
+interface DirectMessage {
+  id: string;
+  sender: string;
+  text: string;
+  time: string;
+  isMe: boolean;
 }
 
 export default function App() {
@@ -66,14 +97,18 @@ export default function App() {
   const [isSignUp, setIsSignUp] = useState(false);
   const [authLoading, setAuthLoading] = useState(false);
 
-  // Navigation
-  const [currentTab, setCurrentTab] = useState<'feed' | 'workout' | 'leaderboard' | 'profile'>('feed');
+  // Navigation: feed, buddy, workout, chat, leaderboard, profile
+  const [currentTab, setCurrentTab] = useState<'feed' | 'buddy' | 'workout' | 'chat' | 'leaderboard' | 'profile'>('feed');
   const [selectedClub, setSelectedClub] = useState<string>('Basic-Fit Tournai');
 
-  // Feed State
+  // Posts Feed & Likes
   const [posts, setPosts] = useState<Post[]>([]);
   const [feedLoading, setFeedLoading] = useState(false);
   const [likedPosts, setLikedPosts] = useState<Record<string, boolean>>({});
+
+  // Comments Drawer State
+  const [activeCommentPostId, setActiveCommentPostId] = useState<string | null>(null);
+  const [commentInput, setCommentInput] = useState('');
 
   // Workout & Photo Form State
   const [workoutType, setWorkoutType] = useState('Musculation (Push)');
@@ -87,10 +122,55 @@ export default function App() {
   const [submittingWorkout, setSubmittingWorkout] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Timer State
+  // Rest Timer State
   const [timerSeconds, setTimerSeconds] = useState(90);
   const [isTimerRunning, setIsTimerRunning] = useState(false);
   const [initialTime, setInitialTime] = useState(90);
+
+  // Buddy Finder List
+  const buddiesList: Buddy[] = [
+    {
+      id: 'b1',
+      name: 'Thomas D.',
+      avatar_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150',
+      level: 'Intermédiaire / Avancé',
+      schedule: 'Lun, Mer, Ven (18h-20h)',
+      goal: 'Prise de masse & Force (Push/Pull/Legs)',
+      club: 'Basic-Fit Tournai'
+    },
+    {
+      id: 'b2',
+      name: 'Sarah L.',
+      avatar_url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150',
+      level: 'Tous niveaux',
+      schedule: 'Mardi & Jeudi (12h-13h30)',
+      goal: 'Cardio, HIIT & Renforcement',
+      club: 'Basic-Fit Tournai'
+    },
+    {
+      id: 'b3',
+      name: 'Maxime V.',
+      avatar_url: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150',
+      level: 'Powerlifting',
+      schedule: 'Samedi & Dimanche matin',
+      goal: 'Big 3 (Squat / Bench / Deadlift)',
+      club: 'Basic-Fit Froyennes'
+    }
+  ];
+
+  // Chat State
+  const [selectedBuddyChat, setSelectedBuddyChat] = useState<Buddy>(buddiesList[0]);
+  const [messages, setMessages] = useState<Record<string, DirectMessage[]>>({
+    b1: [
+      { id: '1', sender: 'Thomas D.', text: 'Salut ! Tu t’entraînes aujourd’hui à Tournai ?', time: '10:15', isMe: false },
+      { id: '2', sender: 'Moi', text: 'Salut Thomas ! Oui, séance Push prévue vers 18h.', time: '10:18', isMe: true },
+      { id: '3', sender: 'Thomas D.', text: 'Top, je serai sur le banc de dev couché, on tourne ensemble ?', time: '10:20', isMe: false }
+    ],
+    b2: [
+      { id: '1', sender: 'Sarah L.', text: 'Hello ! Dispo pour une séance fractionné demain midi ?', time: 'Hier', isMe: false }
+    ]
+  });
+  const [currentMessageInput, setCurrentMessageInput] = useState('');
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -144,10 +224,14 @@ export default function App() {
           exercises: [
             { name: 'Développé couché', sets: 4, reps: 8, weight: 100 },
             { name: 'Écarté incliné', sets: 3, reps: 12, weight: 26 },
-            { name: 'Dips machine', sets: 3, reps: 10, weight: 85 }
+            { name: 'Dips lestés', sets: 3, reps: 10, weight: 15 }
           ],
-          likes_count: 18,
-          comments_count: 4,
+          likes_count: 23,
+          comments_count: 2,
+          comments: [
+            { id: 'c1', username: 'Thomas_G', avatar_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150', text: 'Propre la barre à 100kg ! 💪', created_at: 'Il y a 1h' },
+            { id: 'c2', username: 'Sarah_L', avatar_url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150', text: 'Gros mental ! 🔥', created_at: 'Il y a 30m' }
+          ],
           created_at: 'Il y a 2h'
         },
         {
@@ -158,16 +242,19 @@ export default function App() {
           image_url: 'https://images.unsplash.com/photo-1574680096145-d05b474e2155?w=800',
           club_name: 'Basic-Fit Tournai',
           session_type: 'Leg Day',
-          caption: 'Séance focus fessiers et ischios terminée. Fin de séance avec 15 min de tapis incliné.',
+          caption: 'Séance focus fessiers et ischios terminée. 600 calories au compteur.',
           duration_minutes: 65,
-          calories_burned: 580,
+          calories_burned: 600,
           exercises: [
-            { name: 'Squat guidé', sets: 4, reps: 10, weight: 70 },
-            { name: 'Hip Thrust', sets: 4, reps: 12, weight: 110 },
-            { name: 'Presse 45°', sets: 3, reps: 15, weight: 140 }
+            { name: 'Squat guidé', sets: 4, reps: 10, weight: 75 },
+            { name: 'Hip Thrust', sets: 4, reps: 12, weight: 115 },
+            { name: 'Presse 45°', sets: 3, reps: 15, weight: 150 }
           ],
-          likes_count: 24,
-          comments_count: 6,
+          likes_count: 31,
+          comments_count: 1,
+          comments: [
+            { id: 'c3', username: 'Alex_Fit', avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150', text: 'La charge au hip thrust impressionnante 👏', created_at: 'Il y a 3h' }
+          ],
           created_at: 'Il y a 5h'
         }
       ]);
@@ -218,6 +305,50 @@ export default function App() {
     );
   };
 
+  const handleAddComment = (postId: string) => {
+    if (!commentInput.trim()) return;
+    const newComment: Comment = {
+      id: String(Date.now()),
+      username: user?.user_metadata?.username || user?.email?.split('@')[0] || 'Moi',
+      avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+      text: commentInput,
+      created_at: "À l'instant"
+    };
+
+    setPosts((prev) =>
+      prev.map((p) => {
+        if (p.id === postId) {
+          const updatedComments = [...(p.comments || []), newComment];
+          return {
+            ...p,
+            comments: updatedComments,
+            comments_count: (p.comments_count || 0) + 1
+          };
+        }
+        return p;
+      })
+    );
+    setCommentInput('');
+  };
+
+  const handleSendMessage = () => {
+    if (!currentMessageInput.trim()) return;
+    const buddyId = selectedBuddyChat.id;
+    const newMsg: DirectMessage = {
+      id: String(Date.now()),
+      sender: 'Moi',
+      text: currentMessageInput,
+      time: 'À l’instant',
+      isMe: true
+    };
+
+    setMessages((prev) => ({
+      ...prev,
+      [buddyId]: [...(prev[buddyId] || []), newMsg]
+    }));
+    setCurrentMessageInput('');
+  };
+
   const addExerciseRow = () => {
     setWorkoutExercises([
       ...workoutExercises,
@@ -242,7 +373,8 @@ export default function App() {
 
     const validExercises = workoutExercises.filter((e) => e.name.trim() !== '');
 
-    const newPost: Partial<Post> = {
+    const newPost: Post = {
+      id: String(Date.now()),
       user_id: user.id,
       username: user.user_metadata?.username || user.email?.split('@')[0] || 'Athlète',
       avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
@@ -254,29 +386,18 @@ export default function App() {
       calories_burned: workoutCalories,
       exercises: validExercises,
       likes_count: 0,
-      comments_count: 0
+      comments_count: 0,
+      comments: [],
+      created_at: "À l'instant"
     };
 
-    const { error } = await supabase.from('posts').insert([newPost]);
+    await supabase.from('posts').insert([newPost]);
 
-    if (!error) {
-      setWorkoutCaption('');
-      setPostImage(null);
-      setWorkoutExercises([{ name: '', sets: 3, reps: 10, weight: 20 }]);
-      setCurrentTab('feed');
-      fetchPosts();
-    } else {
-      setPosts([
-        {
-          ...(newPost as Post),
-          id: String(Date.now()),
-          created_at: "À l'instant"
-        },
-        ...posts
-      ]);
-      setPostImage(null);
-      setCurrentTab('feed');
-    }
+    setPosts([newPost, ...posts]);
+    setWorkoutCaption('');
+    setPostImage(null);
+    setWorkoutExercises([{ name: '', sets: 3, reps: 10, weight: 20 }]);
+    setCurrentTab('feed');
     setSubmittingWorkout(false);
   };
 
@@ -360,6 +481,8 @@ export default function App() {
     );
   }
 
+  const activePostForComments = posts.find((p) => p.id === activeCommentPostId);
+
   return (
     <div className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col font-sans">
       {/* Top Header */}
@@ -385,9 +508,9 @@ export default function App() {
         </select>
       </header>
 
-      {/* Main Screen */}
+      {/* Main Screen Container */}
       <main className="flex-1 max-w-lg w-full mx-auto px-4 py-4 pb-24">
-        {/* FEED TAB */}
+        {/* TAB 1: FEED */}
         {currentTab === 'feed' && (
           <div className="space-y-4">
             {/* Rest Timer Banner */}
@@ -433,7 +556,7 @@ export default function App() {
                     key={post.id}
                     className="bg-neutral-900/70 border border-neutral-800 rounded-3xl p-4 space-y-3 shadow-sm overflow-hidden"
                   >
-                    {/* Header */}
+                    {/* Post Header */}
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <img
@@ -454,14 +577,10 @@ export default function App() {
                       </span>
                     </div>
 
-                    {/* Image / Photo */}
+                    {/* Image */}
                     {post.image_url && (
                       <div className="rounded-2xl overflow-hidden border border-neutral-800 max-h-80 bg-neutral-950">
-                        <img
-                          src={post.image_url}
-                          alt="Séance"
-                          className="w-full h-full object-cover"
-                        />
+                        <img src={post.image_url} alt="Séance" className="w-full h-full object-cover" />
                       </div>
                     )}
 
@@ -470,7 +589,7 @@ export default function App() {
                       <p className="text-xs text-neutral-200 leading-relaxed">{post.caption}</p>
                     )}
 
-                    {/* Badges */}
+                    {/* Metrics Badges */}
                     <div className="flex items-center gap-2">
                       <span className="flex items-center gap-1 text-[11px] bg-neutral-950 px-2.5 py-1 rounded-lg border border-neutral-800 text-neutral-300">
                         <Clock className="w-3 h-3 text-orange-500" />
@@ -482,7 +601,7 @@ export default function App() {
                       </span>
                     </div>
 
-                    {/* Exercises */}
+                    {/* Exercises Details */}
                     {post.exercises && post.exercises.length > 0 && (
                       <div className="bg-neutral-950/70 rounded-2xl p-3 border border-neutral-800/60 space-y-1.5">
                         <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">
@@ -502,7 +621,7 @@ export default function App() {
                       </div>
                     )}
 
-                    {/* Actions */}
+                    {/* Post Interactions */}
                     <div className="flex items-center justify-between pt-2 border-t border-neutral-800/60 text-neutral-400 text-xs">
                       <button
                         onClick={() => handleToggleLike(post.id)}
@@ -513,9 +632,12 @@ export default function App() {
                         <Heart className={`w-4 h-4 ${isLiked ? 'fill-red-500' : ''}`} />
                         <span>{post.likes_count}</span>
                       </button>
-                      <button className="flex items-center gap-1.5 hover:text-neutral-200 font-medium transition">
+                      <button
+                        onClick={() => setActiveCommentPostId(post.id)}
+                        className="flex items-center gap-1.5 hover:text-orange-400 font-medium transition"
+                      >
                         <MessageSquare className="w-4 h-4" />
-                        <span>{post.comments_count}</span>
+                        <span>{post.comments_count || post.comments?.length || 0} commentaires</span>
                       </button>
                       <button className="flex items-center gap-1.5 hover:text-neutral-200 transition">
                         <Share2 className="w-4 h-4" />
@@ -528,15 +650,63 @@ export default function App() {
           </div>
         )}
 
-        {/* WORKOUT / CREATE TAB */}
+        {/* TAB 2: WORKOUT BUDDY FINDER */}
+        {currentTab === 'buddy' && (
+          <div className="space-y-4">
+            <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4">
+              <div className="flex items-center gap-2">
+                <Users className="w-5 h-5 text-orange-500" />
+                <h2 className="text-base font-black tracking-tight">Trouver un Workout Buddy ({selectedClub})</h2>
+              </div>
+              <p className="text-xs text-neutral-400">
+                Connecte-toi avec des partenaires de même niveau qui s'entraînent aux mêmes horaires que toi.
+              </p>
+
+              <div className="space-y-3 pt-2">
+                {buddiesList.map((buddy) => (
+                  <div
+                    key={buddy.id}
+                    className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 flex flex-col space-y-3"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <img src={buddy.avatar_url} alt="" className="w-12 h-12 rounded-full object-cover border border-neutral-700" />
+                        <div>
+                          <h3 className="font-bold text-sm text-white">{buddy.name}</h3>
+                          <span className="text-[11px] text-orange-400 font-semibold">{buddy.level}</span>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => {
+                          setSelectedBuddyChat(buddy);
+                          setCurrentTab('chat');
+                        }}
+                        className="px-3.5 py-1.5 bg-orange-600 hover:bg-orange-500 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5"
+                      >
+                        <MessageCircle className="w-3.5 h-3.5" /> Message
+                      </button>
+                    </div>
+
+                    <div className="bg-neutral-900/60 rounded-xl p-2.5 text-[11px] space-y-1 text-neutral-300">
+                      <div><strong className="text-neutral-400">Créneaux :</strong> {buddy.schedule}</div>
+                      <div><strong className="text-neutral-400">Objectif :</strong> {buddy.goal}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 3: LOG WORKOUT */}
         {currentTab === 'workout' && (
           <form onSubmit={handlePublishWorkout} className="space-y-4">
             <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4">
               <h2 className="text-base font-black tracking-tight">Enregistrer une séance</h2>
 
-              {/* Photo Upload Box */}
+              {/* Photo Box */}
               <div>
-                <label className="block text-xs font-semibold text-neutral-400 mb-1.5">Photo de séance / Forme</label>
+                <label className="block text-xs font-semibold text-neutral-400 mb-1.5">Photo de la séance</label>
                 <input
                   type="file"
                   accept="image/*"
@@ -568,7 +738,6 @@ export default function App() {
                 )}
               </div>
 
-              {/* Workout Type */}
               <div>
                 <label className="block text-xs font-semibold text-neutral-400 mb-1.5">Type d'entraînement</label>
                 <select
@@ -584,7 +753,6 @@ export default function App() {
                 </select>
               </div>
 
-              {/* Metrics */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-neutral-400 mb-1.5">Durée (minutes)</label>
@@ -606,7 +774,6 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Caption */}
               <div>
                 <label className="block text-xs font-semibold text-neutral-400 mb-1.5">Description / Sensations</label>
                 <textarea
@@ -618,7 +785,6 @@ export default function App() {
                 />
               </div>
 
-              {/* Dynamic Exercise Inputs */}
               <div className="space-y-3 pt-2">
                 <label className="block text-xs font-bold uppercase tracking-wider text-neutral-400">
                   Exercices effectués
@@ -683,7 +849,6 @@ export default function App() {
                 </button>
               </div>
 
-              {/* Submit */}
               <button
                 type="submit"
                 disabled={submittingWorkout}
@@ -695,7 +860,62 @@ export default function App() {
           </form>
         )}
 
-        {/* LEADERBOARD TAB */}
+        {/* TAB 4: DIRECT MESSAGING CHAT */}
+        {currentTab === 'chat' && (
+          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl overflow-hidden flex flex-col h-[70vh]">
+            {/* Chat Contact Header */}
+            <div className="p-3.5 bg-neutral-950 border-b border-neutral-800 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <img src={selectedBuddyChat.avatar_url} alt="" className="w-9 h-9 rounded-full object-cover border border-orange-500/30" />
+                <div>
+                  <h3 className="font-bold text-xs text-white">{selectedBuddyChat.name}</h3>
+                  <span className="text-[10px] text-green-400 font-medium">● En ligne à {selectedBuddyChat.club}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Chat Messages Body */}
+            <div className="flex-1 p-4 overflow-y-auto space-y-3">
+              {(messages[selectedBuddyChat.id] || []).map((msg) => (
+                <div
+                  key={msg.id}
+                  className={`flex flex-col ${msg.isMe ? 'items-end' : 'items-start'}`}
+                >
+                  <div
+                    className={`max-w-[80%] rounded-2xl px-3.5 py-2.5 text-xs ${
+                      msg.isMe
+                        ? 'bg-orange-600 text-white rounded-tr-none'
+                        : 'bg-neutral-800 text-neutral-200 rounded-tl-none'
+                    }`}
+                  >
+                    {msg.text}
+                  </div>
+                  <span className="text-[9px] text-neutral-500 mt-1 px-1">{msg.time}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Chat Input Bar */}
+            <div className="p-3 bg-neutral-950 border-t border-neutral-800 flex items-center gap-2">
+              <input
+                type="text"
+                placeholder="Écrire un message..."
+                value={currentMessageInput}
+                onChange={(e) => setCurrentMessageInput(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
+                className="flex-1 bg-neutral-900 border border-neutral-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-orange-500"
+              />
+              <button
+                onClick={handleSendMessage}
+                className="p-2.5 bg-orange-600 hover:bg-orange-500 text-white rounded-xl transition"
+              >
+                <SendHorizontal className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 5: LEADERBOARD */}
         {currentTab === 'leaderboard' && (
           <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4">
             <div className="flex items-center gap-2">
@@ -728,7 +948,7 @@ export default function App() {
           </div>
         )}
 
-        {/* PROFILE TAB */}
+        {/* TAB 6: PROFILE */}
         {currentTab === 'profile' && (
           <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-6 text-center space-y-5">
             <div className="w-20 h-20 rounded-full bg-gradient-to-tr from-orange-500 to-amber-500 p-0.5 mx-auto">
@@ -775,8 +995,57 @@ export default function App() {
         )}
       </main>
 
-      {/* Navigation Bar */}
-      <nav className="fixed bottom-0 left-0 right-0 z-50 bg-neutral-950/90 backdrop-blur-xl border-t border-neutral-800/80 px-6 py-2.5 flex justify-around items-center">
+      {/* COMMENTS MODAL / DRAWER */}
+      {activeCommentPostId && activePostForComments && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-t-3xl sm:rounded-3xl max-w-lg w-full max-h-[80vh] flex flex-col overflow-hidden">
+            <div className="p-4 border-b border-neutral-800 flex items-center justify-between">
+              <h3 className="text-sm font-bold text-white">Commentaires ({activePostForComments.comments?.length || 0})</h3>
+              <button
+                onClick={() => setActiveCommentPostId(null)}
+                className="p-1 rounded-full text-neutral-400 hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="flex-1 p-4 overflow-y-auto space-y-3">
+              {(activePostForComments.comments || []).map((comm) => (
+                <div key={comm.id} className="flex items-start gap-2.5">
+                  <img src={comm.avatar_url} alt="" className="w-7 h-7 rounded-full object-cover" />
+                  <div className="bg-neutral-950 p-2.5 rounded-2xl border border-neutral-800 flex-1">
+                    <div className="flex justify-between items-baseline mb-0.5">
+                      <span className="font-bold text-xs text-white">{comm.username}</span>
+                      <span className="text-[9px] text-neutral-500">{comm.created_at}</span>
+                    </div>
+                    <p className="text-xs text-neutral-300">{comm.text}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="p-3 bg-neutral-950 border-t border-neutral-800 flex items-center gap-2">
+              <input
+                type="text"
+                placeholder="Ajouter un commentaire..."
+                value={commentInput}
+                onChange={(e) => setCommentInput(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleAddComment(activePostForComments.id)}
+                className="flex-1 bg-neutral-900 border border-neutral-800 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-orange-500"
+              />
+              <button
+                onClick={() => handleAddComment(activePostForComments.id)}
+                className="p-2 bg-orange-600 hover:bg-orange-500 text-white rounded-xl transition"
+              >
+                <SendHorizontal className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bottom Floating Navigation Bar */}
+      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-neutral-950/90 backdrop-blur-xl border-t border-neutral-800/80 px-4 py-2 flex justify-around items-center">
         <button
           onClick={() => setCurrentTab('feed')}
           className={`flex flex-col items-center gap-1 transition ${
@@ -788,15 +1057,35 @@ export default function App() {
         </button>
 
         <button
+          onClick={() => setCurrentTab('buddy')}
+          className={`flex flex-col items-center gap-1 transition ${
+            currentTab === 'buddy' ? 'text-orange-500 font-bold' : 'text-neutral-500 hover:text-neutral-300'
+          }`}
+        >
+          <Users className="w-5 h-5" />
+          <span className="text-[10px]">Buddy</span>
+        </button>
+
+        <button
           onClick={() => setCurrentTab('workout')}
           className={`flex flex-col items-center gap-1 transition ${
             currentTab === 'workout' ? 'text-orange-500 font-bold' : 'text-neutral-500 hover:text-neutral-300'
           }`}
         >
-          <div className="w-8 h-8 rounded-xl bg-orange-600 text-white flex items-center justify-center -mt-3 shadow-lg shadow-orange-600/30">
+          <div className="w-8 h-8 rounded-xl bg-orange-600 text-white flex items-center justify-center -mt-2.5 shadow-lg shadow-orange-600/30">
             <Plus className="w-5 h-5" />
           </div>
           <span className="text-[10px]">Séance</span>
+        </button>
+
+        <button
+          onClick={() => setCurrentTab('chat')}
+          className={`flex flex-col items-center gap-1 transition ${
+            currentTab === 'chat' ? 'text-orange-500 font-bold' : 'text-neutral-500 hover:text-neutral-300'
+          }`}
+        >
+          <MessageCircle className="w-5 h-5" />
+          <span className="text-[10px]">Chat</span>
         </button>
 
         <button
