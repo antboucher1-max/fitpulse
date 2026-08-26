@@ -46,7 +46,8 @@ import {
   BookOpen,
   Info,
   Timer,
-  Edit3
+  Edit3,
+  Check
 } from 'lucide-react';
 import { createClient, User as SupabaseUser } from '@supabase/supabase-js';
 
@@ -174,12 +175,21 @@ interface WeeklyPlan {
   exercisesText: string;
 }
 
+const WORKOUT_CHOICES = [
+  'Push (Pectoraux, Épaules, Triceps)',
+  'Pull (Dos, Biceps)',
+  'Legs (Jambes, Fessiers)',
+  'Full Body (Corps entier)',
+  'Cardio & HIIT',
+  'Repos / Récupération'
+];
+
 const DEFAULT_WEEKLY_PLAN: WeeklyPlan[] = [
   { day: 'Lundi', focus: 'Push (Pectoraux, Épaules, Triceps)', exercisesText: 'Développé couché, Chest Press, Élévations latérales' },
   { day: 'Mardi', focus: 'Pull (Dos, Biceps)', exercisesText: 'Tirage vertical, Rowing poulie basse, Curl Biceps' },
   { day: 'Mercredi', focus: 'Repos / Récupération', exercisesText: 'Stretching & Mobilité' },
   { day: 'Jeudi', focus: 'Legs (Jambes)', exercisesText: 'Squat machine, Leg Press, Mollets' },
-  { day: 'Vendredi', focus: 'Full Body / Upper', exercisesText: 'Développé incliné, Tractions, Dips' },
+  { day: 'Vendredi', focus: 'Full Body (Corps entier)', exercisesText: 'Développé incliné, Tractions, Dips' },
   { day: 'Samedi & Dimanche', focus: 'Repos & Cardio léger', exercisesText: 'Marche / Randonnée' }
 ];
 
@@ -373,10 +383,10 @@ export default function App() {
   const [newPrWeight, setNewPrWeight] = useState<number | ''>('');
   const [newPrReps, setNewPrReps] = useState<number | ''>('');
 
-  // Planificateur de semaine modifiable
+  // Planificateur de semaine modifiable avec choix
   const [weeklyPlan, setWeeklyPlan] = useState<WeeklyPlan[]>(DEFAULT_WEEKLY_PLAN);
   const [editingDayIndex, setEditingDayIndex] = useState<number | null>(null);
-  const [editFocus, setEditFocus] = useState('');
+  const [editFocus, setEditFocus] = useState(WORKOUT_CHOICES[0]);
   const [editExercisesText, setEditExercisesText] = useState('');
 
   // Guide des exercices
@@ -439,7 +449,6 @@ export default function App() {
 
   const [activeCommentPostId, setActiveCommentPostId] = useState<string | null>(null);
 
-  // Gestion du chrono de repos
   useEffect(() => {
     let timer: NodeJS.Timeout | null = null;
     if (isRestTimerActive && restTimeRemaining > 0) {
@@ -1396,7 +1405,7 @@ export default function App() {
           </div>
         )}
 
-        {/* TAB 5: LEADERBOARD & RECORDS + PLANIFICATEUR MODIFIABLE */}
+        {/* TAB 5: LEADERBOARD & RECORDS + PLANIFICATEUR MODIFIABLE AVEC CHOIX */}
         {currentTab === 'leaderboard' && (
           <div className="space-y-4">
             {/* PRs */}
@@ -1430,7 +1439,7 @@ export default function App() {
               </div>
             </div>
 
-            {/* PLANIFICATEUR DE SEMAINE MODIFIABLE */}
+            {/* PLANIFICATEUR DE SEMAINE AVEC CHOIX PRÉDÉFINIS */}
             <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4">
               <h2 className="text-base font-black tracking-tight flex items-center gap-2"><Calendar className="w-5 h-5 text-orange-500" /> Planificateur de la semaine</h2>
               <div className="space-y-2.5">
@@ -1439,20 +1448,30 @@ export default function App() {
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-bold text-orange-400">{plan.day}</span>
                       {editingDayIndex === i ? (
-                        <button onClick={() => handleSaveWeeklyPlanEdit(i)} className="px-2.5 py-1 bg-green-600 text-white rounded-lg text-[10px] font-bold">Enregistrer</button>
+                        <button onClick={() => handleSaveWeeklyPlanEdit(i)} className="px-3 py-1 bg-green-600 text-white rounded-lg text-[10px] font-bold flex items-center gap-1"><Check className="w-3.5 h-3.5" /> Enregistrer</button>
                       ) : (
                         <button onClick={() => { setEditingDayIndex(i); setEditFocus(plan.focus); setEditExercisesText(plan.exercisesText); }} className="p-1 text-neutral-400 hover:text-white"><Edit3 className="w-4 h-4" /></button>
                       )}
                     </div>
 
                     {editingDayIndex === i ? (
-                      <div className="space-y-2 pt-1">
-                        <input type="text" placeholder="Focus (ex: Push)" value={editFocus} onChange={(e) => setEditFocus(e.target.value)} className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-orange-500" />
-                        <input type="text" placeholder="Exercices (ex: Développé couché...)" value={editExercisesText} onChange={(e) => setEditExercisesText(e.target.value)} className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-orange-500" />
+                      <div className="space-y-2.5 pt-1">
+                        <div>
+                          <label className="block text-[10px] font-semibold text-neutral-400 mb-1">Choix du type de séance :</label>
+                          <select value={editFocus} onChange={(e) => setEditFocus(e.target.value)} className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-orange-500">
+                            {WORKOUT_CHOICES.map((choice) => (
+                              <option key={choice} value={choice}>{choice}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-semibold text-neutral-400 mb-1">Exercices personnalisés :</label>
+                          <input type="text" placeholder="ex: Développé couché, Écartés..." value={editExercisesText} onChange={(e) => setEditExercisesText(e.target.value)} className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-orange-500" />
+                        </div>
                       </div>
                     ) : (
                       <>
-                        <span className="text-[11px] bg-neutral-900 px-2.5 py-1 rounded-lg text-neutral-200 font-medium">{plan.focus}</span>
+                        <span className="text-[11px] bg-neutral-900 px-2.5 py-1 rounded-lg text-neutral-200 font-medium inline-block">{plan.focus}</span>
                         <p className="text-[11px] text-neutral-400">Exercices : {plan.exercisesText}</p>
                       </>
                     )}
