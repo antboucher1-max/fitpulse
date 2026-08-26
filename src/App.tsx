@@ -57,7 +57,7 @@ interface ClubLocation {
   distance?: number | null;
 }
 
-// Base officielle avec les coordonnées GPS fournies
+// Base officielle avec les coordonnées GPS
 const CLUBS_DATABASE: ClubLocation[] = [
   {
     name: 'Basic-Fit Tournai (Bastion)',
@@ -782,6 +782,7 @@ export default function App() {
   const myFriendsList = buddiesList.filter((b) => friendIds.includes(b.id));
   const friendRequestsList = buddiesList.filter((b) => friendRequestsReceived.includes(b.id));
 
+  // Filtrage des partenaires selon le club sélectionné
   const filteredBuddies = buddiesList.filter((buddy) => {
     if (buddyTabSubMode === 'my_friends') return friendIds.includes(buddy.id);
     if (buddy.club !== selectedClub) return false;
@@ -791,7 +792,11 @@ export default function App() {
     return true;
   });
 
+  // FILTRAGE DU FIL D'ACTUALITÉ : Uniquement le club sélectionné pour "all", ou les amis pour "friends"
   const displayedPosts = posts.filter((post) => {
+    if (feedFilterMode === 'all') {
+      return post.club_name === selectedClub;
+    }
     if (feedFilterMode === 'friends') {
       const myFriendNames = myFriendsList.map((f) => f.name);
       return post.user_id === user?.id || myFriendNames.includes(post.username);
@@ -1110,7 +1115,7 @@ export default function App() {
               <div className="text-center py-16 text-neutral-500 text-xs bg-neutral-900/50 rounded-3xl border border-neutral-800/60 p-6">
                 {feedFilterMode === 'friends'
                   ? "Aucune publication de tes amis pour l'instant."
-                  : "Aucune publication enregistrée dans ce club."}
+                  : `Aucune publication pour l'instant à ${selectedClub}. Sois le premier à publier !`}
               </div>
             ) : (
               displayedPosts.map((post) => {
