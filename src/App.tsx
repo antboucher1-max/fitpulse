@@ -42,9 +42,7 @@ import {
   Sparkles,
   SwitchCamera,
   FolderOpen,
-  Box,
-  Layers,
-  Activity
+  Box
 } from 'lucide-react';
 import { createClient, User as SupabaseUser } from '@supabase/supabase-js';
 
@@ -235,7 +233,6 @@ export default function App() {
   const [feedLoading, setFeedLoading] = useState(false);
   const [likedPosts, setLikedPosts] = useState<Record<string, boolean>>({});
 
-  // Visualiseur 3D Intégré (Sans installation de package externe)
   const [active3DExercise, setActive3DExercise] = useState<string | null>(null);
 
   const [friendIds, setFriendIds] = useState<string[]>(['b1', 'b2']);
@@ -267,7 +264,6 @@ export default function App() {
   const [postImagePreview, setPostImagePreview] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
 
-  // Image framing
   const [imageZoom, setImageZoom] = useState(1);
   const [imagePos, setImagePos] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
@@ -306,6 +302,10 @@ export default function App() {
   const [allMessages, setAllMessages] = useState<DBMessage[]>([]);
   const [currentMessageInput, setCurrentMessageInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Geste Swipe to Delete pour les conversations
+  const [swipedChatBuddyId, setSwipedChatBuddyId] = useState<string | null>(null);
+  const touchStartXRef = useRef<number>(0);
 
   const [activeCommentPostId, setActiveCommentPostId] = useState<string | null>(null);
   const [commentInput, setCommentInput] = useState('');
@@ -570,6 +570,30 @@ export default function App() {
     setPosts((prev) => prev.filter((p) => p.id !== postId));
   };
 
+  // Effacer la conversation par glissement ou clic sur la poubelle
+  const handleDeleteConversationForBuddy = async (buddyId: string, buddyName: string) => {
+    if (!user) return;
+    if (!window.confirm(`Effacer toute la conversation avec ${buddyName} ?`)) return;
+
+    await supabase
+      .from('direct_messages')
+      .delete()
+      .or(
+        `and(sender_id.eq.${user.id},receiver_id.eq.${buddyId}),and(sender_id.eq.${buddyId},receiver_id.eq.${user.id})`
+      );
+
+    setAllMessages((prev) =>
+      prev.filter(
+        (m) =>
+          !(
+            (m.sender_id === user.id && m.receiver_id === buddyId) ||
+            (m.sender_id === buddyId && m.receiver_id === user.id)
+          )
+      )
+    );
+    setSwipedChatBuddyId(null);
+  };
+
   const handlePublishStory = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !storyImageFile) return;
@@ -818,7 +842,7 @@ export default function App() {
                   )}
                   {post.caption && <p className="text-xs text-neutral-200 leading-relaxed">{post.caption}</p>}
 
-                  {/* VISUALISEUR 3D INTÉGRÉ (PUR SVG/CSS INTERACTIF SANS INSTALLATION) */}
+                  {/* VISUALISEUR 3D */}
                   {post.exercises && post.exercises.length > 0 && (
                     <div className="bg-neutral-950/70 rounded-2xl p-3 border border-neutral-800/60 space-y-2">
                       <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block">Exercices & Vue 3D Anatomique</span>
@@ -891,6 +915,7 @@ export default function App() {
           </div>
         )}
 
+        {/* TAB 4: CHAT AVEC GESTE SWIPE TO DELETE POUR EFFACER LA CONVERSATION */}
         {currentTab === 'chat' && (
           <div className="space-y-4">
             {selectedBuddyChat ? (
@@ -898,7 +923,7 @@ export default function App() {
                 <div className="p-3.5 bg-neutral-950 border-b border-neutral-800 flex items-center justify-between">
                   <button onClick={() => setSelectedBuddyChat(null)} className="p-1 text-neutral-400 hover:text-white"><ArrowLeft className="w-5 h-5" /></button>
                   <h3 className="font-bold text-xs text-white">{selectedBuddyChat.name}</h3>
-                  <div />
+                  <button onClick={() => handleDeleteConversationForBuddy(selectedBuddyChat.id, selectedBuddyChat.name)} className="p-1.5 text-neutral-500 hover:text-red-400"><Trash2 className="w-4 h-4" /></button>
                 </div>
                 <div className="flex-1 p-4 overflow-y-auto space-y-3">
                   {currentChatMessages.map((msg) => (
@@ -917,15 +942,53 @@ export default function App() {
               </div>
             ) : (
               <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-3">
-                <h2 className="text-base font-black tracking-tight">Messagerie</h2>
-                {myFriendsList.map((friend) => (
-                  <div key={friend.id} onClick={() => setSelectedBuddyChat(friend)} className="bg-neutral-950 p-3 rounded-2xl border border-neutral-800 flex items-center justify-between cursor-pointer">
-                    <div className="flex items-center gap-3">
-                      <img src={friend.avatar_url} alt="" className="w-10 h-10 rounded-full object-cover" />
-                      <div><h3 className="font-bold text-xs text-white">{friend.name}</h3><span className="text-[10px] text-neutral-500">{friend.club}</span></div>
+                <div className="flex items-center justify-between">
+                  <h2 className="text-base font-black tracking-tight">Messagerie</h2>
+                  <span className="text-[10px] text-neutral-500">Glisse vers la gauche pour effacer 🗑️</span>
+                </div>
+                {myFriendsList.map((friend) => {
+                  const isSwiped = swipedChatBuddyId === friend.id;
+
+                  return (
+                    <div
+                      key={friend.id}
+                      className="relative overflow-hidden rounded-2xl border border-neutral-800 bg-neutral-950"
+                    >
+                      {/* Bouton Poubelle révélé au swipe gauche */}
+                      <div className="absolute right-0 top-0 bottom-0 w-20 bg-red-600 flex items-center justify-center cursor-pointer text-white z-0"
+                           onClick={() => handleDeleteConversationForBuddy(friend.id, friend.name)}>
+                        <Trash2 className="w-5 h-5" />
+                      </div>
+
+                      {/* Conteneur de la carte glissable */}
+                      <div
+                        onClick={() => setSelectedBuddyChat(friend)}
+                        onTouchStart={(e) => { touchStartXRef.current = e.touches[0].clientX; }}
+                        onTouchEnd={(e) => {
+                          const diff = touchStartXRef.current - e.changedTouches[0].clientX;
+                          if (diff > 50) setSwipedChatBuddyId(friend.id);
+                          else if (diff < -50) setSwipedChatBuddyId(null);
+                        }}
+                        onMouseDown={(e) => { touchStartXRef.current = e.clientX; }}
+                        onMouseUp={(e) => {
+                          const diff = touchStartXRef.current - e.clientX;
+                          if (diff > 50) setSwipedChatBuddyId(friend.id);
+                          else if (diff < -50) setSwipedChatBuddyId(null);
+                        }}
+                        style={{ transform: isSwiped ? 'translateX(-80px)' : 'translateX(0)' }}
+                        className="relative z-10 p-3 bg-neutral-950 flex items-center justify-between cursor-pointer transition-transform duration-200"
+                      >
+                        <div className="flex items-center gap-3">
+                          <img src={friend.avatar_url} alt="" className="w-11 h-11 rounded-full object-cover" />
+                          <div><h3 className="font-bold text-xs text-white">{friend.name}</h3><span className="text-[10px] text-neutral-500">{friend.club}</span></div>
+                        </div>
+                        <button onClick={(e) => { e.stopPropagation(); handleDeleteConversationForBuddy(friend.id, friend.name); }} className="p-2 text-neutral-500 hover:text-red-400">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -963,7 +1026,7 @@ export default function App() {
         )}
       </main>
 
-      {/* MODAL VISUALISEUR 3D ANATOMIQUE INTERACTIF (SANS DEPENDANCE EXTERNE) */}
+      {/* MODAL VISUALISEUR 3D */}
       {active3DExercise && (
         <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex flex-col justify-between p-4">
           <div className="flex items-center justify-between pt-2">
@@ -975,8 +1038,7 @@ export default function App() {
           
           <div className="flex-1 w-full flex flex-col items-center justify-center my-auto space-y-4">
             <div className="relative w-64 h-64 rounded-3xl bg-neutral-900 border border-neutral-800 flex items-center justify-center shadow-2xl overflow-hidden group">
-              {/* Animation 3D stylisée en rotation pure CSS */}
-              <div className="absolute inset-0 flex items-center justify-center animate-spin-slow opacity-20">
+              <div className="absolute inset-0 flex items-center justify-center opacity-20">
                 <div className="w-48 h-48 rounded-full border border-dashed border-orange-500" />
               </div>
               <div className="flex flex-col items-center space-y-3 z-10 animate-pulse">
@@ -993,7 +1055,7 @@ export default function App() {
         </div>
       )}
 
-      {/* MODAL CAMÉRA EN DIRECT NATIVE */}
+      {/* MODAL CAMÉRA */}
       {isCameraActive && (
         <div className="fixed inset-0 z-50 bg-black flex flex-col justify-between items-center p-4">
           <div className="w-full flex items-center justify-between z-10 pt-2">
@@ -1014,7 +1076,7 @@ export default function App() {
         </div>
       )}
 
-      {/* LECTEUR DE STORY PLEIN ÉCRAN */}
+      {/* LECTEUR DE STORY */}
       {activeViewingStory && activeStoryIndex !== null && (
         <div className="fixed inset-0 z-50 bg-black flex flex-col justify-between p-4 select-none">
           <div className="w-full flex items-center gap-1.5 pt-2 z-20">
@@ -1104,7 +1166,6 @@ export default function App() {
         </div>
       )}
 
-      {/* BOTTOM NAV */}
       <nav className="fixed bottom-0 left-0 right-0 z-40 bg-neutral-950/90 backdrop-blur-xl border-t border-neutral-800/80 px-4 py-2 flex justify-around items-center">
         <button onClick={() => setCurrentTab('feed')} className={`flex flex-col items-center gap-1 ${currentTab === 'feed' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Home className="w-5 h-5" /><span className="text-[10px]">Accueil</span></button>
         <button onClick={() => setCurrentTab('buddy')} className={`flex flex-col items-center gap-1 ${currentTab === 'buddy' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Users className="w-5 h-5" /><span className="text-[10px]">Buddy</span></button>
