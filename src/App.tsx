@@ -1232,7 +1232,11 @@ export default function App() {
                       <div>
                         <div className="flex items-center gap-1.5">
                           <h3 className="font-bold text-sm leading-snug">{post.username}</h3>
-                          {post.is_private && <Lock className="w-3 h-3 text-neutral-500" title="Publication privée (Visible par les amis uniquement)" />}
+                          {post.is_private && (
+                            <span title="Publication privée (Visible par les amis uniquement)">
+                              <Lock className="w-3 h-3 text-neutral-500" />
+                            </span>
+                          )}
                         </div>
                         <div className="flex items-center gap-1 text-[11px] text-orange-400 font-medium">
                           <MapPin className="w-3 h-3" />{post.club_name}
@@ -1306,7 +1310,11 @@ export default function App() {
             <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4">
               <div className="flex items-center justify-between">
                 <h2 className="text-base font-black tracking-tight">Enregistrer une séance</h2>
-                {isPrivateMode && <ShieldCheck className="w-5 h-5 text-green-500" title="Cette séance sera publiée en Privé" />}
+                {isPrivateMode && (
+                  <span title="Cette séance sera publiée en Privé">
+                    <ShieldCheck className="w-5 h-5 text-green-500" />
+                  </span>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-2.5">
