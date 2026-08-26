@@ -9,41 +9,38 @@ import {
   Trophy,
   User,
   Home,
-  MoreHorizontal,
   Bookmark,
-  MessageCircle,
-  X,
+  MessageSquare,
   Plus,
   Trash2,
-  CheckCircle2,
-  LayoutGrid,
-  List,
   Award,
   LogOut,
   Lock,
   Mail,
-  UserCheck,
   Camera,
   Loader2,
-  MessageSquare
+  Clock,
+  Flame,
+  TrendingUp,
+  Share2,
+  Heart,
+  Play,
+  Pause,
+  RotateCcw,
+  Check
 } from 'lucide-react';
 import { createClient, User as SupabaseUser } from '@supabase/supabase-js';
 
-// Configuration Supabase
+// Supabase Client Configuration
 const supabaseUrl = 'https://obtahwmcoqrcauscpksv.supabase.co';
 const supabaseAnonKey = 'sb_publishable_O8CKhUtzgq9nO9lKavNE9A__fAdRWoB';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-interface Club {
-  id: string;
+interface ExerciseEntry {
   name: string;
-  city: string;
-}
-
-interface ExerciseInput {
-  name: string;
-  setsReps: string;
-  weight: string;
+  sets: number;
+  reps: number;
+  weight: number;
 }
 
 interface Post {
@@ -51,14 +48,15 @@ interface Post {
   user_id: string;
   username: string;
   avatar_url: string;
-  image_url: string;
-  caption: string;
   club_name: string;
   session_type: string;
+  caption: string;
+  duration_minutes: number;
+  calories_burned: number;
+  exercises: ExerciseEntry[];
   likes_count: number;
   comments_count: number;
   created_at: string;
-  exercises?: ExerciseInput[];
 }
 
 export default function App() {
@@ -67,18 +65,33 @@ export default function App() {
   const [password, setPassword] = useState('');
   const [username, setUsername] = useState('');
   const [isSignUp, setIsSignUp] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [authLoading, setAuthLoading] = useState(false);
+
+  // App Navigation
+  const [currentTab, setCurrentTab] = useState<'feed' | 'explore' | 'workout' | 'leaderboard' | 'profile'>('feed');
+  const [selectedClub, setSelectedClub] = useState<string>('Basic-Fit Tournai');
+
+  // Posts Feed State
   const [posts, setPosts] = useState<Post[]>([]);
-  const [activeTab, setActiveTab] = useState<'home' | 'create' | 'profile'>('home');
+  const [feedLoading, setFeedLoading] = useState(false);
+  const [likedPosts, setLikedPosts] = useState<Record<string, boolean>>({});
 
-  // New post form state
-  const [caption, setCaption] = useState('');
-  const [sessionType, setSessionType] = useState('Musculation');
-  const [clubName, setClubName] = useState('Basic-Fit Tournai');
-  const [exercises, setExercises] = useState<ExerciseInput[]>([
-    { name: '', setsReps: '', weight: '' }
+  // Workout Builder State
+  const [workoutType, setWorkoutType] = useState('Musculation (Push)');
+  const [workoutCaption, setWorkoutCaption] = useState('');
+  const [workoutDuration, setWorkoutDuration] = useState(60);
+  const [workoutCalories, setWorkoutCalories] = useState(450);
+  const [workoutExercises, setWorkoutExercises] = useState<ExerciseEntry[]>([
+    { name: 'Développé couché', sets: 4, reps: 10, weight: 80 }
   ]);
+  const [submittingWorkout, setSubmittingWorkout] = useState(false);
 
+  // Rest Timer State
+  const [timerSeconds, setTimerSeconds] = useState(90);
+  const [isTimerRunning, setIsTimerRunning] = useState(false);
+  const [initialTime, setInitialTime] = useState(90);
+
+  // Authentication Listener & Initial Load
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
@@ -89,78 +102,144 @@ export default function App() {
     });
 
     fetchPosts();
-
     return () => subscription.unsubscribe();
   }, []);
 
+  // Timer Tick
+  useEffect(() => {
+    let interval: NodeJS.Timeout | null = null;
+    if (isTimerRunning && timerSeconds > 0) {
+      interval = setInterval(() => {
+        setTimerSeconds((prev) => prev - 1);
+      }, 1000);
+    } else if (timerSeconds === 0) {
+      setIsTimerRunning(false);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [isTimerRunning, timerSeconds]);
+
   const fetchPosts = async () => {
+    setFeedLoading(true);
     const { data, error } = await supabase
       .from('posts')
       .select('*')
       .order('created_at', { ascending: false });
 
-    if (!error && data) {
+    if (!error && data && data.length > 0) {
       setPosts(data as Post[]);
+    } else {
+      // Fallback sample data if database is fresh
+      setPosts([
+        {
+          id: 'demo-1',
+          user_id: '1',
+          username: 'Alex_Fit',
+          avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+          club_name: 'Basic-Fit Tournai',
+          session_type: 'Pectoraux & Triceps',
+          caption: 'Gros focus sur la surcharge progressive aujourd’hui. Nouveau record personnel validé ! 🔥',
+          duration_minutes: 75,
+          calories_burned: 520,
+          exercises: [
+            { name: 'Développé couché', sets: 4, reps: 8, weight: 100 },
+            { name: 'Écarté incliné haltères', sets: 3, reps: 12, weight: 24 },
+            { name: 'Dips lestés', sets: 3, reps: 10, weight: 15 }
+          ],
+          likes_count: 14,
+          comments_count: 3,
+          created_at: 'Il y a 2h'
+        },
+        {
+          id: 'demo-2',
+          user_id: '2',
+          username: 'Thomas_G',
+          avatar_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150',
+          club_name: 'Basic-Fit Tournai',
+          session_type: 'Leg Day',
+          caption: 'Séance jambes complétée. Les fessiers et ischios sont en feu.',
+          duration_minutes: 60,
+          calories_burned: 610,
+          exercises: [
+            { name: 'Squat barre libre', sets: 5, reps: 5, weight: 130 },
+            { name: 'Presse à cuisses', sets: 4, reps: 12, weight: 260 },
+            { name: 'Leg curl allongé', sets: 3, reps: 15, weight: 55 }
+          ],
+          likes_count: 22,
+          comments_count: 5,
+          created_at: 'Il y a 5h'
+        }
+      ]);
     }
+    setFeedLoading(false);
   };
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
+    setAuthLoading(true);
 
     if (isSignUp) {
       const { error } = await supabase.auth.signUp({
         email,
         password,
-        options: {
-          data: { username: username || email.split('@')[0] }
-        }
+        options: { data: { username: username || email.split('@')[0] } }
       });
       if (error) alert(error.message);
       else alert('Compte créé avec succès !');
     } else {
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password
-      });
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) alert(error.message);
     }
-    setLoading(false);
+    setAuthLoading(false);
   };
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
+  const handleToggleLike = (postId: string) => {
+    setLikedPosts((prev) => ({ ...prev, [postId]: !prev[postId] }));
+    setPosts((prev) =>
+      prev.map((p) => {
+        if (p.id === postId) {
+          const isLiked = likedPosts[postId];
+          return { ...p, likes_count: isLiked ? p.likes_count - 1 : p.likes_count + 1 };
+        }
+        return p;
+      })
+    );
   };
 
-  const addExerciseField = () => {
-    setExercises([...exercises, { name: '', setsReps: '', weight: '' }]);
+  const addExerciseRow = () => {
+    setWorkoutExercises([
+      ...workoutExercises,
+      { name: '', sets: 3, reps: 10, weight: 20 }
+    ]);
   };
 
-  const updateExercise = (index: number, field: keyof ExerciseInput, value: string) => {
-    const updated = [...exercises];
-    updated[index][field] = value;
-    setExercises(updated);
+  const updateExerciseField = (index: number, field: keyof ExerciseEntry, value: any) => {
+    const updated = [...workoutExercises];
+    updated[index] = { ...updated[index], [field]: value };
+    setWorkoutExercises(updated);
   };
 
-  const removeExercise = (index: number) => {
-    setExercises(exercises.filter((_, i) => i !== index));
+  const removeExerciseRow = (index: number) => {
+    setWorkoutExercises(workoutExercises.filter((_, i) => i !== index));
   };
 
-  const handleCreatePost = async (e: React.FormEvent) => {
+  const handlePublishWorkout = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
-    setLoading(true);
+    setSubmittingWorkout(true);
 
-    const validExercises = exercises.filter(ex => ex.name.trim() !== '');
+    const validExercises = workoutExercises.filter((e) => e.name.trim() !== '');
 
-    const newPost = {
+    const newPost: Partial<Post> = {
       user_id: user.id,
       username: user.user_metadata?.username || user.email?.split('@')[0] || 'Athlète',
       avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
-      image_url: 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?w=800',
-      caption,
-      club_name: clubName,
-      session_type: sessionType,
+      club_name: selectedClub,
+      session_type: workoutType,
+      caption: workoutCaption,
+      duration_minutes: workoutDuration,
+      calories_burned: workoutCalories,
       exercises: validExercises,
       likes_count: 0,
       comments_count: 0
@@ -169,88 +248,99 @@ export default function App() {
     const { error } = await supabase.from('posts').insert([newPost]);
 
     if (!error) {
-      setCaption('');
-      setExercises([{ name: '', setsReps: '', weight: '' }]);
-      setActiveTab('home');
+      setWorkoutCaption('');
+      setWorkoutExercises([{ name: '', sets: 3, reps: 10, weight: 20 }]);
+      setCurrentTab('feed');
       fetchPosts();
     } else {
-      alert(error.message);
+      // Local addition fallback
+      setPosts([
+        {
+          ...(newPost as Post),
+          id: String(Date.now()),
+          created_at: "À l'instant"
+        },
+        ...posts
+      ]);
+      setCurrentTab('feed');
     }
-    setLoading(false);
+    setSubmittingWorkout(false);
   };
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center p-6">
-        <div className="w-full max-w-sm flex flex-col items-center">
-          <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-orange-500/10 text-orange-500 mb-4 border border-orange-500/20">
-            <Zap className="w-8 h-8" />
+      <div className="min-h-screen bg-neutral-950 text-white flex flex-col justify-center items-center px-4">
+        <div className="w-full max-w-sm bg-neutral-900/90 border border-neutral-800 rounded-3xl p-8 shadow-2xl backdrop-blur-xl">
+          <div className="flex justify-center mb-6">
+            <div className="w-16 h-16 rounded-2xl bg-orange-500/20 border border-orange-500/40 flex items-center justify-center text-orange-500">
+              <Zap className="w-8 h-8" />
+            </div>
           </div>
-          <h1 className="text-3xl font-extrabold tracking-tight text-white mb-1">FitPulse</h1>
-          <p className="text-zinc-400 text-sm mb-8 text-center">Le réseau social connecté à ta salle de sport</p>
+          <h1 className="text-2xl font-black text-center tracking-tight mb-1">FitPulse</h1>
+          <p className="text-xs text-neutral-400 text-center mb-8">Le réseau social de ta salle de sport</p>
 
-          <form onSubmit={handleAuth} className="w-full space-y-4">
+          <form onSubmit={handleAuth} className="space-y-4">
             {isSignUp && (
               <div>
-                <label className="block text-xs font-semibold uppercase text-zinc-400 mb-1">Pseudo</label>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-1">Pseudo</label>
                 <div className="relative">
-                  <User className="absolute left-3 top-3 w-5 h-5 text-zinc-500" />
+                  <User className="absolute left-3.5 top-3.5 w-4 h-4 text-neutral-500" />
                   <input
                     type="text"
                     required
-                    placeholder="Ton pseudo"
+                    placeholder="Ex: Warrior99"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
-                    className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-10 py-3 text-white placeholder-zinc-500 focus:outline-none focus:border-orange-500"
+                    className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-10 py-3 text-sm focus:outline-none focus:border-orange-500 transition"
                   />
                 </div>
               </div>
             )}
 
             <div>
-              <label className="block text-xs font-semibold uppercase text-zinc-400 mb-1">Email</label>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-1">Email</label>
               <div className="relative">
-                <Mail className="absolute left-3 top-3 w-5 h-5 text-zinc-500" />
+                <Mail className="absolute left-3.5 top-3.5 w-4 h-4 text-neutral-500" />
                 <input
                   type="email"
                   required
                   placeholder="nom@exemple.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-10 py-3 text-white placeholder-zinc-500 focus:outline-none focus:border-orange-500"
+                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-10 py-3 text-sm focus:outline-none focus:border-orange-500 transition"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-semibold uppercase text-zinc-400 mb-1">Mot de passe</label>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-1">Mot de passe</label>
               <div className="relative">
-                <Lock className="absolute left-3 top-3 w-5 h-5 text-zinc-500" />
+                <Lock className="absolute left-3.5 top-3.5 w-4 h-4 text-neutral-500" />
                 <input
                   type="password"
                   required
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-10 py-3 text-white placeholder-zinc-500 focus:outline-none focus:border-orange-500"
+                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-10 py-3 text-sm focus:outline-none focus:border-orange-500 transition"
                 />
               </div>
             </div>
 
             <button
               type="submit"
-              disabled={loading}
-              className="w-full bg-orange-600 hover:bg-orange-500 text-white font-bold py-3.5 rounded-xl transition duration-200 flex items-center justify-center"
+              disabled={authLoading}
+              className="w-full bg-gradient-to-r from-orange-600 to-orange-500 hover:from-orange-500 hover:to-orange-400 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-orange-500/20 transition flex items-center justify-center gap-2"
             >
-              {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : (isSignUp ? "S'inscrire" : 'Se connecter')}
+              {authLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : isSignUp ? "Créer mon compte" : "Se connecter"}
             </button>
           </form>
 
           <button
             onClick={() => setIsSignUp(!isSignUp)}
-            className="mt-6 text-sm text-zinc-400 hover:text-white transition"
+            className="w-full text-center text-xs text-neutral-400 hover:text-white mt-6 transition"
           >
-            {isSignUp ? 'Déjà un compte ? Se connecter' : "Pas encore de compte ? S'inscrire"}
+            {isSignUp ? "Déjà un compte ? Se connecter" : "Pas encore de compte ? S'inscrire"}
           </button>
         </div>
       </div>
@@ -258,219 +348,422 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-black text-white pb-20">
-      {/* Header */}
-      <header className="sticky top-0 z-40 bg-black/80 backdrop-blur-md border-b border-zinc-900 px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center space-x-2">
-          <Zap className="w-6 h-6 text-orange-500" />
-          <span className="font-extrabold text-xl tracking-tight">FitPulse</span>
+    <div className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col font-sans">
+      {/* Top App Bar */}
+      <header className="sticky top-0 z-40 bg-neutral-950/80 backdrop-blur-md border-b border-neutral-900 px-4 py-3 flex items-center justify-between">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-xl bg-orange-500/20 flex items-center justify-center text-orange-500">
+            <Zap className="w-5 h-5" />
+          </div>
+          <div>
+            <h1 className="text-base font-black tracking-tight leading-none">FitPulse</h1>
+            <span className="text-[10px] text-orange-400 font-semibold">{selectedClub}</span>
+          </div>
         </div>
-        <button onClick={handleLogout} className="text-zinc-400 hover:text-white p-2">
-          <LogOut className="w-5 h-5" />
-        </button>
+
+        <div className="flex items-center gap-2">
+          <select
+            value={selectedClub}
+            onChange={(e) => setSelectedClub(e.target.value)}
+            className="bg-neutral-900 border border-neutral-800 text-[11px] rounded-lg px-2.5 py-1.5 text-neutral-300 focus:outline-none focus:border-orange-500"
+          >
+            <option value="Basic-Fit Tournai">Basic-Fit Tournai</option>
+            <option value="Basic-Fit Froyennes">Basic-Fit Froyennes</option>
+            <option value="Fitness Park Lille">Fitness Park Lille</option>
+          </select>
+        </div>
       </header>
 
-      {/* Main Content */}
-      <main className="max-w-md mx-auto p-4">
-        {activeTab === 'home' && (
-          <div className="space-y-6">
-            {posts.length === 0 ? (
-              <div className="text-center py-16 text-zinc-500">
-                <Dumbbell className="w-12 h-12 mx-auto mb-3 opacity-20" />
-                <p>Aucune séance partagée pour le moment.</p>
-                <p className="text-sm">Sois le premier à publier !</p>
+      {/* Main App Container */}
+      <main className="flex-1 max-w-lg w-full mx-auto px-4 py-4 pb-24">
+        {/* TAB 1: FEED */}
+        {currentTab === 'feed' && (
+          <div className="space-y-4">
+            {/* Quick Status / Rest Timer Pill */}
+            <div className="bg-neutral-900/90 border border-neutral-800/80 rounded-2xl p-3 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-orange-500/10 text-orange-500 flex items-center justify-center font-bold text-xs">
+                  {timerSeconds}s
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold">Chronomètre de repos</h4>
+                  <p className="text-[11px] text-neutral-400">Garde le tempo entre tes séries</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => setIsTimerRunning(!isTimerRunning)}
+                  className="p-2 rounded-lg bg-orange-600 text-white hover:bg-orange-500 text-xs"
+                >
+                  {isTimerRunning ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+                </button>
+                <button
+                  onClick={() => {
+                    setIsTimerRunning(false);
+                    setTimerSeconds(initialTime);
+                  }}
+                  className="p-2 rounded-lg bg-neutral-800 text-neutral-400 hover:text-white text-xs"
+                >
+                  <RotateCcw className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Posts Stream */}
+            {feedLoading ? (
+              <div className="flex justify-center py-12">
+                <Loader2 className="w-8 h-8 text-orange-500 animate-spin" />
               </div>
             ) : (
-              posts.map((post) => (
-                <div key={post.id} className="bg-zinc-900/60 border border-zinc-800/80 rounded-2xl overflow-hidden">
-                  <div className="p-4 flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                      <img src={post.avatar_url} alt="" className="w-10 h-10 rounded-full object-cover border border-orange-500/30" />
-                      <div>
-                        <h4 className="font-bold text-sm text-white">{post.username}</h4>
-                        <div className="flex items-center text-xs text-orange-400">
-                          <MapPin className="w-3 h-3 mr-1" />
-                          {post.club_name}
+              posts.map((post) => {
+                const isLiked = likedPosts[post.id];
+                return (
+                  <article
+                    key={post.id}
+                    className="bg-neutral-900/70 border border-neutral-800 rounded-3xl p-4.5 space-y-3.5 shadow-sm"
+                  >
+                    {/* Author & Club Header */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <img
+                          src={post.avatar_url}
+                          alt=""
+                          className="w-10 h-10 rounded-full object-cover border border-neutral-700"
+                        />
+                        <div>
+                          <h3 className="font-bold text-sm leading-snug">{post.username}</h3>
+                          <div className="flex items-center gap-1 text-[11px] text-orange-400 font-medium">
+                            <MapPin className="w-3 h-3" />
+                            {post.club_name}
+                          </div>
                         </div>
                       </div>
+                      <span className="text-[10px] uppercase font-bold tracking-wider px-2.5 py-1 rounded-full bg-neutral-800 text-neutral-300 border border-neutral-700/50">
+                        {post.session_type}
+                      </span>
                     </div>
-                    <span className="px-2.5 py-1 bg-zinc-800 text-xs font-semibold rounded-full text-zinc-300">
-                      {post.session_type}
-                    </span>
-                  </div>
 
-                  {post.caption && (
-                    <p className="px-4 pb-3 text-sm text-zinc-200">{post.caption}</p>
-                  )}
+                    {/* Caption */}
+                    {post.caption && (
+                      <p className="text-xs text-neutral-200 leading-relaxed">{post.caption}</p>
+                    )}
 
-                  {post.exercises && post.exercises.length > 0 && (
-                    <div className="px-4 pb-3 space-y-1.5">
-                      {post.exercises.map((ex, i) => (
-                        <div key={i} className="flex justify-between items-center text-xs bg-zinc-950/40 px-3 py-2 rounded-lg border border-zinc-800/40">
-                          <span className="font-medium text-zinc-200">{ex.name}</span>
-                          <span className="text-zinc-400">{ex.setsReps} {ex.weight && `• ${ex.weight}`}</span>
-                        </div>
-                      ))}
+                    {/* Workout Metric Badges */}
+                    <div className="flex items-center gap-2">
+                      <span className="flex items-center gap-1 text-[11px] bg-neutral-950 px-2.5 py-1 rounded-lg border border-neutral-800 text-neutral-300">
+                        <Clock className="w-3 h-3 text-orange-500" />
+                        {post.duration_minutes || 60} min
+                      </span>
+                      <span className="flex items-center gap-1 text-[11px] bg-neutral-950 px-2.5 py-1 rounded-lg border border-neutral-800 text-neutral-300">
+                        <Flame className="w-3 h-3 text-orange-500" />
+                        {post.calories_burned || 400} kcal
+                      </span>
                     </div>
-                  )}
 
-                  <div className="p-4 border-t border-zinc-800/60 flex items-center space-x-4 text-zinc-400 text-sm">
-                    <button className="flex items-center space-x-1.5 hover:text-orange-500">
-                      <Zap className="w-4 h-4" />
-                      <span>{post.likes_count || 0}</span>
-                    </button>
-                    <button className="flex items-center space-x-1.5 hover:text-zinc-200">
-                      <MessageSquare className="w-4 h-4" />
-                      <span>{post.comments_count || 0}</span>
-                    </button>
-                  </div>
-                </div>
-              ))
+                    {/* Exercise Breakdown List */}
+                    {post.exercises && post.exercises.length > 0 && (
+                      <div className="bg-neutral-950/70 rounded-2xl p-3 border border-neutral-800/60 space-y-1.5">
+                        <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">
+                          Exercices enregistrés
+                        </span>
+                        {post.exercises.map((ex, i) => (
+                          <div
+                            key={i}
+                            className="flex items-center justify-between text-xs py-1 border-b border-neutral-900 last:border-none"
+                          >
+                            <span className="font-medium text-neutral-300">{ex.name}</span>
+                            <span className="font-mono text-[11px] text-orange-400 font-semibold">
+                              {ex.sets} × {ex.reps} {ex.weight > 0 && `@ ${ex.weight} kg`}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Post Footer Actions */}
+                    <div className="flex items-center justify-between pt-2 border-t border-neutral-800/60 text-neutral-400 text-xs">
+                      <button
+                        onClick={() => handleToggleLike(post.id)}
+                        className={`flex items-center gap-1.5 font-medium transition ${
+                          isLiked ? 'text-red-500' : 'hover:text-neutral-200'
+                        }`}
+                      >
+                        <Heart className={`w-4 h-4 ${isLiked ? 'fill-red-500' : ''}`} />
+                        <span>{post.likes_count}</span>
+                      </button>
+                      <button className="flex items-center gap-1.5 hover:text-neutral-200 font-medium transition">
+                        <MessageSquare className="w-4 h-4" />
+                        <span>{post.comments_count}</span>
+                      </button>
+                      <button className="flex items-center gap-1.5 hover:text-neutral-200 transition">
+                        <Share2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </article>
+                );
+              })
             )}
           </div>
         )}
 
-        {activeTab === 'create' && (
-          <form onSubmit={handleCreatePost} className="space-y-4">
-            <h2 className="text-lg font-bold">Nouvelle séance</h2>
+        {/* TAB 2: LOG WORKOUT */}
+        {currentTab === 'workout' && (
+          <form onSubmit={handlePublishWorkout} className="space-y-4">
+            <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4">
+              <h2 className="text-base font-black tracking-tight">Enregistrer une séance</h2>
 
-            <div>
-              <label className="block text-xs font-medium text-zinc-400 mb-1">Type d'entraînement</label>
-              <select
-                value={sessionType}
-                onChange={(e) => setSessionType(e.target.value)}
-                className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-orange-500"
-              >
-                <option value="Musculation">Musculation (Pectoraux/Bras)</option>
-                <option value="Leg Day">Leg Day</option>
-                <option value="Dos & Épaules">Dos & Épaules</option>
-                <option value="Cardio / HIIT">Cardio / HIIT</option>
-                <option value="Full Body">Full Body</option>
-              </select>
-            </div>
+              {/* Workout Type */}
+              <div>
+                <label className="block text-xs font-semibold text-neutral-400 mb-1.5">Type de séance</label>
+                <select
+                  value={workoutType}
+                  onChange={(e) => setWorkoutType(e.target.value)}
+                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3.5 py-2.5 text-xs text-neutral-200 focus:outline-none focus:border-orange-500"
+                >
+                  <option value="Musculation (Push)">Musculation (Pectoraux / Épaules / Triceps)</option>
+                  <option value="Musculation (Pull)">Musculation (Dos / Biceps)</option>
+                  <option value="Musculation (Legs)">Musculation (Jambes / Mollets)</option>
+                  <option value="Full Body">Full Body</option>
+                  <option value="Cardio & HIIT">Cardio & HIIT</option>
+                </select>
+              </div>
 
-            <div>
-              <label className="block text-xs font-medium text-zinc-400 mb-1">Salle / Club</label>
-              <input
-                type="text"
-                value={clubName}
-                onChange={(e) => setClubName(e.target.value)}
-                placeholder="Ex: Basic-Fit Tournai"
-                className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-orange-500"
-              />
-            </div>
+              {/* Duration and Calories */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-neutral-400 mb-1.5">Durée (minutes)</label>
+                  <input
+                    type="number"
+                    value={workoutDuration}
+                    onChange={(e) => setWorkoutDuration(Number(e.target.value))}
+                    className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-neutral-200"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-neutral-400 mb-1.5">Calories brûlées</label>
+                  <input
+                    type="number"
+                    value={workoutCalories}
+                    onChange={(e) => setWorkoutCalories(Number(e.target.value))}
+                    className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-neutral-200"
+                  />
+                </div>
+              </div>
 
-            <div>
-              <label className="block text-xs font-medium text-zinc-400 mb-1">Description / Sensations</label>
-              <textarea
-                value={caption}
-                onChange={(e) => setCaption(e.target.value)}
-                placeholder="Ex: Nouvelle perf au développé couché !"
-                rows={3}
-                className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-orange-500"
-              />
-            </div>
+              {/* Notes / Caption */}
+              <div>
+                <label className="block text-xs font-semibold text-neutral-400 mb-1.5">Commentaires & sensations</label>
+                <textarea
+                  rows={2}
+                  placeholder="Ex: Excellente séance, bonnes charges au squat !"
+                  value={workoutCaption}
+                  onChange={(e) => setWorkoutCaption(e.target.value)}
+                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3.5 py-2 text-xs text-neutral-200 placeholder-neutral-500 focus:outline-none focus:border-orange-500"
+                />
+              </div>
 
-            <div>
-              <label className="block text-xs font-medium text-zinc-400 mb-2">Exercices</label>
-              <div className="space-y-2">
-                {exercises.map((ex, index) => (
-                  <div key={index} className="flex gap-2">
-                    <input
-                      type="text"
-                      placeholder="Exercice"
-                      value={ex.name}
-                      onChange={(e) => updateExercise(index, 'name', e.target.value)}
-                      className="flex-1 bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white"
-                    />
-                    <input
-                      type="text"
-                      placeholder="Séries/Reps"
-                      value={ex.setsReps}
-                      onChange={(e) => updateExercise(index, 'setsReps', e.target.value)}
-                      className="w-24 bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white"
-                    />
-                    <input
-                      type="text"
-                      placeholder="Poids"
-                      value={ex.weight}
-                      onChange={(e) => updateExercise(index, 'weight', e.target.value)}
-                      className="w-20 bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white"
-                    />
-                    {exercises.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => removeExercise(index)}
-                        className="p-2 text-zinc-500 hover:text-red-400"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    )}
+              {/* Dynamic Exercise Rows */}
+              <div className="space-y-3 pt-2">
+                <label className="block text-xs font-bold uppercase tracking-wider text-neutral-400">
+                  Détail des exercices
+                </label>
+                {workoutExercises.map((ex, index) => (
+                  <div key={index} className="bg-neutral-950 p-3 rounded-2xl border border-neutral-800 space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <input
+                        type="text"
+                        placeholder="Nom de l'exercice (ex: Squat)"
+                        value={ex.name}
+                        onChange={(e) => updateExerciseField(index, 'name', e.target.value)}
+                        className="flex-1 bg-transparent text-xs font-bold text-white border-b border-neutral-800 focus:outline-none focus:border-orange-500 pb-1"
+                      />
+                      {workoutExercises.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => removeExerciseRow(index)}
+                          className="text-neutral-500 hover:text-red-400 p-1"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div>
+                        <span className="text-[10px] text-neutral-500 block">Séries</span>
+                        <input
+                          type="number"
+                          value={ex.sets}
+                          onChange={(e) => updateExerciseField(index, 'sets', Number(e.target.value))}
+                          className="w-full bg-neutral-900 border border-neutral-800 rounded-lg px-2 py-1 text-xs text-center"
+                        />
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-neutral-500 block">Reps</span>
+                        <input
+                          type="number"
+                          value={ex.reps}
+                          onChange={(e) => updateExerciseField(index, 'reps', Number(e.target.value))}
+                          className="w-full bg-neutral-900 border border-neutral-800 rounded-lg px-2 py-1 text-xs text-center"
+                        />
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-neutral-500 block">Charge (kg)</span>
+                        <input
+                          type="number"
+                          value={ex.weight}
+                          onChange={(e) => updateExerciseField(index, 'weight', Number(e.target.value))}
+                          className="w-full bg-neutral-900 border border-neutral-800 rounded-lg px-2 py-1 text-xs text-center font-bold text-orange-400"
+                        />
+                      </div>
+                    </div>
                   </div>
                 ))}
+                <button
+                  type="button"
+                  onClick={addExerciseRow}
+                  className="w-full py-2.5 bg-neutral-950 border border-dashed border-neutral-700 hover:border-orange-500 rounded-xl text-xs font-semibold text-neutral-300 flex items-center justify-center gap-1.5 transition"
+                >
+                  <Plus className="w-4 h-4 text-orange-400" /> Ajouter un exercice
+                </button>
               </div>
+
+              {/* Submit Workout Button */}
               <button
-                type="button"
-                onClick={addExerciseField}
-                className="mt-2 text-xs font-semibold text-orange-400 flex items-center gap-1 hover:text-orange-300"
+                type="submit"
+                disabled={submittingWorkout}
+                className="w-full bg-gradient-to-r from-orange-600 to-orange-500 hover:from-orange-500 hover:to-orange-400 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-orange-500/20 transition flex items-center justify-center gap-2"
               >
-                <Plus className="w-3.5 h-3.5" /> Ajouter une ligne
+                {submittingWorkout ? <Loader2 className="w-5 h-5 animate-spin" /> : "Partager ma séance"}
               </button>
             </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-orange-600 hover:bg-orange-500 text-white font-bold py-3.5 rounded-xl transition duration-200 flex items-center justify-center"
-            >
-              {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Publier la séance'}
-            </button>
           </form>
         )}
 
-        {activeTab === 'profile' && (
-          <div className="text-center py-10 space-y-4">
-            <div className="w-20 h-20 bg-orange-500/20 text-orange-400 rounded-full flex items-center justify-center mx-auto border-2 border-orange-500">
-              <User className="w-10 h-10" />
+        {/* TAB 3: LEADERBOARD & PRs */}
+        {currentTab === 'leaderboard' && (
+          <div className="space-y-4">
+            <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4">
+              <div className="flex items-center gap-2">
+                <Trophy className="w-5 h-5 text-yellow-500" />
+                <h2 className="text-base font-black tracking-tight">Records du club ({selectedClub})</h2>
+              </div>
+
+              <div className="space-y-2">
+                {[
+                  { exercise: 'Développé couché', name: 'Maxime R.', weight: '145 kg', rank: '🥇' },
+                  { exercise: 'Squat', name: 'Julien D.', weight: '200 kg', rank: '🥇' },
+                  { exercise: 'Soulevé de terre', name: 'Thomas L.', weight: '230 kg', rank: '🥇' },
+                  { exercise: 'Tractions lestées', name: 'Romain B.', weight: '+45 kg', rank: '🥇' }
+                ].map((item, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center justify-between p-3 bg-neutral-950 rounded-2xl border border-neutral-800/80"
+                  >
+                    <div>
+                      <span className="text-xs font-bold text-white block">{item.exercise}</span>
+                      <span className="text-[11px] text-neutral-400">{item.name}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-black font-mono text-orange-400">{item.weight}</span>
+                      <span className="text-base">{item.rank}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
+          </div>
+        )}
+
+        {/* TAB 4: PROFILE */}
+        {currentTab === 'profile' && (
+          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-6 text-center space-y-5">
+            <div className="w-20 h-20 rounded-full bg-gradient-to-tr from-orange-500 to-amber-500 p-0.5 mx-auto">
+              <div className="w-full h-full bg-neutral-950 rounded-full flex items-center justify-center text-orange-400 font-bold text-2xl">
+                {user.email?.[0].toUpperCase() || 'A'}
+              </div>
+            </div>
+
             <div>
-              <h3 className="font-bold text-lg">{user.user_metadata?.username || 'Athlète'}</h3>
-              <p className="text-sm text-zinc-400">{user.email}</p>
+              <h2 className="font-extrabold text-lg leading-tight">
+                {user.user_metadata?.username || user.email?.split('@')[0]}
+              </h2>
+              <p className="text-xs text-neutral-400">{user.email}</p>
+              <div className="inline-flex items-center gap-1 text-[11px] text-orange-400 bg-orange-500/10 px-3 py-1 rounded-full border border-orange-500/20 mt-2 font-semibold">
+                <MapPin className="w-3 h-3" />
+                {selectedClub}
+              </div>
             </div>
-            <div className="pt-6">
+
+            {/* Profile Statistics Summary */}
+            <div className="grid grid-cols-3 gap-2 pt-2">
+              <div className="bg-neutral-950 p-3 rounded-2xl border border-neutral-800">
+                <span className="text-base font-black text-white block">18</span>
+                <span className="text-[10px] text-neutral-400 font-medium">Séances</span>
+              </div>
+              <div className="bg-neutral-950 p-3 rounded-2xl border border-neutral-800">
+                <span className="text-base font-black text-orange-500 block">4.8k</span>
+                <span className="text-[10px] text-neutral-400 font-medium">Tonnage (kg)</span>
+              </div>
+              <div className="bg-neutral-950 p-3 rounded-2xl border border-neutral-800">
+                <span className="text-base font-black text-amber-500 block">Top 5%</span>
+                <span className="text-[10px] text-neutral-400 font-medium">Club Rang</span>
+              </div>
+            </div>
+
+            <div className="pt-4 border-t border-neutral-800">
               <button
-                onClick={handleLogout}
-                className="px-6 py-2.5 bg-zinc-900 border border-zinc-800 hover:border-red-500 text-red-400 rounded-xl text-sm font-semibold transition"
+                onClick={() => supabase.auth.signOut()}
+                className="w-full py-3 bg-neutral-950 hover:bg-neutral-800 text-red-400 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 border border-neutral-800"
               >
-                Se déconnecter
+                <LogOut className="w-4 h-4" /> Se déconnecter
               </button>
             </div>
           </div>
         )}
       </main>
 
-      {/* Bottom Nav Bar */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-black/90 backdrop-blur-md border-t border-zinc-900 flex justify-around py-3">
+      {/* Bottom Floating Navigation Bar */}
+      <nav className="fixed bottom-0 left-0 right-0 z-50 bg-neutral-950/90 backdrop-blur-xl border-t border-neutral-800/80 px-6 py-2.5 flex justify-around items-center">
         <button
-          onClick={() => setActiveTab('home')}
-          className={`flex flex-col items-center gap-1 ${activeTab === 'home' ? 'text-orange-500' : 'text-zinc-500'}`}
+          onClick={() => setCurrentTab('feed')}
+          className={`flex flex-col items-center gap-1 transition ${
+            currentTab === 'feed' ? 'text-orange-500 font-bold' : 'text-neutral-500 hover:text-neutral-300'
+          }`}
         >
-          <Home className="w-6 h-6" />
-          <span className="text-[10px] font-medium">Accueil</span>
+          <Home className="w-5 h-5" />
+          <span className="text-[10px]">Accueil</span>
         </button>
+
         <button
-          onClick={() => setActiveTab('create')}
-          className={`flex flex-col items-center gap-1 ${activeTab === 'create' ? 'text-orange-500' : 'text-zinc-500'}`}
+          onClick={() => setCurrentTab('workout')}
+          className={`flex flex-col items-center gap-1 transition ${
+            currentTab === 'workout' ? 'text-orange-500 font-bold' : 'text-neutral-500 hover:text-neutral-300'
+          }`}
         >
-          <PlusSquare className="w-6 h-6" />
-          <span className="text-[10px] font-medium">Publier</span>
+          <div className="w-8 h-8 rounded-xl bg-orange-600 text-white flex items-center justify-center -mt-3 shadow-lg shadow-orange-600/30">
+            <Plus className="w-5 h-5" />
+          </div>
+          <span className="text-[10px]">Séance</span>
         </button>
+
         <button
-          onClick={() => setActiveTab('profile')}
-          className={`flex flex-col items-center gap-1 ${activeTab === 'profile' ? 'text-orange-500' : 'text-zinc-500'}`}
+          onClick={() => setCurrentTab('leaderboard')}
+          className={`flex flex-col items-center gap-1 transition ${
+            currentTab === 'leaderboard' ? 'text-orange-500 font-bold' : 'text-neutral-500 hover:text-neutral-300'
+          }`}
         >
-          <User className="w-6 h-6" />
-          <span className="text-[10px] font-medium">Profil</span>
+          <Trophy className="w-5 h-5" />
+          <span className="text-[10px]">Records</span>
+        </button>
+
+        <button
+          onClick={() => setCurrentTab('profile')}
+          className={`flex flex-col items-center gap-1 transition ${
+            currentTab === 'profile' ? 'text-orange-500 font-bold' : 'text-neutral-500 hover:text-neutral-300'
+          }`}
+        >
+          <User className="w-5 h-5" />
+          <span className="text-[10px]">Profil</span>
         </button>
       </nav>
     </div>
