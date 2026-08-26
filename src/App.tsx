@@ -33,8 +33,9 @@ import {
   Filter,
   UserPlus,
   UserCheck,
-  UserMinus,
-  Sparkles
+  UserX,
+  ArrowLeft,
+  Calendar
 } from 'lucide-react';
 import { createClient, User as SupabaseUser } from '@supabase/supabase-js';
 
@@ -43,7 +44,6 @@ const supabaseUrl = 'https://obtahwmcoqrcauscpksv.supabase.co';
 const supabaseAnonKey = 'sb_publishable_O8CKhUtzgq9nO9lKavNE9A__fAdRWoB';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-// Compression d'image
 const compressImage = (file: File, maxWidth = 800, quality = 0.7): Promise<Blob> => {
   return new Promise((resolve) => {
     const reader = new FileReader();
@@ -152,16 +152,16 @@ export default function App() {
   const [feedLoading, setFeedLoading] = useState(false);
   const [likedPosts, setLikedPosts] = useState<Record<string, boolean>>({});
 
-  // Friends System
+  // Friends & Requests System
   const [friendIds, setFriendIds] = useState<string[]>(['b1', 'b2']);
-  const [pendingFriendIds, setPendingFriendIds] = useState<string[]>([]);
+  const [friendRequestsReceived, setFriendRequestsReceived] = useState<string[]>(['b3']);
   const [buddyTabSubMode, setBuddyTabSubMode] = useState<'discover' | 'my_friends'>('discover');
 
   // Comments Drawer
   const [activeCommentPostId, setActiveCommentPostId] = useState<string | null>(null);
   const [commentInput, setCommentInput] = useState('');
 
-  // Workout & Photo Form State
+  // Workout Form State
   const [workoutType, setWorkoutType] = useState('Musculation (Push)');
   const [workoutCaption, setWorkoutCaption] = useState('');
   const [workoutDuration, setWorkoutDuration] = useState(60);
@@ -171,7 +171,7 @@ export default function App() {
   const [postImagePreview, setPostImagePreview] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
 
-  // Image Framing State (Zoom & Pan)
+  // Image Framing State
   const [imageZoom, setImageZoom] = useState(1);
   const [imagePos, setImagePos] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
@@ -245,11 +245,20 @@ export default function App() {
     }
   ];
 
-  const [selectedBuddyChat, setSelectedBuddyChat] = useState<Buddy>(buddiesList[0]);
+  // Chat Hub & Messaging State
+  const [selectedBuddyChat, setSelectedBuddyChat] = useState<Buddy | null>(null);
+  const [chatSearch, setChatSearch] = useState('');
   const [messages, setMessages] = useState<Record<string, DirectMessage[]>>({
     b1: [
       { id: '1', sender: 'Thomas D.', text: 'Salut ! Tu t’entraînes aujourd’hui à Tournai ?', time: '10:15', isMe: false },
-      { id: '2', sender: 'Moi', text: 'Salut Thomas ! Oui, séance Push prévue vers 18h.', time: '10:18', isMe: true }
+      { id: '2', sender: 'Moi', text: 'Salut Thomas ! Oui, séance Push prévue vers 18h.', time: '10:18', isMe: true },
+      { id: '3', sender: 'Thomas D.', text: 'Top, on tourne ensemble sur le dev couché ! 💪', time: '10:20', isMe: false }
+    ],
+    b2: [
+      { id: '1', sender: 'Sarah L.', text: 'Hello ! Dispo pour une séance fractionné demain midi ?', time: 'Hier', isMe: false }
+    ],
+    b3: [
+      { id: '1', sender: 'Élodie M.', text: 'Salut ! J’ai vu que tu t’entraînes aussi à Tournai, on se fait une séance ?', time: 'Hier', isMe: false }
     ]
   });
   const [currentMessageInput, setCurrentMessageInput] = useState('');
@@ -276,8 +285,6 @@ export default function App() {
 
     if (!error && data) {
       setPosts(data as Post[]);
-    } else if (error) {
-      console.error("Erreur chargement posts:", error.message);
     }
     setFeedLoading(false);
   };
@@ -296,19 +303,23 @@ export default function App() {
     };
   }, [isTimerRunning, timerSeconds]);
 
+  // Friend actions
+  const handleAcceptFriendRequest = (buddyId: string) => {
+    setFriendRequestsReceived(prev => prev.filter(id => id !== buddyId));
+    setFriendIds(prev => [...prev, buddyId]);
+  };
+
+  const handleDeclineFriendRequest = (buddyId: string) => {
+    setFriendRequestsReceived(prev => prev.filter(id => id !== buddyId));
+  };
+
   const handleToggleFriend = (buddyId: string) => {
     if (friendIds.includes(buddyId)) {
       if (window.confirm("Retirer cet ami de ta liste ?")) {
         setFriendIds(friendIds.filter(id => id !== buddyId));
       }
-    } else if (pendingFriendIds.includes(buddyId)) {
-      setPendingFriendIds(pendingFriendIds.filter(id => id !== buddyId));
     } else {
-      setPendingFriendIds([...pendingFriendIds, buddyId]);
-      setTimeout(() => {
-        setPendingFriendIds(prev => prev.filter(id => id !== buddyId));
-        setFriendIds(prev => [...prev, buddyId]);
-      }, 500);
+      setFriendIds(prev => [...prev, buddyId]);
     }
   };
 
@@ -318,8 +329,6 @@ export default function App() {
     const { error } = await supabase.from('posts').delete().eq('id', postId);
     if (!error) {
       setPosts((prev) => prev.filter((p) => p.id !== postId));
-    } else {
-      alert("Erreur lors de la suppression: " + error.message);
     }
   };
 
@@ -416,13 +425,14 @@ export default function App() {
       .eq('id', postId);
   };
 
-  const handleSendMessage = () => {
-    if (!currentMessageInput.trim()) return;
+  const handleSendMessage = (textToSend?: string) => {
+    const content = textToSend || currentMessageInput;
+    if (!content.trim() || !selectedBuddyChat) return;
     const buddyId = selectedBuddyChat.id;
     const newMsg: DirectMessage = {
       id: String(Date.now()),
       sender: 'Moi',
-      text: currentMessageInput,
+      text: content,
       time: 'À l’instant',
       isMe: true
     };
@@ -458,7 +468,6 @@ export default function App() {
 
     let uploadedImageUrl = undefined;
 
-    // Upload Supabase Storage
     if (postImageFile) {
       try {
         const compressedBlob = await compressImage(postImageFile, 800, 0.7);
@@ -467,17 +476,13 @@ export default function App() {
           .from('posts')
           .upload(fileName, compressedBlob, { contentType: 'image/jpeg' });
 
-        if (uploadError) {
-          alert("Alerte Storage : " + uploadError.message);
-        } else if (uploadData) {
+        if (!uploadError && uploadData) {
           const { data: publicUrlData } = supabase.storage
             .from('posts')
             .getPublicUrl(fileName);
           uploadedImageUrl = publicUrlData.publicUrl;
         }
-      } catch (err: any) {
-        alert("Erreur lors de la compression de l'image : " + err.message);
-      }
+      } catch (err: any) {}
     }
 
     const validExercises = workoutExercises.filter((e) => e.name.trim() !== '');
@@ -502,15 +507,12 @@ export default function App() {
       comments: []
     };
 
-    // Insertion directe en base Supabase
     const { data, error } = await supabase
       .from('posts')
       .insert([newPostData])
       .select('*');
 
-    if (error) {
-      alert("Échec de l'enregistrement dans la base de données :\n" + error.message);
-    } else if (data && data.length > 0) {
+    if (!error && data && data.length > 0) {
       setPosts([data[0] as Post, ...posts]);
       setWorkoutCaption('');
       setTaggedPartner('');
@@ -526,6 +528,7 @@ export default function App() {
   };
 
   const myFriendsList = buddiesList.filter(b => friendIds.includes(b.id));
+  const friendRequestsList = buddiesList.filter(b => friendRequestsReceived.includes(b.id));
 
   const filteredBuddies = buddiesList.filter((buddy) => {
     if (buddyTabSubMode === 'my_friends') {
@@ -944,7 +947,6 @@ export default function App() {
                 ) : (
                   filteredBuddies.map((buddy) => {
                     const isFriend = friendIds.includes(buddy.id);
-                    const isPending = pendingFriendIds.includes(buddy.id);
 
                     return (
                       <div
@@ -977,8 +979,6 @@ export default function App() {
                               className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1 ${
                                 isFriend
                                   ? 'bg-neutral-900 border border-neutral-700 text-green-400 hover:text-red-400'
-                                  : isPending
-                                  ? 'bg-neutral-800 text-orange-400 animate-pulse'
                                   : 'bg-neutral-900 border border-neutral-700 hover:border-orange-500 text-neutral-200'
                               }`}
                             >
@@ -986,8 +986,6 @@ export default function App() {
                                 <>
                                   <UserCheck className="w-3.5 h-3.5" /> Amis
                                 </>
-                              ) : isPending ? (
-                                <>Demande...</>
                               ) : (
                                 <>
                                   <UserPlus className="w-3.5 h-3.5" /> Ajouter
@@ -1258,55 +1256,194 @@ export default function App() {
           </form>
         )}
 
-        {/* TAB 4: CHAT */}
+        {/* TAB 4: CHAT & MESSAGERIE COMPLÈTE (BOÎTE DE RÉCEPTION + DEMANDES D'AMIS) */}
         {currentTab === 'chat' && (
-          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl overflow-hidden flex flex-col h-[70vh]">
-            <div className="p-3.5 bg-neutral-950 border-b border-neutral-800 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <img src={selectedBuddyChat.avatar_url} alt="" className="w-9 h-9 rounded-full object-cover border border-orange-500/30" />
-                <div>
-                  <h3 className="font-bold text-xs text-white">{selectedBuddyChat.name}</h3>
-                  <span className="text-[10px] text-green-400 font-medium">● En ligne à {selectedBuddyChat.club}</span>
+          <div className="space-y-4">
+            {selectedBuddyChat ? (
+              // VUE 1 : CONVERSATION INDIVIDUELLE
+              <div className="bg-neutral-900 border border-neutral-800 rounded-3xl overflow-hidden flex flex-col h-[74vh]">
+                <div className="p-3.5 bg-neutral-950 border-b border-neutral-800 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => setSelectedBuddyChat(null)}
+                      className="p-1 text-neutral-400 hover:text-white rounded-lg hover:bg-neutral-900"
+                    >
+                      <ArrowLeft className="w-5 h-5" />
+                    </button>
+                    <img src={selectedBuddyChat.avatar_url} alt="" className="w-9 h-9 rounded-full object-cover border border-orange-500/30" />
+                    <div>
+                      <h3 className="font-bold text-xs text-white">{selectedBuddyChat.name}</h3>
+                      <span className="text-[10px] text-green-400 font-medium">● En ligne à {selectedBuddyChat.club}</span>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => handleSendMessage("Dispo pour une séance ensemble aujourd'hui ? 🏋️‍♂️")}
+                    title="Proposer une séance"
+                    className="px-2.5 py-1.5 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-orange-400 text-[11px] font-bold flex items-center gap-1 border border-neutral-700"
+                  >
+                    <Calendar className="w-3.5 h-3.5" /> Séance duo
+                  </button>
+                </div>
+
+                <div className="flex-1 p-4 overflow-y-auto space-y-3">
+                  {(messages[selectedBuddyChat.id] || []).map((msg) => (
+                    <div
+                      key={msg.id}
+                      className={`flex flex-col ${msg.isMe ? 'items-end' : 'items-start'}`}
+                    >
+                      <div
+                        className={`max-w-[80%] rounded-2xl px-3.5 py-2.5 text-xs ${
+                          msg.isMe
+                            ? 'bg-orange-600 text-white rounded-tr-none shadow-md shadow-orange-600/10'
+                            : 'bg-neutral-800 text-neutral-200 rounded-tl-none'
+                        }`}
+                      >
+                        {msg.text}
+                      </div>
+                      <span className="text-[9px] text-neutral-500 mt-1 px-1">{msg.time}</span>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="p-3 bg-neutral-950 border-t border-neutral-800 flex items-center gap-2">
+                  <input
+                    type="text"
+                    placeholder={`Écrire à ${selectedBuddyChat.name}...`}
+                    value={currentMessageInput}
+                    onChange={(e) => setCurrentMessageInput(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
+                    className="flex-1 bg-neutral-900 border border-neutral-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-orange-500"
+                  />
+                  <button
+                    onClick={() => handleSendMessage()}
+                    className="p-2.5 bg-orange-600 hover:bg-orange-500 text-white rounded-xl transition"
+                  >
+                    <SendHorizontal className="w-4 h-4" />
+                  </button>
                 </div>
               </div>
-            </div>
-
-            <div className="flex-1 p-4 overflow-y-auto space-y-3">
-              {(messages[selectedBuddyChat.id] || []).map((msg) => (
-                <div
-                  key={msg.id}
-                  className={`flex flex-col ${msg.isMe ? 'items-end' : 'items-start'}`}
-                >
-                  <div
-                    className={`max-w-[80%] rounded-2xl px-3.5 py-2.5 text-xs ${
-                      msg.isMe
-                        ? 'bg-orange-600 text-white rounded-tr-none'
-                        : 'bg-neutral-800 text-neutral-200 rounded-tl-none'
-                    }`}
-                  >
-                    {msg.text}
+            ) : (
+              // VUE 2 : BOÎTE DE RÉCEPTION & DEMANDES D'AMIS
+              <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <MessageSquare className="w-5 h-5 text-orange-500" />
+                    <h2 className="text-base font-black tracking-tight">Messagerie & Demandes</h2>
                   </div>
-                  <span className="text-[9px] text-neutral-500 mt-1 px-1">{msg.time}</span>
+                  <span className="text-[11px] text-orange-400 font-bold bg-orange-500/10 px-2.5 py-1 rounded-full border border-orange-500/20">
+                    {myFriendsList.length} contact{myFriendsList.length > 1 ? 's' : ''}
+                  </span>
                 </div>
-              ))}
-            </div>
 
-            <div className="p-3 bg-neutral-950 border-t border-neutral-800 flex items-center gap-2">
-              <input
-                type="text"
-                placeholder="Écrire un message..."
-                value={currentMessageInput}
-                onChange={(e) => setCurrentMessageInput(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-                className="flex-1 bg-neutral-900 border border-neutral-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-orange-500"
-              />
-              <button
-                onClick={handleSendMessage}
-                className="p-2.5 bg-orange-600 hover:bg-orange-500 text-white rounded-xl transition"
-              >
-                <SendHorizontal className="w-4 h-4" />
-              </button>
-            </div>
+                {/* SECTION 1 : DEMANDES D'AMIS EN ATTENTE */}
+                {friendRequestsList.length > 0 && (
+                  <div className="space-y-2.5 bg-orange-500/5 border border-orange-500/20 p-3.5 rounded-2xl">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-orange-400 flex items-center gap-1.5">
+                        <UserPlus className="w-3.5 h-3.5" /> Demandes d'amis reçues ({friendRequestsList.length})
+                      </span>
+                    </div>
+
+                    <div className="space-y-2">
+                      {friendRequestsList.map((req) => (
+                        <div
+                          key={req.id}
+                          className="bg-neutral-950 p-3 rounded-xl border border-neutral-800 flex items-center justify-between gap-2"
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <img src={req.avatar_url} alt="" className="w-9 h-9 rounded-full object-cover border border-neutral-700" />
+                            <div>
+                              <h4 className="font-bold text-xs text-white leading-tight">{req.name}</h4>
+                              <span className="text-[10px] text-neutral-400">{req.club}</span>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              onClick={() => handleAcceptFriendRequest(req.id)}
+                              className="px-2.5 py-1 bg-green-600 hover:bg-green-500 text-white rounded-lg text-xs font-bold transition flex items-center gap-1"
+                            >
+                              <UserCheck className="w-3.5 h-3.5" /> Accepter
+                            </button>
+                            <button
+                              onClick={() => handleDeclineFriendRequest(req.id)}
+                              className="p-1 bg-neutral-900 hover:bg-neutral-800 text-neutral-400 hover:text-red-400 rounded-lg text-xs transition border border-neutral-800"
+                            >
+                              <UserX className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* BARRE DE RECHERCHE DE CONVERSATION */}
+                <div className="relative">
+                  <Search className="absolute left-3.5 top-3 w-4 h-4 text-neutral-500" />
+                  <input
+                    type="text"
+                    placeholder="Rechercher un ami..."
+                    value={chatSearch}
+                    onChange={(e) => setChatSearch(e.target.value)}
+                    className="w-full bg-neutral-950 border border-neutral-800 rounded-xl pl-10 pr-3 py-2.5 text-xs text-neutral-200 focus:outline-none focus:border-orange-500"
+                  />
+                </div>
+
+                {/* LISTE DES MESSAGES / AMIS */}
+                <div className="space-y-2">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-500 block">
+                    Discussions récentes
+                  </span>
+
+                  {myFriendsList
+                    .filter(f => f.name.toLowerCase().includes(chatSearch.toLowerCase()))
+                    .map((friend) => {
+                      const chatHistory = messages[friend.id] || [];
+                      const lastMessage = chatHistory[chatHistory.length - 1];
+
+                      return (
+                        <div
+                          key={friend.id}
+                          onClick={() => setSelectedBuddyChat(friend)}
+                          className="bg-neutral-950 hover:bg-neutral-900/80 p-3 rounded-2xl border border-neutral-800/80 flex items-center justify-between cursor-pointer transition"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="relative">
+                              <img src={friend.avatar_url} alt="" className="w-11 h-11 rounded-full object-cover border border-neutral-700" />
+                              <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-neutral-950 rounded-full" />
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-1.5">
+                                <h3 className="font-bold text-xs text-white">{friend.name}</h3>
+                                <span className="text-[10px] text-neutral-500">● {friend.club.replace('Basic-Fit ', '')}</span>
+                              </div>
+                              <p className="text-[11px] text-neutral-400 line-clamp-1 mt-0.5">
+                                {lastMessage ? (
+                                  <span>{lastMessage.isMe ? 'Moi : ' : ''}{lastMessage.text}</span>
+                                ) : (
+                                  <span className="italic text-neutral-500">Commencer la conversation...</span>
+                                )}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="text-right">
+                            <span className="text-[9px] text-neutral-500">{lastMessage?.time || ''}</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+
+                  {myFriendsList.length === 0 && (
+                    <div className="text-center py-10 text-neutral-500 text-xs bg-neutral-950 rounded-2xl border border-neutral-800/60 p-4">
+                      Tu n'as pas encore de contact. Ajoute des amis dans l'onglet Buddy pour échanger et t'entraîner ensemble !
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -1479,7 +1616,12 @@ export default function App() {
             currentTab === 'chat' ? 'text-orange-500 font-bold' : 'text-neutral-500 hover:text-neutral-300'
           }`}
         >
-          <MessageCircle className="w-5 h-5" />
+          <div className="relative">
+            <MessageCircle className="w-5 h-5" />
+            {friendRequestsList.length > 0 && (
+              <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-orange-500 rounded-full" />
+            )}
+          </div>
           <span className="text-[10px]">Chat</span>
         </button>
 
