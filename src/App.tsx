@@ -1046,6 +1046,7 @@ export default function App() {
       setPostImagePreview(null);
       setWorkoutExercises([{ name: '', sets: 3, reps: 10, weight: 20 }]);
       setCurrentTab('feed');
+      fetchCloudPosts(); // Rafraîchissement instantané du flux
     }
     setIsUploading(false);
   };
