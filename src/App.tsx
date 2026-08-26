@@ -174,6 +174,7 @@ interface RealUser {
   id: string;
   username: string;
   email: string;
+  gender?: 'M' | 'F';
   home_club: string;
   avatar_url: string;
 }
@@ -232,11 +233,12 @@ export default function App() {
 
   const [active3DExercise, setActive3DExercise] = useState<string | null>(null);
 
-  // Vrais utilisateurs et Amis réels
+  // Utilisateurs réels et Amis
   const [registeredUsers, setRegisteredUsers] = useState<RealUser[]>([]);
   const [friendIds, setFriendIds] = useState<string[]>([]);
   const [buddyTabSubMode, setBuddyTabSubMode] = useState<'discover' | 'my_friends'>('discover');
   const [userSearchQuery, setUserSearchQuery] = useState('');
+  const [filterWomenOnly, setFilterWomenOnly] = useState(false);
 
   // Stories
   const [cloudStories, setCloudStories] = useState<Story[]>([]);
@@ -363,6 +365,7 @@ export default function App() {
             id: p.user_id,
             username: p.username,
             email: `${p.username}@fitpulse.be`,
+            gender: 'M',
             home_club: p.club_name || 'Basic-Fit Tournai',
             avatar_url: p.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'
           });
@@ -678,6 +681,14 @@ export default function App() {
     setIsUploading(false);
   };
 
+  // Filtrage intelligent et flexible de l'onglet Buddy
+  const filteredBuddies = registeredUsers.filter((u) => {
+    if (buddyTabSubMode === 'my_friends' && !friendIds.includes(u.id)) return false;
+    if (filterWomenOnly && u.gender === 'M') return false;
+    if (userSearchQuery.trim() && !u.username.toLowerCase().includes(userSearchQuery.toLowerCase())) return false;
+    return true;
+  });
+
   const displayedPosts = posts.filter((post) => {
     if (feedFilterMode === 'all') return isMatchingClub(post.club_name, selectedClub);
     return post.user_id === user?.id || myFriendUsernames.includes(post.username);
@@ -891,11 +902,38 @@ export default function App() {
           </form>
         )}
 
-        {/* TAB 2: BUDDY - VRAIE RECHERCHE FONCTIONNELLE */}
+        {/* TAB 2: BUDDY - RECHERCHE ET FILTRES FONCTIONNELS */}
         {currentTab === 'buddy' && (
           <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4">
-            <h2 className="text-base font-black tracking-tight">Rechercher des athlètes</h2>
+            <div className="flex items-center justify-between">
+              <h2 className="text-base font-black tracking-tight">Réseau & Athlètes</h2>
+              <button
+                onClick={() => setFilterWomenOnly(!filterWomenOnly)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition ${
+                  filterWomenOnly
+                    ? 'bg-gradient-to-r from-pink-600 to-purple-600 text-white ring-2 ring-pink-400 shadow-md'
+                    : 'bg-neutral-950 text-neutral-400 hover:text-white border border-neutral-800'
+                }`}
+              >
+                <span>🚺</span> Entre femmes {filterWomenOnly && '✓'}
+              </button>
+            </div>
             
+            <div className="bg-neutral-950 p-1.5 rounded-2xl border border-neutral-800 flex items-center gap-1">
+              <button
+                onClick={() => setBuddyTabSubMode('discover')}
+                className={`flex-1 py-2 rounded-xl text-xs font-bold transition ${buddyTabSubMode === 'discover' ? 'bg-orange-600 text-white' : 'text-neutral-400 hover:text-white'}`}
+              >
+                Découvrir
+              </button>
+              <button
+                onClick={() => setBuddyTabSubMode('my_friends')}
+                className={`flex-1 py-2 rounded-xl text-xs font-bold transition ${buddyTabSubMode === 'my_friends' ? 'bg-orange-600 text-white' : 'text-neutral-400 hover:text-white'}`}
+              >
+                Mes Amis ({myFriendsList.length})
+              </button>
+            </div>
+
             <div className="relative">
               <Search className="absolute left-3.5 top-3 w-4 h-4 text-neutral-500" />
               <input
@@ -908,49 +946,45 @@ export default function App() {
             </div>
 
             <div className="space-y-3 pt-1">
-              {registeredUsers
-                .filter((u) => u.username.toLowerCase().includes(userSearchQuery.toLowerCase()))
-                .length === 0 ? (
+              {filteredBuddies.length === 0 ? (
                 <div className="text-center py-8 text-neutral-500 text-xs">
-                  Aucun autre utilisateur trouvé pour l'instant.
+                  Aucun athlète trouvé pour l'instant.
                 </div>
               ) : (
-                registeredUsers
-                  .filter((u) => u.username.toLowerCase().includes(userSearchQuery.toLowerCase()))
-                  .map((realUser) => {
-                    const isFriend = friendIds.includes(realUser.id);
-                    return (
-                      <div key={realUser.id} className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <img src={realUser.avatar_url} alt="" className="w-12 h-12 rounded-full object-cover border border-neutral-700" />
-                          <div>
-                            <h3 className="font-bold text-sm text-white">{realUser.username}</h3>
-                            <span className="text-[11px] text-orange-400 font-medium">● {realUser.home_club}</span>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => {
-                              if (isFriend) {
-                                setFriendIds(friendIds.filter(id => id !== realUser.id));
-                              } else {
-                                setFriendIds([...friendIds, realUser.id]);
-                              }
-                            }}
-                            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1 ${
-                              isFriend ? 'bg-neutral-900 border border-neutral-700 text-green-400' : 'bg-orange-600 text-white'
-                            }`}
-                          >
-                            {isFriend ? <UserCheck className="w-3.5 h-3.5" /> : <UserPlus className="w-3.5 h-3.5" />}
-                            {isFriend ? 'Ami' : 'Ajouter'}
-                          </button>
-                          <button onClick={() => { setSelectedBuddyChat(realUser); setCurrentTab('chat'); }} className="p-2 bg-neutral-900 border border-neutral-800 hover:border-orange-500 text-neutral-200 rounded-xl">
-                            <MessageCircle className="w-4 h-4" />
-                          </button>
+                filteredBuddies.map((realUser) => {
+                  const isFriend = friendIds.includes(realUser.id);
+                  return (
+                    <div key={realUser.id} className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <img src={realUser.avatar_url} alt="" className="w-12 h-12 rounded-full object-cover border border-neutral-700" />
+                        <div>
+                          <h3 className="font-bold text-sm text-white">{realUser.username}</h3>
+                          <span className="text-[11px] text-orange-400 font-medium">● {realUser.home_club}</span>
                         </div>
                       </div>
-                    );
-                  })
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => {
+                            if (isFriend) {
+                              setFriendIds(friendIds.filter(id => id !== realUser.id));
+                            } else {
+                              setFriendIds([...friendIds, realUser.id]);
+                            }
+                          }}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1 ${
+                            isFriend ? 'bg-neutral-900 border border-neutral-700 text-green-400' : 'bg-orange-600 text-white'
+                          }`}
+                        >
+                          {isFriend ? <UserCheck className="w-3.5 h-3.5" /> : <UserPlus className="w-3.5 h-3.5" />}
+                          {isFriend ? 'Ami' : 'Ajouter'}
+                        </button>
+                        <button onClick={() => { setSelectedBuddyChat(realUser); setCurrentTab('chat'); }} className="p-2 bg-neutral-900 border border-neutral-800 hover:border-orange-500 text-neutral-200 rounded-xl">
+                          <MessageCircle className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })
               )}
             </div>
           </div>
