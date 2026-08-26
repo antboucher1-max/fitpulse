@@ -332,29 +332,13 @@ export default function App() {
   const [feedLoading, setFeedLoading] = useState(false);
   const [likedPosts, setLikedPosts] = useState<Record<string, boolean>>({});
 
-  // Stories State & 24H Logic
-  const [stories, setStories] = useState<Story[]>([
-    {
-      id: 'demo-s1',
-      user_id: 'b1',
-      username: 'Thomas D.',
-      avatar_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150',
-      image_url: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?w=800',
-      caption: 'Prêt pour exploser le PR au dev couché 🔥',
-      club_name: 'Basic-Fit Tournai (Bastion)',
-      created_at: new Date(Date.now() - 2 * 3600 * 1000).toISOString() // Il y a 2h
-    },
-    {
-      id: 'demo-s2',
-      user_id: 'b2',
-      username: 'Sarah L.',
-      avatar_url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150',
-      image_url: 'https://images.unsplash.com/photo-1518611012118-696072aa579a?w=800',
-      caption: 'Fin de séance HIIT cardio, les jambes en feu 💦',
-      club_name: 'Basic-Fit Tournai (Bastion)',
-      created_at: new Date(Date.now() - 5 * 3600 * 1000).toISOString() // Il y a 5h
-    }
-  ]);
+  // Friends System
+  const [friendIds, setFriendIds] = useState<string[]>(['b1', 'b2']);
+  const [friendRequestsReceived, setFriendRequestsReceived] = useState<string[]>(['b3']);
+  const [buddyTabSubMode, setBuddyTabSubMode] = useState<'discover' | 'my_friends'>('discover');
+
+  // Stories State
+  const [stories, setStories] = useState<Story[]>([]);
   const [viewedStoryIds, setViewedStoryIds] = useState<string[]>([]);
   const [activeStoryIndex, setActiveStoryIndex] = useState<number | null>(null);
   const [storyProgress, setStoryProgress] = useState(0);
@@ -364,11 +348,6 @@ export default function App() {
   const [storyCaption, setStoryCaption] = useState('');
   const [storyUploading, setStoryUploading] = useState(false);
   const storyFileInputRef = useRef<HTMLInputElement>(null);
-
-  // Friends System
-  const [friendIds, setFriendIds] = useState<string[]>(['b1', 'b2']);
-  const [friendRequestsReceived, setFriendRequestsReceived] = useState<string[]>(['b3']);
-  const [buddyTabSubMode, setBuddyTabSubMode] = useState<'discover' | 'my_friends'>('discover');
 
   // Comments Drawer
   const [activeCommentPostId, setActiveCommentPostId] = useState<string | null>(null);
@@ -509,6 +488,13 @@ export default function App() {
           setStories((prev) => [payload.new as Story, ...prev]);
         }
       )
+      .on(
+        'postgres_changes',
+        { event: 'DELETE', schema: 'public', table: 'stories' },
+        (payload) => {
+          setStories((prev) => prev.filter((s) => s.id !== payload.old.id));
+        }
+      )
       .subscribe();
 
     return () => {
@@ -534,21 +520,21 @@ export default function App() {
     setFeedLoading(false);
   };
 
-  // Filtrage et nettoyage automatique des stories > 24 heures
+  // Filtrage et suppression stricte des stories de plus de 24 heures
   const fetchCloudStories = async () => {
     const twentyFourHoursAgo = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
 
-    // 1. Supprimer en base celles qui ont dépassé 24h
+    // Supprimer dans Supabase les stories de plus de 24h
     await supabase.from('stories').delete().lt('created_at', twentyFourHoursAgo);
 
-    // 2. Récupérer uniquement les stories actives (< 24h)
+    // Charger les stories récentes
     const { data, error } = await supabase
       .from('stories')
       .select('*')
       .gte('created_at', twentyFourHoursAgo)
       .order('created_at', { ascending: false });
 
-    if (!error && data && data.length > 0) {
+    if (!error && data) {
       setStories(data as Story[]);
     }
   };
@@ -578,20 +564,20 @@ export default function App() {
     };
   }, [isTimerRunning, timerSeconds]);
 
-  // Chronomètre de défilement automatique des stories (5 secondes)
+  // Défilement automatique de 5 secondes par story
   useEffect(() => {
     if (activeStoryIndex === null) {
       setStoryProgress(0);
       return;
     }
 
-    const currentStory = validStories[activeStoryIndex];
+    const currentStory = friendStoriesList[activeStoryIndex];
     if (currentStory && !viewedStoryIds.includes(currentStory.id)) {
       setViewedStoryIds((prev) => [...prev, currentStory.id]);
     }
 
-    const interval = 50; // 50ms interval
-    const step = (interval / 5000) * 100; // 5000ms total duration
+    const interval = 50;
+    const step = (interval / 5000) * 100;
 
     const timer = setInterval(() => {
       setStoryProgress((prev) => {
@@ -604,20 +590,18 @@ export default function App() {
     }, interval);
 
     return () => clearInterval(timer);
-  }, [activeStoryIndex]);
+  }, [activeStoryIndex, stories, friendIds]);
 
-  // Passage à la story suivante
   const handleNextStory = () => {
     if (activeStoryIndex === null) return;
-    if (activeStoryIndex < validStories.length - 1) {
+    if (activeStoryIndex < friendStoriesList.length - 1) {
       setActiveStoryIndex(activeStoryIndex + 1);
       setStoryProgress(0);
     } else {
-      setActiveStoryIndex(null); // Fin des stories
+      setActiveStoryIndex(null);
     }
   };
 
-  // Retour à la story précédente
   const handlePrevStory = () => {
     if (activeStoryIndex === null) return;
     if (activeStoryIndex > 0) {
@@ -992,13 +976,19 @@ export default function App() {
   };
 
   const myFriendsList = buddiesList.filter((b) => friendIds.includes(b.id));
+  const myFriendNames = myFriendsList.map((f) => f.name);
   const friendRequestsList = buddiesList.filter((b) => friendRequestsReceived.includes(b.id));
 
-  // Filtrage des Stories actives (< 24h)
+  // FILTRE STORIES : Uniquement les amis confirmés OU ma propre story (valides < 24h)
   const twentyFourHoursAgoMs = Date.now() - 24 * 3600 * 1000;
-  const validStories = stories.filter((s) => {
+  const friendStoriesList = stories.filter((s) => {
     const storyDate = new Date(s.created_at).getTime();
-    return !isNaN(storyDate) ? storyDate >= twentyFourHoursAgoMs : true;
+    const isRecent = !isNaN(storyDate) ? storyDate >= twentyFourHoursAgoMs : true;
+    const isFriendOrMe =
+      s.user_id === user?.id ||
+      friendIds.includes(s.user_id) ||
+      myFriendNames.includes(s.username);
+    return isRecent && isFriendOrMe;
   });
 
   const filteredBuddies = buddiesList.filter((buddy) => {
@@ -1015,7 +1005,6 @@ export default function App() {
       return isMatchingClub(post.club_name, selectedClub);
     }
     if (feedFilterMode === 'friends') {
-      const myFriendNames = myFriendsList.map((f) => f.name);
       return post.user_id === user?.id || myFriendNames.includes(post.username);
     }
     return true;
@@ -1029,7 +1018,7 @@ export default function App() {
         (m.sender_id === selectedBuddyChat.id && m.receiver_id === user.id))
   );
 
-  const activeViewingStory = activeStoryIndex !== null ? validStories[activeStoryIndex] : null;
+  const activeViewingStory = activeStoryIndex !== null ? friendStoriesList[activeStoryIndex] : null;
 
   if (!user) {
     return (
@@ -1269,11 +1258,11 @@ export default function App() {
 
       {/* Main Screen Container */}
       <main className="flex-1 max-w-lg w-full mx-auto px-4 py-3 pb-24">
-        {/* TAB 1: FEED AVEC STORIES INSTAGRAM DYNAMIQUES */}
+        {/* TAB 1: FEED AVEC STORIES EXCLUSIVES AMIS */}
         {currentTab === 'feed' && (
           <div className="space-y-4">
             
-            {/* STORIES ROW (STYLE INSTAGRAM AVEC ÉTAT VU/NON-VU ET 24H) */}
+            {/* STORIES ROW (UNIQUEMENT AMIS + MOI, EXPIRATION 24H) */}
             <div className="bg-neutral-900/60 border border-neutral-800/80 rounded-3xl p-3">
               <div className="flex items-center gap-3.5 overflow-x-auto no-scrollbar py-1">
                 
@@ -1293,8 +1282,8 @@ export default function App() {
                   <span className="text-[10px] font-semibold text-neutral-300 tracking-tight">Ta story</span>
                 </div>
 
-                {/* Bulles Stories des Amis */}
-                {validStories.map((story, index) => {
+                {/* Bulles Stories de mes Amis */}
+                {friendStoriesList.map((story, index) => {
                   const isViewed = viewedStoryIds.includes(story.id);
 
                   return (
@@ -1306,7 +1295,6 @@ export default function App() {
                       }}
                       className="flex flex-col items-center gap-1.5 flex-shrink-0 cursor-pointer"
                     >
-                      {/* Anneau gradient Instagram si non vu, ou gris discret si déjà vu */}
                       <div
                         className={`w-16 h-16 rounded-full p-[2.5px] transition transform hover:scale-105 ${
                           isViewed
@@ -2179,12 +2167,12 @@ export default function App() {
         )}
       </main>
 
-      {/* LECTEUR DE STORY PLEIN ÉCRAN INSTAGRAM-STYLE (AVEC TOUCHES GAUCHE/DROITE ET PROGRESSION) */}
+      {/* LECTEUR DE STORY PLEIN ÉCRAN INSTAGRAM-STYLE */}
       {activeViewingStory && activeStoryIndex !== null && (
         <div className="fixed inset-0 z-50 bg-black flex flex-col justify-between p-4 animate-fade-in select-none">
           {/* Barres de progression multiples en haut */}
           <div className="w-full flex items-center gap-1.5 pt-2 z-20">
-            {validStories.map((_, idx) => (
+            {friendStoriesList.map((_, idx) => (
               <div key={idx} className="h-1 bg-white/30 rounded-full flex-1 overflow-hidden">
                 <div
                   className="h-full bg-white transition-all ease-linear"
