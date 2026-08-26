@@ -39,9 +39,7 @@ import {
   Navigation,
   CheckCircle2,
   Building2,
-  Sparkles,
-  ChevronLeft,
-  ChevronRight
+  Sparkles
 } from 'lucide-react';
 import { createClient, User as SupabaseUser } from '@supabase/supabase-js';
 
@@ -301,6 +299,31 @@ interface DBMessage {
   created_at: string;
 }
 
+const DEFAULT_FRIEND_STORIES: Story[] = [
+  {
+    id: 'demo-s1',
+    user_id: 'b1',
+    username: 'Thomas D.',
+    avatar_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150',
+    image_url: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?w=800',
+    caption: 'Prêt pour exploser le PR au dev couché 🔥',
+    club_name: 'Basic-Fit Tournai (Bastion)',
+    likes_count: 3,
+    created_at: new Date(Date.now() - 2 * 3600 * 1000).toISOString()
+  },
+  {
+    id: 'demo-s2',
+    user_id: 'b2',
+    username: 'Sarah L.',
+    avatar_url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150',
+    image_url: 'https://images.unsplash.com/photo-1518611012118-696072aa579a?w=800',
+    caption: 'Fin de séance HIIT cardio, les jambes en feu 💦',
+    club_name: 'Basic-Fit Tournai (Bastion)',
+    likes_count: 5,
+    created_at: new Date(Date.now() - 5 * 3600 * 1000).toISOString()
+  }
+];
+
 export default function App() {
   const [user, setUser] = useState<SupabaseUser | null>(null);
 
@@ -316,7 +339,7 @@ export default function App() {
   const [level, setLevel] = useState<'Débutant' | 'Intermédiaire' | 'Avancé'>('Intermédiaire');
   const [homeClub, setHomeClub] = useState<string>('Basic-Fit Tournai (Bastion)');
 
-  // Sélecteur Club (GPS & Recherche)
+  // Sélecteur Club
   const [clubsList, setClubsList] = useState<ClubLocation[]>(CLUBS_DATABASE);
   const [gpsLoading, setGpsLoading] = useState(false);
   const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(null);
@@ -338,31 +361,8 @@ export default function App() {
   const [friendRequestsReceived, setFriendRequestsReceived] = useState<string[]>(['b3']);
   const [buddyTabSubMode, setBuddyTabSubMode] = useState<'discover' | 'my_friends'>('discover');
 
-  // Stories State & Likes / Comments
-  const [stories, setStories] = useState<Story[]>([
-    {
-      id: 'demo-s1',
-      user_id: 'b1',
-      username: 'Thomas D.',
-      avatar_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150',
-      image_url: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?w=800',
-      caption: 'Prêt pour exploser le PR au dev couché 🔥',
-      club_name: 'Basic-Fit Tournai (Bastion)',
-      likes_count: 3,
-      created_at: new Date(Date.now() - 2 * 3600 * 1000).toISOString()
-    },
-    {
-      id: 'demo-s2',
-      user_id: 'b2',
-      username: 'Sarah L.',
-      avatar_url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150',
-      image_url: 'https://images.unsplash.com/photo-1518611012118-696072aa579a?w=800',
-      caption: 'Fin de séance HIIT cardio, les jambes en feu 💦',
-      club_name: 'Basic-Fit Tournai (Bastion)',
-      likes_count: 5,
-      created_at: new Date(Date.now() - 5 * 3600 * 1000).toISOString()
-    }
-  ]);
+  // Stories State
+  const [cloudStories, setCloudStories] = useState<Story[]>([]);
   const [viewedStoryIds, setViewedStoryIds] = useState<string[]>([]);
   const [activeStoryIndex, setActiveStoryIndex] = useState<number | null>(null);
   const [storyProgress, setStoryProgress] = useState(0);
@@ -512,14 +512,7 @@ export default function App() {
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'stories' },
         (payload) => {
-          setStories((prev) => [payload.new as Story, ...prev]);
-        }
-      )
-      .on(
-        'postgres_changes',
-        { event: 'DELETE', schema: 'public', table: 'stories' },
-        (payload) => {
-          setStories((prev) => prev.filter((s) => s.id !== payload.old.id));
+          setCloudStories((prev) => [payload.new as Story, ...prev]);
         }
       )
       .subscribe();
@@ -547,21 +540,17 @@ export default function App() {
     setFeedLoading(false);
   };
 
-  // Filtrage et suppression stricte des stories de plus de 24 heures
   const fetchCloudStories = async () => {
-    const twentyFourHoursAgo = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
+    try {
+      const { data, error } = await supabase
+        .from('stories')
+        .select('*')
+        .order('created_at', { ascending: false });
 
-    await supabase.from('stories').delete().lt('created_at', twentyFourHoursAgo);
-
-    const { data, error } = await supabase
-      .from('stories')
-      .select('*')
-      .gte('created_at', twentyFourHoursAgo)
-      .order('created_at', { ascending: false });
-
-    if (!error && data) {
-      setStories(data as Story[]);
-    }
+      if (!error && data) {
+        setCloudStories(data as Story[]);
+      }
+    } catch (err) {}
   };
 
   const fetchDirectMessages = async () => {
@@ -589,7 +578,25 @@ export default function App() {
     };
   }, [isTimerRunning, timerSeconds]);
 
-  // Défilement automatique de 5 secondes par story (avec mise en pause lors de l'écriture d'un commentaire)
+  // COMBINAISON DE TOUTES LES STORIES VALIDES (< 24H)
+  const combinedAllStories = [...cloudStories, ...DEFAULT_FRIEND_STORIES];
+  const myFriendsList = buddiesList.filter((b) => friendIds.includes(b.id));
+  const myFriendNames = myFriendsList.map((f) => f.name);
+  const friendRequestsList = buddiesList.filter((b) => friendRequestsReceived.includes(b.id));
+
+  // FILTRE STRICT : Uniquement les amis confirmés OU ma propre story, datant de moins de 24h
+  const twentyFourHoursAgoMs = Date.now() - 24 * 3600 * 1000;
+  const friendStoriesList = combinedAllStories.filter((s) => {
+    const storyDate = new Date(s.created_at).getTime();
+    const isUnder24h = !isNaN(storyDate) ? storyDate >= twentyFourHoursAgoMs : true;
+    const isFriendOrMe =
+      s.user_id === user?.id ||
+      friendIds.includes(s.user_id) ||
+      myFriendNames.includes(s.username);
+    return isUnder24h && isFriendOrMe;
+  });
+
+  // Défilement automatique de 5 secondes par story
   useEffect(() => {
     if (activeStoryIndex === null || isStoryPaused) {
       return;
@@ -614,7 +621,7 @@ export default function App() {
     }, interval);
 
     return () => clearInterval(timer);
-  }, [activeStoryIndex, isStoryPaused, stories, friendIds]);
+  }, [activeStoryIndex, isStoryPaused, friendStoriesList.length]);
 
   const handleNextStory = () => {
     if (activeStoryIndex === null) return;
@@ -642,10 +649,9 @@ export default function App() {
     const isLiked = likedStories[storyId];
     setLikedStories((prev) => ({ ...prev, [storyId]: !isLiked }));
 
-    const story = stories.find((s) => s.id === storyId);
+    const story = friendStoriesList.find((s) => s.id === storyId);
     if (!story || !user) return;
 
-    // Envoyer une notification de réaction dans le chat de l'ami
     if (!isLiked) {
       const myName = user.user_metadata?.first_name || user.user_metadata?.username || user.email?.split('@')[0] || 'Moi';
       await supabase.from('direct_messages').insert([
@@ -669,7 +675,6 @@ export default function App() {
 
     const myName = user.user_metadata?.first_name || user.user_metadata?.username || user.email?.split('@')[0] || 'Moi';
 
-    // Envoi direct du commentaire dans la messagerie privée de l'ami
     const { error } = await supabase.from('direct_messages').insert([
       {
         sender_id: user.id,
@@ -862,9 +867,9 @@ export default function App() {
     }]).select('*');
 
     if (data && data.length > 0) {
-      setStories([data[0] as Story, ...stories]);
+      setCloudStories([data[0] as Story, ...cloudStories]);
     } else {
-      setStories([newStoryData, ...stories]);
+      setCloudStories([newStoryData, ...cloudStories]);
     }
 
     setStoryImageFile(null);
@@ -1049,22 +1054,6 @@ export default function App() {
 
     setIsUploading(false);
   };
-
-  const myFriendsList = buddiesList.filter((b) => friendIds.includes(b.id));
-  const myFriendNames = myFriendsList.map((f) => f.name);
-  const friendRequestsList = buddiesList.filter((b) => friendRequestsReceived.includes(b.id));
-
-  // FILTRE STRICT DES STORIES : Uniquement mes amis confirmés (+ ma story), valides < 24h
-  const twentyFourHoursAgoMs = Date.now() - 24 * 3600 * 1000;
-  const friendStoriesList = stories.filter((s) => {
-    const storyDate = new Date(s.created_at).getTime();
-    const isRecent = !isNaN(storyDate) ? storyDate >= twentyFourHoursAgoMs : true;
-    const isFriendOrMe =
-      s.user_id === user?.id ||
-      friendIds.includes(s.user_id) ||
-      myFriendNames.includes(s.username);
-    return isRecent && isFriendOrMe;
-  });
 
   const filteredBuddies = buddiesList.filter((buddy) => {
     if (buddyTabSubMode === 'my_friends') return friendIds.includes(buddy.id);
@@ -2251,10 +2240,9 @@ export default function App() {
         )}
       </main>
 
-      {/* LECTEUR DE STORY PLEIN ÉCRAN AVEC LIKES & COMMENTAIRES */}
+      {/* LECTEUR DE STORY PLEIN ÉCRAN */}
       {activeViewingStory && activeStoryIndex !== null && (
         <div className="fixed inset-0 z-50 bg-black flex flex-col justify-between p-4 animate-fade-in select-none">
-          {/* Barres de progression multiples en haut */}
           <div className="w-full flex items-center gap-1.5 pt-2 z-20">
             {friendStoriesList.map((_, idx) => (
               <div key={idx} className="h-1 bg-white/30 rounded-full flex-1 overflow-hidden">
@@ -2273,7 +2261,6 @@ export default function App() {
             ))}
           </div>
 
-          {/* En-tête de la Story */}
           <div className="flex items-center justify-between pt-3 z-20">
             <div className="flex items-center gap-2.5">
               <img
@@ -2300,13 +2287,11 @@ export default function App() {
             </button>
           </div>
 
-          {/* Zones tactiles Invisibles Gauche / Droite pour passer les stories */}
           <div className="absolute inset-0 z-10 flex" style={{ bottom: '90px' }}>
             <div className="w-1/3 h-full cursor-pointer" onClick={handlePrevStory} />
             <div className="w-2/3 h-full cursor-pointer" onClick={handleNextStory} />
           </div>
 
-          {/* Image de la Story */}
           <div className="flex-1 flex items-center justify-center py-4 z-0 pointer-events-none">
             <img
               src={activeViewingStory.image_url}
@@ -2315,16 +2300,13 @@ export default function App() {
             />
           </div>
 
-          {/* Légende */}
           {activeViewingStory.caption && (
             <div className="bg-neutral-950/80 backdrop-blur-lg px-3.5 py-2 rounded-xl border border-neutral-800/80 text-center mb-2 z-20">
               <p className="text-xs text-neutral-100 font-medium">{activeViewingStory.caption}</p>
             </div>
           )}
 
-          {/* BARRE D'INTERACTION : RÉACTION, LIKE & COMMENTAIRE DIRECT */}
           <div className="z-30 space-y-2">
-            {/* Emojis réactions rapides */}
             <div className="flex justify-center gap-4 py-1">
               {['🔥', '💪', '👏', '❤️'].map((emoji) => (
                 <button
@@ -2337,7 +2319,6 @@ export default function App() {
               ))}
             </div>
 
-            {/* Formulaire de commentaire + Bouton Like */}
             <div className="flex items-center gap-2">
               <form
                 onSubmit={(e) => handleSendStoryComment(e)}
@@ -2359,7 +2340,6 @@ export default function App() {
                 )}
               </form>
 
-              {/* Bouton Like Story */}
               <button
                 onClick={() => handleToggleStoryLike(activeViewingStory.id)}
                 className="p-3 bg-neutral-900/90 border border-neutral-800 rounded-2xl text-white hover:text-red-400 backdrop-blur-md transition flex items-center justify-center"
