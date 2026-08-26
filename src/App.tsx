@@ -265,7 +265,6 @@ export default function App() {
     fetchCloudPosts();
     fetchDirectMessages();
 
-    // Supabase Realtime Subscription pour le chat instantané
     const channel = supabase
       .channel('schema-db-changes')
       .on(
@@ -453,7 +452,6 @@ export default function App() {
       .eq('id', postId);
   };
 
-  // Envoi et sauvegarde permanente des messages en base
   const handleSendMessage = async (textToSend?: string) => {
     const content = textToSend || currentMessageInput;
     if (!content.trim() || !selectedBuddyChat || !user) return;
@@ -475,24 +473,25 @@ export default function App() {
     }
   };
 
-  // Supprimer toute la conversation avec cet ami
-  const handleDeleteConversation = async () => {
-    if (!selectedBuddyChat || !user) return;
-    if (!window.confirm(`Effacer tous les messages avec ${selectedBuddyChat.name} ?`)) return;
+  // Suppression d'une conversation par ID de partenaire
+  const handleDeleteConversationForBuddy = async (buddyId: string, buddyName: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    if (!user) return;
+    if (!window.confirm(`Effacer tous les messages avec ${buddyName} ?`)) return;
 
     await supabase
       .from('direct_messages')
       .delete()
       .or(
-        `and(sender_id.eq.${user.id},receiver_id.eq.${selectedBuddyChat.id}),and(sender_id.eq.${selectedBuddyChat.id},receiver_id.eq.${user.id})`
+        `and(sender_id.eq.${user.id},receiver_id.eq.${buddyId}),and(sender_id.eq.${buddyId},receiver_id.eq.${user.id})`
       );
 
     setAllMessages((prev) =>
       prev.filter(
         (m) =>
           !(
-            (m.sender_id === user.id && m.receiver_id === selectedBuddyChat.id) ||
-            (m.sender_id === selectedBuddyChat.id && m.receiver_id === user.id)
+            (m.sender_id === user.id && m.receiver_id === buddyId) ||
+            (m.sender_id === buddyId && m.receiver_id === user.id)
           )
       )
     );
@@ -603,7 +602,6 @@ export default function App() {
     return true;
   });
 
-  // Messages filtrés pour la conversation active
   const currentChatMessages = allMessages.filter(
     (m) =>
       selectedBuddyChat &&
@@ -1319,7 +1317,7 @@ export default function App() {
           </form>
         )}
 
-        {/* TAB 4: CHAT EN DIRECT CONNECTÉ À SUPABASE */}
+        {/* TAB 4: CHAT AVEC SUPPRESSION DE CONVERSATIONS DEPUIS LA LISTE */}
         {currentTab === 'chat' && (
           <div className="space-y-4">
             {selectedBuddyChat ? (
@@ -1349,7 +1347,7 @@ export default function App() {
                       <Calendar className="w-3.5 h-3.5" /> Séance duo
                     </button>
                     <button
-                      onClick={handleDeleteConversation}
+                      onClick={() => handleDeleteConversationForBuddy(selectedBuddyChat.id, selectedBuddyChat.name)}
                       title="Effacer toute la discussion"
                       className="p-2 text-neutral-500 hover:text-red-400 hover:bg-red-500/10 rounded-xl transition"
                     >
@@ -1408,7 +1406,7 @@ export default function App() {
                 </div>
               </div>
             ) : (
-              // VUE BOÎTE DE RÉCEPTION & CONTACTS
+              // VUE BOÎTE DE RÉCEPTION & DISCUSSIONS ACTIVES AVEC BOUTON SUPPRIMER
               <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-5">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
@@ -1473,7 +1471,7 @@ export default function App() {
                   />
                 </div>
 
-                {/* LISTE DES DISCUSSIONS */}
+                {/* LISTE DES DISCUSSIONS ACTIVES AVEC BOUTON POUBELLE */}
                 <div className="space-y-2">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-500 block">
                     Discussions actives
@@ -1494,7 +1492,7 @@ export default function App() {
                         <div
                           key={friend.id}
                           onClick={() => setSelectedBuddyChat(friend)}
-                          className="bg-neutral-950 hover:bg-neutral-900/80 p-3 rounded-2xl border border-neutral-800/80 flex items-center justify-between cursor-pointer transition"
+                          className="bg-neutral-950 hover:bg-neutral-900/80 p-3 rounded-2xl border border-neutral-800/80 flex items-center justify-between cursor-pointer transition group"
                         >
                           <div className="flex items-center gap-3">
                             <div className="relative">
@@ -1516,10 +1514,21 @@ export default function App() {
                             </div>
                           </div>
 
-                          <div className="text-right">
+                          <div className="flex items-center gap-2">
                             <span className="text-[9px] text-neutral-500">
                               {lastMessage ? new Date(lastMessage.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
                             </span>
+                            
+                            {/* BOUTON SUPPRIMER LA CONVERSATION DANS LA LISTE */}
+                            {friendMessages.length > 0 && (
+                              <button
+                                onClick={(e) => handleDeleteConversationForBuddy(friend.id, friend.name, e)}
+                                title="Supprimer la conversation"
+                                className="p-1.5 text-neutral-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            )}
                           </div>
                         </div>
                       );
