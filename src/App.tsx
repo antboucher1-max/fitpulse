@@ -29,7 +29,11 @@ import {
   X,
   SendHorizontal,
   ZoomIn,
-  Move
+  Move,
+  Filter,
+  ShieldCheck,
+  UserCheck,
+  Sparkles
 } from 'lucide-react';
 import { createClient, User as SupabaseUser } from '@supabase/supabase-js';
 
@@ -38,8 +42,8 @@ const supabaseUrl = 'https://obtahwmcoqrcauscpksv.supabase.co';
 const supabaseAnonKey = 'sb_publishable_O8CKhUtzgq9nO9lKavNE9A__fAdRWoB';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-// Utilitaire de compression d'image pour garantir la sauvegarde permanente
-const compressImage = (file: File, maxWidth = 800, quality = 0.7): Promise<string> => {
+// Compression d'image haute performance
+const compressImage = (file: File, maxWidth = 800, quality = 0.7): Promise<Blob> => {
   return new Promise((resolve) => {
     const reader = new FileReader();
     reader.readAsDataURL(file);
@@ -61,9 +65,13 @@ const compressImage = (file: File, maxWidth = 800, quality = 0.7): Promise<strin
         const ctx = canvas.getContext('2d');
         ctx?.drawImage(img, 0, 0, width, height);
 
-        // Export en JPEG compressé
-        const compressedBase64 = canvas.toDataURL('image/jpeg', quality);
-        resolve(compressedBase64);
+        canvas.toBlob(
+          (blob) => {
+            resolve(blob || file);
+          },
+          'image/jpeg',
+          quality
+        );
       };
     };
   });
@@ -89,6 +97,7 @@ interface Post {
   user_id: string;
   username: string;
   avatar_url: string;
+  partner_name?: string;
   image_url?: string;
   image_zoom?: number;
   image_pos_x?: number;
@@ -108,6 +117,7 @@ interface Post {
 interface Buddy {
   id: string;
   name: string;
+  gender: 'F' | 'M';
   avatar_url: string;
   level: string;
   schedule: string;
@@ -149,8 +159,10 @@ export default function App() {
   const [workoutCaption, setWorkoutCaption] = useState('');
   const [workoutDuration, setWorkoutDuration] = useState(60);
   const [workoutCalories, setWorkoutCalories] = useState(450);
-  const [postImage, setPostImage] = useState<string | null>(null);
-  const [isCompressing, setIsCompressing] = useState(false);
+  const [taggedPartner, setTaggedPartner] = useState<string>('');
+  const [postImageFile, setPostImageFile] = useState<File | null>(null);
+  const [postImagePreview, setPostImagePreview] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   // Image Framing State (Zoom & Pan)
   const [imageZoom, setImageZoom] = useState(1);
@@ -161,7 +173,6 @@ export default function App() {
   const [workoutExercises, setWorkoutExercises] = useState<ExerciseEntry[]>([
     { name: 'Développé couché', sets: 4, reps: 10, weight: 80 }
   ]);
-  const [submittingWorkout, setSubmittingWorkout] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Rest Timer State
@@ -169,33 +180,60 @@ export default function App() {
   const [isTimerRunning, setIsTimerRunning] = useState(false);
   const [initialTime, setInitialTime] = useState(90);
 
-  // Buddy Finder List
+  // Buddy Finder State & Filters
+  const [filterWomenOnly, setFilterWomenOnly] = useState(false);
+  const [filterLevel, setFilterLevel] = useState<string>('all');
+  const [filterGoal, setFilterGoal] = useState<string>('all');
+
   const buddiesList: Buddy[] = [
     {
       id: 'b1',
       name: 'Thomas D.',
+      gender: 'M',
       avatar_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150',
-      level: 'Intermédiaire / Avancé',
+      level: 'Avancé',
       schedule: 'Lun, Mer, Ven (18h-20h)',
-      goal: 'Prise de masse & Force (Push/Pull/Legs)',
+      goal: 'Prise de masse & Force',
       club: 'Basic-Fit Tournai'
     },
     {
       id: 'b2',
       name: 'Sarah L.',
+      gender: 'F',
       avatar_url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150',
-      level: 'Tous niveaux',
+      level: 'Intermédiaire',
       schedule: 'Mardi & Jeudi (12h-13h30)',
-      goal: 'Cardio, HIIT & Renforcement',
+      goal: 'Cardio, HIIT & Tonification',
       club: 'Basic-Fit Tournai'
     },
     {
       id: 'b3',
+      name: 'Élodie M.',
+      gender: 'F',
+      avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+      level: 'Débutant',
+      schedule: 'Mercredi & Samedi matin',
+      goal: 'Remise en forme & Fessiers',
+      club: 'Basic-Fit Tournai'
+    },
+    {
+      id: 'b4',
       name: 'Maxime V.',
+      gender: 'M',
       avatar_url: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150',
-      level: 'Powerlifting',
+      level: 'Avancé',
       schedule: 'Samedi & Dimanche matin',
-      goal: 'Big 3 (Squat / Bench / Deadlift)',
+      goal: 'Powerlifting (Squat / Dev couché)',
+      club: 'Basic-Fit Froyennes'
+    },
+    {
+      id: 'b5',
+      name: 'Camille R.',
+      gender: 'F',
+      avatar_url: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150',
+      level: 'Intermédiaire',
+      schedule: 'Tous les soirs (17h30-19h)',
+      goal: 'Prise de masse & Musculation',
       club: 'Basic-Fit Froyennes'
     }
   ];
@@ -209,11 +247,12 @@ export default function App() {
       { id: '3', sender: 'Thomas D.', text: 'Top, je serai sur le banc de dev couché, on tourne ensemble ?', time: '10:20', isMe: false }
     ],
     b2: [
-      { id: '1', sender: 'Sarah L.', text: 'Hello ! Dispo pour une séance fractionné demain midi ?', time: 'Hier', isMe: false }
+      { id: '1', sender: 'Sarah L.', text: 'Hello ! Dispo pour une séance duo fractionné / cuisses demain midi ?', time: 'Hier', isMe: false }
     ]
   });
   const [currentMessageInput, setCurrentMessageInput] = useState('');
 
+  // Initialisation & Chargement Cloud Supabase
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
@@ -223,9 +262,22 @@ export default function App() {
       setUser(session?.user ?? null);
     });
 
-    fetchPosts();
+    fetchCloudPosts();
     return () => subscription.unsubscribe();
   }, []);
+
+  const fetchCloudPosts = async () => {
+    setFeedLoading(true);
+    const { data, error } = await supabase
+      .from('posts')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (!error && data) {
+      setPosts(data as Post[]);
+    }
+    setFeedLoading(false);
+  };
 
   useEffect(() => {
     let interval: NodeJS.Timeout | null = null;
@@ -241,98 +293,27 @@ export default function App() {
     };
   }, [isTimerRunning, timerSeconds]);
 
-  const fetchPosts = async () => {
-    setFeedLoading(true);
-    const { data, error } = await supabase
-      .from('posts')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    if (!error && data && data.length > 0) {
-      setPosts(data as Post[]);
-    } else {
-      setPosts([
-        {
-          id: 'demo-1',
-          user_id: 'sample-user-id',
-          username: 'Antoine_B',
-          avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
-          image_url: 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?w=800',
-          image_zoom: 1,
-          image_pos_x: 0,
-          image_pos_y: 0,
-          club_name: 'Basic-Fit Tournai',
-          session_type: 'Pectoraux & Triceps',
-          caption: 'Grosse congestion aujourd’hui ! Nouveau PR sur les séries de travail au développé couché. 🔥💪',
-          duration_minutes: 75,
-          calories_burned: 540,
-          exercises: [
-            { name: 'Développé couché', sets: 4, reps: 8, weight: 100 },
-            { name: 'Écarté incliné', sets: 3, reps: 12, weight: 26 },
-            { name: 'Dips lestés', sets: 3, reps: 10, weight: 15 }
-          ],
-          likes_count: 23,
-          comments_count: 2,
-          comments: [
-            { id: 'c1', username: 'Thomas_G', avatar_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150', text: 'Propre la barre à 100kg ! 💪', created_at: 'Il y a 1h' },
-            { id: 'c2', username: 'Sarah_L', avatar_url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150', text: 'Gros mental ! 🔥', created_at: 'Il y a 30m' }
-          ],
-          created_at: 'Il y a 2h'
-        },
-        {
-          id: 'demo-2',
-          user_id: 'sample-user-id-2',
-          username: 'Julie_Fit',
-          avatar_url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150',
-          image_url: 'https://images.unsplash.com/photo-1574680096145-d05b474e2155?w=800',
-          image_zoom: 1,
-          image_pos_x: 0,
-          image_pos_y: 0,
-          club_name: 'Basic-Fit Tournai',
-          session_type: 'Leg Day',
-          caption: 'Séance focus fessiers et ischios terminée. 600 calories au compteur.',
-          duration_minutes: 65,
-          calories_burned: 600,
-          exercises: [
-            { name: 'Squat guidé', sets: 4, reps: 10, weight: 75 },
-            { name: 'Hip Thrust', sets: 4, reps: 12, weight: 115 },
-            { name: 'Presse 45°', sets: 3, reps: 15, weight: 150 }
-          ],
-          likes_count: 31,
-          comments_count: 1,
-          comments: [
-            { id: 'c3', username: 'Alex_Fit', avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150', text: 'La charge au hip thrust impressionnante 👏', created_at: 'Il y a 3h' }
-          ],
-          created_at: 'Il y a 5h'
-        }
-      ]);
-    }
-    setFeedLoading(false);
-  };
-
   const handleDeletePost = async (postId: string) => {
     if (!window.confirm("Es-tu sûr de vouloir supprimer cette publication ?")) return;
-    await supabase.from('posts').delete().eq('id', postId);
-    setPosts((prev) => prev.filter((p) => p.id !== postId));
-  };
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setIsCompressing(true);
-      try {
-        const compressedBase64 = await compressImage(file, 800, 0.7);
-        setPostImage(compressedBase64);
-        setImageZoom(1);
-        setImagePos({ x: 0, y: 0 });
-      } catch (err) {
-        alert("Erreur lors de la préparation de l'image.");
-      }
-      setIsCompressing(false);
+    const { error } = await supabase.from('posts').delete().eq('id', postId);
+    if (!error) {
+      setPosts((prev) => prev.filter((p) => p.id !== postId));
+    } else {
+      alert("Erreur lors de la suppression.");
     }
   };
 
-  // Drag handlers
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setPostImageFile(file);
+      setPostImagePreview(URL.createObjectURL(file));
+      setImageZoom(1);
+      setImagePos({ x: 0, y: 0 });
+    }
+  };
+
   const handleStartDrag = (clientX: number, clientY: number) => {
     setIsDragging(true);
     setDragStart({ x: clientX - imagePos.x, y: clientY - imagePos.y });
@@ -369,20 +350,25 @@ export default function App() {
     setAuthLoading(false);
   };
 
-  const handleToggleLike = (postId: string) => {
-    setLikedPosts((prev) => ({ ...prev, [postId]: !prev[postId] }));
+  const handleToggleLike = async (postId: string) => {
+    const isLiked = likedPosts[postId];
+    const post = posts.find(p => p.id === postId);
+    if (!post) return;
+
+    const newLikesCount = isLiked ? Math.max(0, post.likes_count - 1) : post.likes_count + 1;
+
+    setLikedPosts((prev) => ({ ...prev, [postId]: !isLiked }));
     setPosts((prev) =>
-      prev.map((p) => {
-        if (p.id === postId) {
-          const isLiked = likedPosts[postId];
-          return { ...p, likes_count: isLiked ? p.likes_count - 1 : p.likes_count + 1 };
-        }
-        return p;
-      })
+      prev.map((p) => (p.id === postId ? { ...p, likes_count: newLikesCount } : p))
     );
+
+    await supabase
+      .from('posts')
+      .update({ likes_count: newLikesCount })
+      .eq('id', postId);
   };
 
-  const handleAddComment = (postId: string) => {
+  const handleAddComment = async (postId: string) => {
     if (!commentInput.trim()) return;
     const newComment: Comment = {
       id: String(Date.now()),
@@ -392,20 +378,23 @@ export default function App() {
       created_at: "À l'instant"
     };
 
+    const targetPost = posts.find(p => p.id === postId);
+    if (!targetPost) return;
+
+    const updatedComments = [...(targetPost.comments || []), newComment];
+    const updatedCount = (targetPost.comments_count || 0) + 1;
+
     setPosts((prev) =>
-      prev.map((p) => {
-        if (p.id === postId) {
-          const updatedComments = [...(p.comments || []), newComment];
-          return {
-            ...p,
-            comments: updatedComments,
-            comments_count: (p.comments_count || 0) + 1
-          };
-        }
-        return p;
-      })
+      prev.map((p) =>
+        p.id === postId ? { ...p, comments: updatedComments, comments_count: updatedCount } : p
+      )
     );
     setCommentInput('');
+
+    await supabase
+      .from('posts')
+      .update({ comments: updatedComments, comments_count: updatedCount })
+      .eq('id', postId);
   };
 
   const handleSendMessage = () => {
@@ -446,7 +435,28 @@ export default function App() {
   const handlePublishWorkout = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
-    setSubmittingWorkout(true);
+    setIsUploading(true);
+
+    let uploadedImageUrl = undefined;
+
+    if (postImageFile) {
+      try {
+        const compressedBlob = await compressImage(postImageFile, 800, 0.7);
+        const fileName = `${user.id}-${Date.now()}.jpg`;
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('posts')
+          .upload(fileName, compressedBlob, { contentType: 'image/jpeg' });
+
+        if (!uploadError && uploadData) {
+          const { data: publicUrlData } = supabase.storage
+            .from('posts')
+            .getPublicUrl(fileName);
+          uploadedImageUrl = publicUrlData.publicUrl;
+        }
+      } catch (err) {
+        console.log("Erreur upload storage.");
+      }
+    }
 
     const validExercises = workoutExercises.filter((e) => e.name.trim() !== '');
 
@@ -454,7 +464,8 @@ export default function App() {
       user_id: user.id,
       username: user.user_metadata?.username || user.email?.split('@')[0] || 'Athlète',
       avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
-      image_url: postImage || null,
+      partner_name: taggedPartner || null,
+      image_url: uploadedImageUrl || null,
       image_zoom: imageZoom,
       image_pos_x: imagePos.x,
       image_pos_y: imagePos.y,
@@ -469,7 +480,6 @@ export default function App() {
       comments: []
     };
 
-    // Sauvegarde en base de données Supabase
     const { data, error } = await supabase
       .from('posts')
       .insert([newPostData])
@@ -478,25 +488,42 @@ export default function App() {
     if (!error && data && data.length > 0) {
       setPosts([data[0] as Post, ...posts]);
     } else {
-      // Fallback local si la table a une contrainte
-      const fallbackPost: Post = {
-        ...newPostData,
-        id: String(Date.now()),
-        image_url: postImage || undefined,
-        created_at: "À l'instant"
-      };
-      setPosts([fallbackPost, ...posts]);
+      // Affichage local immédiat si souci réseau
+      setPosts([
+        {
+          ...(newPostData as any),
+          id: 'post-' + Date.now(),
+          created_at: "À l'instant"
+        },
+        ...posts
+      ]);
     }
 
-    // Réinitialisation du formulaire
+    // Réinitialisation
     setWorkoutCaption('');
-    setPostImage(null);
+    setTaggedPartner('');
+    setPostImageFile(null);
+    setPostImagePreview(null);
     setImageZoom(1);
     setImagePos({ x: 0, y: 0 });
     setWorkoutExercises([{ name: '', sets: 3, reps: 10, weight: 20 }]);
     setCurrentTab('feed');
-    setSubmittingWorkout(false);
+    setIsUploading(false);
   };
+
+  // Filtrage intelligent des Buddies
+  const filteredBuddies = buddiesList.filter((buddy) => {
+    // Filtre Club
+    if (buddy.club !== selectedClub) return false;
+    // Filtre Entre Femmes
+    if (filterWomenOnly && buddy.gender !== 'F') return false;
+    // Filtre Niveau
+    if (filterLevel !== 'all' && !buddy.level.toLowerCase().includes(filterLevel.toLowerCase())) return false;
+    // Filtre Objectif
+    if (filterGoal !== 'all' && !buddy.goal.toLowerCase().includes(filterGoal.toLowerCase())) return false;
+
+    return true;
+  });
 
   if (!user) {
     return (
@@ -645,6 +672,10 @@ export default function App() {
               <div className="flex justify-center py-12">
                 <Loader2 className="w-8 h-8 text-orange-500 animate-spin" />
               </div>
+            ) : posts.length === 0 ? (
+              <div className="text-center py-16 text-neutral-500 text-xs">
+                Aucune publication pour le moment. Partage ta première séance !
+              </div>
             ) : (
               posts.map((post) => {
                 const isLiked = likedPosts[post.id];
@@ -664,7 +695,14 @@ export default function App() {
                           className="w-10 h-10 rounded-full object-cover border border-neutral-700"
                         />
                         <div>
-                          <h3 className="font-bold text-sm leading-snug">{post.username}</h3>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <h3 className="font-bold text-sm leading-snug">{post.username}</h3>
+                            {post.partner_name && (
+                              <span className="text-[10px] bg-neutral-800 text-orange-400 font-semibold px-2 py-0.5 rounded-md flex items-center gap-1">
+                                <Users className="w-3 h-3" /> avec {post.partner_name}
+                              </span>
+                            )}
+                          </div>
                           <div className="flex items-center gap-1 text-[11px] text-orange-400 font-medium">
                             <MapPin className="w-3 h-3" />
                             {post.club_name}
@@ -688,7 +726,7 @@ export default function App() {
                       </div>
                     </div>
 
-                    {/* Image persistante avec cadrage personnalisé */}
+                    {/* Image Cloud */}
                     {post.image_url && (
                       <div className="rounded-2xl overflow-hidden border border-neutral-800 bg-neutral-950 h-72 w-full relative flex items-center justify-center">
                         <img
@@ -769,59 +807,152 @@ export default function App() {
           </div>
         )}
 
-        {/* TAB 2: WORKOUT BUDDY FINDER */}
+        {/* TAB 2: WORKOUT BUDDY FINDER AVEC FILTRES & ENTRE FEMMES */}
         {currentTab === 'buddy' && (
           <div className="space-y-4">
             <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4">
-              <div className="flex items-center gap-2">
-                <Users className="w-5 h-5 text-orange-500" />
-                <h2 className="text-base font-black tracking-tight">Trouver un Workout Buddy ({selectedClub})</h2>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Users className="w-5 h-5 text-orange-500" />
+                  <h2 className="text-base font-black tracking-tight">Workout Buddy</h2>
+                </div>
+                <span className="text-[11px] text-orange-400 font-bold bg-orange-500/10 px-2.5 py-1 rounded-full border border-orange-500/20">
+                  {filteredBuddies.length} partenaire{filteredBuddies.length > 1 ? 's' : ''}
+                </span>
               </div>
-              <p className="text-xs text-neutral-400">
-                Connecte-toi avec des partenaires de même niveau qui s'entraînent aux mêmes horaires que toi.
-              </p>
 
-              <div className="space-y-3 pt-2">
-                {buddiesList.map((buddy) => (
-                  <div
-                    key={buddy.id}
-                    className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 flex flex-col space-y-3"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <img src={buddy.avatar_url} alt="" className="w-12 h-12 rounded-full object-cover border border-neutral-700" />
-                        <div>
-                          <h3 className="font-bold text-sm text-white">{buddy.name}</h3>
-                          <span className="text-[11px] text-orange-400 font-semibold">{buddy.level}</span>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => {
-                          setSelectedBuddyChat(buddy);
-                          setCurrentTab('chat');
-                        }}
-                        className="px-3.5 py-1.5 bg-orange-600 hover:bg-orange-500 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5"
-                      >
-                        <MessageCircle className="w-3.5 h-3.5" /> Message
-                      </button>
-                    </div>
-
-                    <div className="bg-neutral-900/60 rounded-xl p-2.5 text-[11px] space-y-1 text-neutral-300">
-                      <div><strong className="text-neutral-400">Créneaux :</strong> {buddy.schedule}</div>
-                      <div><strong className="text-neutral-400">Objectif :</strong> {buddy.goal}</div>
-                    </div>
+              {/* FILTRES BUDDY */}
+              <div className="space-y-2.5 bg-neutral-950 p-3.5 rounded-2xl border border-neutral-800">
+                <div className="flex items-center justify-between pb-2 border-b border-neutral-900">
+                  <div className="flex items-center gap-2 text-xs font-bold text-neutral-300">
+                    <Filter className="w-3.5 h-3.5 text-orange-500" />
+                    <span>Filtres de recherche</span>
                   </div>
-                ))}
+
+                  {/* BOUTON ENTRE FEMMES */}
+                  <button
+                    onClick={() => setFilterWomenOnly(!filterWomenOnly)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition ${
+                      filterWomenOnly
+                        ? 'bg-gradient-to-r from-pink-600 to-purple-600 text-white shadow-lg shadow-pink-500/20 ring-2 ring-pink-400'
+                        : 'bg-neutral-900 text-neutral-400 hover:text-white border border-neutral-800'
+                    }`}
+                  >
+                    <span>🚺</span> Entre femmes {filterWomenOnly && '✓'}
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 pt-1">
+                  <div>
+                    <label className="block text-[10px] text-neutral-500 mb-1">Niveau</label>
+                    <select
+                      value={filterLevel}
+                      onChange={(e) => setFilterLevel(e.target.value)}
+                      className="w-full bg-neutral-900 border border-neutral-800 rounded-lg px-2.5 py-1.5 text-xs text-neutral-300"
+                    >
+                      <option value="all">Tous les niveaux</option>
+                      <option value="Débutant">Débutant</option>
+                      <option value="Intermédiaire">Intermédiaire</option>
+                      <option value="Avancé">Avancé</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] text-neutral-500 mb-1">Objectif principal</label>
+                    <select
+                      value={filterGoal}
+                      onChange={(e) => setFilterGoal(e.target.value)}
+                      className="w-full bg-neutral-900 border border-neutral-800 rounded-lg px-2.5 py-1.5 text-xs text-neutral-300"
+                    >
+                      <option value="all">Tous objectifs</option>
+                      <option value="masse">Prise de masse / Force</option>
+                      <option value="cardio">Cardio / HIIT</option>
+                      <option value="remise">Remise en forme</option>
+                      <option value="powerlifting">Powerlifting</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* LISTE DES BUDDIES FILTRÉE */}
+              <div className="space-y-3 pt-1">
+                {filteredBuddies.length === 0 ? (
+                  <div className="text-center py-8 text-neutral-500 text-xs">
+                    Aucun partenaire ne correspond à ces critères dans cette salle.
+                  </div>
+                ) : (
+                  filteredBuddies.map((buddy) => (
+                    <div
+                      key={buddy.id}
+                      className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 flex flex-col space-y-3 relative overflow-hidden"
+                    >
+                      {buddy.gender === 'F' && (
+                        <div className="absolute top-0 right-0 w-2 h-2 bg-pink-500 rounded-bl-lg" />
+                      )}
+
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <img src={buddy.avatar_url} alt="" className="w-12 h-12 rounded-full object-cover border border-neutral-700" />
+                          <div>
+                            <div className="flex items-center gap-1.5">
+                              <h3 className="font-bold text-sm text-white">{buddy.name}</h3>
+                              {buddy.gender === 'F' && (
+                                <span className="text-[10px] bg-pink-950/80 text-pink-300 border border-pink-500/30 px-1.5 py-0.2 rounded font-semibold">
+                                  Femme
+                                </span>
+                              )}
+                            </div>
+                            <span className="text-[11px] text-orange-400 font-semibold">{buddy.level}</span>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => {
+                            setSelectedBuddyChat(buddy);
+                            setCurrentTab('chat');
+                          }}
+                          className="px-3.5 py-1.5 bg-orange-600 hover:bg-orange-500 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-md shadow-orange-600/20"
+                        >
+                          <MessageCircle className="w-3.5 h-3.5" /> Message
+                        </button>
+                      </div>
+
+                      <div className="bg-neutral-900/60 rounded-xl p-2.5 text-[11px] space-y-1 text-neutral-300">
+                        <div><strong className="text-neutral-400">Créneaux :</strong> {buddy.schedule}</div>
+                        <div><strong className="text-neutral-400">Objectif :</strong> {buddy.goal}</div>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           </div>
         )}
 
-        {/* TAB 3: LOG WORKOUT (AVEC COMPRESSION ET SAUVEGARDE PERMANENTE) */}
+        {/* TAB 3: LOG WORKOUT AVEC CHOIX DU PARTENAIRE (TAG BUDDY) */}
         {currentTab === 'workout' && (
           <form onSubmit={handlePublishWorkout} className="space-y-4">
             <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4">
               <h2 className="text-base font-black tracking-tight">Enregistrer une séance</h2>
+
+              {/* Tag / Partenaire de séance */}
+              <div>
+                <label className="block text-xs font-semibold text-neutral-400 mb-1.5">Partenaire d'entraînement (Buddy)</label>
+                <div className="relative">
+                  <UserCheck className="absolute left-3.5 top-3 w-4 h-4 text-orange-500" />
+                  <select
+                    value={taggedPartner}
+                    onChange={(e) => setTaggedPartner(e.target.value)}
+                    className="w-full bg-neutral-950 border border-neutral-800 rounded-xl pl-10 pr-3 py-2.5 text-xs text-neutral-200 focus:outline-none focus:border-orange-500"
+                  >
+                    <option value="">Séance solo (Aucun partenaire)</option>
+                    {buddiesList.map((b) => (
+                      <option key={b.id} value={b.name}>
+                        {b.name} ({b.club})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
 
               {/* Photo Box & Crop / Move Tool */}
               <div>
@@ -830,16 +961,11 @@ export default function App() {
                   type="file"
                   accept="image/*"
                   ref={fileInputRef}
-                  onChange={handleImageUpload}
+                  onChange={handleImageSelect}
                   className="hidden"
                 />
 
-                {isCompressing ? (
-                  <div className="h-40 border border-neutral-800 rounded-2xl flex flex-col items-center justify-center gap-2 bg-neutral-950">
-                    <Loader2 className="w-6 h-6 text-orange-500 animate-spin" />
-                    <span className="text-xs text-neutral-400">Optimisation de la photo...</span>
-                  </div>
-                ) : postImage ? (
+                {postImagePreview ? (
                   <div className="space-y-3">
                     <div
                       className="relative rounded-2xl overflow-hidden border-2 border-orange-500/50 bg-neutral-950 h-72 w-full flex items-center justify-center cursor-grab active:cursor-grabbing touch-none select-none"
@@ -858,7 +984,7 @@ export default function App() {
                       onTouchEnd={handleEndDrag}
                     >
                       <img
-                        src={postImage}
+                        src={postImagePreview}
                         alt="Preview"
                         style={{
                           transform: `translate(${imagePos.x}px, ${imagePos.y}px) scale(${imageZoom})`,
@@ -874,7 +1000,8 @@ export default function App() {
                       <button
                         type="button"
                         onClick={() => {
-                          setPostImage(null);
+                          setPostImageFile(null);
+                          setPostImagePreview(null);
                           setImageZoom(1);
                           setImagePos({ x: 0, y: 0 });
                         }}
@@ -928,7 +1055,7 @@ export default function App() {
                 >
                   <option value="Musculation (Push)">Musculation (Pectoraux / Épaules / Triceps)</option>
                   <option value="Musculation (Pull)">Musculation (Dos / Biceps)</option>
-                  <option value="Musculation (Legs)">Musculation (Jambes / Mollets)</option>
+                  <option value="Musculation (Legs)">Musculation (Jambes / Fessiers)</option>
                   <option value="Full Body">Full Body</option>
                   <option value="Cardio & HIIT">Cardio & HIIT</option>
                 </select>
@@ -959,7 +1086,7 @@ export default function App() {
                 <label className="block text-xs font-semibold text-neutral-400 mb-1.5">Description / Sensations</label>
                 <textarea
                   rows={2}
-                  placeholder="Ex: Séance très intense, super sensations !"
+                  placeholder="Ex: Séance duo au top, super motivation aujourd’hui !"
                   value={workoutCaption}
                   onChange={(e) => setWorkoutCaption(e.target.value)}
                   className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3.5 py-2 text-xs text-neutral-200 placeholder-neutral-500 focus:outline-none focus:border-orange-500"
@@ -1032,10 +1159,10 @@ export default function App() {
 
               <button
                 type="submit"
-                disabled={submittingWorkout}
+                disabled={isUploading}
                 className="w-full bg-gradient-to-r from-orange-600 to-orange-500 hover:from-orange-500 hover:to-orange-400 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-orange-500/20 transition flex items-center justify-center gap-2"
               >
-                {submittingWorkout ? <Loader2 className="w-5 h-5 animate-spin" /> : "Partager ma séance"}
+                {isUploading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Partager ma séance"}
               </button>
             </div>
           </form>
