@@ -38,7 +38,8 @@ import {
   Calendar,
   Navigation,
   CheckCircle2,
-  Building2
+  Building2,
+  Sparkles
 } from 'lucide-react';
 import { createClient, User as SupabaseUser } from '@supabase/supabase-js';
 
@@ -57,7 +58,6 @@ interface ClubLocation {
   distance?: number | null;
 }
 
-// Base officielle avec coordonnées GPS
 const CLUBS_DATABASE: ClubLocation[] = [
   {
     name: 'Basic-Fit Tournai (Bastion)',
@@ -157,7 +157,6 @@ const CLUBS_DATABASE: ClubLocation[] = [
   }
 ];
 
-// Comparaison intelligente pour faire correspondre anciens et nouveaux noms de salles
 const isMatchingClub = (postClubName?: string, selectedClubName?: string): boolean => {
   if (!postClubName || !selectedClubName) return false;
   if (postClubName === selectedClubName) return true;
@@ -170,7 +169,6 @@ const isMatchingClub = (postClubName?: string, selectedClubName?: string): boole
 
   if (p === s) return true;
 
-  // Rapprochements spécifiques
   if (p.includes('froyennes') && s.includes('froyennes')) return true;
   if ((p === 'tournai' || p.includes('bastion')) && (s === 'tournai' || s.includes('bastion'))) return true;
   if (p.includes('mouscron') && s.includes('mouscron')) return true;
@@ -269,6 +267,17 @@ interface Post {
   created_at: string;
 }
 
+interface Story {
+  id: string;
+  user_id: string;
+  username: string;
+  avatar_url: string;
+  image_url: string;
+  caption?: string;
+  club_name?: string;
+  created_at: string;
+}
+
 interface Buddy {
   id: string;
   name: string;
@@ -320,6 +329,37 @@ export default function App() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [feedLoading, setFeedLoading] = useState(false);
   const [likedPosts, setLikedPosts] = useState<Record<string, boolean>>({});
+
+  // Stories State
+  const [stories, setStories] = useState<Story[]>([
+    {
+      id: 'demo-s1',
+      user_id: 'b1',
+      username: 'Thomas D.',
+      avatar_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150',
+      image_url: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?w=800',
+      caption: 'Prêt pour exploser le PR au dev couché 🔥',
+      club_name: 'Basic-Fit Tournai (Bastion)',
+      created_at: 'Il y a 2h'
+    },
+    {
+      id: 'demo-s2',
+      user_id: 'b2',
+      username: 'Sarah L.',
+      avatar_url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150',
+      image_url: 'https://images.unsplash.com/photo-1518611012118-696072aa579a?w=800',
+      caption: 'Fin de séance HIIT cardio, les jambes en feu 💦',
+      club_name: 'Basic-Fit Tournai (Bastion)',
+      created_at: 'Il y a 4h'
+    }
+  ]);
+  const [activeViewingStory, setActiveViewingStory] = useState<Story | null>(null);
+  const [isCreatingStory, setIsCreatingStory] = useState(false);
+  const [storyImageFile, setStoryImageFile] = useState<File | null>(null);
+  const [storyImagePreview, setStoryImagePreview] = useState<string | null>(null);
+  const [storyCaption, setStoryCaption] = useState('');
+  const [storyUploading, setStoryUploading] = useState(false);
+  const storyFileInputRef = useRef<HTMLInputElement>(null);
 
   // Friends System
   const [friendIds, setFriendIds] = useState<string[]>(['b1', 'b2']);
@@ -440,6 +480,7 @@ export default function App() {
 
     fetchCloudPosts();
     fetchDirectMessages();
+    fetchCloudStories();
 
     const channel = supabase
       .channel('schema-db-changes')
@@ -455,6 +496,13 @@ export default function App() {
         { event: 'DELETE', schema: 'public', table: 'direct_messages' },
         (payload) => {
           setAllMessages((prev) => prev.filter((m) => m.id !== payload.old.id));
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'stories' },
+        (payload) => {
+          setStories((prev) => [payload.new as Story, ...prev]);
         }
       )
       .subscribe();
@@ -480,6 +528,17 @@ export default function App() {
       setPosts(data as Post[]);
     }
     setFeedLoading(false);
+  };
+
+  const fetchCloudStories = async () => {
+    const { data, error } = await supabase
+      .from('stories')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (!error && data && data.length > 0) {
+      setStories(data as Story[]);
+    }
   };
 
   const fetchDirectMessages = async () => {
@@ -629,6 +688,69 @@ export default function App() {
       setImageZoom(1);
       setImagePos({ x: 0, y: 0 });
     }
+  };
+
+  const handleStoryImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setStoryImageFile(file);
+      setStoryImagePreview(URL.createObjectURL(file));
+    }
+  };
+
+  const handlePublishStory = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user || !storyImageFile) return;
+    setStoryUploading(true);
+
+    let uploadedStoryUrl = storyImagePreview || '';
+
+    try {
+      const compressedBlob = await compressImage(storyImageFile, 800, 0.7);
+      const fileName = `story-${Date.now()}-${Math.random().toString(36).substring(7)}.jpg`;
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('posts')
+        .upload(fileName, compressedBlob, { contentType: 'image/jpeg' });
+
+      if (!uploadError && uploadData) {
+        const { data: publicUrlData } = supabase.storage.from('posts').getPublicUrl(fileName);
+        uploadedStoryUrl = publicUrlData.publicUrl;
+      }
+    } catch (err) {}
+
+    const myName = user.user_metadata?.first_name || user.user_metadata?.username || user.email?.split('@')[0] || 'Moi';
+
+    const newStoryData: Story = {
+      id: 'story-' + Date.now(),
+      user_id: user.id,
+      username: myName,
+      avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+      image_url: uploadedStoryUrl,
+      caption: storyCaption,
+      club_name: selectedClub,
+      created_at: "À l'instant"
+    };
+
+    const { data } = await supabase.from('stories').insert([{
+      user_id: user.id,
+      username: myName,
+      avatar_url: newStoryData.avatar_url,
+      image_url: uploadedStoryUrl,
+      caption: storyCaption,
+      club_name: selectedClub
+    }]).select('*');
+
+    if (data && data.length > 0) {
+      setStories([data[0] as Story, ...stories]);
+    } else {
+      setStories([newStoryData, ...stories]);
+    }
+
+    setStoryImageFile(null);
+    setStoryImagePreview(null);
+    setStoryCaption('');
+    setIsCreatingStory(false);
+    setStoryUploading(false);
   };
 
   const handleStartDrag = (clientX: number, clientY: number) => {
@@ -810,7 +932,6 @@ export default function App() {
   const myFriendsList = buddiesList.filter((b) => friendIds.includes(b.id));
   const friendRequestsList = buddiesList.filter((b) => friendRequestsReceived.includes(b.id));
 
-  // Filtrage des partenaires selon le club sélectionné
   const filteredBuddies = buddiesList.filter((buddy) => {
     if (buddyTabSubMode === 'my_friends') return friendIds.includes(buddy.id);
     if (!isMatchingClub(buddy.club, selectedClub)) return false;
@@ -820,7 +941,6 @@ export default function App() {
     return true;
   });
 
-  // FILTRAGE DU FIL D'ACTUALITÉ : Match intelligent de la salle sélectionnée
   const displayedPosts = posts.filter((post) => {
     if (feedFilterMode === 'all') {
       return isMatchingClub(post.club_name, selectedClub);
@@ -1077,10 +1197,56 @@ export default function App() {
       </header>
 
       {/* Main Screen Container */}
-      <main className="flex-1 max-w-lg w-full mx-auto px-4 py-4 pb-24">
-        {/* TAB 1: FEED */}
+      <main className="flex-1 max-w-lg w-full mx-auto px-4 py-3 pb-24">
+        {/* TAB 1: FEED AVEC STORIES INSTAGRAM */}
         {currentTab === 'feed' && (
           <div className="space-y-4">
+            
+            {/* STORIES ROW (STYLE INSTAGRAM) */}
+            <div className="bg-neutral-900/60 border border-neutral-800/80 rounded-3xl p-3">
+              <div className="flex items-center gap-3.5 overflow-x-auto no-scrollbar py-1">
+                
+                {/* Bulle Publier ma story */}
+                <div
+                  onClick={() => setIsCreatingStory(true)}
+                  className="flex flex-col items-center gap-1.5 flex-shrink-0 cursor-pointer group"
+                >
+                  <div className="relative w-16 h-16 rounded-full border-2 border-dashed border-orange-500/50 flex items-center justify-center p-0.5 group-hover:border-orange-500 transition">
+                    <div className="w-full h-full bg-neutral-950 rounded-full flex items-center justify-center text-orange-400 font-bold text-lg">
+                      {user.user_metadata?.first_name?.[0]?.toUpperCase() || user.email?.[0]?.toUpperCase() || '+'}
+                    </div>
+                    <div className="absolute bottom-0 right-0 w-5 h-5 bg-gradient-to-tr from-orange-600 to-amber-500 rounded-full flex items-center justify-center text-white border-2 border-neutral-950 shadow-md">
+                      <Plus className="w-3 h-3 stroke-[3]" />
+                    </div>
+                  </div>
+                  <span className="text-[10px] font-semibold text-neutral-300 tracking-tight">Ta story</span>
+                </div>
+
+                {/* Bulles Stories des Amis */}
+                {stories.map((story) => (
+                  <div
+                    key={story.id}
+                    onClick={() => setActiveViewingStory(story)}
+                    className="flex flex-col items-center gap-1.5 flex-shrink-0 cursor-pointer"
+                  >
+                    <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-orange-500 via-pink-500 to-amber-400 p-[2.5px] shadow-sm hover:scale-105 transition transform">
+                      <div className="w-full h-full bg-neutral-950 rounded-full p-[2px]">
+                        <img
+                          src={story.avatar_url}
+                          alt={story.username}
+                          className="w-full h-full rounded-full object-cover"
+                        />
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-medium text-neutral-300 truncate max-w-[64px] text-center">
+                      {story.username.split(' ')[0]}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Filtre Club vs Amis */}
             <div className="bg-neutral-900 p-1.5 rounded-2xl border border-neutral-800 flex items-center gap-1">
               <button
                 onClick={() => setFeedFilterMode('all')}
@@ -1927,6 +2093,122 @@ export default function App() {
           </div>
         )}
       </main>
+
+      {/* MODAL 1 : VISUALISEUR PLEIN ÉCRAN DE STORY (INSTAGRAM STYLE) */}
+      {activeViewingStory && (
+        <div className="fixed inset-0 z-50 bg-black flex flex-col justify-between p-4 animate-fade-in select-none">
+          {/* Barre de progression story */}
+          <div className="w-full flex items-center gap-1 pt-2">
+            <div className="h-1 bg-white rounded-full flex-1 animate-pulse" />
+          </div>
+
+          {/* En-tête de la Story */}
+          <div className="flex items-center justify-between pt-2">
+            <div className="flex items-center gap-2.5">
+              <img src={activeViewingStory.avatar_url} alt="" className="w-10 h-10 rounded-full object-cover border-2 border-orange-500" />
+              <div>
+                <h4 className="font-bold text-xs text-white leading-tight">{activeViewingStory.username}</h4>
+                <span className="text-[10px] text-neutral-400">
+                  {activeViewingStory.club_name ? `${activeViewingStory.club_name.replace('Basic-Fit ', '')} • ` : ''}
+                  {activeViewingStory.created_at}
+                </span>
+              </div>
+            </div>
+            <button
+              onClick={() => setActiveViewingStory(null)}
+              className="p-2 bg-black/60 backdrop-blur-md rounded-full text-neutral-300 hover:text-white transition"
+            >
+              <X className="w-6 h-6" />
+            </button>
+          </div>
+
+          {/* Photo de la Story */}
+          <div className="flex-1 flex items-center justify-center py-4">
+            <img
+              src={activeViewingStory.image_url}
+              alt="Story"
+              className="max-h-[65vh] w-auto max-w-full rounded-2xl object-contain shadow-2xl border border-neutral-800"
+            />
+          </div>
+
+          {/* Légende / Bas de la Story */}
+          {activeViewingStory.caption && (
+            <div className="bg-neutral-950/80 backdrop-blur-lg p-3.5 rounded-2xl border border-neutral-800 text-center mb-4">
+              <p className="text-xs text-neutral-100 font-medium">{activeViewingStory.caption}</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* MODAL 2 : PUBLIER UNE STORY */}
+      {isCreatingStory && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-md w-full p-5 space-y-4">
+            <div className="flex items-center justify-between pb-2 border-b border-neutral-800">
+              <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-orange-500" /> Ajouter à ma story
+              </h3>
+              <button onClick={() => setIsCreatingStory(false)} className="p-1 text-neutral-400 hover:text-white">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handlePublishStory} className="space-y-3.5">
+              <input
+                type="file"
+                accept="image/*"
+                ref={storyFileInputRef}
+                onChange={handleStoryImageSelect}
+                className="hidden"
+              />
+
+              {storyImagePreview ? (
+                <div className="relative rounded-2xl overflow-hidden border border-neutral-700 bg-neutral-950 h-56 flex items-center justify-center">
+                  <img src={storyImagePreview} alt="" className="max-h-full max-w-full object-contain" />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setStoryImageFile(null);
+                      setStoryImagePreview(null);
+                    }}
+                    className="absolute top-2 right-2 p-1.5 bg-black/80 text-white rounded-full"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => storyFileInputRef.current?.click()}
+                  className="w-full py-10 border-2 border-dashed border-neutral-800 hover:border-orange-500 rounded-2xl flex flex-col items-center justify-center gap-2 text-neutral-400 hover:text-orange-400 bg-neutral-950 transition"
+                >
+                  <Camera className="w-7 h-7" />
+                  <span className="text-xs font-semibold">Prendre ou importer une photo</span>
+                </button>
+              )}
+
+              <div>
+                <label className="block text-[11px] font-semibold text-neutral-400 mb-1">Texte / Humeur</label>
+                <input
+                  type="text"
+                  placeholder="Ex: Séance pectoraux au top aujourd'hui ! 🔥"
+                  value={storyCaption}
+                  onChange={(e) => setStoryCaption(e.target.value)}
+                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-orange-500"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={storyUploading || !storyImageFile}
+                className="w-full bg-gradient-to-r from-orange-600 to-orange-500 hover:from-orange-500 hover:to-orange-400 disabled:opacity-50 text-white font-bold py-3 rounded-xl shadow-lg shadow-orange-500/20 transition flex items-center justify-center gap-2 text-xs"
+              >
+                {storyUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Partager ma story"}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* COMMENTS DRAWER */}
       {activeCommentPostId && activePostForComments && (
