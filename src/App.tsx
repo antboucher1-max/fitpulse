@@ -123,7 +123,7 @@ const EXERCISES_DATABASE: ExerciseGuide[] = [
     execution: 'Saisir la barre un peu plus large que les épaules. Descendre de manière contrôlée jusqu’au milieu de la poitrine, puis pousser en expirant.', 
     tips: 'Garde les omoplates serrées contre le banc et évite de cambrer excessivement le dos.', 
     image_url: 'https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?w=800',
-    detailedDescription: 'Le développé couché est l’exercice roi pour bâtir de la masse musculaire sur la partie supérieure du corps. En engageant à la fois les pectoraux, les triceps et les deltoïdes avants, il permet de manipuler des charges lourdes en toute sécurité à condition de respecter un angle de coude d’environ 45 degrés par rapport au torse.'
+    detailedDescription: 'Le développé couché est l’exercice roi pour bâtir de la masse musculaire sur la partie supérieure du corps.'
   },
   { 
     id: 'ex-2', 
@@ -135,7 +135,7 @@ const EXERCISES_DATABASE: ExerciseGuide[] = [
     execution: 'Garde le dos bien collé au dossier. Pousse les poignées vers l’avant en tendant les bras sans verrouiller les coudes, puis reviens lentement.', 
     tips: 'Idéal pour l’isolation et la sécurité en fin de séance.', 
     image_url: 'https://images.unsplash.com/photo-1576678927484-cc907957088c?w=800',
-    detailedDescription: 'La machine chest press guide parfaitement la trajectoire du mouvement, ce qui permet de se concentrer exclusivement sur la contraction des pectoraux sans se soucier de l’équilibre de la charge. Parfait pour aller à l’échec musculaire en fin de séance.'
+    detailedDescription: 'La machine chest press guide parfaitement la trajectoire du mouvement pour se concentrer sur la contraction.'
   },
   { 
     id: 'ex-3', 
@@ -144,10 +144,10 @@ const EXERCISES_DATABASE: ExerciseGuide[] = [
     equipment: 'Poulie haute avec barre large', 
     targetMuscles: 'Grand dorsal, Biceps, Ronds majeurs', 
     settings: 'Ajuste les boudins de cuisses pour être bien calé. Saisis la barre avec une prise large.', 
-    execution: 'Tire la barre vers le haut de ta poitrine en sortant la poitrine et en tirant les coudes vers le bas et l’arrière. Reviens en contrôlant la charge.', 
+    execution: 'Tire la barre vers le haut de ta poitrine en sortant la poitrine et en tirant les coudes vers le bas et l’arrière.', 
     tips: 'Évite de te pencher trop en arrière ; garde le buste légèrement incliné.', 
     image_url: 'https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?w=800',
-    detailedDescription: 'Le tirage vertical cible principalement le grand dorsal pour donner de la largeur au dos (en V). Pour maximiser l’efficacité, initiez le mouvement en abaissant vos omoplates avant de plier les bras.'
+    detailedDescription: 'Le tirage vertical cible principalement le grand dorsal pour donner de la largeur au dos.'
   },
   { 
     id: 'ex-4', 
@@ -159,7 +159,7 @@ const EXERCISES_DATABASE: ExerciseGuide[] = [
     execution: 'Tire la poignée vers ton nombril en gardant le dos droit. Resserre tes omoplates en fin de mouvement.', 
     tips: 'Ne arrondis surtout pas le bas du dos lors de la phase de relâchement.', 
     image_url: 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?w=800',
-    detailedDescription: 'Le rowing assis développe l’épaisseur du haut et du milieu du dos. Gardez le buste fixe et l’aine légèrement sortie pour cibler précisément les rhomboïdes et les trapèzes moyens.'
+    detailedDescription: 'Le rowing assis développe l’épaisseur du haut et du milieu du dos.'
   },
   { 
     id: 'ex-5', 
@@ -168,10 +168,10 @@ const EXERCISES_DATABASE: ExerciseGuide[] = [
     equipment: 'Barre libre ou Guidée / Smith Machine', 
     targetMuscles: 'Quadriceps, Fessiers, Ischio-jambiers', 
     settings: 'Place la barre sur tes trapèzes (haut du dos). Élargissement des pieds largeur d’épaules.', 
-    execution: 'Fléchis les genoux et descends les fesses vers l’arrière comme pour t’asseoir sur une chaise, le dos bien droit, puis remonte en poussant sur les talons.', 
+    execution: 'Fléchis les genoux et descends les fesses vers l’arrière comme pour t’asseoir sur une chaise, le dos bien droit.', 
     tips: 'Garde les genoux bien alignés dans l’axe des pointes de pieds.', 
     image_url: 'https://images.unsplash.com/photo-1574680096145-d05b474e2155?w=800',
-    detailedDescription: 'Le squat est l’exercice fondamental pour le bas du corps. Il sollicite l’ensemble de la chaîne inférieure et déclenche une forte réponse hormonale propice au développement de la force globale.'
+    detailedDescription: 'Le squat est l’exercice fondamental pour le bas du corps et la force globale.'
   },
   { 
     id: 'ex-6', 
@@ -179,11 +179,11 @@ const EXERCISES_DATABASE: ExerciseGuide[] = [
     category: 'Jambes', 
     equipment: 'Machine Leg Press inclinée', 
     targetMuscles: 'Quadriceps, Fessiers', 
-    settings: 'Assieds-toi, place tes pieds au milieu de la plateforme largeur d’épaules. Déverrouille les sécurités.', 
-    execution: 'Fléchis les jambes pour ramener le chariot vers toi (angle à 90° aux genoux) puis pousse puissamment sans tendre complètement les genoux.', 
-    tips: 'Ne décolle jamais le bas du dos ou les talons du dossier pendant le mouvement.', 
+    settings: 'Assieds-toi, place tes pieds au milieu de la plateforme largeur d’épaules.', 
+    execution: 'Fléchis les jambes pour ramener le chariot vers toi puis pousse puissamment.', 
+    tips: 'Ne décolle jamais le bas du dos ou les talons du dossier.', 
     image_url: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=800',
-    detailedDescription: 'La presse à cuisses permet de charger lourdement les quadriceps et les fessiers en protégeant la colonne vertébrale grâce au maintien du dossier. Variez la hauteur des pieds sur la plateforme pour cibler plus l’avant ou l’arrière des cuisses.'
+    detailedDescription: 'La presse à cuisses permet de charger lourdement les quadriceps en protégeant la colonne.'
   }
 ];
 
@@ -479,8 +479,28 @@ export default function App() {
     if (isSignUp && !acceptCGU) { alert("Veuillez accepter les CGU pour continuer."); return; }
     setAuthLoading(true);
     if (isSignUp) {
-      const { error } = await supabase.auth.signUp({ email, password, options: { data: { first_name: firstName, last_name: lastName, username: username || `${firstName}_${lastName}`.toLowerCase(), birth_date: birthDate, gender, level, home_club: homeClub, preferred_time: preferredTime, avatar_url: userAvatarUrl } } });
-      if (error) alert("Erreur d'inscription : " + error.message); else setSignupSuccessEmail(email);
+      const { error } = await supabase.auth.signUp({ 
+        email, 
+        password, 
+        options: { 
+          data: { 
+            first_name: firstName, 
+            last_name: lastName, 
+            username: username || `${firstName}_${lastName}`.toLowerCase(), 
+            birth_date: birthDate, 
+            gender, 
+            level, 
+            home_club: homeClub, 
+            preferred_time: preferredTime, 
+            avatar_url: userAvatarUrl 
+          } 
+        } 
+      });
+      if (error) {
+        alert("Erreur d'inscription : " + error.message);
+      } else {
+        setSignupSuccessEmail(email);
+      }
     } else {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) alert("Erreur de connexion : " + error.message);
@@ -786,8 +806,15 @@ export default function App() {
     const myName = user.user_metadata?.first_name || user.user_metadata?.username || user.email?.split('@')[0] || 'Moi';
     const newStory: Story = { id: 'story-' + Date.now(), user_id: user.id, username: myName, avatar_url: userAvatarUrl, image_url: uploadedStoryUrl, caption: storyCaption, club_name: selectedClub, likes_count: 0, created_at: new Date().toISOString() };
     const { error } = await supabase.from('stories').insert([{ user_id: user.id, username: myName, avatar_url: userAvatarUrl, image_url: uploadedStoryUrl, caption: storyCaption, club_name: selectedClub }]);
-    if (error) alert("Erreur publication story : " + error.message);
-    else { setCloudStories([newStory, ...cloudStories]); setStoryImageFile(null); setStoryImagePreview(null); setStoryCaption(''); setIsCreatingStory(false); }
+    if (error) {
+      alert("Erreur publication story : " + error.message);
+    } else {
+      setCloudStories([newStory, ...cloudStories]);
+      setStoryImageFile(null);
+      setStoryImagePreview(null);
+      setStoryCaption('');
+      setIsCreatingStory(false);
+    }
     setStoryUploading(false);
   };
 
@@ -915,7 +942,8 @@ export default function App() {
   const handleSendInvite = async () => {
     if (!inviteModalTarget || !user) return;
     await supabase.from('direct_messages').insert([{ sender_id: user.id, receiver_id: inviteModalTarget.id, sender_name: user.user_metadata?.username || 'Un ami', text: `🏋️ INVITATION PUSH UP : Salut ! Es-tu prêt(e) pour une grosse séance **${inviteType}** avec moi ?` }]);
-    alert(`Invitation envoyée à ${inviteModalTarget.username} !`); setInviteModalTarget(null);
+    alert(`Invitation envoyée à ${inviteModalTarget.username} !`); 
+    setInviteModalTarget(null); // Ferme correctement la modale Push Up
   };
 
 
@@ -954,7 +982,7 @@ export default function App() {
 
     const presenceInterval = setInterval(() => {
       if (user) syncProfile(user);
-    }, 60000);
+    }, 30000);
 
     const channel = supabase
       .channel('schema-db-changes')
@@ -1343,7 +1371,7 @@ export default function App() {
           </div>
         )}
 
-        {/* TAB BUDDY */}
+        {/* TAB BUDDY AVEC PASTILLES PRÉSENCE */}
         {currentTab === 'buddy' && (
           <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4">
             <div className="flex items-center justify-between">
@@ -1405,17 +1433,28 @@ export default function App() {
                       const isPending = existingReq && existingReq.status === 'pending';
 
                       const lastSeenTime = realUser.last_seen ? new Date(realUser.last_seen).getTime() : 0;
-                      const isOnline = Date.now() - lastSeenTime < 5 * 60 * 1000;
+                      const diffMinutes = (Date.now() - lastSeenTime) / 60000;
+                      
+                      // PASTILLES DE PRÉSENCE (Verte = < 5 min, Orange = < 30 min, Rouge = Inactif)
+                      let dotColor = 'bg-red-500';
+                      let statusText = 'Absent';
+                      if (diffMinutes < 5) { dotColor = 'bg-green-500'; statusText = 'En ligne'; }
+                      else if (diffMinutes < 30) { dotColor = 'bg-amber-500'; statusText = 'Récemment actif'; }
 
                       return (
                         <div key={realUser.id} className="bg-neutral-950 p-3.5 rounded-2xl border border-neutral-800 flex items-center justify-between">
                           <div className="flex items-center gap-3">
                             <div className="relative flex-shrink-0">
                               <img src={realUser.avatar_url} alt="" className="w-11 h-11 rounded-full object-cover border border-neutral-700" />
-                              {isOnline && <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-neutral-950 rounded-full" title="En ligne" />}
+                              <span className={`absolute bottom-0 right-0 w-3.5 h-3.5 ${dotColor} border-2 border-neutral-950 rounded-full`} title={statusText} />
                             </div>
                             <div>
-                              <h3 className="font-bold text-sm text-white">{realUser.username} {realUser.gender === 'F' && '🚺'}</h3>
+                              <h3 className="font-bold text-sm text-white flex items-center gap-1.5">
+                                {realUser.username} {realUser.gender === 'F' && '🚺'}
+                                <span className={`text-[9px] px-1.5 py-0.5 rounded font-normal ${diffMinutes < 5 ? 'bg-green-500/20 text-green-400' : 'bg-neutral-900 text-neutral-400'}`}>
+                                  {statusText}
+                                </span>
+                              </h3>
                               <span className="text-[10px] text-orange-400 font-medium block">🎯 {realUser.goal || 'Sportif'}</span>
                             </div>
                           </div>
