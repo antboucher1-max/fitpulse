@@ -1309,12 +1309,13 @@ export default function App() {
                   const author = registeredUsers.find(u => u.id === story.user_id);
                   const lastSeenTime = author?.last_seen ? new Date(author.last_seen).getTime() : 0;
                   const isOnline = (Date.now() - lastSeenTime) / 60000 < 5;
+                  const realAvatar = author?.avatar_url || story.avatar_url;
 
                   return (
                     <div key={story.id || index} onClick={() => { setActiveStoryIndex(index); setStoryProgress(0); setIsStoryPaused(false); if (!viewedStoryIds.includes(story.id)) setViewedStoryIds([...viewedStoryIds, story.id]); }} className="flex flex-col items-center gap-1.5 flex-shrink-0 cursor-pointer">
                       <div className="relative">
                         <div className={`w-16 h-16 rounded-full ${isViewed ? 'border-2 border-dashed border-neutral-600 opacity-70' : 'bg-gradient-to-tr from-orange-500 via-pink-500 to-amber-400'} p-[2.5px]`}>
-                          <div className="w-full h-full bg-neutral-950 rounded-full p-[2px]"><img src={story.avatar_url} alt="" className="w-full h-full rounded-full object-cover" /></div>
+                          <div className="w-full h-full bg-neutral-950 rounded-full p-[2px]"><img src={realAvatar} alt="" className="w-full h-full rounded-full object-cover" /></div>
                         </div>
                         {isOnline && <span className="absolute bottom-0 right-0 w-4 h-4 bg-green-500 border-2 border-neutral-950 rounded-full" />}
                       </div>
@@ -1333,12 +1334,13 @@ export default function App() {
               displayedPosts.map((post) => {
                 const isAlreadyLikedByMe = user ? (post.liked_by || []).includes(user.id) : false;
                 const authorUser = registeredUsers.find(u => u.id === post.user_id) || { id: post.user_id, username: post.username, email: '', age: 25, home_club: post.club_name, avatar_url: post.avatar_url };
+                const postRealAvatar = authorUser.avatar_url || post.avatar_url;
 
                 return (
                   <article key={post.id} className="bg-neutral-900/70 border border-neutral-800 rounded-3xl p-4 space-y-3.5 shadow-sm overflow-hidden relative">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3 cursor-pointer" onClick={() => setViewingProfileUser(authorUser)}>
-                        <img src={post.avatar_url} alt="" className="w-10 h-10 rounded-full object-cover border border-neutral-700" />
+                        <img src={postRealAvatar} alt="" className="w-10 h-10 rounded-full object-cover border border-neutral-700" />
                         <div>
                           <div className="flex items-center gap-1.5"><h3 className="font-bold text-sm leading-snug hover:text-orange-400 transition">{post.username}</h3>{post.is_private && <Lock className="w-3.5 h-3.5 text-neutral-500" />}</div>
                           <div className="flex items-center gap-1 text-xs text-orange-400 font-medium"><MapPin className="w-3.5 h-3.5" />{post.club_name}</div>
@@ -1819,32 +1821,45 @@ export default function App() {
         )}
       </main>
 
-      {/* MODAL PROFIL TIERS */}
-      {viewingProfileUser && (
-        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-sm w-full p-6 space-y-5 shadow-2xl relative max-h-[85vh] overflow-y-auto">
-            <button onClick={() => setViewingProfileUser(null)} className="absolute top-4 right-4 p-2 bg-neutral-800 text-white rounded-full"><X className="w-4 h-4" /></button>
-            
-            <div className="text-center space-y-3 pt-2">
-              <img src={viewingProfileUser.avatar_url} alt="" className="w-24 h-24 rounded-full object-cover border-2 border-orange-500 mx-auto shadow-xl" />
-              <div>
-                <h3 className="text-lg font-black text-white">{viewingProfileUser.username} {viewingProfileUser.gender === 'F' && '🚺'}</h3>
-                <span className="text-xs text-orange-400 font-semibold block mt-0.5"><MapPin className="w-3.5 h-3.5 inline mr-1" />{viewingProfileUser.home_club}</span>
+      {/* MODAL PROFIL TIERS AVEC BOUTON "DEMANDER EN AMI" */}
+      {viewingProfileUser && (() => {
+        const isFriend = acceptedFriendIds.includes(viewingProfileUser.id);
+        const existingReq = friendRequests.find(r => (r.sender_id === user?.id && r.receiver_id === viewingProfileUser.id) || (r.sender_id === viewingProfileUser.id && r.receiver_id === user?.id));
+        const isPending = existingReq && existingReq.status === 'pending';
+
+        return (
+          <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
+            <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-sm w-full p-6 space-y-5 shadow-2xl relative max-h-[85vh] overflow-y-auto">
+              <button onClick={() => setViewingProfileUser(null)} className="absolute top-4 right-4 p-2 bg-neutral-800 text-white rounded-full"><X className="w-4 h-4" /></button>
+              
+              <div className="text-center space-y-3 pt-2">
+                <img src={viewingProfileUser.avatar_url} alt="" className="w-24 h-24 rounded-full object-cover border-2 border-orange-500 mx-auto shadow-xl" />
+                <div>
+                  <h3 className="text-lg font-black text-white">{viewingProfileUser.username} {viewingProfileUser.gender === 'F' && '🚺'}</h3>
+                  <span className="text-xs text-orange-400 font-semibold block mt-0.5"><MapPin className="w-3.5 h-3.5 inline mr-1" />{viewingProfileUser.home_club}</span>
+                </div>
+              </div>
+
+              <div className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 space-y-2 text-xs text-neutral-300">
+                <div className="flex justify-between py-1 border-b border-neutral-900"><span className="text-neutral-400">Objectif :</span><strong className="text-white">{viewingProfileUser.goal || 'Sportif'}</strong></div>
+                <div className="flex justify-between py-1 border-b border-neutral-900"><span className="text-neutral-400">Créneau préféré :</span><strong className="text-white">{viewingProfileUser.preferred_time || 'Flexible'}</strong></div>
+                <div className="flex justify-between py-1"><span className="text-neutral-400">Âge :</span><strong className="text-white">{viewingProfileUser.age} ans</strong></div>
+              </div>
+
+              <div className="flex gap-2.5 pt-2">
+                <button onClick={() => { const target = viewingProfileUser; setViewingProfileUser(null); setSelectedBuddyChat(target); setCurrentTab('chat'); }} className="flex-1 py-3 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-lg"><MessageCircle className="w-4 h-4" /> Message</button>
+                
+                {!isFriend && !isPending && viewingProfileUser.id !== user?.id && (
+                  <button onClick={() => handleSendFriendRequest(viewingProfileUser.id)} className="px-4 py-3 bg-neutral-800 hover:bg-neutral-700 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5"><UserPlus className="w-4 h-4 text-orange-400" /> Demander en ami</button>
+                )}
+                {isPending && (
+                  <button disabled className="px-4 py-3 bg-neutral-800 text-neutral-400 rounded-xl text-xs">Demande en attente</button>
+                )}
               </div>
             </div>
-
-            <div className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 space-y-2 text-xs text-neutral-300">
-              <div className="flex justify-between py-1 border-b border-neutral-900"><span className="text-neutral-400">Objectif :</span><strong className="text-white">{viewingProfileUser.goal || 'Sportif'}</strong></div>
-              <div className="flex justify-between py-1 border-b border-neutral-900"><span className="text-neutral-400">Créneau préféré :</span><strong className="text-white">{viewingProfileUser.preferred_time || 'Flexible'}</strong></div>
-              <div className="flex justify-between py-1"><span className="text-neutral-400">Âge :</span><strong className="text-white">{viewingProfileUser.age} ans</strong></div>
-            </div>
-
-            <div className="flex gap-2.5 pt-2">
-              <button onClick={() => { const target = viewingProfileUser; setViewingProfileUser(null); setSelectedBuddyChat(target); setCurrentTab('chat'); }} className="flex-1 py-3.5 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 shadow-lg"><MessageCircle className="w-4 h-4" /> Envoyer un message</button>
-            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* LECTEUR DE STORY PLEIN ÉCRAN */}
       {activeViewingStory && (
