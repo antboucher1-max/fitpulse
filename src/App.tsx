@@ -109,8 +109,6 @@ interface ExerciseGuide {
   execution: string;
   tips: string;
   image_url: string;
-  start_image_url: string;
-  end_image_url: string;
   detailedDescription: string;
 }
 
@@ -125,8 +123,6 @@ const EXERCISES_DATABASE: ExerciseGuide[] = [
     execution: 'Saisir la barre un peu plus large que les épaules. Descendre de manière contrôlée jusqu’au milieu de la poitrine, puis pousser en expirant.', 
     tips: 'Garde les omoplates serrées contre le banc et évite de cambrer excessivement le dos.', 
     image_url: 'https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?w=800',
-    start_image_url: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=800',
-    end_image_url: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=800',
     detailedDescription: 'Le développé couché est l’exercice roi pour bâtir de la masse musculaire sur la partie supérieure du corps. En engageant à la fois les pectoraux, les triceps et les deltoïdes avants, il permet de manipuler des charges lourdes en toute sécurité à condition de respecter un angle de coude d’environ 45 degrés par rapport au torse.'
   },
   { 
@@ -139,8 +135,6 @@ const EXERCISES_DATABASE: ExerciseGuide[] = [
     execution: 'Garde le dos bien collé au dossier. Pousse les poignées vers l’avant en tendant les bras sans verrouiller les coudes, puis reviens lentement.', 
     tips: 'Idéal pour l’isolation et la sécurité en fin de séance.', 
     image_url: 'https://images.unsplash.com/photo-1576678927484-cc907957088c?w=800',
-    start_image_url: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=800',
-    end_image_url: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=800',
     detailedDescription: 'La machine chest press guide parfaitement la trajectoire du mouvement, ce qui permet de se concentrer exclusivement sur la contraction des pectoraux sans se soucier de l’équilibre de la charge. Parfait pour aller à l’échec musculaire en fin de séance.'
   },
   { 
@@ -152,9 +146,7 @@ const EXERCISES_DATABASE: ExerciseGuide[] = [
     settings: 'Ajuste les boudins de cuisses pour être bien calé. Saisis la barre avec une prise large.', 
     execution: 'Tire la barre vers le haut de ta poitrine en sortant la poitrine et en tirant les coudes vers le bas et l’arrière. Reviens en contrôlant la charge.', 
     tips: 'Évite de te pencher trop en arrière ; garde le buste légèrement incliné.', 
-    image_url: 'https://images.unsplash.com/photo-1605296867304-46ad546c1339?w=800',
-    start_image_url: 'https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?w=800',
-    end_image_url: 'https://images.unsplash.com/photo-1584735935682-2f2b69dff9d2?w=800',
+    image_url: 'https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?w=800',
     detailedDescription: 'Le tirage vertical cible principalement le grand dorsal pour donner de la largeur au dos (en V). Pour maximiser l’efficacité, initiez le mouvement en abaissant vos omoplates avant de plier les bras.'
   },
   { 
@@ -167,8 +159,6 @@ const EXERCISES_DATABASE: ExerciseGuide[] = [
     execution: 'Tire la poignée vers ton nombril en gardant le dos droit. Resserre tes omoplates en fin de mouvement.', 
     tips: 'Ne arrondis surtout pas le bas du dos lors de la phase de relâchement.', 
     image_url: 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?w=800',
-    start_image_url: 'https://images.unsplash.com/photo-1584735935682-2f2b69dff9d2?w=800',
-    end_image_url: 'https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?w=800',
     detailedDescription: 'Le rowing assis développe l’épaisseur du haut et du milieu du dos. Gardez le buste fixe et l’aine légèrement sortie pour cibler précisément les rhomboïdes et les trapèzes moyens.'
   },
   { 
@@ -181,8 +171,6 @@ const EXERCISES_DATABASE: ExerciseGuide[] = [
     execution: 'Fléchis les genoux et descends les fesses vers l’arrière comme pour t’asseoir sur une chaise, le dos bien droit, puis remonte en poussant sur les talons.', 
     tips: 'Garde les genoux bien alignés dans l’axe des pointes de pieds.', 
     image_url: 'https://images.unsplash.com/photo-1574680096145-d05b474e2155?w=800',
-    start_image_url: 'https://images.unsplash.com/photo-1574680096145-d05b474e2155?w=800',
-    end_image_url: 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?w=800',
     detailedDescription: 'Le squat est l’exercice fondamental pour le bas du corps. Il sollicite l’ensemble de la chaîne inférieure et déclenche une forte réponse hormonale propice au développement de la force globale.'
   },
   { 
@@ -195,8 +183,6 @@ const EXERCISES_DATABASE: ExerciseGuide[] = [
     execution: 'Fléchis les jambes pour ramener le chariot vers toi (angle à 90° aux genoux) puis pousse puissamment sans tendre complètement les genoux.', 
     tips: 'Ne décolle jamais le bas du dos ou les talons du dossier pendant le mouvement.', 
     image_url: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=800',
-    start_image_url: 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?w=800',
-    end_image_url: 'https://images.unsplash.com/photo-1574680096145-d05b474e2155?w=800',
     detailedDescription: 'La presse à cuisses permet de charger lourdement les quadriceps et les fessiers en protégeant la colonne vertébrale grâce au maintien du dossier. Variez la hauteur des pieds sur la plateforme pour cibler plus l’avant ou l’arrière des cuisses.'
   }
 ];
