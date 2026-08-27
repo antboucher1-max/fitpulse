@@ -108,16 +108,76 @@ interface ExerciseGuide {
   settings: string;
   execution: string;
   tips: string;
-  image_url: string;
+  video_url: string; // Vidéo en boucle (GIF/MP4)
 }
 
 const EXERCISES_DATABASE: ExerciseGuide[] = [
-  { id: 'ex-1', name: 'Développé couché (Barre / Haltères)', category: 'Pectoraux', equipment: 'Banc & Barre', targetMuscles: 'Pectoraux, Triceps, Deltoïdes antérieurs', settings: 'Banc à plat. Pieds au sol.', execution: 'Descendre la barre au milieu de la poitrine, pousser en expirant.', tips: 'Garde les omoplates serrées.', image_url: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=800' },
-  { id: 'ex-2', name: 'Développé chest press (Machine)', category: 'Pectoraux', equipment: 'Machine Chest Press convergente', targetMuscles: 'Pectoraux, Triceps', settings: 'Régler la hauteur du siège.', execution: 'Pousse les poignées vers l’avant.', tips: 'Idéal pour l’isolation.', image_url: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=800' },
-  { id: 'ex-3', name: 'Tirage vertical / Lat Pulldown', category: 'Dos', equipment: 'Poulie haute', targetMuscles: 'Grand dorsal, Biceps', settings: 'Ajuste les boudins.', execution: 'Tire la barre vers la poitrine.', tips: 'Ne te penche pas trop en arrière.', image_url: 'https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?w=800' },
-  { id: 'ex-4', name: 'Rowing poulie basse / Seated Row', category: 'Dos', equipment: 'Poulie basse', targetMuscles: 'Trapèzes, Rhomboïdes, Grand dorsal, Biceps', settings: 'Place tes pieds sur les cale-pieds.', execution: 'Tire la poignée vers ton nombril.', tips: 'Ne arrondis surtout pas le bas du dos.', image_url: 'https://images.unsplash.com/photo-1584735935682-2f2b69dff9d2?w=800' },
-  { id: 'ex-5', name: 'Squat', category: 'Jambes', equipment: 'Barre libre ou Guidée', targetMuscles: 'Quadriceps, Fessiers', settings: 'Barre sur trapèzes.', execution: 'Descends comme pour t\'asseoir.', tips: 'Genoux dans l\'axe des pieds.', image_url: 'https://images.unsplash.com/photo-1574680096145-d05b474e2155?w=800' },
-  { id: 'ex-6', name: 'Leg Press', category: 'Jambes', equipment: 'Presse', targetMuscles: 'Quadriceps', settings: 'Pieds au centre.', execution: 'Fléchis puis pousse.', tips: 'Ne décolle pas le bas du dos.', image_url: 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?w=800' }
+  { 
+    id: 'ex-1', 
+    name: 'Développé couché (Barre / Haltères)', 
+    category: 'Pectoraux', 
+    equipment: 'Banc & Barre', 
+    targetMuscles: 'Pectoraux, Triceps, Deltoïdes antérieurs', 
+    settings: 'Banc à plat. Pieds au sol.', 
+    execution: 'Descendre la barre au milieu de la poitrine, pousser en expirant.', 
+    tips: 'Garde les omoplates serrées.', 
+    video_url: 'https://assets.mixkit.co/videos/preview/mixkit-man-lifting-weights-in-a-gym-40916-large.mp4' 
+  },
+  { 
+    id: 'ex-2', 
+    name: 'Développé chest press (Machine)', 
+    category: 'Pectoraux', 
+    equipment: 'Machine Chest Press convergente', 
+    targetMuscles: 'Pectoraux, Triceps', 
+    settings: 'Régler la hauteur du siège.', 
+    execution: 'Pousse les poignées vers l’avant.', 
+    tips: 'Idéal pour l’isolation.', 
+    video_url: 'https://assets.mixkit.co/videos/preview/mixkit-muscular-man-working-out-in-a-gym-40914-large.mp4' 
+  },
+  { 
+    id: 'ex-3', 
+    name: 'Tirage vertical / Lat Pulldown', 
+    category: 'Dos', 
+    equipment: 'Poulie haute', 
+    targetMuscles: 'Grand dorsal, Biceps', 
+    settings: 'Ajuste les boudins.', 
+    execution: 'Tire la barre vers la poitrine.', 
+    tips: 'Ne te penche pas trop en arrière.', 
+    video_url: 'https://assets.mixkit.co/videos/preview/mixkit-man-exercising-in-a-gym-40915-large.mp4' 
+  },
+  { 
+    id: 'ex-4', 
+    name: 'Rowing poulie basse / Seated Row', 
+    category: 'Dos', 
+    equipment: 'Poulie basse', 
+    targetMuscles: 'Trapèzes, Rhomboïdes, Grand dorsal, Biceps', 
+    settings: 'Place tes pieds sur les cale-pieds.', 
+    execution: 'Tire la poignée vers ton nombril.', 
+    tips: 'Ne arrondis surtout pas le bas du dos.', 
+    video_url: 'https://assets.mixkit.co/videos/preview/mixkit-athlete-lifting-weights-in-a-gym-40919-large.mp4' 
+  },
+  { 
+    id: 'ex-5', 
+    name: 'Squat', 
+    category: 'Jambes', 
+    equipment: 'Barre libre ou Guidée', 
+    targetMuscles: 'Quadriceps, Fessiers', 
+    settings: 'Barre sur trapèzes.', 
+    execution: 'Descends comme pour t\'asseoir.', 
+    tips: 'Genoux dans l\'axe des pieds.', 
+    video_url: 'https://assets.mixkit.co/videos/preview/mixkit-man-doing-squats-with-weights-in-a-gym-40917-large.mp4' 
+  },
+  { 
+    id: 'ex-6', 
+    name: 'Leg Press', 
+    category: 'Jambes', 
+    equipment: 'Presse', 
+    targetMuscles: 'Quadriceps', 
+    settings: 'Pieds au centre.', 
+    execution: 'Fléchis puis pousse.', 
+    tips: 'Ne décolle pas le bas du dos.', 
+    video_url: 'https://assets.mixkit.co/videos/preview/mixkit-strong-man-exercising-with-weights-in-a-gym-40918-large.mp4' 
+  }
 ];
 
 interface PersonalRecord { exercise: string; weight: number; reps: number; date: string; }
@@ -1263,7 +1323,8 @@ export default function App() {
                 {EXERCISES_DATABASE.filter((ex) => (selectedCategoryFilter === 'Tous' || ex.category === selectedCategoryFilter) && (ex.name.toLowerCase().includes(exerciseSearch.toLowerCase()) || ex.targetMuscles.toLowerCase().includes(exerciseSearch.toLowerCase()))).map((ex) => (
                   <div key={ex.id} onClick={() => setSelectedExerciseDetail(ex)} className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 hover:border-orange-500/50 cursor-pointer flex items-center justify-between">
                     <div className="flex items-center gap-4">
-                      <img src={ex.image_url} alt="" className="w-16 h-16 rounded-xl object-cover border border-neutral-800 flex-shrink-0" />
+                      {/* Affichage de la vidéo en boucle (GIF/MP4) */}
+                      <video src={ex.video_url} autoPlay loop muted playsInline className="w-16 h-16 rounded-xl object-cover border border-neutral-800 flex-shrink-0" />
                       <div>
                         <div className="flex items-center gap-2 mb-1"><span className="text-sm font-bold text-white">{ex.name}</span><span className="text-[10px] bg-orange-500/10 text-orange-400 px-2 py-0.5 rounded-md border border-orange-500/20">{ex.category}</span></div>
                         <p className="text-[10px] text-neutral-400">🎯 {ex.targetMuscles}</p>
@@ -1616,6 +1677,42 @@ export default function App() {
         </div>
       )}
 
+      {/* MODAL PUBLIER STORY (AVEC CHOIX ALBUM TEL OU APPAREIL PHOTO) */}
+      {isCreatingStory && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-md w-full p-5 space-y-4">
+            <div className="flex items-center justify-between pb-2 border-b border-neutral-800">
+              <h3 className="text-sm font-bold text-white flex items-center gap-2"><Sparkles className="w-4 h-4 text-orange-500" /> Ajouter à ma story (24h)</h3>
+              <button onClick={() => setIsCreatingStory(false)} className="p-1 text-neutral-400 hover:text-white"><X className="w-5 h-5" /></button>
+            </div>
+            <form onSubmit={handlePublishStory} className="space-y-3.5">
+              <input type="file" accept="image/*" ref={storyFileInputRef} onChange={handleImageSelect} className="hidden" />
+              {storyImagePreview ? (
+                <div className="relative rounded-2xl overflow-hidden border border-neutral-700 bg-neutral-950 h-56 flex items-center justify-center">
+                  <img src={storyImagePreview} alt="" className="max-h-full object-contain" />
+                  <button type="button" onClick={() => setStoryImagePreview(null)} className="absolute top-2 right-2 p-1 bg-black/80 text-white rounded-full"><X className="w-4 h-4" /></button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-2.5">
+                  <button type="button" onClick={() => startCameraHandler('story')} className="py-8 border-2 border-dashed border-neutral-800 hover:border-orange-500 rounded-2xl flex flex-col items-center justify-center gap-2 text-neutral-400 bg-neutral-950 transition">
+                    <Camera className="w-6 h-6 text-orange-500" /><span className="text-xs font-semibold">Prendre photo</span>
+                  </button>
+                  <button type="button" onClick={() => storyFileInputRef.current?.click()} className="py-8 border-2 border-dashed border-neutral-800 hover:border-orange-500 rounded-2xl flex flex-col items-center justify-center gap-2 text-neutral-400 bg-neutral-950 transition">
+                    <FolderOpen className="w-6 h-6 text-neutral-400" /><span className="text-xs font-semibold">Album tel</span>
+                  </button>
+                </div>
+              )}
+              <div className="space-y-2">
+                <input type="text" placeholder="Légende de la story..." value={storyCaption} onChange={(e) => setStoryCaption(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-orange-500" />
+              </div>
+              <button type="submit" disabled={storyUploading || !storyImageFile} className="w-full bg-orange-600 hover:bg-orange-500 text-white font-bold py-3 rounded-xl shadow-lg transition flex items-center justify-center gap-2 text-xs">
+                {storyUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Partager ma story"}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* MODAL FICHE EXPLICATIVE EXERCICE */}
       {selectedExerciseDetail && (
         <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex flex-col justify-end sm:justify-center p-4">
@@ -1627,7 +1724,9 @@ export default function App() {
               </div>
               <button onClick={() => setSelectedExerciseDetail(null)} className="p-1.5 bg-neutral-800 text-white rounded-full"><X className="w-5 h-5" /></button>
             </div>
-            <div className="rounded-2xl overflow-hidden border border-neutral-800 bg-neutral-950 h-48 w-full relative"><img src={selectedExerciseDetail.image_url} alt="" className="w-full h-full object-cover" /></div>
+            <div className="rounded-2xl overflow-hidden border border-neutral-800 bg-neutral-950 h-56 w-full relative flex items-center justify-center">
+              <video src={selectedExerciseDetail.video_url} autoPlay loop muted playsInline className="w-full h-full object-cover" />
+            </div>
             <div className="space-y-3 text-sm">
               <div className="bg-neutral-950 p-3.5 rounded-2xl border border-neutral-800/80 space-y-1"><span className="font-bold text-orange-400 uppercase text-[11px] block">Équipement</span><p className="text-neutral-200">{selectedExerciseDetail.equipment}</p></div>
               <div className="bg-neutral-950 p-3.5 rounded-2xl border border-neutral-800/80 space-y-1"><span className="font-bold text-orange-400 uppercase text-[11px] block">Exécution</span><p className="text-neutral-200 leading-relaxed">{selectedExerciseDetail.execution}</p></div>
