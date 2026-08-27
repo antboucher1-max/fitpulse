@@ -320,6 +320,13 @@ interface RealUser {
   avatar_url: string;
 }
 
+interface FriendRequest {
+  id: string;
+  sender_id: string;
+  receiver_id: string;
+  status: 'pending' | 'accepted';
+}
+
 interface DBMessage {
   id: string;
   sender_id: string;
@@ -329,12 +336,8 @@ interface DBMessage {
   created_at: string;
 }
 
-const DEFAULT_MEMBERS: RealUser[] = [
-  { id: 'b1', username: 'Thomas D.', email: 'thomas@fitpulse.be', gender: 'M', goal: 'Prise de masse & Force', home_club: 'Club Tournai (Bastion)', preferred_time: '🌆 Soir (17h - 20h)', avatar_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150' },
-  { id: 'b2', username: 'Sarah L.', email: 'sarah@fitpulse.be', gender: 'F', goal: 'Cardio & HIIT', home_club: 'Club Tournai (Bastion)', preferred_time: '🌅 Matin (6h - 9h)', avatar_url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150' },
-  { id: 'b3', username: 'Élodie M.', email: 'elodie@fitpulse.be', gender: 'F', goal: 'Remise en forme', home_club: 'Club Tournai (Froyennes)', preferred_time: '☀️ Midi (12h - 14h)', avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150' },
-  { id: 'b4', username: 'Maxime V.', email: 'maxime@fitpulse.be', gender: 'M', goal: 'Prise de masse & Force', home_club: 'Club Mouscron', preferred_time: '🌆 Soir (17h - 20h)', avatar_url: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150' }
-];
+// AUCUN MEMBRE FICTIF PAR DÉFAUT (Tableau vide)
+const DEFAULT_MEMBERS: RealUser[] = [];
 
 const DEFAULT_STORIES: Story[] = [
   {
@@ -346,17 +349,6 @@ const DEFAULT_STORIES: Story[] = [
     caption: 'Prêt pour exploser le PR au dev couché #pr #pushday 🔥',
     club_name: 'Club Tournai (Bastion)',
     likes_count: 3,
-    created_at: new Date().toISOString()
-  },
-  {
-    id: 'demo-s2',
-    user_id: 'b2',
-    username: 'Sarah L.',
-    avatar_url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150',
-    image_url: 'https://images.unsplash.com/photo-1518611012118-696072aa579a?w=800',
-    caption: 'Fin de séance HIIT cardio, les jambes en feu #cardio #hiit 💦',
-    club_name: 'Club Tournai (Bastion)',
-    likes_count: 5,
     created_at: new Date().toISOString()
   }
 ];
@@ -396,7 +388,7 @@ export default function App() {
   });
   const profileAvatarInputRef = useRef<HTMLInputElement>(null);
 
-  // Paramètres Utilisateur Locaux & Cloud
+  // Paramètres Utilisateur & Demandes d'amis réelles
   const [userStreak, setUserStreak] = useState<number>(() => {
     try { return parseInt(localStorage.getItem('fitpulse_streak') || '2', 10); } catch { return 2; }
   });
@@ -406,6 +398,7 @@ export default function App() {
   });
 
   const [transformations, setTransformations] = useState<TransformationPhoto[]>([]);
+  const [friendRequests, setFriendRequests] = useState<FriendRequest[]>([]);
 
   const [newTransNote, setNewTransNote] = useState('');
   const [newTransWeight, setNewTransWeight] = useState<number | ''>('');
@@ -426,7 +419,7 @@ export default function App() {
     try {
       const saved = localStorage.getItem('fitpulse_viewed_stories');
       return saved ? JSON.parse(saved) : [];
-    } catch { return []; }
+    } catch { return {}; }
   });
 
   useEffect(() => { localStorage.setItem('fitpulse_liked_stories', JSON.stringify(likedStories)); }, [likedStories]);
@@ -462,8 +455,7 @@ export default function App() {
 
   // Membres et Amis
   const [registeredUsers, setRegisteredUsers] = useState<RealUser[]>(DEFAULT_MEMBERS);
-  const [friendIds, setFriendIds] = useState<string[]>(['b1', 'b2']);
-  const [buddyTabSubMode, setBuddyTabSubMode] = useState<'discover' | 'my_friends'>('discover');
+  const [buddyTabSubMode, setBuddyTabSubMode] = useState<'discover' | 'my_friends' | 'requests'>('discover');
   const [userSearchQuery, setUserSearchQuery] = useState('');
   const [filterWomenOnly, setFilterWomenOnly] = useState(false);
   const [selectedGoalFilter, setSelectedGoalFilter] = useState<string>('all');
@@ -709,7 +701,6 @@ export default function App() {
     }
   };
 
-  // MISE À JOUR DE LA PHOTO DE PROFIL DANS SUPABASE (METADATA & CLOUD STORAGE)
   const handleUpdateProfileAvatar = async (fileOrUrl: File | string) => {
     if (!user) return;
     let finalAvatarUrl = typeof fileOrUrl === 'string' ? fileOrUrl : '';
@@ -728,11 +719,54 @@ export default function App() {
 
     if (finalAvatarUrl) {
       setUserAvatarUrl(finalAvatarUrl);
-      // Mettre à jour les métadonnées auth
       await supabase.auth.updateUser({
         data: { ...user.user_metadata, avatar_url: finalAvatarUrl }
       });
       alert('🌟 Photo de profil mise à jour et enregistrée avec succès !');
+    }
+  };
+
+  // GESTION DES DEMANDES D'AMIS RÉELLES SUR SUPABASE
+  const fetchFriendRequests = async (userId: string) => {
+    const { data, error } = await supabase
+      .from('friend_requests')
+      .select('*')
+      .or(`sender_id.eq.${userId},receiver_id.eq.${userId}`);
+    if (!error && data) {
+      setFriendRequests(data as FriendRequest[]);
+    }
+  };
+
+  const handleSendFriendRequest = async (targetUserId: string) => {
+    if (!user) return;
+    const { error } = await supabase.from('friend_requests').insert([
+      { sender_id: user.id, receiver_id: targetUserId, status: 'pending' }
+    ]);
+    if (error) {
+      alert("Erreur lors de l'envoi de la demande : " + error.message);
+    } else {
+      alert("Demande d'ami envoyée avec succès !");
+      fetchFriendRequests(user.id);
+    }
+  };
+
+  const handleAcceptFriendRequest = async (requestId: string) => {
+    const { error } = await supabase
+      .from('friend_requests')
+      .update({ status: 'accepted' })
+      .eq('id', requestId);
+    if (!error && user) {
+      alert("Demande acceptée ! Vous êtes désormais amis 🎉");
+      fetchFriendRequests(user.id);
+    } else if (error) {
+      alert("Erreur : " + error.message);
+    }
+  };
+
+  const handleRejectFriendRequest = async (requestId: string) => {
+    const { error } = await supabase.from('friend_requests').delete().eq('id', requestId);
+    if (!error && user) {
+      fetchFriendRequests(user.id);
     }
   };
 
@@ -742,7 +776,10 @@ export default function App() {
       setUser(activeUser);
       if (activeUser?.user_metadata?.home_club) setSelectedClub(activeUser.user_metadata.home_club);
       if (activeUser?.user_metadata?.avatar_url) setUserAvatarUrl(activeUser.user_metadata.avatar_url);
-      if (activeUser) fetchTransformations(activeUser.id);
+      if (activeUser) {
+        fetchTransformations(activeUser.id);
+        fetchFriendRequests(activeUser.id);
+      }
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -750,7 +787,10 @@ export default function App() {
       setUser(activeUser);
       if (activeUser?.user_metadata?.home_club) setSelectedClub(activeUser.user_metadata.home_club);
       if (activeUser?.user_metadata?.avatar_url) setUserAvatarUrl(activeUser.user_metadata.avatar_url);
-      if (activeUser) fetchTransformations(activeUser.id);
+      if (activeUser) {
+        fetchTransformations(activeUser.id);
+        fetchFriendRequests(activeUser.id);
+      }
     });
 
     fetchCloudPosts();
@@ -771,6 +811,9 @@ export default function App() {
       })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'posts' }, (payload) => {
         setPosts((prev) => prev.map(p => p.id === payload.new.id ? payload.new as Post : p));
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'friend_requests' }, () => {
+        if (user) fetchFriendRequests(user.id);
       })
       .subscribe();
 
@@ -810,7 +853,6 @@ export default function App() {
     const { data, error } = await supabase.from('posts').select('user_id, username, club_name, avatar_url').limit(50);
     if (!error && data) {
       const uniqueMap = new Map();
-      DEFAULT_MEMBERS.forEach((m) => uniqueMap.set(m.id, m));
       data.forEach((p) => {
         if (p.user_id !== user?.id && !uniqueMap.has(p.user_id)) {
           uniqueMap.set(p.user_id, {
@@ -906,7 +948,14 @@ export default function App() {
   });
   const uniqueStoriesList = Array.from(uniqueStoriesMap.values());
 
-  const myFriendsList = registeredUsers.filter((u) => friendIds.includes(u.id));
+  // Liste des IDs d'amis acceptés
+  const acceptedFriendIds = friendRequests
+    .filter(req => req.status === 'accepted')
+    .map(req => (req.sender_id === user?.id ? req.receiver_id : req.sender_id));
+
+  const myFriendsList = registeredUsers.filter((u) => acceptedFriendIds.includes(u.id));
+
+  const incomingRequests = friendRequests.filter(req => req.receiver_id === user?.id && req.status === 'pending');
 
   const friendStoriesList = uniqueStoriesList.filter((s) => {
     const storyDate = new Date(s.created_at).getTime();
@@ -1205,7 +1254,8 @@ export default function App() {
   };
 
   const filteredBuddies = registeredUsers.filter((u) => {
-    if (buddyTabSubMode === 'my_friends' && !friendIds.includes(u.id)) return false;
+    if (u.id === user?.id) return false;
+    if (buddyTabSubMode === 'my_friends' && !acceptedFriendIds.includes(u.id)) return false;
     if (filterWomenOnly && u.gender === 'M') return false;
     
     if (selectedGoalFilter !== 'all' && u.goal && !u.goal.toLowerCase().includes(selectedGoalFilter.toLowerCase())) {
@@ -1230,7 +1280,7 @@ export default function App() {
 
   const displayedPosts = posts.filter((post) => {
     if (post.is_private) {
-      if (post.user_id !== user?.id && !friendIds.includes(post.user_id)) {
+      if (post.user_id !== user?.id && !acceptedFriendIds.includes(post.user_id)) {
         return false;
       }
     }
@@ -1705,89 +1755,129 @@ export default function App() {
               >
                 Mes Amis ({myFriendsList.length})
               </button>
+              <button
+                onClick={() => setBuddyTabSubMode('requests')}
+                className={`flex-1 py-2 rounded-xl text-xs font-bold transition relative ${buddyTabSubMode === 'requests' ? 'bg-orange-600 text-white' : 'text-neutral-400 hover:text-white'}`}
+              >
+                Demandes {incomingRequests.length > 0 && <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] w-4 h-4 rounded-full flex items-center justify-center font-bold">{incomingRequests.length}</span>}
+              </button>
             </div>
 
-            <div className="space-y-1.5">
-              <span className="text-[11px] font-semibold text-neutral-400 block">Filtrer par objectif :</span>
-              <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
-                {[
-                  { label: 'Tous', value: 'all' },
-                  { label: '💪 Prise de masse', value: 'masse' },
-                  { label: '🔥 Cardio & HIIT', value: 'cardio' },
-                  { label: '🧘 Remise en forme', value: 'remise' }
-                ].map((goal) => (
-                  <button
-                    key={goal.value}
-                    onClick={() => setSelectedGoalFilter(goal.value)}
-                    className={`px-3 py-1.5 rounded-xl text-[11px] font-bold whitespace-nowrap transition border ${
-                      selectedGoalFilter === goal.value
-                        ? 'bg-orange-500 text-white border-orange-400 shadow-md'
-                        : 'bg-neutral-950 text-neutral-400 border-neutral-800 hover:text-white'
-                    }`}
-                  >
-                    {goal.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="relative">
-              <Search className="absolute left-3.5 top-3.5 w-4 h-4 text-orange-500" />
-              <input
-                type="text"
-                placeholder="Rechercher par pseudo..."
-                value={userSearchQuery}
-                onChange={(e) => setUserSearchQuery(e.target.value)}
-                className="w-full bg-neutral-950 border border-neutral-800 rounded-xl pl-10 pr-3 py-3 text-xs text-white focus:outline-none focus:border-orange-500 shadow-inner"
-              />
-            </div>
-
-            <div className="space-y-3 pt-1">
-              {filteredBuddies.length === 0 ? (
-                <div className="text-center py-8 text-neutral-500 text-xs">
-                  Aucun athlète ne correspond à vos critères.
-                </div>
-              ) : (
-                filteredBuddies.map((realUser) => {
-                  const isFriend = friendIds.includes(realUser.id);
-                  return (
-                    <div key={realUser.id} className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <img src={realUser.avatar_url} alt="" className="w-12 h-12 rounded-full object-cover border border-neutral-700" />
-                        <div>
-                          <h3 className="font-bold text-sm text-white">{realUser.username} {realUser.gender === 'F' && '🚺'}</h3>
-                          <span className="text-[11px] text-orange-400 font-medium block">● {realUser.home_club}</span>
-                          <div className="flex items-center gap-2 mt-0.5">
-                            {realUser.goal && <span className="text-[10px] text-neutral-400 italic">🎯 {realUser.goal}</span>}
-                            {realUser.preferred_time && <span className="text-[10px] text-amber-400/80 font-medium">🕒 {realUser.preferred_time.split(' ')[1]}</span>}
+            {buddyTabSubMode === 'requests' ? (
+              <div className="space-y-3 pt-1">
+                {incomingRequests.length === 0 ? (
+                  <div className="text-center py-8 text-neutral-500 text-xs">Aucune demande d'ami en attente.</div>
+                ) : (
+                  incomingRequests.map((req) => {
+                    const senderUser = registeredUsers.find(u => u.id === req.sender_id) || { username: 'Athlète FitPulse', home_club: selectedClub, avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150' };
+                    return (
+                      <div key={req.id} className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <img src={senderUser.avatar_url} alt="" className="w-11 h-11 rounded-full object-cover border border-neutral-700" />
+                          <div>
+                            <h3 className="font-bold text-xs text-white">{senderUser.username}</h3>
+                            <span className="text-[10px] text-neutral-400">Souhaite devenir ton Buddy</span>
                           </div>
                         </div>
+                        <div className="flex items-center gap-2">
+                          <button onClick={() => handleAcceptFriendRequest(req.id)} className="px-3 py-1.5 bg-green-600 hover:bg-green-500 text-white rounded-xl text-xs font-bold transition flex items-center gap-1">
+                            <Check className="w-3.5 h-3.5" /> Accepter
+                          </button>
+                          <button onClick={() => handleRejectFriendRequest(req.id)} className="p-2 bg-neutral-900 border border-neutral-800 text-red-400 hover:bg-neutral-800 rounded-xl">
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => {
-                            if (isFriend) {
-                              setFriendIds(friendIds.filter(id => id !== realUser.id));
-                            } else {
-                              setFriendIds([...friendIds, realUser.id]);
-                            }
-                          }}
-                          className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1 ${
-                            isFriend ? 'bg-neutral-900 border border-neutral-700 text-green-400' : 'bg-orange-600 text-white'
-                          }`}
-                        >
-                          {isFriend ? <UserCheck className="w-3.5 h-3.5" /> : <UserPlus className="w-3.5 h-3.5" />}
-                          {isFriend ? 'Ami' : 'Ajouter'}
-                        </button>
-                        <button onClick={() => { setSelectedBuddyChat(realUser); setCurrentTab('chat'); }} className="p-2 bg-neutral-900 border border-neutral-800 hover:border-orange-500 text-neutral-200 rounded-xl">
-                          <MessageCircle className="w-4 h-4" />
-                        </button>
-                      </div>
+                    );
+                  })
+                )}
+              </div>
+            ) : (
+              <>
+                <div className="space-y-1.5">
+                  <span className="text-[11px] font-semibold text-neutral-400 block">Filtrer par objectif :</span>
+                  <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+                    {[
+                      { label: 'Tous', value: 'all' },
+                      { label: '💪 Prise de masse', value: 'masse' },
+                      { label: '🔥 Cardio & HIIT', value: 'cardio' },
+                      { label: '🧘 Remise en forme', value: 'remise' }
+                    ].map((goal) => (
+                      <button
+                        key={goal.value}
+                        onClick={() => setSelectedGoalFilter(goal.value)}
+                        className={`px-3 py-1.5 rounded-xl text-[11px] font-bold whitespace-nowrap transition border ${
+                          selectedGoalFilter === goal.value
+                            ? 'bg-orange-500 text-white border-orange-400 shadow-md'
+                            : 'bg-neutral-950 text-neutral-400 border-neutral-800 hover:text-white'
+                        }`}
+                      >
+                        {goal.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="relative">
+                  <Search className="absolute left-3.5 top-3.5 w-4 h-4 text-orange-500" />
+                  <input
+                    type="text"
+                    placeholder="Rechercher par pseudo..."
+                    value={userSearchQuery}
+                    onChange={(e) => setUserSearchQuery(e.target.value)}
+                    className="w-full bg-neutral-950 border border-neutral-800 rounded-xl pl-10 pr-3 py-3 text-xs text-white focus:outline-none focus:border-orange-500 shadow-inner"
+                  />
+                </div>
+
+                <div className="space-y-3 pt-1">
+                  {filteredBuddies.length === 0 ? (
+                    <div className="text-center py-8 text-neutral-500 text-xs">
+                      Aucun athlète ne correspond à vos critères.
                     </div>
-                  );
-                })
-              )}
-            </div>
+                  ) : (
+                    filteredBuddies.map((realUser) => {
+                      const isFriend = acceptedFriendIds.includes(realUser.id);
+                      const existingReq = friendRequests.find(r => (r.sender_id === user?.id && r.receiver_id === realUser.id) || (r.sender_id === realUser.id && r.receiver_id === user?.id));
+                      const isPending = existingReq && existingReq.status === 'pending';
+
+                      return (
+                        <div key={realUser.id} className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <img src={realUser.avatar_url} alt="" className="w-12 h-12 rounded-full object-cover border border-neutral-700" />
+                            <div>
+                              <h3 className="font-bold text-sm text-white">{realUser.username} {realUser.gender === 'F' && '🚺'}</h3>
+                              <span className="text-[11px] text-orange-400 font-medium block">● {realUser.home_club}</span>
+                              <div className="flex items-center gap-2 mt-0.5">
+                                {realUser.goal && <span className="text-[10px] text-neutral-400 italic">🎯 {realUser.goal}</span>}
+                                {realUser.preferred_time && <span className="text-[10px] text-amber-400/80 font-medium">🕒 {realUser.preferred_time.split(' ')[1]}</span>}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {isFriend ? (
+                              <button className="px-3 py-1.5 bg-neutral-900 border border-neutral-700 text-green-400 rounded-xl text-xs font-bold flex items-center gap-1">
+                                <UserCheck className="w-3.5 h-3.5" /> Ami
+                              </button>
+                            ) : isPending ? (
+                              <button disabled className="px-3 py-1.5 bg-neutral-900 text-neutral-400 rounded-xl text-xs font-medium">
+                                En attente
+                              </button>
+                            ) : (
+                              <button onClick={() => handleSendFriendRequest(realUser.id)} className="px-3 py-1.5 bg-orange-600 hover:bg-orange-500 text-white rounded-xl text-xs font-bold transition flex items-center gap-1">
+                                <UserPlus className="w-3.5 h-3.5" /> Ajouter
+                              </button>
+                            )}
+                            <button onClick={() => { setSelectedBuddyChat(realUser); setCurrentTab('chat'); }} className="p-2 bg-neutral-900 border border-neutral-800 hover:border-orange-500 text-neutral-200 rounded-xl">
+                              <MessageCircle className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </>
+            )}
           </div>
         )}
 
