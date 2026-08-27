@@ -831,7 +831,6 @@ export default function App() {
     if (!error && data) setAllMessages(data as DBMessage[]);
   };
 
-  // Récupération dynamique et unique des vrais utilisateurs basée sur les posts du cloud
   const fetchRealUsers = async () => {
     const { data, error } = await supabase.from('posts').select('user_id, username, club_name, avatar_url').limit(100);
     if (!error && data) {
