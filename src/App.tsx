@@ -133,7 +133,7 @@ interface Story {
 }
 
 interface RealUser {
-  id: string; username: string; email: string; gender?: 'M' | 'F'; age: number; goal?: string; home_club: string; preferred_time?: string; avatar_url: string;
+  id: string; username: string; email: string; gender?: 'M' | 'F'; birth_date?: string; age: number; goal?: string; home_club: string; preferred_time?: string; avatar_url: string;
 }
 
 interface FriendRequest {
@@ -196,6 +196,9 @@ const compressImage = (file: File, maxWidth = 800, quality = 0.7): Promise<Blob>
 };
 
 export default function App() {
+  // ==========================================
+  // 1. DÉCLARATION DES ÉTATS (useState)
+  // ==========================================
   const [user, setUser] = useState<SupabaseUser | null>(null);
 
   // Auth States
@@ -324,7 +327,84 @@ export default function App() {
   const [viewedStoryIds, setViewedStoryIds] = useState<string[]>(() => { try { return JSON.parse(localStorage.getItem('fitpulse_viewed_stories') || '[]'); } catch { return []; } });
 
 
-  // --- SYNC PROFILES EFFECT ---
+  // ==========================================
+  // 2. VARIABLES DÉRIVÉES (Dépendent des états)
+  // ==========================================
+  const acceptedFriendIds = friendRequests
+    .filter(req => req.status === 'accepted')
+    .map(req => (req.sender_id === user?.id ? req.receiver_id : req.sender_id));
+
+  const botUser: RealUser = {
+    id: 'system-bot', username: '⚠️ Modération Bot', email: 'bot@fitpulse', home_club: 'Système', age: 99, avatar_url: 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=150'
+  };
+
+  const hasBotMessages = allMessages.some(m => m.sender_id === 'system-bot' && m.receiver_id === user?.id);
+
+  const activeChatUsers = registeredUsers.filter((u) => {
+    if (u.id === user?.id) return false;
+    const hasExchanged = allMessages.some(m => (m.sender_id === user?.id && m.receiver_id === u.id) || (m.sender_id === u.id && m.receiver_id === user?.id));
+    return acceptedFriendIds.includes(u.id) || hasExchanged;
+  });
+
+  if (hasBotMessages) {
+    activeChatUsers.unshift(botUser);
+  }
+
+  const myFriendsList = registeredUsers.filter((u) => acceptedFriendIds.includes(u.id));
+  const incomingRequests = friendRequests.filter(req => req.receiver_id === user?.id && req.status === 'pending');
+
+  const filteredBuddies = registeredUsers.filter((u) => {
+    if (u.id === user?.id) return false;
+    if (buddyTabSubMode === 'my_friends' && !acceptedFriendIds.includes(u.id)) return false;
+    if (filterWomenOnly && u.gender === 'M') return false;
+    if (selectedGoalFilter !== 'all' && u.goal && !u.goal.toLowerCase().includes(selectedGoalFilter.toLowerCase())) return false;
+    if (selectedAgeGroupFilter !== 'all') {
+      const age = u.age;
+      if (selectedAgeGroupFilter === '18-25' && (age < 18 || age > 25)) return false;
+      if (selectedAgeGroupFilter === '26-35' && (age < 26 || age > 35)) return false;
+      if (selectedAgeGroupFilter === '36-45' && (age < 36 || age > 45)) return false;
+      if (selectedAgeGroupFilter === '46+' && age < 46) return false;
+    }
+    if (userSearchQuery.trim()) {
+      const q = userSearchQuery.toLowerCase();
+      return u.username.toLowerCase().includes(q) || u.home_club.toLowerCase().includes(q);
+    }
+    return true;
+  });
+
+  const matchedBuddiesList = registeredUsers.filter((u) => {
+    if (u.id === user?.id) return false;
+    if (filterWomenOnly && u.gender === 'M') return false;
+    const matchG = matchGoal === 'Tous' || (u.goal && u.goal.toLowerCase().includes(matchGoal.toLowerCase()));
+    const matchT = matchTime === 'Tous' || (u.preferred_time && u.preferred_time.includes(matchTime));
+    return matchG && matchT;
+  });
+
+  const displayedPosts = posts.filter((post) => {
+    if (post.is_private && post.user_id !== user?.id && !acceptedFriendIds.includes(post.user_id)) return false;
+    return isMatchingClub(post.club_name, selectedClub);
+  });
+
+  const currentChatMessages = allMessages.filter(
+    (m) => selectedBuddyChat && user && ((m.sender_id === user.id && m.receiver_id === selectedBuddyChat.id) || (m.sender_id === selectedBuddyChat.id && m.receiver_id === user.id))
+  );
+
+  const friendStoriesList = cloudStories.filter((s) => {
+    const storyDate = new Date(s.created_at).getTime();
+    return !isNaN(storyDate) ? storyDate >= Date.now() - 24 * 3600 * 1000 : true;
+  });
+
+  const activeViewingStory = activeStoryIndex !== null ? friendStoriesList[activeStoryIndex] : null;
+  const activePostForComments = posts.find((p) => p.id === activeCommentPostId);
+  const unreadChatCount = allMessages.filter((m) => m.receiver_id === user?.id && new Date(m.created_at).getTime() > lastChatOpenTime).length;
+  const notifications = allMessages.filter(m => m.receiver_id === user?.id && m.sender_id === 'system-notification');
+  const unreadNotifsCount = notifications.filter(m => new Date(m.created_at).getTime() > lastNotifOpenTime).length;
+
+
+  // ==========================================
+  // 3. FONCTIONS & HANDLERS
+  // ==========================================
+
   const syncProfile = async (sessionUser: SupabaseUser) => {
     try {
       const profileData = {
@@ -339,14 +419,10 @@ export default function App() {
         preferred_time: sessionUser.user_metadata?.preferred_time || TIME_SLOTS[2],
         avatar_url: sessionUser.user_metadata?.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'
       };
-      
-      // On insère silencieusement le profil. Retrait du .catch() pour corriger l'erreur TS
       await supabase.from('profiles').upsert(profileData);
     } catch(e) {}
   };
 
-
-  // --- FETCH FUNCTIONS ---
   const fetchCloudPosts = async () => {
     setFeedLoading(true);
     const { data, error } = await supabase.from('posts').select('*').order('created_at', { ascending: false });
@@ -357,9 +433,7 @@ export default function App() {
   const fetchCloudStories = async () => {
     try {
       const { data, error } = await supabase.from('stories').select('*').order('created_at', { ascending: false });
-      if (!error && data && data.length > 0) {
-        setCloudStories(data as Story[]);
-      }
+      if (!error && data) setCloudStories(data as Story[]);
     } catch (err) {}
   };
 
@@ -410,206 +484,6 @@ export default function App() {
     if (!error && data) setFriendRequests(data as FriendRequest[]);
   };
 
-  // --- EFFECTS ---
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      const activeUser = session?.user ?? null;
-      setUser(activeUser);
-      if (activeUser) {
-        if (activeUser.user_metadata?.home_club) setSelectedClub(activeUser.user_metadata.home_club);
-        if (activeUser.user_metadata?.avatar_url) setUserAvatarUrl(activeUser.user_metadata.avatar_url);
-        syncProfile(activeUser);
-        fetchTransformations(activeUser.id);
-        fetchFriendRequests(activeUser.id);
-      }
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      const activeUser = session?.user ?? null;
-      setUser(activeUser);
-      if (activeUser) {
-        if (activeUser.user_metadata?.home_club) setSelectedClub(activeUser.user_metadata.home_club);
-        if (activeUser.user_metadata?.avatar_url) setUserAvatarUrl(activeUser.user_metadata.avatar_url);
-        syncProfile(activeUser);
-        fetchTransformations(activeUser.id);
-        fetchFriendRequests(activeUser.id);
-      }
-    });
-
-    fetchCloudPosts();
-    fetchDirectMessages();
-    fetchCloudStories();
-    fetchRealUsers();
-
-    const channel = supabase
-      .channel('schema-db-changes')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'direct_messages' }, (payload) => {
-        setAllMessages((prev) => [...prev, payload.new as DBMessage]);
-      })
-      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'direct_messages' }, (payload) => {
-        setAllMessages((prev) => prev.filter((m) => m.id !== payload.old.id));
-      })
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'stories' }, (payload) => {
-        setCloudStories((prev) => [payload.new as Story, ...prev]);
-      })
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'posts' }, (payload) => {
-        setPosts((prev) => prev.map(p => p.id === payload.new.id ? payload.new as Post : p));
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'friend_requests' }, () => {
-        if (user) fetchFriendRequests(user.id);
-      })
-      .subscribe();
-
-    return () => {
-      subscription.unsubscribe();
-      supabase.removeChannel(channel);
-      stopCameraStream();
-    };
-  }, [user?.id]);
-
-  useEffect(() => {
-    let currentStream: MediaStream | null = null;
-    if (isCameraActive) {
-      navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: cameraTarget === 'profile_avatar' ? 'user' : 'environment' } },
-        audio: false
-      }).then(stream => {
-        currentStream = stream;
-        streamRef.current = stream;
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-        }
-      }).catch(err => {
-        alert("Erreur caméra : " + err.message);
-        setIsCameraActive(false);
-      });
-    }
-    return () => {
-      if (currentStream) {
-        currentStream.getTracks().forEach(t => t.stop());
-      }
-    };
-  }, [isCameraActive, cameraTarget, facingMode]);
-
-  useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [allMessages, selectedBuddyChat]);
-  useEffect(() => { localStorage.setItem('fitpulse_streak', userStreak.toString()); }, [userStreak]);
-  useEffect(() => { localStorage.setItem('fitpulse_private', isPrivateMode.toString()); }, [isPrivateMode]);
-  useEffect(() => { localStorage.setItem('fitpulse_liked_stories', JSON.stringify(likedStories)); }, [likedStories]);
-  useEffect(() => { localStorage.setItem('fitpulse_viewed_stories', JSON.stringify(viewedStoryIds)); }, [viewedStoryIds]);
-
-  useEffect(() => {
-    if (currentTab === 'chat') {
-      const now = Date.now();
-      setLastChatOpenTime(now);
-      localStorage.setItem('fitpulse_last_chat', now.toString());
-    }
-  }, [allMessages, currentTab]);
-
-  useEffect(() => {
-    let timer: NodeJS.Timeout | null = null;
-    if (isRestTimerActive && restTimeRemaining > 0) {
-      timer = setInterval(() => setRestTimeRemaining((prev) => prev - 1), 1000);
-    } else if (restTimeRemaining === 0 && isRestTimerActive) {
-      setIsRestTimerActive(false);
-      alert('⏰ Temps de repos terminé ! Prépare ta prochaine série 💪');
-    }
-    return () => { if (timer) clearInterval(timer); };
-  }, [isRestTimerActive, restTimeRemaining]);
-
-  useEffect(() => {
-    if (activeStoryIndex === null || isStoryPaused) return;
-
-    const currentStory = friendStoriesList[activeStoryIndex];
-    if (currentStory && !viewedStoryIds.includes(currentStory.id)) {
-      setViewedStoryIds((prev) => [...prev, currentStory.id]);
-    }
-
-    const interval = 50;
-    const step = (interval / 5000) * 100;
-    const timer = setInterval(() => {
-      setStoryProgress((prev) => {
-        if (prev >= 100) {
-          if (activeStoryIndex < friendStoriesList.length - 1) {
-            setActiveStoryIndex(activeStoryIndex + 1);
-            setStoryProgress(0);
-            setStoryCommentInput('');
-          } else {
-            setActiveStoryIndex(null);
-          }
-          return 0;
-        }
-        return prev + step;
-      });
-    }, interval);
-
-    return () => clearInterval(timer);
-  }, [activeStoryIndex, isStoryPaused, friendStoriesList.length]);
-
-  // --- VARIABLES DÉRIVÉES (Dépendantes des states) ---
-  const notifications = allMessages.filter(m => m.receiver_id === user?.id && m.sender_id === 'system-notification');
-  const unreadNotifsCount = notifications.filter(m => new Date(m.created_at).getTime() > lastNotifOpenTime).length;
-  
-  const acceptedFriendIds = friendRequests.filter(req => req.status === 'accepted').map(req => (req.sender_id === user?.id ? req.receiver_id : req.sender_id));
-
-  const botUser: RealUser = { id: 'system-bot', username: '⚠️ Modération Bot', email: 'bot@fitpulse', home_club: 'Système', age: 99, avatar_url: 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=150' };
-  const hasBotMessages = allMessages.some(m => m.sender_id === 'system-bot' && m.receiver_id === user?.id);
-  const activeChatUsers = registeredUsers.filter((u) => {
-    if (u.id === user?.id) return false;
-    const hasExchanged = allMessages.some(m => (m.sender_id === user?.id && m.receiver_id === u.id) || (m.sender_id === u.id && m.receiver_id === user?.id));
-    return acceptedFriendIds.includes(u.id) || hasExchanged;
-  });
-  if (hasBotMessages) activeChatUsers.unshift(botUser);
-
-  const myFriendsList = registeredUsers.filter((u) => acceptedFriendIds.includes(u.id));
-  const incomingRequests = friendRequests.filter(req => req.receiver_id === user?.id && req.status === 'pending');
-
-  const filteredBuddies = registeredUsers.filter((u) => {
-    if (u.id === user?.id) return false;
-    if (buddyTabSubMode === 'my_friends' && !acceptedFriendIds.includes(u.id)) return false;
-    if (filterWomenOnly && u.gender === 'M') return false;
-    if (selectedGoalFilter !== 'all' && u.goal && !u.goal.toLowerCase().includes(selectedGoalFilter.toLowerCase())) return false;
-    if (selectedAgeGroupFilter !== 'all') {
-      const age = u.age;
-      if (selectedAgeGroupFilter === '18-25' && (age < 18 || age > 25)) return false;
-      if (selectedAgeGroupFilter === '26-35' && (age < 26 || age > 35)) return false;
-      if (selectedAgeGroupFilter === '36-45' && (age < 36 || age > 45)) return false;
-      if (selectedAgeGroupFilter === '46+' && age < 46) return false;
-    }
-    if (userSearchQuery.trim()) {
-      const q = userSearchQuery.toLowerCase();
-      return u.username.toLowerCase().includes(q) || u.home_club.toLowerCase().includes(q);
-    }
-    return true;
-  });
-
-  const matchedBuddiesList = registeredUsers.filter((u) => {
-    if (u.id === user?.id) return false;
-    if (filterWomenOnly && u.gender === 'M') return false;
-    const matchG = matchGoal === 'Tous' || (u.goal && u.goal.toLowerCase().includes(matchGoal.toLowerCase()));
-    const matchT = matchTime === 'Tous' || (u.preferred_time && u.preferred_time.includes(matchTime));
-    return matchG && matchT;
-  });
-
-  const displayedPosts = posts.filter((post) => {
-    if (post.is_private && post.user_id !== user?.id && !acceptedFriendIds.includes(post.user_id)) return false;
-    return isMatchingClub(post.club_name, selectedClub);
-  });
-
-  const currentChatMessages = allMessages.filter(
-    (m) => selectedBuddyChat && user && ((m.sender_id === user.id && m.receiver_id === selectedBuddyChat.id) || (m.sender_id === selectedBuddyChat.id && m.receiver_id === user.id))
-  );
-
-  const friendStoriesList = cloudStories.filter((s) => {
-    const storyDate = new Date(s.created_at).getTime();
-    return !isNaN(storyDate) ? storyDate >= Date.now() - 24 * 3600 * 1000 : true;
-  });
-
-  const activeViewingStory = activeStoryIndex !== null ? friendStoriesList[activeStoryIndex] : null;
-  const activePostForComments = posts.find((p) => p.id === activeCommentPostId);
-  const unreadChatCount = allMessages.filter((m) => m.receiver_id === user?.id && new Date(m.created_at).getTime() > lastChatOpenTime).length;
-
-
-  // --- HANDLERS UI ---
   const sendSystemNotification = async (receiverId: string, message: string) => {
     await supabase.from('direct_messages').insert([{
       sender_id: 'system-notification', receiver_id: receiverId, sender_name: '📣 Notification', text: message
@@ -654,6 +528,62 @@ export default function App() {
 
   const handleAddWorkoutHashtag = (tag: string) => { if (!workoutCaption.includes(tag)) setWorkoutCaption((prev) => (prev ? `${prev} ${tag}` : tag)); };
   const handleAddStoryHashtag = (tag: string) => { if (!storyCaption.includes(tag)) setStoryCaption((prev) => (prev ? `${prev} ${tag}` : tag)); };
+
+  // --- DRAG & DROP & ZOOM CROP ---
+  const handleDragStart = (e: React.MouseEvent | React.TouchEvent) => {
+    setIsDraggingImage(true);
+    const clientX = 'touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
+    const clientY = 'touches' in e ? e.touches[0].clientY : (e as React.MouseEvent).clientY;
+    setDragStartPos({ x: clientX - postImageOffset.x, y: clientY - postImageOffset.y });
+  };
+  
+  const handleDragMove = (e: React.MouseEvent | React.TouchEvent) => {
+    if (!isDraggingImage) return;
+    const clientX = 'touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
+    const clientY = 'touches' in e ? e.touches[0].clientY : (e as React.MouseEvent).clientY;
+    setPostImageOffset({ x: clientX - dragStartPos.x, y: clientY - dragStartPos.y });
+  };
+  
+  const handleDragEnd = () => setIsDraggingImage(false);
+
+  const getPinchDistance = (touches: React.TouchList) => {
+    const dx = touches[0].clientX - touches[1].clientX; const dy = touches[0].clientY - touches[1].clientY;
+    return Math.sqrt(dx * dx + dy * dy);
+  };
+  
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length === 2) { setInitialPinchDistance(getPinchDistance(e.touches)); setInitialPinchZoom(postImageZoom); setIsDraggingImage(false); } 
+    else if (e.touches.length === 1) handleDragStart(e);
+  };
+  
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (e.touches.length === 2 && initialPinchDistance !== null) {
+      const scale = getPinchDistance(e.touches) / initialPinchDistance;
+      setPostImageZoom(Math.min(Math.max(1, initialPinchZoom * scale), 4));
+    } else if (e.touches.length === 1 && isDraggingImage) handleDragMove(e);
+  };
+  
+  const handleTouchEnd = () => { setIsDraggingImage(false); setInitialPinchDistance(null); };
+
+  const getCroppedImageBlob = async (): Promise<Blob | null> => {
+    if (!imgRef.current || !previewContainerRef.current) return null;
+    const img = imgRef.current; const container = previewContainerRef.current;
+    const canvas = document.createElement('canvas');
+    canvas.width = 800; canvas.height = 800;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+    ctx.fillStyle = '#0a0a0a'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+    const coverRatio = Math.max(container.clientWidth / img.naturalWidth, container.clientHeight / img.naturalHeight);
+    const baseWidth = img.naturalWidth * coverRatio; const baseHeight = img.naturalHeight * coverRatio;
+    const baseX = (container.clientWidth - baseWidth) / 2; const baseY = (container.clientHeight - baseHeight) / 2;
+    const centerX = container.clientWidth / 2; const centerY = container.clientHeight / 2;
+    const finalX = centerX + (baseX - centerX) * postImageZoom + postImageOffset.x;
+    const finalY = centerY + (baseY - centerY) * postImageZoom + postImageOffset.y;
+    const finalWidth = baseWidth * postImageZoom; const finalHeight = baseHeight * postImageZoom;
+    const scaleMultiplier = 800 / container.clientWidth;
+    ctx.drawImage(img, finalX * scaleMultiplier, finalY * scaleMultiplier, finalWidth * scaleMultiplier, finalHeight * scaleMultiplier);
+    return new Promise((resolve) => { canvas.toBlob((blob) => resolve(blob), 'image/jpeg', 0.85); });
+  };
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>, targetType?: string) => {
     if (e.target.files && e.target.files[0]) {
@@ -773,58 +703,6 @@ export default function App() {
     setAuthLoading(false);
   };
 
-  // --- DRAG & DROP & ZOOM CROP ---
-  const handleDragStart = (e: React.MouseEvent | React.TouchEvent) => {
-    setIsDraggingImage(true);
-    const clientX = 'touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
-    const clientY = 'touches' in e ? e.touches[0].clientY : (e as React.MouseEvent).clientY;
-    setDragStartPos({ x: clientX - postImageOffset.x, y: clientY - postImageOffset.y });
-  };
-  const handleDragMove = (e: React.MouseEvent | React.TouchEvent) => {
-    if (!isDraggingImage) return;
-    const clientX = 'touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
-    const clientY = 'touches' in e ? e.touches[0].clientY : (e as React.MouseEvent).clientY;
-    setPostImageOffset({ x: clientX - dragStartPos.x, y: clientY - dragStartPos.y });
-  };
-  const handleDragEnd = () => setIsDraggingImage(false);
-
-  const getPinchDistance = (touches: React.TouchList) => {
-    const dx = touches[0].clientX - touches[1].clientX; const dy = touches[0].clientY - touches[1].clientY;
-    return Math.sqrt(dx * dx + dy * dy);
-  };
-  const handleTouchStart = (e: React.TouchEvent) => {
-    if (e.touches.length === 2) { setInitialPinchDistance(getPinchDistance(e.touches)); setInitialPinchZoom(postImageZoom); setIsDraggingImage(false); } 
-    else if (e.touches.length === 1) handleDragStart(e);
-  };
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (e.touches.length === 2 && initialPinchDistance !== null) {
-      const scale = getPinchDistance(e.touches) / initialPinchDistance;
-      setPostImageZoom(Math.min(Math.max(1, initialPinchZoom * scale), 4));
-    } else if (e.touches.length === 1 && isDraggingImage) handleDragMove(e);
-  };
-  const handleTouchEnd = () => { setIsDraggingImage(false); setInitialPinchDistance(null); };
-
-  const getCroppedImageBlob = async (): Promise<Blob | null> => {
-    if (!imgRef.current || !previewContainerRef.current) return null;
-    const img = imgRef.current; const container = previewContainerRef.current;
-    const canvas = document.createElement('canvas');
-    canvas.width = 800; canvas.height = 800;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return null;
-    ctx.fillStyle = '#0a0a0a'; ctx.fillRect(0, 0, canvas.width, canvas.height);
-    const coverRatio = Math.max(container.clientWidth / img.naturalWidth, container.clientHeight / img.naturalHeight);
-    const baseWidth = img.naturalWidth * coverRatio; const baseHeight = img.naturalHeight * coverRatio;
-    const baseX = (container.clientWidth - baseWidth) / 2; const baseY = (container.clientHeight - baseHeight) / 2;
-    const centerX = container.clientWidth / 2; const centerY = container.clientHeight / 2;
-    const finalX = centerX + (baseX - centerX) * postImageZoom + postImageOffset.x;
-    const finalY = centerY + (baseY - centerY) * postImageZoom + postImageOffset.y;
-    const finalWidth = baseWidth * postImageZoom; const finalHeight = baseHeight * postImageZoom;
-    const scaleMultiplier = 800 / container.clientWidth;
-    ctx.drawImage(img, finalX * scaleMultiplier, finalY * scaleMultiplier, finalWidth * scaleMultiplier, finalHeight * scaleMultiplier);
-    return new Promise((resolve) => { canvas.toBlob((blob) => resolve(blob), 'image/jpeg', 0.85); });
-  };
-
-  // --- PUB & SOCIAL ---
   const handlePublishStory = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !storyImageFile) return;
@@ -837,7 +715,7 @@ export default function App() {
       if (uploadData) { const { data } = supabase.storage.from('posts').getPublicUrl(fileName); uploadedStoryUrl = data.publicUrl; }
     } catch (err) {}
 
-    const myName = user.user_metadata?.username || user.email?.split('@')[0] || 'Moi';
+    const myName = user.user_metadata?.first_name || user.user_metadata?.username || user.email?.split('@')[0] || 'Moi';
     const newStory: Story = { id: 'story-' + Date.now(), user_id: user.id, username: myName, avatar_url: userAvatarUrl, image_url: uploadedStoryUrl, caption: storyCaption, club_name: selectedClub, likes_count: 0, created_at: new Date().toISOString() };
     const { error } = await supabase.from('stories').insert([{ user_id: user.id, username: myName, avatar_url: userAvatarUrl, image_url: uploadedStoryUrl, caption: storyCaption, club_name: selectedClub }]);
     if (error) alert("Erreur publication story : " + error.message);
@@ -950,29 +828,147 @@ export default function App() {
     if (finalAvatarUrl) { setUserAvatarUrl(finalAvatarUrl); await supabase.auth.updateUser({ data: { ...user.user_metadata, avatar_url: finalAvatarUrl } }); alert('🌟 Photo de profil mise à jour !'); }
   };
 
-  const handleSendFriendRequest = async (targetUserId: string) => {
-    if (!user) return;
-    const { error } = await supabase.from('friend_requests').insert([{ sender_id: user.id, receiver_id: targetUserId, status: 'pending' }]);
-    if (!error) { alert("Demande envoyée !"); fetchFriendRequests(user.id); sendSystemNotification(targetUserId, `👋 ${user.user_metadata?.username || 'Quelqu\'un'} souhaite devenir votre Buddy !`); }
-  };
 
-  const handleAcceptFriendRequest = async (requestId: string) => {
-    const { error } = await supabase.from('friend_requests').update({ status: 'accepted' }).eq('id', requestId);
-    if (!error && user) { alert("Demande acceptée !"); fetchFriendRequests(user.id); const req = friendRequests.find(r => r.id === requestId); if (req) sendSystemNotification(req.sender_id, `✅ ${user.user_metadata?.username || 'Un utilisateur'} a accepté votre demande d'ami !`); }
-  };
+  // ==========================================
+  // 4. EFFETS SECONDAIRES DE COMPOSANT (useEffect)
+  // ==========================================
 
-  const handleRejectFriendRequest = async (requestId: string) => {
-    const { error } = await supabase.from('friend_requests').delete().eq('id', requestId);
-    if (!error && user) fetchFriendRequests(user.id);
-  };
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      const activeUser = session?.user ?? null;
+      setUser(activeUser);
+      if (activeUser) {
+        if (activeUser.user_metadata?.home_club) setSelectedClub(activeUser.user_metadata.home_club);
+        if (activeUser.user_metadata?.avatar_url) setUserAvatarUrl(activeUser.user_metadata.avatar_url);
+        syncProfile(activeUser);
+        fetchTransformations(activeUser.id);
+        fetchFriendRequests(activeUser.id);
+      }
+    });
 
-  const handleSendInvite = async () => {
-    if (!inviteModalTarget || !user) return;
-    await supabase.from('direct_messages').insert([{ sender_id: user.id, receiver_id: inviteModalTarget.id, sender_name: user.user_metadata?.username || 'Un ami', text: `🏋️ INVITATION PUSH UP : Salut ! Es-tu prêt(e) pour une grosse séance **${inviteType}** avec moi ?` }]);
-    alert(`Invitation envoyée à ${inviteModalTarget.username} !`); setInviteModalTarget(null);
-  };
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      const activeUser = session?.user ?? null;
+      setUser(activeUser);
+      if (activeUser) {
+        if (activeUser.user_metadata?.home_club) setSelectedClub(activeUser.user_metadata.home_club);
+        if (activeUser.user_metadata?.avatar_url) setUserAvatarUrl(activeUser.user_metadata.avatar_url);
+        syncProfile(activeUser);
+        fetchTransformations(activeUser.id);
+        fetchFriendRequests(activeUser.id);
+      }
+    });
 
-  // --- RENDU LOGIN ---
+    fetchCloudPosts();
+    fetchDirectMessages();
+    fetchCloudStories();
+    fetchRealUsers();
+
+    const channel = supabase
+      .channel('schema-db-changes')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'direct_messages' }, (payload) => {
+        setAllMessages((prev) => [...prev, payload.new as DBMessage]);
+      })
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'direct_messages' }, (payload) => {
+        setAllMessages((prev) => prev.filter((m) => m.id !== payload.old.id));
+      })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'stories' }, (payload) => {
+        setCloudStories((prev) => [payload.new as Story, ...prev]);
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'posts' }, (payload) => {
+        setPosts((prev) => prev.map(p => p.id === payload.new.id ? payload.new as Post : p));
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'friend_requests' }, () => {
+        if (user) fetchFriendRequests(user.id);
+      })
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+      supabase.removeChannel(channel);
+      stopCameraStream();
+    };
+  }, [user?.id]);
+
+  useEffect(() => {
+    let currentStream: MediaStream | null = null;
+    if (isCameraActive) {
+      navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: cameraTarget === 'profile_avatar' ? 'user' : 'environment' } },
+        audio: false
+      }).then(stream => {
+        currentStream = stream;
+        streamRef.current = stream;
+        // On s'assure que la modale a eu le temps de s'afficher avant d'associer le flux
+        setTimeout(() => {
+          if (videoRef.current) {
+            videoRef.current.srcObject = stream;
+          }
+        }, 100);
+      }).catch(err => {
+        alert("Erreur caméra : " + err.message);
+        setIsCameraActive(false);
+      });
+    }
+    return () => {
+      if (currentStream) {
+        currentStream.getTracks().forEach(t => t.stop());
+      }
+    };
+  }, [isCameraActive, cameraTarget, facingMode]);
+
+  useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [allMessages, selectedBuddyChat]);
+  useEffect(() => { localStorage.setItem('fitpulse_streak', userStreak.toString()); }, [userStreak]);
+  useEffect(() => { localStorage.setItem('fitpulse_private', isPrivateMode.toString()); }, [isPrivateMode]);
+  useEffect(() => { localStorage.setItem('fitpulse_liked_stories', JSON.stringify(likedStories)); }, [likedStories]);
+  useEffect(() => { localStorage.setItem('fitpulse_viewed_stories', JSON.stringify(viewedStoryIds)); }, [viewedStoryIds]);
+
+  useEffect(() => {
+    if (currentTab === 'chat') {
+      const now = Date.now();
+      setLastChatOpenTime(now);
+      localStorage.setItem('fitpulse_last_chat', now.toString());
+    }
+  }, [allMessages, currentTab]);
+
+  useEffect(() => {
+    let timer: NodeJS.Timeout | null = null;
+    if (isRestTimerActive && restTimeRemaining > 0) {
+      timer = setInterval(() => setRestTimeRemaining((prev) => prev - 1), 1000);
+    } else if (restTimeRemaining === 0 && isRestTimerActive) {
+      setIsRestTimerActive(false);
+      alert('⏰ Temps de repos terminé ! Prépare ta prochaine série 💪');
+    }
+    return () => { if (timer) clearInterval(timer); };
+  }, [isRestTimerActive, restTimeRemaining]);
+
+  useEffect(() => {
+    if (activeStoryIndex === null || isStoryPaused) return;
+
+    const currentStory = friendStoriesList[activeStoryIndex];
+    if (currentStory && !viewedStoryIds.includes(currentStory.id)) {
+      setViewedStoryIds((prev) => [...prev, currentStory.id]);
+    }
+
+    const interval = 50;
+    const step = (interval / 5000) * 100;
+    const timer = setInterval(() => {
+      setStoryProgress((prev) => {
+        if (prev >= 100) {
+          handleNextStory();
+          return 0;
+        }
+        return prev + step;
+      });
+    }, interval);
+
+    return () => clearInterval(timer);
+  }, [activeStoryIndex, isStoryPaused, friendStoriesList.length]);
+
+
+  // ==========================================
+  // 5. RENDU (JSX)
+  // ==========================================
+
   if (!user) {
     if (signupSuccessEmail) {
       return (
@@ -1032,7 +1028,6 @@ export default function App() {
     );
   }
 
-  // --- RENDU APPLICATION ---
   return (
     <div className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col font-sans select-none">
       <header className="sticky top-0 z-40 bg-neutral-950/80 backdrop-blur-md border-b border-neutral-900 px-4 py-3 flex items-center justify-between">
@@ -1064,9 +1059,7 @@ export default function App() {
             ) : (
               <div className="space-y-2">
                 {notifications.slice().reverse().map(n => (
-                  <div key={n.id} className="p-3 bg-neutral-950 rounded-xl border border-neutral-800 text-xs text-neutral-200">
-                    {n.text}
-                  </div>
+                  <div key={n.id} className="p-3 bg-neutral-950 rounded-xl border border-neutral-800 text-xs text-neutral-200">{n.text}</div>
                 ))}
               </div>
             )}
@@ -1647,6 +1640,7 @@ export default function App() {
           </div>
           <span className="text-[10px]">Chat</span>
         </button>
+        <button onClick={() => setCurrentTab('leaderboard')} className={`flex flex-col items-center gap-1 ${currentTab === 'leaderboard' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Trophy className="w-5 h-5" /><span className="text-[10px]">Records</span></button>
         <button onClick={() => setCurrentTab('profile')} className={`flex flex-col items-center gap-1 ${currentTab === 'profile' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><User className="w-5 h-5" /><span className="text-[10px]">Profil</span></button>
       </nav>
     </div>
