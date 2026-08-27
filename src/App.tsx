@@ -61,19 +61,15 @@ import {
 } from 'lucide-react';
 import { createClient, User as SupabaseUser } from '@supabase/supabase-js';
 
-// Configuration Supabase
+// ==========================================
+// CONFIGURATION ET BASES DE DONNÉES
+// ==========================================
 const supabaseUrl = 'https://obtahwmcoqrcauscpksv.supabase.co';
 const supabaseAnonKey = 'sb_publishable_O8CKhUtzgq9nO9lKavNE9A__fAdRWoB';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 interface ClubLocation {
-  name: string;
-  address?: string;
-  city: string;
-  zip: string;
-  lat: number;
-  lng: number;
-  distance?: number | null;
+  name: string; address?: string; city: string; zip: string; lat: number; lng: number; distance?: number | null;
 }
 
 const CLUBS_DATABASE: ClubLocation[] = [
@@ -91,31 +87,16 @@ const CLUBS_DATABASE: ClubLocation[] = [
   { name: 'Club Arlon (Hydrion)', address: "Parc Commercial de l'Hydrion 31b", city: 'Arlon', zip: '6700', lat: 49.6841, lng: 5.8173 }
 ];
 
-const TIME_SLOTS = [
-  '🌅 Matin (6h - 9h)',
-  '☀️ Midi (12h - 14h)',
-  '🌆 Soir (17h - 20h)',
-  '🌙 Nocturne (20h+)',
-  '📅 Week-end flexible'
-];
+const TIME_SLOTS = ['🌅 Matin (6h - 9h)', '☀️ Midi (12h - 14h)', '🌆 Soir (17h - 20h)', '🌙 Nocturne (20h+)', '📅 Week-end flexible'];
 
-interface ExerciseGuide {
-  id: string;
-  name: string;
-  category: 'Pectoraux' | 'Dos' | 'Jambes' | 'Épaules' | 'Bras' | 'Core';
-  equipment: string;
-  targetMuscles: string;
-  settings: string;
-  execution: string;
-  tips: string;
-  image_url: string;
-}
-
+interface ExerciseGuide { id: string; name: string; category: string; equipment: string; targetMuscles: string; settings: string; execution: string; tips: string; image_url: string; }
 const EXERCISES_DATABASE: ExerciseGuide[] = [
   { id: 'ex-1', name: 'Développé couché (Barre / Haltères)', category: 'Pectoraux', equipment: 'Banc & Barre', targetMuscles: 'Pectoraux, Triceps, Deltoïdes antérieurs', settings: 'Banc à plat. Pieds au sol.', execution: 'Descendre la barre au milieu de la poitrine, pousser en expirant.', tips: 'Garde les omoplates serrées.', image_url: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=800' },
-  { id: 'ex-2', name: 'Tirage vertical / Lat Pulldown', category: 'Dos', equipment: 'Poulie haute', targetMuscles: 'Grand dorsal, Biceps', settings: 'Ajuste les boudins.', execution: 'Tire la barre vers la poitrine.', tips: 'Ne te penche pas trop en arrière.', image_url: 'https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?w=800' },
-  { id: 'ex-3', name: 'Squat', category: 'Jambes', equipment: 'Barre libre ou Guidée', targetMuscles: 'Quadriceps, Fessiers', settings: 'Barre sur trapèzes.', execution: 'Descends comme pour t\'asseoir.', tips: 'Genoux dans l\'axe des pieds.', image_url: 'https://images.unsplash.com/photo-1574680096145-d05b474e2155?w=800' },
-  { id: 'ex-4', name: 'Leg Press', category: 'Jambes', equipment: 'Presse', targetMuscles: 'Quadriceps', settings: 'Pieds au centre.', execution: 'Fléchis puis pousse.', tips: 'Ne décolle pas le bas du dos.', image_url: 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?w=800' }
+  { id: 'ex-2', name: 'Développé chest press (Machine)', category: 'Pectoraux', equipment: 'Machine Chest Press convergente', targetMuscles: 'Pectoraux, Triceps', settings: 'Régler la hauteur du siège pour que les poignées soient alignées au milieu de ta poitrine.', execution: 'Garde le dos bien collé au dossier. Pousse les poignées vers l’avant.', tips: 'Idéal pour l’isolation.', image_url: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=800' },
+  { id: 'ex-3', name: 'Tirage vertical / Lat Pulldown', category: 'Dos', equipment: 'Poulie haute', targetMuscles: 'Grand dorsal, Biceps', settings: 'Ajuste les boudins.', execution: 'Tire la barre vers la poitrine.', tips: 'Ne te penche pas trop en arrière.', image_url: 'https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?w=800' },
+  { id: 'ex-4', name: 'Rowing poulie basse / Seated Row', category: 'Dos', equipment: 'Poulie basse', targetMuscles: 'Trapèzes, Rhomboïdes, Grand dorsal, Biceps', settings: 'Place tes pieds sur les cale-pieds.', execution: 'Tire la poignée vers ton nombril.', tips: 'Ne arrondis surtout pas le bas du dos.', image_url: 'https://images.unsplash.com/photo-1584735935682-2f2b69dff9d2?w=800' },
+  { id: 'ex-5', name: 'Squat', category: 'Jambes', equipment: 'Barre libre ou Guidée', targetMuscles: 'Quadriceps, Fessiers', settings: 'Barre sur trapèzes.', execution: 'Descends comme pour t\'asseoir.', tips: 'Genoux dans l\'axe des pieds.', image_url: 'https://images.unsplash.com/photo-1574680096145-d05b474e2155?w=800' },
+  { id: 'ex-6', name: 'Leg Press', category: 'Jambes', equipment: 'Presse', targetMuscles: 'Quadriceps', settings: 'Pieds au centre.', execution: 'Fléchis puis pousse.', tips: 'Ne décolle pas le bas du dos.', image_url: 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?w=800' }
 ];
 
 interface PersonalRecord { exercise: string; weight: number; reps: number; date: string; }
@@ -136,17 +117,11 @@ interface RealUser {
   id: string; username: string; email: string; gender?: 'M' | 'F'; birth_date?: string; age: number; goal?: string; home_club: string; preferred_time?: string; avatar_url: string;
 }
 
-interface FriendRequest {
-  id: string; sender_id: string; receiver_id: string; status: 'pending' | 'accepted';
-}
-
-interface DBMessage {
-  id: string; sender_id: string; receiver_id: string; sender_name: string; text: string; created_at: string;
-}
+interface FriendRequest { id: string; sender_id: string; receiver_id: string; status: 'pending' | 'accepted'; }
+interface DBMessage { id: string; sender_id: string; receiver_id: string; sender_name: string; text: string; created_at: string; }
 
 const WORKOUT_CHOICES = ['Push (Pectoraux, Épaules, Triceps)', 'Pull (Dos, Biceps)', 'Legs (Jambes, Fessiers)', 'Full Body (Corps entier)', 'Cardio & HIIT', 'Repos / Récupération'];
 const POPULAR_HASHTAGS = ['#legday', '#pushday', '#pullday', '#pr', '#gym', '#cardio', '#hiit', '#nopainnogain', '#musculation', '#fitness'];
-
 const DEFAULT_WEEKLY_PLAN: WeeklyPlan[] = [
   { day: 'Lundi', focus: 'Push (Pectoraux, Épaules, Triceps)', exercisesText: 'Développé couché, Chest Press, Élévations latérales' },
   { day: 'Mardi', focus: 'Pull (Dos, Biceps)', exercisesText: 'Tirage vertical, Rowing poulie basse, Curl Biceps' },
@@ -158,8 +133,7 @@ const DEFAULT_WEEKLY_PLAN: WeeklyPlan[] = [
 
 const calculateAge = (birthDateString?: string): number => {
   if (!birthDateString) return 25;
-  const birthDate = new Date(birthDateString);
-  const today = new Date();
+  const birthDate = new Date(birthDateString); const today = new Date();
   let age = today.getFullYear() - birthDate.getFullYear();
   const m = today.getMonth() - birthDate.getMonth();
   if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) age--;
@@ -170,8 +144,7 @@ const isMatchingClub = (postClubName?: string, selectedClubName?: string): boole
   if (!postClubName || !selectedClubName) return false;
   if (postClubName === selectedClubName) return true;
   const normalize = (str: string) => str.toLowerCase().replace(/[()]/g, '').trim();
-  const p = normalize(postClubName);
-  const s = normalize(selectedClubName);
+  const p = normalize(postClubName); const s = normalize(selectedClubName);
   return p === s || p.includes(s) || s.includes(p);
 };
 
@@ -197,7 +170,7 @@ const compressImage = (file: File, maxWidth = 800, quality = 0.7): Promise<Blob>
 
 export default function App() {
   // ==========================================
-  // 1. DÉCLARATION DES ÉTATS (useState)
+  // 1. DÉCLARATION DES ÉTATS (useState & useRef)
   // ==========================================
   const [user, setUser] = useState<SupabaseUser | null>(null);
 
@@ -229,11 +202,10 @@ export default function App() {
 
   const [userStreak, setUserStreak] = useState<number>(() => { try { return parseInt(localStorage.getItem('fitpulse_streak') || '2', 10); } catch { return 2; } });
   const [isPrivateMode, setIsPrivateMode] = useState<boolean>(() => { try { return localStorage.getItem('fitpulse_private') === 'true'; } catch { return false; } });
-  
-  // Notifications
+  const [lastChatOpenTime, setLastChatOpenTime] = useState<number>(() => { try { return parseInt(localStorage.getItem('fitpulse_last_chat') || '0', 10); } catch { return 0; } });
   const [lastNotifOpenTime, setLastNotifOpenTime] = useState<number>(() => { try { return parseInt(localStorage.getItem('fitpulse_last_notif') || '0', 10); } catch { return 0; } });
+  
   const [isNotifModalOpen, setIsNotifModalOpen] = useState(false);
-
   const [transformations, setTransformations] = useState<TransformationPhoto[]>([]);
   const [friendRequests, setFriendRequests] = useState<FriendRequest[]>([]);
   const [registeredUsers, setRegisteredUsers] = useState<RealUser[]>([]);
@@ -251,7 +223,6 @@ export default function App() {
   const [isMatchModalOpen, setIsMatchModalOpen] = useState(false);
   const [matchGoal, setMatchGoal] = useState('Tous');
   const [matchTime, setMatchTime] = useState('Tous');
-  
   const [activeStoryIndex, setActiveStoryIndex] = useState<number | null>(null);
   const [storyProgress, setStoryProgress] = useState(0);
   const [isStoryPaused, setIsStoryPaused] = useState(false);
@@ -279,7 +250,6 @@ export default function App() {
   const streamRef = useRef<MediaStream | null>(null);
 
   // Chat & Invites
-  const [lastChatOpenTime, setLastChatOpenTime] = useState<number>(() => { try { return parseInt(localStorage.getItem('fitpulse_last_chat') || '0', 10); } catch { return 0; } });
   const [selectedBuddyChat, setSelectedBuddyChat] = useState<RealUser | null>(null);
   const [currentMessageInput, setCurrentMessageInput] = useState('');
   const [inviteModalTarget, setInviteModalTarget] = useState<RealUser | null>(null);
@@ -328,27 +298,18 @@ export default function App() {
 
 
   // ==========================================
-  // 2. VARIABLES DÉRIVÉES (Dépendent des états)
+  // 2. VARIABLES DÉRIVÉES ET CALCULÉES
   // ==========================================
-  const acceptedFriendIds = friendRequests
-    .filter(req => req.status === 'accepted')
-    .map(req => (req.sender_id === user?.id ? req.receiver_id : req.sender_id));
-
-  const botUser: RealUser = {
-    id: 'system-bot', username: '⚠️ Modération Bot', email: 'bot@fitpulse', home_club: 'Système', age: 99, avatar_url: 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=150'
-  };
-
+  const acceptedFriendIds = friendRequests.filter(req => req.status === 'accepted').map(req => (req.sender_id === user?.id ? req.receiver_id : req.sender_id));
+  
+  const botUser: RealUser = { id: 'system-bot', username: '⚠️ Modération Bot', email: 'bot@fitpulse', home_club: 'Système', age: 99, avatar_url: 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=150' };
   const hasBotMessages = allMessages.some(m => m.sender_id === 'system-bot' && m.receiver_id === user?.id);
-
   const activeChatUsers = registeredUsers.filter((u) => {
     if (u.id === user?.id) return false;
     const hasExchanged = allMessages.some(m => (m.sender_id === user?.id && m.receiver_id === u.id) || (m.sender_id === u.id && m.receiver_id === user?.id));
     return acceptedFriendIds.includes(u.id) || hasExchanged;
   });
-
-  if (hasBotMessages) {
-    activeChatUsers.unshift(botUser);
-  }
+  if (hasBotMessages) activeChatUsers.unshift(botUser);
 
   const myFriendsList = registeredUsers.filter((u) => acceptedFriendIds.includes(u.id));
   const incomingRequests = friendRequests.filter(req => req.receiver_id === user?.id && req.status === 'pending');
@@ -402,7 +363,7 @@ export default function App() {
 
 
   // ==========================================
-  // 3. FONCTIONS & HANDLERS
+  // 3. FONCTIONS (Fetch, Handlers, etc.)
   // ==========================================
 
   const syncProfile = async (sessionUser: SupabaseUser) => {
@@ -470,7 +431,6 @@ export default function App() {
         id: user.id, username: user.user_metadata?.username || user.email?.split('@')[0] || 'Moi', email: user.email || '', gender: user.user_metadata?.gender || 'M', age: calculateAge(user.user_metadata?.birth_date), goal: user.user_metadata?.goal || 'Sportif', home_club: user.user_metadata?.home_club || selectedClub, preferred_time: user.user_metadata?.preferred_time || '🌆 Soir (17h - 20h)', avatar_url: userAvatarUrl
       });
     }
-
     setRegisteredUsers(Array.from(combinedUsers.values()));
   };
 
@@ -502,34 +462,7 @@ export default function App() {
     else setStoryProgress(0);
   };
 
-  const handleAddExerciseRow = () => setWorkoutExercises([...workoutExercises, { name: '', sets: 3, reps: 10, weight: 50 }]);
-  const handleRemoveExerciseRow = (index: number) => setWorkoutExercises(workoutExercises.filter((_, i) => i !== index));
-
-  const renderCaptionWithHashtags = (text: string) => {
-    if (!text) return null;
-    return text.split(' ').map((word, i) => word.startsWith('#') ? <span key={i} className="text-orange-500 font-bold">{word} </span> : word + ' ');
-  };
-
-  const startRestTimer = (seconds: number) => { setRestTimerSeconds(seconds); setRestTimeRemaining(seconds); setIsRestTimerActive(true); };
-
-  const handleAddPR = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newPrExercise.trim() || newPrWeight === '' || newPrReps === '') return;
-    setPersonalRecords([{ exercise: newPrExercise.trim(), weight: Number(newPrWeight), reps: Number(newPrReps), date: new Date().toISOString().split('T')[0] }, ...personalRecords]);
-    setNewPrExercise(''); setNewPrWeight(''); setNewPrReps('');
-    alert('🏆 Nouveau record enregistré avec succès !');
-  };
-
-  const handleSaveWeeklyPlanEdit = (index: number) => {
-    const updated = [...weeklyPlan];
-    updated[index] = { ...updated[index], focus: editFocus, exercisesText: editExercisesText };
-    setWeeklyPlan(updated); setEditingDayIndex(null);
-  };
-
-  const handleAddWorkoutHashtag = (tag: string) => { if (!workoutCaption.includes(tag)) setWorkoutCaption((prev) => (prev ? `${prev} ${tag}` : tag)); };
-  const handleAddStoryHashtag = (tag: string) => { if (!storyCaption.includes(tag)) setStoryCaption((prev) => (prev ? `${prev} ${tag}` : tag)); };
-
-  // --- DRAG & DROP & ZOOM CROP ---
+  // Drag & Crop Functions
   const handleDragStart = (e: React.MouseEvent | React.TouchEvent) => {
     setIsDraggingImage(true);
     const clientX = 'touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
@@ -584,6 +517,33 @@ export default function App() {
     ctx.drawImage(img, finalX * scaleMultiplier, finalY * scaleMultiplier, finalWidth * scaleMultiplier, finalHeight * scaleMultiplier);
     return new Promise((resolve) => { canvas.toBlob((blob) => resolve(blob), 'image/jpeg', 0.85); });
   };
+
+  const handleAddExerciseRow = () => setWorkoutExercises([...workoutExercises, { name: '', sets: 3, reps: 10, weight: 50 }]);
+  const handleRemoveExerciseRow = (index: number) => setWorkoutExercises(workoutExercises.filter((_, i) => i !== index));
+
+  const renderCaptionWithHashtags = (text: string) => {
+    if (!text) return null;
+    return text.split(' ').map((word, i) => word.startsWith('#') ? <span key={i} className="text-orange-500 font-bold">{word} </span> : word + ' ');
+  };
+
+  const startRestTimer = (seconds: number) => { setRestTimerSeconds(seconds); setRestTimeRemaining(seconds); setIsRestTimerActive(true); };
+
+  const handleAddPR = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newPrExercise.trim() || newPrWeight === '' || newPrReps === '') return;
+    setPersonalRecords([{ exercise: newPrExercise.trim(), weight: Number(newPrWeight), reps: Number(newPrReps), date: new Date().toISOString().split('T')[0] }, ...personalRecords]);
+    setNewPrExercise(''); setNewPrWeight(''); setNewPrReps('');
+    alert('🏆 Nouveau record enregistré avec succès !');
+  };
+
+  const handleSaveWeeklyPlanEdit = (index: number) => {
+    const updated = [...weeklyPlan];
+    updated[index] = { ...updated[index], focus: editFocus, exercisesText: editExercisesText };
+    setWeeklyPlan(updated); setEditingDayIndex(null);
+  };
+
+  const handleAddWorkoutHashtag = (tag: string) => { if (!workoutCaption.includes(tag)) setWorkoutCaption((prev) => (prev ? `${prev} ${tag}` : tag)); };
+  const handleAddStoryHashtag = (tag: string) => { if (!storyCaption.includes(tag)) setStoryCaption((prev) => (prev ? `${prev} ${tag}` : tag)); };
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>, targetType?: string) => {
     if (e.target.files && e.target.files[0]) {
@@ -715,7 +675,7 @@ export default function App() {
       if (uploadData) { const { data } = supabase.storage.from('posts').getPublicUrl(fileName); uploadedStoryUrl = data.publicUrl; }
     } catch (err) {}
 
-    const myName = user.user_metadata?.first_name || user.user_metadata?.username || user.email?.split('@')[0] || 'Moi';
+    const myName = user.user_metadata?.username || user.email?.split('@')[0] || 'Moi';
     const newStory: Story = { id: 'story-' + Date.now(), user_id: user.id, username: myName, avatar_url: userAvatarUrl, image_url: uploadedStoryUrl, caption: storyCaption, club_name: selectedClub, likes_count: 0, created_at: new Date().toISOString() };
     const { error } = await supabase.from('stories').insert([{ user_id: user.id, username: myName, avatar_url: userAvatarUrl, image_url: uploadedStoryUrl, caption: storyCaption, club_name: selectedClub }]);
     if (error) alert("Erreur publication story : " + error.message);
@@ -828,6 +788,28 @@ export default function App() {
     if (finalAvatarUrl) { setUserAvatarUrl(finalAvatarUrl); await supabase.auth.updateUser({ data: { ...user.user_metadata, avatar_url: finalAvatarUrl } }); alert('🌟 Photo de profil mise à jour !'); }
   };
 
+  const handleSendFriendRequest = async (targetUserId: string) => {
+    if (!user) return;
+    const { error } = await supabase.from('friend_requests').insert([{ sender_id: user.id, receiver_id: targetUserId, status: 'pending' }]);
+    if (!error) { alert("Demande envoyée !"); fetchFriendRequests(user.id); sendSystemNotification(targetUserId, `👋 ${user.user_metadata?.username || 'Quelqu\'un'} souhaite devenir votre Buddy !`); }
+  };
+
+  const handleAcceptFriendRequest = async (requestId: string) => {
+    const { error } = await supabase.from('friend_requests').update({ status: 'accepted' }).eq('id', requestId);
+    if (!error && user) { alert("Demande acceptée !"); fetchFriendRequests(user.id); const req = friendRequests.find(r => r.id === requestId); if (req) sendSystemNotification(req.sender_id, `✅ ${user.user_metadata?.username || 'Un utilisateur'} a accepté votre demande d'ami !`); }
+  };
+
+  const handleRejectFriendRequest = async (requestId: string) => {
+    const { error } = await supabase.from('friend_requests').delete().eq('id', requestId);
+    if (!error && user) fetchFriendRequests(user.id);
+  };
+
+  const handleSendInvite = async () => {
+    if (!inviteModalTarget || !user) return;
+    await supabase.from('direct_messages').insert([{ sender_id: user.id, receiver_id: inviteModalTarget.id, sender_name: user.user_metadata?.username || 'Un ami', text: `🏋️ INVITATION PUSH UP : Salut ! Es-tu prêt(e) pour une grosse séance **${inviteType}** avec moi ?` }]);
+    alert(`Invitation envoyée à ${inviteModalTarget.username} !`); setInviteModalTarget(null);
+  };
+
 
   // ==========================================
   // 4. EFFETS SECONDAIRES DE COMPOSANT (useEffect)
@@ -898,7 +880,6 @@ export default function App() {
       }).then(stream => {
         currentStream = stream;
         streamRef.current = stream;
-        // On s'assure que la modale a eu le temps de s'afficher avant d'associer le flux
         setTimeout(() => {
           if (videoRef.current) {
             videoRef.current.srcObject = stream;
@@ -910,9 +891,7 @@ export default function App() {
       });
     }
     return () => {
-      if (currentStream) {
-        currentStream.getTracks().forEach(t => t.stop());
-      }
+      if (currentStream) currentStream.getTracks().forEach(t => t.stop());
     };
   }, [isCameraActive, cameraTarget, facingMode]);
 
@@ -954,7 +933,13 @@ export default function App() {
     const timer = setInterval(() => {
       setStoryProgress((prev) => {
         if (prev >= 100) {
-          handleNextStory();
+          if (activeStoryIndex < friendStoriesList.length - 1) {
+            setActiveStoryIndex(activeStoryIndex + 1);
+            setStoryProgress(0);
+            setStoryCommentInput('');
+          } else {
+            setActiveStoryIndex(null);
+          }
           return 0;
         }
         return prev + step;
@@ -1028,6 +1013,7 @@ export default function App() {
     );
   }
 
+  // --- RENDU APPLICATION ---
   return (
     <div className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col font-sans select-none">
       <header className="sticky top-0 z-40 bg-neutral-950/80 backdrop-blur-md border-b border-neutral-900 px-4 py-3 flex items-center justify-between">
@@ -1640,7 +1626,6 @@ export default function App() {
           </div>
           <span className="text-[10px]">Chat</span>
         </button>
-        <button onClick={() => setCurrentTab('leaderboard')} className={`flex flex-col items-center gap-1 ${currentTab === 'leaderboard' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Trophy className="w-5 h-5" /><span className="text-[10px]">Records</span></button>
         <button onClick={() => setCurrentTab('profile')} className={`flex flex-col items-center gap-1 ${currentTab === 'profile' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><User className="w-5 h-5" /><span className="text-[10px]">Profil</span></button>
       </nav>
     </div>
