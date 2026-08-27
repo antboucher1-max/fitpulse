@@ -206,7 +206,7 @@ interface RealUser {
 }
 
 interface FriendRequest {
-  id: string; sender_id: string; receiver_id: string; status: 'pending' | 'accepted';
+  id: string; sender_id: string; receiver_id: string; status: 'pending' | 'accepted'; timestamp?: number;
 }
 
 interface DBMessage {
@@ -312,11 +312,27 @@ export default function App() {
   const [cloudStories, setCloudStories] = useState<Story[]>([]);
   const [allMessages, setAllMessages] = useState<DBMessage[]>([]);
   
-  // Liste des Push Ups déjà envoyés pour griser les boutons
-  const [sentPushUps, setSentPushUps] = useState<Record<string, boolean>>(() => {
-    try { return JSON.parse(localStorage.getItem('fitpulse_sent_pushups') || '{}'); } catch { return {}; }
+  // Liste des Push Ups actifs avec horodatage (pour expiration automatique après 24h)
+  const [sentPushUps, setSentPushUps] = useState<Record<string, number>>(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem('fitpulse_sent_pushups_time') || '{}');
+      const now = Date.now();
+      // Nettoie ceux qui ont plus de 24h
+      const cleaned: Record<string, number> = {};
+      Object.keys(saved).forEach((id) => {
+        if (now - saved[id] < 24 * 3600 * 1000) {
+          cleaned[id] = saved[id];
+        }
+      });
+      return cleaned;
+    } catch {
+      return {};
+    }
   });
   
+  // Consultation d'un profil tiers (Modal Profil Athlète)
+  const [viewingProfileUser, setViewingProfileUser] = useState<RealUser | null>(null);
+
   // Buddy Filters
   const [buddyTabSubMode, setBuddyTabSubMode] = useState<'discover' | 'my_friends' | 'requests'>('discover');
   const [userSearchQuery, setUserSearchQuery] = useState('');
@@ -621,7 +637,6 @@ export default function App() {
     }
   };
 
-  // Réaction rapide par émoji sur une story (envoyée en message direct)
   const handleQuickEmojiReaction = async (emoji: string) => {
     if (activeStoryIndex === null || !user) return;
     const story = friendStoriesList[activeStoryIndex];
@@ -1013,9 +1028,10 @@ export default function App() {
 
     await sendSystemNotification(inviteModalTarget.id, `⚡ ${myName} vous a envoyé une invitation Push Up (${inviteType}) !`);
 
-    const updatedPushUps = { ...sentPushUps, [inviteModalTarget.id]: true };
+    const now = Date.now();
+    const updatedPushUps = { ...sentPushUps, [inviteModalTarget.id]: now };
     setSentPushUps(updatedPushUps);
-    try { localStorage.setItem('fitpulse_sent_pushups', JSON.stringify(updatedPushUps)); } catch(e) {}
+    try { localStorage.setItem('fitpulse_sent_pushups_time', JSON.stringify(updatedPushUps)); } catch(e) {}
 
     alert(`Invitation Push Up envoyée à ${inviteModalTarget.username} !`); 
     setInviteModalTarget(null);
@@ -1464,7 +1480,7 @@ export default function App() {
           </div>
         )}
 
-        {/* TAB BUDDY AVEC SUGGESTIONS "PERSONNES QUE VOUS CONNAISSEZ PEUT-ÊTRE" */}
+        {/* TAB BUDDY */}
         {currentTab === 'buddy' && (
           <div className="space-y-4">
             <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4">
@@ -1525,7 +1541,10 @@ export default function App() {
                         const isFriend = acceptedFriendIds.includes(realUser.id);
                         const existingReq = friendRequests.find(r => (r.sender_id === user?.id && r.receiver_id === realUser.id) || (r.sender_id === realUser.id && r.receiver_id === user?.id));
                         const isPending = existingReq && existingReq.status === 'pending';
-                        const isPushUpSent = sentPushUps[realUser.id];
+                        
+                        // Vérifie si le Push Up est encore actif (moins de 24h)
+                        const pushUpTime = sentPushUps[realUser.id];
+                        const isPushUpSent = pushUpTime && (Date.now() - pushUpTime < 24 * 3600 * 1000);
 
                         const lastSeenTime = realUser.last_seen ? new Date(realUser.last_seen).getTime() : 0;
                         const diffMinutes = (Date.now() - lastSeenTime) / 60000;
@@ -1537,17 +1556,14 @@ export default function App() {
 
                         return (
                           <div key={realUser.id} className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 flex items-center justify-between">
-                            <div className="flex items-center gap-3.5">
+                            <div className="flex items-center gap-3.5 cursor-pointer" onClick={() => setViewingProfileUser(realUser)}>
                               <div className="relative flex-shrink-0">
                                 <img src={realUser.avatar_url} alt="" className="w-12 h-12 rounded-full object-cover border border-neutral-700" />
                                 <span className={`absolute bottom-0 right-0 w-3.5 h-3.5 ${dotColor} border-2 border-neutral-950 rounded-full`} title={statusText} />
                               </div>
                               <div>
-                                <h3 className="font-bold text-sm text-white flex items-center gap-2">
+                                <h3 className="font-bold text-sm text-white flex items-center gap-2 hover:text-orange-400 transition">
                                   {realUser.username} {realUser.gender === 'F' && '🚺'}
-                                  <span className={`text-[10px] px-2 py-0.5 rounded font-medium ${diffMinutes < 5 ? 'bg-green-500/20 text-green-400' : 'bg-neutral-900 text-neutral-400'}`}>
-                                    {statusText}
-                                  </span>
                                 </h3>
                                 <span className="text-xs text-orange-400 font-medium block mt-0.5">🎯 {realUser.goal || 'Sportif'}</span>
                               </div>
@@ -1588,10 +1604,10 @@ export default function App() {
                 <div className="space-y-2.5 pt-1">
                   {suggestedBuddiesList.slice(0, 3).map((sUser) => (
                     <div key={sUser.id} className="bg-neutral-950 p-3 rounded-2xl border border-neutral-800 flex items-center justify-between">
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-3 cursor-pointer" onClick={() => setViewingProfileUser(sUser)}>
                         <img src={sUser.avatar_url} alt="" className="w-10 h-10 rounded-full object-cover border border-neutral-700" />
                         <div>
-                          <h4 className="font-bold text-xs text-white">{sUser.username}</h4>
+                          <h4 className="font-bold text-xs text-white hover:text-orange-400 transition">{sUser.username}</h4>
                           <span className="text-[10px] text-neutral-400">{sUser.home_club}</span>
                         </div>
                       </div>
@@ -1765,7 +1781,29 @@ export default function App() {
         )}
       </main>
 
-      {/* LECTEUR DE STORY PLEIN ÉCRAN AVEC ÉMOJIS RAPIDES */}
+      {/* MODAL CONSULTATION PROFIL TIERS */}
+      {viewingProfileUser && (
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-sm w-full p-6 space-y-4 text-center shadow-2xl relative">
+            <button onClick={() => setViewingProfileUser(null)} className="absolute top-4 right-4 p-1.5 bg-neutral-800 text-white rounded-full"><X className="w-4 h-4" /></button>
+            <img src={viewingProfileUser.avatar_url} alt="" className="w-20 h-20 rounded-full object-cover border-2 border-orange-500 mx-auto shadow-lg" />
+            <div>
+              <h3 className="text-base font-bold text-white">{viewingProfileUser.username} {viewingProfileUser.gender === 'F' && '🚺'}</h3>
+              <span className="text-xs text-orange-400 block mt-0.5"><MapPin className="w-3 h-3 inline mr-1" />{viewingProfileUser.home_club}</span>
+            </div>
+            <div className="bg-neutral-950 p-3.5 rounded-2xl border border-neutral-800 text-left space-y-1.5 text-xs text-neutral-300">
+              <p>🎯 <strong className="text-white">Objectif :</strong> {viewingProfileUser.goal || 'Sportif'}</p>
+              <p>🕒 <strong className="text-white">Créneau :</strong> {viewingProfileUser.preferred_time || 'Flexible'}</p>
+              <p>🎂 <strong className="text-white">Âge :</strong> {viewingProfileUser.age} ans</p>
+            </div>
+            <div className="flex gap-2 pt-2">
+              <button onClick={() => { const target = viewingProfileUser; setViewingProfileUser(null); setSelectedBuddyChat(target); setCurrentTab('chat'); }} className="flex-1 py-3 bg-orange-600 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5"><MessageCircle className="w-4 h-4" /> Message</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* LECTEUR DE STORY PLEIN ÉCRAN */}
       {activeViewingStory && (
         <div 
           className="fixed inset-0 z-50 bg-black flex flex-col justify-between p-4 select-none"
@@ -1774,14 +1812,12 @@ export default function App() {
           onTouchStart={() => setIsStoryPaused(true)}
           onTouchEnd={() => setIsStoryPaused(false)}
         >
-          {/* Barre de progression */}
           <div className="w-full flex gap-1.5 pt-2 z-10">
             <div className="h-1 flex-1 bg-white/30 rounded-full overflow-hidden">
               <div className="h-full bg-white transition-all duration-100 ease-linear" style={{ width: `${storyProgress}%` }} />
             </div>
           </div>
 
-          {/* En-tête de la story */}
           <div className="flex items-center justify-between pt-3 z-10">
             <div className="flex items-center gap-2.5">
               <img src={activeViewingStory.avatar_url} alt="" className="w-9 h-9 rounded-full object-cover border border-white/20" />
@@ -1793,7 +1829,6 @@ export default function App() {
             <button onClick={() => { setActiveStoryIndex(null); setIsStoryPaused(false); }} className="p-2 bg-black/40 text-white rounded-full"><X className="w-5 h-5" /></button>
           </div>
 
-          {/* Image de la story au centre */}
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
             <img src={activeViewingStory.image_url} alt="" className="w-full h-full object-cover" />
             {activeViewingStory.caption && (
@@ -1803,32 +1838,18 @@ export default function App() {
             )}
           </div>
 
-          {/* Zones cliquables gauche/droite pour changer de story */}
           <div className="absolute inset-y-0 left-0 w-1/3 cursor-pointer z-0" onClick={(e) => { e.stopPropagation(); handlePrevStory(); }} />
           <div className="absolute inset-y-0 right-0 w-1/3 cursor-pointer z-0" onClick={(e) => { e.stopPropagation(); handleNextStory(); }} />
 
-          {/* Bas de l'écran : Émojis rapides de réaction & Input */}
           <div className="space-y-2.5 z-10 pb-4">
             <div className="flex justify-center gap-3 bg-black/50 backdrop-blur-md py-2 px-4 rounded-full border border-white/10 w-fit mx-auto">
               {['❤️', '🔥', '👏', '😮', '💪', '🏆'].map((emoji) => (
-                <button 
-                  key={emoji} 
-                  onClick={(e) => { e.stopPropagation(); handleQuickEmojiReaction(emoji); }} 
-                  className="text-xl hover:scale-125 transition transform"
-                >
-                  {emoji}
-                </button>
+                <button key={emoji} onClick={(e) => { e.stopPropagation(); handleQuickEmojiReaction(emoji); }} className="text-xl hover:scale-125 transition transform">{emoji}</button>
               ))}
             </div>
             <div className="flex items-center gap-3">
               <form onSubmit={handleSendStoryComment} className="flex-1 flex items-center gap-2 bg-black/60 backdrop-blur-md border border-white/20 rounded-full px-4 py-2">
-                <input 
-                  type="text" 
-                  placeholder={`Répondre à ${activeViewingStory.username}...`} 
-                  value={storyCommentInput} 
-                  onChange={(e) => setStoryCommentInput(e.target.value)} 
-                  className="flex-1 bg-transparent text-xs text-white focus:outline-none placeholder-white/60" 
-                />
+                <input type="text" placeholder={`Répondre à ${activeViewingStory.username}...`} value={storyCommentInput} onChange={(e) => setStoryCommentInput(e.target.value)} className="flex-1 bg-transparent text-xs text-white focus:outline-none placeholder-white/60" />
                 <button type="submit" className="text-orange-400"><SendHorizontal className="w-4 h-4" /></button>
               </form>
               <button onClick={() => handleToggleStoryLike(activeViewingStory.id)} className="p-3 bg-black/60 backdrop-blur-md border border-white/20 rounded-full text-white transition">
