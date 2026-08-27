@@ -312,7 +312,6 @@ export default function App() {
   const [cloudStories, setCloudStories] = useState<Story[]>([]);
   const [allMessages, setAllMessages] = useState<DBMessage[]>([]);
   
-  // Liste des Push Ups actifs avec horodatage (expiration auto après 24h)
   const [sentPushUps, setSentPushUps] = useState<Record<string, number>>(() => {
     try {
       const saved = JSON.parse(localStorage.getItem('fitpulse_sent_pushups_time') || '{}');
@@ -329,7 +328,7 @@ export default function App() {
     }
   });
   
-  // Consultation d'un profil tiers (Modal Profil Athlète complète)
+  // Consultation d'un profil tiers
   const [viewingProfileUser, setViewingProfileUser] = useState<RealUser | null>(null);
 
   // Buddy Filters
@@ -995,7 +994,12 @@ export default function App() {
         if (data) finalAvatarUrl = supabase.storage.from('posts').getPublicUrl(fileName).data.publicUrl;
       } catch (err) {}
     }
-    if (finalAvatarUrl) { setUserAvatarUrl(finalAvatarUrl); await supabase.auth.updateUser({ data: { ...user.user_metadata, avatar_url: finalAvatarUrl } }); alert('🌟 Photo de profil mise à jour !'); }
+    if (finalAvatarUrl) { 
+      setUserAvatarUrl(finalAvatarUrl); 
+      await supabase.auth.updateUser({ data: { ...user.user_metadata, avatar_url: finalAvatarUrl } }); 
+      await supabase.from('profiles').update({ avatar_url: finalAvatarUrl }).eq('id', user.id);
+      alert('🌟 Photo de profil mise à jour !'); 
+    }
   };
 
   const handleSendFriendRequest = async (targetUserId: string) => {
@@ -1312,13 +1316,15 @@ export default function App() {
             ) : (
               displayedPosts.map((post) => {
                 const isAlreadyLikedByMe = user ? (post.liked_by || []).includes(user.id) : false;
+                const authorUser = registeredUsers.find(u => u.id === post.user_id) || { id: post.user_id, username: post.username, email: '', age: 25, home_club: post.club_name, avatar_url: post.avatar_url };
+
                 return (
                   <article key={post.id} className="bg-neutral-900/70 border border-neutral-800 rounded-3xl p-4 space-y-3.5 shadow-sm overflow-hidden relative">
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-3 cursor-pointer" onClick={() => setViewingProfileUser(authorUser)}>
                         <img src={post.avatar_url} alt="" className="w-10 h-10 rounded-full object-cover border border-neutral-700" />
                         <div>
-                          <div className="flex items-center gap-1.5"><h3 className="font-bold text-sm leading-snug">{post.username}</h3>{post.is_private && <Lock className="w-3.5 h-3.5 text-neutral-500" />}</div>
+                          <div className="flex items-center gap-1.5"><h3 className="font-bold text-sm leading-snug hover:text-orange-400 transition">{post.username}</h3>{post.is_private && <Lock className="w-3.5 h-3.5 text-neutral-500" />}</div>
                           <div className="flex items-center gap-1 text-xs text-orange-400 font-medium"><MapPin className="w-3.5 h-3.5" />{post.club_name}</div>
                         </div>
                       </div>
