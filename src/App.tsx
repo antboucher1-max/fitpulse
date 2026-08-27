@@ -196,7 +196,6 @@ const compressImage = (file: File, maxWidth = 800, quality = 0.7): Promise<Blob>
 };
 
 export default function App() {
-  // 1. DÉCLARATION DES ÉTATS (useState)
   const [user, setUser] = useState<SupabaseUser | null>(null);
 
   // Auth States
@@ -208,6 +207,7 @@ export default function App() {
   const [username, setUsername] = useState('');
   const [birthDate, setBirthDate] = useState('');
   const [gender, setGender] = useState<'M' | 'F'>('M');
+  const [level, setLevel] = useState<'Débutant' | 'Intermédiaire' | 'Avancé'>('Intermédiaire');
   const [homeClub, setHomeClub] = useState<string>('Club Tournai (Bastion)');
   const [preferredTime, setPreferredTime] = useState<string>(TIME_SLOTS[2]);
   const [acceptCGU, setAcceptCGU] = useState(false);
@@ -245,10 +245,6 @@ export default function App() {
   const [selectedAgeGroupFilter, setSelectedAgeGroupFilter] = useState<string>('all');
   
   // Modals & Active items
-  const [isMatchModalOpen, setIsMatchModalOpen] = useState(false);
-  const [matchGoal, setMatchGoal] = useState('Tous');
-  const [matchTime, setMatchTime] = useState('Tous');
-  
   const [activeStoryIndex, setActiveStoryIndex] = useState<number | null>(null);
   const [storyProgress, setStoryProgress] = useState(0);
   const [isStoryPaused, setIsStoryPaused] = useState(false);
@@ -259,6 +255,10 @@ export default function App() {
   const [storyCaption, setStoryCaption] = useState('');
   const [storyUploading, setStoryUploading] = useState(false);
   const storyFileInputRef = useRef<HTMLInputElement>(null);
+
+  const [isMatchModalOpen, setIsMatchModalOpen] = useState(false);
+  const [matchGoal, setMatchGoal] = useState('Tous');
+  const [matchTime, setMatchTime] = useState('Tous');
 
   const [workoutType, setWorkoutType] = useState('Musculation (Push)');
   const [workoutCaption, setWorkoutCaption] = useState('');
@@ -276,7 +276,6 @@ export default function App() {
   const streamRef = useRef<MediaStream | null>(null);
 
   // Chat & Invites
-  const [lastChatOpenTime, setLastChatOpenTime] = useState<number>(() => { try { return parseInt(localStorage.getItem('fitpulse_last_chat') || '0', 10); } catch { return 0; } });
   const [selectedBuddyChat, setSelectedBuddyChat] = useState<RealUser | null>(null);
   const [currentMessageInput, setCurrentMessageInput] = useState('');
   const [inviteModalTarget, setInviteModalTarget] = useState<RealUser | null>(null);
@@ -323,8 +322,9 @@ export default function App() {
   const [likedStories, setLikedStories] = useState<Record<string, boolean>>(() => { try { return JSON.parse(localStorage.getItem('fitpulse_liked_stories') || '{}'); } catch { return {}; } });
   const [viewedStoryIds, setViewedStoryIds] = useState<string[]>(() => { try { return JSON.parse(localStorage.getItem('fitpulse_viewed_stories') || '[]'); } catch { return []; } });
 
+  const [lastChatOpenTime, setLastChatOpenTimeState] = useState<number>(() => { try { return parseInt(localStorage.getItem('fitpulse_last_chat') || '0', 10); } catch { return 0; } });
 
-  // --- SYNC PROFILES ---
+  // --- SYNC PROFILES EFFECT ---
   const syncProfile = async (sessionUser: SupabaseUser) => {
     try {
       const profileData = {
@@ -339,77 +339,11 @@ export default function App() {
         preferred_time: sessionUser.user_metadata?.preferred_time || TIME_SLOTS[2],
         avatar_url: sessionUser.user_metadata?.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'
       };
-      
-      // On insère silencieusement le profil (Pas de .catch() ici pour éviter l'erreur TypeScript, le try/catch global suffit)
-      await supabase.from('profiles').upsert(profileData);
+      await supabase.from('profiles').upsert(profileData).catch(() => {});
     } catch(e) {}
   };
 
 
-  // --- FETCH FUNCTIONS ---
-  const fetchCloudPosts = async () => {
-    setFeedLoading(true);
-    const { data, error } = await supabase.from('posts').select('*').order('created_at', { ascending: false });
-    if (!error && data) setPosts(data as Post[]);
-    setFeedLoading(false);
-  };
-
-  const fetchCloudStories = async () => {
-    try {
-      const { data, error } = await supabase.from('stories').select('*').order('created_at', { ascending: false });
-      if (!error && data) setCloudStories(data as Story[]);
-    } catch (err) {}
-  };
-
-  const fetchDirectMessages = async () => {
-    const { data, error } = await supabase.from('direct_messages').select('*').order('created_at', { ascending: true });
-    if (!error && data) setAllMessages(data as DBMessage[]);
-  };
-
-  const fetchRealUsers = async () => {
-    const { data: profilesData, error: profilesError } = await supabase.from('profiles').select('*');
-    let combinedUsers = new Map();
-
-    if (!profilesError && profilesData && profilesData.length > 0) {
-      profilesData.forEach((p) => {
-        combinedUsers.set(p.id, {
-          id: p.id, username: p.username, email: p.email || '', gender: p.gender || 'M', age: p.age || 25, goal: p.goal || 'Sportif', home_club: p.home_club || selectedClub, preferred_time: p.preferred_time || '🌆 Soir (17h - 20h)', avatar_url: p.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'
-        });
-      });
-    }
-
-    const { data: postsData } = await supabase.from('posts').select('user_id, username, club_name, avatar_url').limit(100);
-    if (postsData) {
-      postsData.forEach((p) => {
-        if (!combinedUsers.has(p.user_id)) {
-          combinedUsers.set(p.user_id, {
-            id: p.user_id, username: p.username, email: `${p.username}@fitpulse.be`, gender: 'M', age: 28, goal: 'Prise de masse & Force', home_club: p.club_name || selectedClub, preferred_time: '🌆 Soir (17h - 20h)', avatar_url: p.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'
-          });
-        }
-      });
-    }
-
-    if (user) {
-      combinedUsers.set(user.id, {
-        id: user.id, username: user.user_metadata?.username || user.email?.split('@')[0] || 'Moi', email: user.email || '', gender: user.user_metadata?.gender || 'M', age: calculateAge(user.user_metadata?.birth_date), goal: user.user_metadata?.goal || 'Sportif', home_club: user.user_metadata?.home_club || selectedClub, preferred_time: user.user_metadata?.preferred_time || '🌆 Soir (17h - 20h)', avatar_url: userAvatarUrl
-      });
-    }
-
-    setRegisteredUsers(Array.from(combinedUsers.values()));
-  };
-
-  const fetchTransformations = async (userId: string) => {
-    const { data, error } = await supabase.from('transformations').select('*').eq('user_id', userId).order('date', { ascending: false });
-    if (!error && data) setTransformations(data as TransformationPhoto[]);
-  };
-
-  const fetchFriendRequests = async (userId: string) => {
-    const { data, error } = await supabase.from('friend_requests').select('*').or(`sender_id.eq.${userId},receiver_id.eq.${userId}`);
-    if (!error && data) setFriendRequests(data as FriendRequest[]);
-  };
-
-
-  // --- EFFECTS ---
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       const activeUser = session?.user ?? null;
@@ -490,19 +424,12 @@ export default function App() {
     };
   }, [isCameraActive, cameraTarget, facingMode]);
 
+
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [allMessages, selectedBuddyChat]);
   useEffect(() => { localStorage.setItem('fitpulse_streak', userStreak.toString()); }, [userStreak]);
   useEffect(() => { localStorage.setItem('fitpulse_private', isPrivateMode.toString()); }, [isPrivateMode]);
   useEffect(() => { localStorage.setItem('fitpulse_liked_stories', JSON.stringify(likedStories)); }, [likedStories]);
   useEffect(() => { localStorage.setItem('fitpulse_viewed_stories', JSON.stringify(viewedStoryIds)); }, [viewedStoryIds]);
-
-  useEffect(() => {
-    if (currentTab === 'chat') {
-      const now = Date.now();
-      setLastChatOpenTime(now);
-      localStorage.setItem('fitpulse_last_chat', now.toString());
-    }
-  }, [allMessages, currentTab]);
 
   useEffect(() => {
     let timer: NodeJS.Timeout | null = null;
@@ -515,8 +442,15 @@ export default function App() {
     return () => { if (timer) clearInterval(timer); };
   }, [isRestTimerActive, restTimeRemaining]);
 
+  useEffect(() => {
+    if (currentTab === 'chat') {
+      const now = Date.now();
+      setLastChatOpenTimeState(now);
+      localStorage.setItem('fitpulse_last_chat', now.toString());
+    }
+  }, [allMessages, currentTab]);
 
-  // --- VARIABLES DÉRIVÉES (Dépendantes des states) ---
+  // Notifications Derived State
   const notifications = allMessages.filter(m => m.receiver_id === user?.id && m.sender_id === 'system-notification');
   const unreadNotifsCount = notifications.filter(m => new Date(m.created_at).getTime() > lastNotifOpenTime).length;
   
@@ -571,98 +505,92 @@ export default function App() {
   const activePostForComments = posts.find((p) => p.id === activeCommentPostId);
   const unreadChatCount = allMessages.filter((m) => m.receiver_id === user?.id && new Date(m.created_at).getTime() > lastChatOpenTime).length;
 
-  
-  // --- STORY EFFECTS ---
-  useEffect(() => {
-    if (activeStoryIndex === null || isStoryPaused) return;
-    const currentStory = friendStoriesList[activeStoryIndex];
-    if (currentStory && !viewedStoryIds.includes(currentStory.id)) setViewedStoryIds((prev) => [...prev, currentStory.id]);
 
-    const interval = 50;
-    const step = (interval / 5000) * 100;
-    const timer = setInterval(() => {
-      setStoryProgress((prev) => {
-        if (prev >= 100) {
-          if (activeStoryIndex < friendStoriesList.length - 1) {
-            setActiveStoryIndex(activeStoryIndex + 1);
-            setStoryProgress(0);
-            setStoryCommentInput('');
-          } else {
-            setActiveStoryIndex(null);
-          }
-          return 0;
-        }
-        return prev + step;
+  // --- FETCH FUNCTIONS ---
+  const fetchCloudPosts = async () => {
+    setFeedLoading(true);
+    const { data, error } = await supabase.from('posts').select('*').order('created_at', { ascending: false });
+    if (!error && data) setPosts(data as Post[]);
+    setFeedLoading(false);
+  };
+
+  const fetchCloudStories = async () => {
+    try {
+      const { data, error } = await supabase.from('stories').select('*').order('created_at', { ascending: false });
+      if (!error && data) setCloudStories(data as Story[]);
+    } catch (err) {}
+  };
+
+  const fetchDirectMessages = async () => {
+    const { data, error } = await supabase.from('direct_messages').select('*').order('created_at', { ascending: true });
+    if (!error && data) setAllMessages(data as DBMessage[]);
+  };
+
+  const fetchRealUsers = async () => {
+    const { data: profilesData, error: profilesError } = await supabase.from('profiles').select('*');
+    let combinedUsers = new Map();
+
+    if (!profilesError && profilesData && profilesData.length > 0) {
+      profilesData.forEach((p) => {
+        combinedUsers.set(p.id, {
+          id: p.id, username: p.username, email: p.email || '', gender: p.gender || 'M', age: p.age || 25, goal: p.goal || 'Sportif', home_club: p.home_club || selectedClub, preferred_time: p.preferred_time || '🌆 Soir (17h - 20h)', avatar_url: p.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'
+        });
       });
-    }, interval);
-    return () => clearInterval(timer);
-  }, [activeStoryIndex, isStoryPaused, friendStoriesList.length]);
+    }
 
+    const { data: postsData } = await supabase.from('posts').select('user_id, username, club_name, avatar_url').limit(100);
+    if (postsData) {
+      postsData.forEach((p) => {
+        if (!combinedUsers.has(p.user_id)) {
+          combinedUsers.set(p.user_id, {
+            id: p.user_id, username: p.username, email: `${p.username}@fitpulse.be`, gender: 'M', age: 28, goal: 'Prise de masse & Force', home_club: p.club_name || selectedClub, preferred_time: '🌆 Soir (17h - 20h)', avatar_url: p.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'
+          });
+        }
+      });
+    }
 
-  // --- HANDLERS UI ---
+    if (user) {
+      combinedUsers.set(user.id, {
+        id: user.id, username: user.user_metadata?.username || user.email?.split('@')[0] || 'Moi', email: user.email || '', gender: user.user_metadata?.gender || 'M', age: calculateAge(user.user_metadata?.birth_date), goal: user.user_metadata?.goal || 'Sportif', home_club: user.user_metadata?.home_club || selectedClub, preferred_time: user.user_metadata?.preferred_time || '🌆 Soir (17h - 20h)', avatar_url: userAvatarUrl
+      });
+    }
+
+    setRegisteredUsers(Array.from(combinedUsers.values()));
+  };
+
+  const fetchTransformations = async (userId: string) => {
+    const { data, error } = await supabase.from('transformations').select('*').eq('user_id', userId).order('date', { ascending: false });
+    if (!error && data) setTransformations(data as TransformationPhoto[]);
+  };
+
+  const fetchFriendRequests = async (userId: string) => {
+    const { data, error } = await supabase.from('friend_requests').select('*').or(`sender_id.eq.${userId},receiver_id.eq.${userId}`);
+    if (!error && data) setFriendRequests(data as FriendRequest[]);
+  };
+
   const sendSystemNotification = async (receiverId: string, message: string) => {
     await supabase.from('direct_messages').insert([{
       sender_id: 'system-notification', receiver_id: receiverId, sender_name: '📣 Notification', text: message
     }]);
   };
 
-  const handleNextStory = () => {
-    if (activeStoryIndex === null) return;
-    if (activeStoryIndex < friendStoriesList.length - 1) { setActiveStoryIndex(activeStoryIndex + 1); setStoryProgress(0); setStoryCommentInput(''); } 
-    else setActiveStoryIndex(null);
-  };
 
-  const handlePrevStory = () => {
-    if (activeStoryIndex === null) return;
-    if (activeStoryIndex > 0) { setActiveStoryIndex(activeStoryIndex - 1); setStoryProgress(0); setStoryCommentInput(''); } 
-    else setStoryProgress(0);
-  };
-
-  const handleAddExerciseRow = () => setWorkoutExercises([...workoutExercises, { name: '', sets: 3, reps: 10, weight: 50 }]);
-  const handleRemoveExerciseRow = (index: number) => setWorkoutExercises(workoutExercises.filter((_, i) => i !== index));
-
-  const renderCaptionWithHashtags = (text: string) => {
-    if (!text) return null;
-    return text.split(' ').map((word, i) => word.startsWith('#') ? <span key={i} className="text-orange-500 font-bold">{word} </span> : word + ' ');
-  };
-
-  const startRestTimer = (seconds: number) => { setRestTimerSeconds(seconds); setRestTimeRemaining(seconds); setIsRestTimerActive(true); };
-
-  const handleAddPR = (e: React.FormEvent) => {
+  // --- HANDLERS ACTIONS ---
+  const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newPrExercise.trim() || newPrWeight === '' || newPrReps === '') return;
-    setPersonalRecords([{ exercise: newPrExercise.trim(), weight: Number(newPrWeight), reps: Number(newPrReps), date: new Date().toISOString().split('T')[0] }, ...personalRecords]);
-    setNewPrExercise(''); setNewPrWeight(''); setNewPrReps('');
-    alert('🏆 Nouveau record enregistré avec succès !');
-  };
-
-  const handleSaveWeeklyPlanEdit = (index: number) => {
-    const updated = [...weeklyPlan];
-    updated[index] = { ...updated[index], focus: editFocus, exercisesText: editExercisesText };
-    setWeeklyPlan(updated); setEditingDayIndex(null);
-  };
-
-  const handleAddWorkoutHashtag = (tag: string) => { if (!workoutCaption.includes(tag)) setWorkoutCaption((prev) => (prev ? `${prev} ${tag}` : tag)); };
-  const handleAddStoryHashtag = (tag: string) => { if (!storyCaption.includes(tag)) setStoryCaption((prev) => (prev ? `${prev} ${tag}` : tag)); };
-
-  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>, targetType?: string) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      const previewUrl = URL.createObjectURL(file);
-      if (targetType === 'trans_before') setNewTransBefore(previewUrl);
-      else if (targetType === 'trans_after') setNewTransAfter(previewUrl);
-      else if (targetType === 'profile_avatar' || cameraTarget === 'profile_avatar') handleUpdateProfileAvatar(file);
-      else if (cameraTarget === 'post') { setPostImageFile(file); setPostImagePreview(previewUrl); setPostImageZoom(1); setPostImageOffset({ x: 0, y: 0 }); } 
-      else { setStoryImageFile(file); setStoryImagePreview(previewUrl); setIsCreatingStory(true); }
+    if (isSignUp && !acceptCGU) { alert("Veuillez accepter les CGU pour continuer."); return; }
+    setAuthLoading(true);
+    if (isSignUp) {
+      const { data, error } = await supabase.auth.signUp({
+        email, password, options: { data: { first_name: firstName, last_name: lastName, username: username || `${firstName}_${lastName}`.toLowerCase(), birth_date: birthDate, gender, level, home_club: homeClub, preferred_time: preferredTime, avatar_url: userAvatarUrl } }
+      });
+      if (error) alert("Erreur d'inscription : " + error.message);
+      else setSignupSuccessEmail(email);
+    } else {
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) alert("Erreur de connexion : " + error.message);
     }
-  };
-
-  const handleSendMessage = async () => {
-    if (!currentMessageInput.trim() || !selectedBuddyChat || !user) return;
-    const text = currentMessageInput.trim();
-    const myName = user.user_metadata?.first_name || user.user_metadata?.username || user.email?.split('@')[0] || 'Moi';
-    const { data, error } = await supabase.from('direct_messages').insert([{ sender_id: user.id, receiver_id: selectedBuddyChat.id, sender_name: myName, text }]);
-    if (!error && data) { setAllMessages((prev) => [...prev, data[0] as DBMessage]); setCurrentMessageInput(''); }
+    setAuthLoading(false);
   };
 
   const handleToggleLike = async (postId: string) => {
@@ -686,6 +614,56 @@ export default function App() {
     await supabase.from('posts').update({ likes_count: newCount, liked_by: updatedLikedBy }).eq('id', postId);
   };
 
+  const handleSendFriendRequest = async (targetUserId: string) => {
+    if (!user) return;
+    const { error } = await supabase.from('friend_requests').insert([{ sender_id: user.id, receiver_id: targetUserId, status: 'pending' }]);
+    if (!error) {
+      alert("Demande envoyée !");
+      fetchFriendRequests(user.id);
+      sendSystemNotification(targetUserId, `👋 ${user.user_metadata?.username || 'Quelqu\'un'} souhaite devenir votre Buddy !`);
+    }
+  };
+
+  const handleAcceptFriendRequest = async (requestId: string) => {
+    const { error } = await supabase.from('friend_requests').update({ status: 'accepted' }).eq('id', requestId);
+    if (!error && user) {
+      alert("Demande acceptée ! Vous êtes amis 🎉");
+      fetchFriendRequests(user.id);
+      const req = friendRequests.find(r => r.id === requestId);
+      if (req) sendSystemNotification(req.sender_id, `✅ ${user.user_metadata?.username || 'Un utilisateur'} a accepté votre demande d'ami !`);
+    }
+  };
+
+  const handleSendInvite = async () => {
+    if (!inviteModalTarget || !user) return;
+    const myName = user.user_metadata?.username || 'Un ami';
+    await supabase.from('direct_messages').insert([{
+      sender_id: user.id, receiver_id: inviteModalTarget.id, sender_name: myName, text: `🏋️ INVITATION PUSH UP : Salut ! Es-tu prêt(e) pour une grosse séance **${inviteType}** avec moi ?`
+    }]);
+    alert(`Invitation envoyée à ${inviteModalTarget.username} !`);
+    setInviteModalTarget(null);
+  };
+
+  const handleRejectFriendRequest = async (requestId: string) => {
+    const { error } = await supabase.from('friend_requests').delete().eq('id', requestId);
+    if (!error && user) fetchFriendRequests(user.id);
+  };
+
+  const handleSendMessage = async () => {
+    if (!currentMessageInput.trim() || !selectedBuddyChat || !user) return;
+    const text = currentMessageInput.trim();
+    const myName = user.user_metadata?.first_name || user.user_metadata?.username || user.email?.split('@')[0] || 'Moi';
+    const { data, error } = await supabase.from('direct_messages').insert([{ sender_id: user.id, receiver_id: selectedBuddyChat.id, sender_name: myName, text }]);
+    if (!error && data) { setAllMessages((prev) => [...prev, data[0] as DBMessage]); setCurrentMessageInput(''); }
+  };
+
+  const handleDeleteConversationForBuddy = async (buddyId: string, buddyName: string) => {
+    if (!user) return;
+    if (!window.confirm(`Effacer toute la conversation avec ${buddyName} ?`)) return;
+    await supabase.from('direct_messages').delete().or(`and(sender_id.eq.${user.id},receiver_id.eq.${buddyId}),and(sender_id.eq.${buddyId},receiver_id.eq.${user.id})`);
+    setAllMessages((prev) => prev.filter((m) => !((m.sender_id === user.id && m.receiver_id === buddyId) || (m.sender_id === buddyId && m.receiver_id === user.id))));
+  };
+
   const handleToggleStoryLike = async (storyId: string) => {
     const isLiked = likedStories[storyId];
     setLikedStories((prev) => ({ ...prev, [storyId]: !isLiked }));
@@ -705,164 +683,13 @@ export default function App() {
     if (!story) return;
     const myName = user.user_metadata?.first_name || user.user_metadata?.username || user.email?.split('@')[0] || 'Moi';
     await supabase.from('direct_messages').insert([{ sender_id: user.id, receiver_id: story.user_id, sender_name: myName, text: `📸 En réponse à ta story : "${textToSend}"` }]);
-    setStoryCommentInput(''); setIsStoryPaused(false);
-    alert('Réponse envoyée en message direct !');
-  };
-
-  const startCameraHandler = (target: 'post' | 'story' | 'trans_before' | 'trans_after' | 'profile_avatar') => {
-    setCameraTarget(target);
-    setIsCameraActive(true);
-  };
-
-  const stopCameraStream = () => {
-    if (streamRef.current) { streamRef.current.getTracks().forEach((t) => t.stop()); streamRef.current = null; }
-    setIsCameraActive(false);
-  };
-
-  const switchCameraFacing = async () => {
-    const newFacing = facingMode === 'environment' ? 'user' : 'environment';
-    setFacingMode(newFacing);
-    try {
-      if (streamRef.current) streamRef.current.getTracks().forEach((t) => t.stop());
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: newFacing }, audio: false });
-      streamRef.current = stream;
-      if (videoRef.current) videoRef.current.srcObject = stream;
-    } catch (err) {}
-  };
-
-  const capturePhoto = () => {
-    if (!videoRef.current) return;
-    const video = videoRef.current;
-    const canvas = document.createElement('canvas');
-    canvas.width = video.videoWidth || 640; canvas.height = video.videoHeight || 480;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    canvas.toBlob((blob) => {
-      if (!blob) return;
-      const previewUrl = URL.createObjectURL(blob);
-      if (cameraTarget === 'trans_before') setNewTransBefore(previewUrl);
-      else if (cameraTarget === 'trans_after') setNewTransAfter(previewUrl);
-      else if (cameraTarget === 'profile_avatar') handleUpdateProfileAvatar(new File([blob], `avatar-${Date.now()}.jpg`, { type: 'image/jpeg' }));
-      else if (cameraTarget === 'post') { setPostImageFile(new File([blob], `photo-${Date.now()}.jpg`, { type: 'image/jpeg' })); setPostImagePreview(previewUrl); setPostImageZoom(1); setPostImageOffset({ x: 0, y: 0 }); } 
-      else { setStoryImageFile(new File([blob], `photo-${Date.now()}.jpg`, { type: 'image/jpeg' })); setStoryImagePreview(previewUrl); setIsCreatingStory(true); }
-      stopCameraStream();
-    }, 'image/jpeg', 0.85);
-  };
-
-  const handleAuth = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (isSignUp && !acceptCGU) { alert("Veuillez accepter les CGU pour continuer."); return; }
-    setAuthLoading(true);
-    if (isSignUp) {
-      const { error } = await supabase.auth.signUp({ email, password, options: { data: { first_name: firstName, last_name: lastName, username: username || `${firstName}_${lastName}`.toLowerCase(), birth_date: birthDate, gender, level, home_club: homeClub, preferred_time: preferredTime, avatar_url: userAvatarUrl } } });
-      if (error) alert("Erreur d'inscription : " + error.message); else setSignupSuccessEmail(email);
-    } else {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) alert("Erreur de connexion : " + error.message);
-    }
-    setAuthLoading(false);
-  };
-
-  // --- DRAG & DROP & ZOOM CROP ---
-  const handleDragStart = (e: React.MouseEvent | React.TouchEvent) => {
-    setIsDraggingImage(true);
-    const clientX = 'touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
-    const clientY = 'touches' in e ? e.touches[0].clientY : (e as React.MouseEvent).clientY;
-    setDragStartPos({ x: clientX - postImageOffset.x, y: clientY - postImageOffset.y });
-  };
-  const handleDragMove = (e: React.MouseEvent | React.TouchEvent) => {
-    if (!isDraggingImage) return;
-    const clientX = 'touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
-    const clientY = 'touches' in e ? e.touches[0].clientY : (e as React.MouseEvent).clientY;
-    setPostImageOffset({ x: clientX - dragStartPos.x, y: clientY - dragStartPos.y });
-  };
-  const handleDragEnd = () => setIsDraggingImage(false);
-
-  const getPinchDistance = (touches: React.TouchList) => {
-    const dx = touches[0].clientX - touches[1].clientX; const dy = touches[0].clientY - touches[1].clientY;
-    return Math.sqrt(dx * dx + dy * dy);
-  };
-  const handleTouchStart = (e: React.TouchEvent) => {
-    if (e.touches.length === 2) { setInitialPinchDistance(getPinchDistance(e.touches)); setInitialPinchZoom(postImageZoom); setIsDraggingImage(false); } 
-    else if (e.touches.length === 1) handleDragStart(e);
-  };
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (e.touches.length === 2 && initialPinchDistance !== null) {
-      const scale = getPinchDistance(e.touches) / initialPinchDistance;
-      setPostImageZoom(Math.min(Math.max(1, initialPinchZoom * scale), 4));
-    } else if (e.touches.length === 1 && isDraggingImage) handleDragMove(e);
-  };
-  const handleTouchEnd = () => { setIsDraggingImage(false); setInitialPinchDistance(null); };
-
-  const getCroppedImageBlob = async (): Promise<Blob | null> => {
-    if (!imgRef.current || !previewContainerRef.current) return null;
-    const img = imgRef.current; const container = previewContainerRef.current;
-    const canvas = document.createElement('canvas');
-    canvas.width = 800; canvas.height = 800;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return null;
-    ctx.fillStyle = '#0a0a0a'; ctx.fillRect(0, 0, canvas.width, canvas.height);
-    const coverRatio = Math.max(container.clientWidth / img.naturalWidth, container.clientHeight / img.naturalHeight);
-    const baseWidth = img.naturalWidth * coverRatio; const baseHeight = img.naturalHeight * coverRatio;
-    const baseX = (container.clientWidth - baseWidth) / 2; const baseY = (container.clientHeight - baseHeight) / 2;
-    const centerX = container.clientWidth / 2; const centerY = container.clientHeight / 2;
-    const finalX = centerX + (baseX - centerX) * postImageZoom + postImageOffset.x;
-    const finalY = centerY + (baseY - centerY) * postImageZoom + postImageOffset.y;
-    const finalWidth = baseWidth * postImageZoom; const finalHeight = baseHeight * postImageZoom;
-    const scaleMultiplier = 800 / container.clientWidth;
-    ctx.drawImage(img, finalX * scaleMultiplier, finalY * scaleMultiplier, finalWidth * scaleMultiplier, finalHeight * scaleMultiplier);
-    return new Promise((resolve) => { canvas.toBlob((blob) => resolve(blob), 'image/jpeg', 0.85); });
-  };
-
-  // --- PUB & SOCIAL ---
-  const handlePublishStory = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!user || !storyImageFile) return;
-    setStoryUploading(true);
-    let uploadedStoryUrl = storyImagePreview || '';
-    try {
-      const compressedBlob = await compressImage(storyImageFile, 800, 0.7);
-      const fileName = `story-${Date.now()}-${Math.random().toString(36).substring(7)}.jpg`;
-      const { data: uploadData } = await supabase.storage.from('posts').upload(fileName, compressedBlob, { contentType: 'image/jpeg' });
-      if (uploadData) { const { data } = supabase.storage.from('posts').getPublicUrl(fileName); uploadedStoryUrl = data.publicUrl; }
-    } catch (err) {}
-
-    const myName = user.user_metadata?.username || user.email?.split('@')[0] || 'Moi';
-    const newStory: Story = { id: 'story-' + Date.now(), user_id: user.id, username: myName, avatar_url: userAvatarUrl, image_url: uploadedStoryUrl, caption: storyCaption, club_name: selectedClub, likes_count: 0, created_at: new Date().toISOString() };
-    const { error } = await supabase.from('stories').insert([{ user_id: user.id, username: myName, avatar_url: userAvatarUrl, image_url: uploadedStoryUrl, caption: storyCaption, club_name: selectedClub }]);
-    if (error) alert("Erreur publication story : " + error.message);
-    else { setCloudStories([newStory, ...cloudStories]); setStoryImageFile(null); setStoryImagePreview(null); setStoryCaption(''); setIsCreatingStory(false); }
-    setStoryUploading(false);
-  };
-
-  const handlePublishWorkout = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!user) return;
-    setIsUploading(true);
-    let uploadedImageUrl = undefined;
-    if (postImageFile && postImagePreview) {
-      try {
-        const finalBlob = await getCroppedImageBlob() || await compressImage(postImageFile, 800, 0.7);
-        const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.jpg`;
-        const { data: uploadData, error } = await supabase.storage.from('posts').upload(fileName, finalBlob, { contentType: 'image/jpeg' });
-        if (!error && uploadData) { const { data } = supabase.storage.from('posts').getPublicUrl(fileName); uploadedImageUrl = data.publicUrl; }
-      } catch (err) {}
-    }
-    const validExercises = workoutExercises.filter((ex) => ex.name.trim() !== '');
-    const newPostData = { user_id: user.id, username: user.user_metadata?.username || 'Athlète', avatar_url: userAvatarUrl, image_url: uploadedImageUrl || null, club_name: selectedClub, session_type: workoutType, caption: workoutCaption, exercises: validExercises, likes_count: 0, liked_by: [], comments_count: 0, comments: [], is_private: isPrivateMode };
-    const { data, error } = await supabase.from('posts').insert([newPostData]).select('*');
-    if (error) alert("Erreur publication Supabase : " + error.message);
-    else if (data && data.length > 0) {
-      setPosts([data[0] as Post, ...posts]); setUserStreak(prev => prev + 1); setWorkoutCaption(''); setPostImageFile(null); setPostImagePreview(null); setPostImageZoom(1); setPostImageOffset({ x: 0, y: 0 }); setWorkoutExercises([]); setCurrentTab('feed');
-    }
-    setIsUploading(false);
+    setStoryCommentInput(''); setIsStoryPaused(false); alert('Réponse envoyée en message direct !');
   };
 
   const handleAddPostComment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!postCommentInput.trim() || !activeCommentPostId || !user) return;
-    const myName = user.user_metadata?.username || 'Moi';
+    const myName = user.user_metadata?.first_name || user.user_metadata?.username || user.email?.split('@')[0] || 'Moi';
     const newComment: Comment = { id: 'c-' + Date.now(), username: myName, avatar_url: userAvatarUrl, text: postCommentInput.trim(), created_at: new Date().toISOString() };
     const targetPost = posts.find(p => p.id === activeCommentPostId);
     if (!targetPost) return;
@@ -878,7 +705,7 @@ export default function App() {
   };
 
   const handleReportPost = async (post: Post) => {
-    if (!window.confirm("Signaler cette publication ?")) return;
+    if (!window.confirm("Signaler cette publication pour contenu inapproprié ou non conforme aux CGU ?")) return;
     if (user) {
       let adminId = registeredUsers.find(u => u.username.toLowerCase() === 'antbou')?.id;
       if (!adminId) {
@@ -886,18 +713,11 @@ export default function App() {
         if (data && data.length > 0) adminId = data[0].user_id;
       }
       if (adminId) {
-        const myName = user.user_metadata?.username || 'Un utilisateur';
-        await supabase.from('direct_messages').insert([{ sender_id: 'system-bot', receiver_id: adminId, sender_name: '⚠️ Bot', text: `🚨 SIGNALEMENT : ${myName} a signalé le post de ${post.username}.` }]);
+        const myName = user.user_metadata?.username || user.email?.split('@')[0] || 'Un utilisateur';
+        await supabase.from('direct_messages').insert([{ sender_id: 'system-bot', receiver_id: adminId, sender_name: '⚠️ FitPulse Bot', text: `🚨 SIGNALEMENT : ${myName} a signalé le post de ${post.username}. Message : "${post.caption || 'Photo'}".` }]);
       }
     }
     alert("🚨 Publication signalée aux modérateurs.");
-  };
-
-  const handleDeleteConversationForBuddy = async (buddyId: string, buddyName: string) => {
-    if (!user) return;
-    if (!window.confirm(`Effacer toute la conversation avec ${buddyName} ?`)) return;
-    await supabase.from('direct_messages').delete().or(`and(sender_id.eq.${user.id},receiver_id.eq.${buddyId}),and(sender_id.eq.${buddyId},receiver_id.eq.${user.id})`);
-    setAllMessages((prev) => prev.filter((m) => !((m.sender_id === user.id && m.receiver_id === buddyId) || (m.sender_id === buddyId && m.receiver_id === user.id))));
   };
 
   const handleAddTransformation = async (e: React.FormEvent) => {
@@ -916,7 +736,7 @@ export default function App() {
         if (data) afterUrl = supabase.storage.from('posts').getPublicUrl(data.path).data.publicUrl;
       }
     } catch (err) {}
-    const newItem = { user_id: user.id, before_url: beforeUrl, after_url: afterUrl, date: new Date().toISOString().split('T')[0], weight: Number(newTransWeight), note: newTransNote || 'Évolution', is_private: newTransIsPrivate };
+    const newItem = { user_id: user.id, before_url: beforeUrl, after_url: afterUrl, date: new Date().toISOString().split('T')[0], weight: Number(newTransWeight), note: newTransNote || 'Évolution physique', is_private: newTransIsPrivate };
     const { data, error } = await supabase.from('transformations').insert([newItem]).select('*');
     if (!error && data) { setTransformations([data[0] as TransformationPhoto, ...transformations]); setNewTransBefore(null); setNewTransAfter(null); setNewTransNote(''); setNewTransWeight(''); alert('📸 Transformation enregistrée !'); }
   };
@@ -925,7 +745,7 @@ export default function App() {
     if (!user) return;
     const newPostData = { user_id: user.id, username: user.user_metadata?.username || 'Athlète', avatar_url: userAvatarUrl, image_url: item.after_url, club_name: selectedClub, session_type: 'Transformation #transformation', caption: `Bilan évolution (${item.weight} kg) : ${item.note} #pr #gym`, exercises: [], likes_count: 0, liked_by: [], comments_count: 0, comments: [], is_private: isPrivateMode };
     const { data, error } = await supabase.from('posts').insert([newPostData]).select('*');
-    if (!error && data) { setPosts([data[0] as Post, ...posts]); alert('✨ Bilan partagé avec succès !'); }
+    if (!error && data) { setPosts([data[0] as Post, ...posts]); alert('✨ Bilan partagé avec succès sur le fil d’actualité !'); fetchCloudPosts(); }
   };
 
   const handleUpdateProfileAvatar = async (fileOrUrl: File | string) => {
@@ -941,89 +761,44 @@ export default function App() {
     if (finalAvatarUrl) { setUserAvatarUrl(finalAvatarUrl); await supabase.auth.updateUser({ data: { ...user.user_metadata, avatar_url: finalAvatarUrl } }); alert('🌟 Photo de profil mise à jour !'); }
   };
 
-  const handleSendFriendRequest = async (targetUserId: string) => {
+  const handlePublishStory = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user || !storyImageFile) return;
+    setStoryUploading(true);
+    let uploadedStoryUrl = storyImagePreview || '';
+    try {
+      const fileName = `story-${Date.now()}-${Math.random().toString(36).substring(7)}.jpg`;
+      const { data } = await supabase.storage.from('posts').upload(fileName, await compressImage(storyImageFile, 800, 0.7), { contentType: 'image/jpeg' });
+      if (data) uploadedStoryUrl = supabase.storage.from('posts').getPublicUrl(fileName).data.publicUrl;
+    } catch (err) {}
+    const myName = user.user_metadata?.username || 'Moi';
+    const newStory = { id: 'story-' + Date.now(), user_id: user.id, username: myName, avatar_url: userAvatarUrl, image_url: uploadedStoryUrl, caption: storyCaption, club_name: selectedClub, likes_count: 0, created_at: new Date().toISOString() };
+    const { error } = await supabase.from('stories').insert([{ user_id: user.id, username: myName, avatar_url: userAvatarUrl, image_url: uploadedStoryUrl, caption: storyCaption, club_name: selectedClub }]);
+    if (!error) { setCloudStories([newStory, ...cloudStories]); setStoryImageFile(null); setStoryImagePreview(null); setStoryCaption(''); setIsCreatingStory(false); }
+    setStoryUploading(false);
+  };
+
+  const handlePublishWorkout = async (e: React.FormEvent) => {
+    e.preventDefault();
     if (!user) return;
-    const { error } = await supabase.from('friend_requests').insert([{ sender_id: user.id, receiver_id: targetUserId, status: 'pending' }]);
-    if (!error) { alert("Demande envoyée !"); fetchFriendRequests(user.id); sendSystemNotification(targetUserId, `👋 ${user.user_metadata?.username || 'Quelqu\'un'} souhaite devenir votre Buddy !`); }
-  };
-
-  const handleAcceptFriendRequest = async (requestId: string) => {
-    const { error } = await supabase.from('friend_requests').update({ status: 'accepted' }).eq('id', requestId);
-    if (!error && user) { alert("Demande acceptée !"); fetchFriendRequests(user.id); const req = friendRequests.find(r => r.id === requestId); if (req) sendSystemNotification(req.sender_id, `✅ ${user.user_metadata?.username || 'Un utilisateur'} a accepté votre demande d'ami !`); }
-  };
-
-  const handleRejectFriendRequest = async (requestId: string) => {
-    const { error } = await supabase.from('friend_requests').delete().eq('id', requestId);
-    if (!error && user) fetchFriendRequests(user.id);
-  };
-
-  const handleSendInvite = async () => {
-    if (!inviteModalTarget || !user) return;
-    await supabase.from('direct_messages').insert([{ sender_id: user.id, receiver_id: inviteModalTarget.id, sender_name: user.user_metadata?.username || 'Un ami', text: `🏋️ INVITATION PUSH UP : Salut ! Es-tu prêt(e) pour une grosse séance **${inviteType}** avec moi ?` }]);
-    alert(`Invitation envoyée à ${inviteModalTarget.username} !`); setInviteModalTarget(null);
-  };
-
-  // --- RENDU LOGIN ---
-  if (!user) {
-    if (signupSuccessEmail) {
-      return (
-        <div className="min-h-screen bg-neutral-950 text-white flex flex-col justify-center items-center px-4 py-8">
-          <div className="w-full max-w-md bg-neutral-900 border border-neutral-800 rounded-3xl p-8 text-center space-y-5 shadow-2xl">
-            <div className="w-16 h-16 bg-orange-500/20 border border-orange-500/40 rounded-2xl flex items-center justify-center text-orange-500 mx-auto"><Mail className="w-8 h-8 animate-bounce" /></div>
-            <h2 className="text-xl font-black">Vérifie ta boîte mail !</h2>
-            <p className="text-xs text-neutral-300 leading-relaxed">Un e-mail a été envoyé à <strong className="text-orange-400">{signupSuccessEmail}</strong>.</p>
-            <button onClick={() => { setSignupSuccessEmail(null); setIsSignUp(false); }} className="w-full py-3 bg-neutral-800 hover:bg-neutral-700 text-white font-bold rounded-xl text-xs transition">Retour à la connexion</button>
-          </div>
-        </div>
-      );
+    setIsUploading(true);
+    let uploadedImageUrl = undefined;
+    if (postImageFile && postImagePreview) {
+      try {
+        const finalBlob = await getCroppedImageBlob() || await compressImage(postImageFile, 800, 0.7);
+        const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.jpg`;
+        const { data } = await supabase.storage.from('posts').upload(fileName, finalBlob, { contentType: 'image/jpeg' });
+        if (data) uploadedImageUrl = supabase.storage.from('posts').getPublicUrl(fileName).data.publicUrl;
+      } catch (err) {}
     }
-    return (
-      <div className="min-h-screen bg-neutral-950 text-white flex flex-col justify-center items-center px-4 py-8">
-        <div className="w-full max-w-md bg-neutral-900/90 border border-neutral-800 rounded-3xl p-6 sm:p-8 shadow-2xl backdrop-blur-xl">
-          <div className="flex justify-center mb-4"><div className="w-14 h-14 rounded-2xl bg-orange-500/20 border border-orange-500/40 flex items-center justify-center text-orange-500"><Zap className="w-7 h-7" /></div></div>
-          <h1 className="text-2xl font-black text-center tracking-tight mb-1">FitPulse</h1>
-          <form onSubmit={handleAuth} className="space-y-3.5 mt-6">
-            {isSignUp && (
-              <>
-                <div className="grid grid-cols-2 gap-2.5">
-                  <div><input type="text" required placeholder="Prénom" value={firstName} onChange={(e) => setFirstName(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs focus:border-orange-500" /></div>
-                  <div><input type="text" required placeholder="Nom" value={lastName} onChange={(e) => setLastName(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs focus:border-orange-500" /></div>
-                </div>
-                <div className="grid grid-cols-2 gap-2.5">
-                  <div><input type="text" required placeholder="Pseudo" value={username} onChange={(e) => setUsername(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs focus:border-orange-500" /></div>
-                  <div><input type="date" required value={birthDate} onChange={(e) => setBirthDate(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs focus:border-orange-500" /></div>
-                </div>
-                <select value={preferredTime} onChange={(e) => setPreferredTime(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs focus:border-orange-500">{TIME_SLOTS.map((slot) => <option key={slot} value={slot}>{slot}</option>)}</select>
-              </>
-            )}
-            <input type="email" required placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs focus:border-orange-500" />
-            <input type="password" required placeholder="Mot de passe" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs focus:border-orange-500" />
-            {isSignUp && (
-              <div className="flex items-start gap-2 pt-1">
-                <input type="checkbox" id="cgu" checked={acceptCGU} onChange={(e) => setAcceptCGU(e.target.checked)} className="mt-0.5 accent-orange-500" />
-                <label htmlFor="cgu" className="text-[11px] text-neutral-400 leading-tight">J'accepte les <button type="button" onClick={() => setIsCGUModalOpen(true)} className="text-orange-400 underline font-semibold">CGU</button>.</label>
-              </div>
-            )}
-            <button type="submit" disabled={authLoading} className="w-full mt-2 bg-gradient-to-r from-orange-600 to-orange-500 text-white font-bold py-3 rounded-xl shadow-lg transition text-xs flex justify-center">
-              {authLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : isSignUp ? "Créer mon compte" : "Se connecter"}
-            </button>
-          </form>
-          <button onClick={() => setIsSignUp(!isSignUp)} className="w-full text-center text-xs text-neutral-400 hover:text-white mt-5 transition">{isSignUp ? "Déjà un compte ? Se connecter" : "Pas encore de compte ? S'inscrire"}</button>
-        </div>
-        {isCGUModalOpen && (
-          <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4">
-            <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-lg w-full p-6 space-y-4">
-              <h3 className="text-sm font-black text-white">CGU & Tolérance Zéro</h3>
-              <p className="text-[11px] text-neutral-300">Il est strictement interdit de publier des contenus inappropriés. Tout manquement entraînera le bannissement définitif.</p>
-              <button onClick={() => { setAcceptCGU(true); setIsCGUModalOpen(false); }} className="w-full py-3 bg-orange-600 text-white font-bold rounded-xl text-xs">Accepter</button>
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  }
+    const validExercises = workoutExercises.filter((ex) => ex.name.trim() !== '');
+    const newPostData = { user_id: user.id, username: user.user_metadata?.username || 'Athlète', avatar_url: userAvatarUrl, image_url: uploadedImageUrl || null, club_name: selectedClub, session_type: workoutType, caption: workoutCaption, exercises: validExercises, likes_count: 0, liked_by: [], comments_count: 0, comments: [], is_private: isPrivateMode };
+    const { data, error } = await supabase.from('posts').insert([newPostData]).select('*');
+    if (!error && data) { setPosts([data[0] as Post, ...posts]); setUserStreak(prev => prev + 1); setWorkoutCaption(''); setPostImageFile(null); setPostImagePreview(null); setPostImageZoom(1); setPostImageOffset({ x: 0, y: 0 }); setWorkoutExercises([]); setCurrentTab('feed'); }
+    setIsUploading(false);
+  };
 
-  // --- RENDU APPLICATION ---
+  // --- RENDU APPLICATION CONNECTÉE ---
   return (
     <div className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col font-sans select-none">
       <header className="sticky top-0 z-40 bg-neutral-950/80 backdrop-blur-md border-b border-neutral-900 px-4 py-3 flex items-center justify-between">
@@ -1170,7 +945,7 @@ export default function App() {
 
               <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-3 text-[11px] text-red-300 flex items-start gap-2">
                 <AlertTriangle className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
-                <span>Rappel CGU : Tolérance zéro pour la nudité. Tout contrevenant sera banni.</span>
+                <span>Rappel CGU : Tolérance zéro pour la nudité ou les photos explicites sur le flux public. Tout contrevenant sera banni.</span>
               </div>
 
               <div className="space-y-1">
@@ -1280,7 +1055,7 @@ export default function App() {
                 <button onClick={() => setFilterWomenOnly(!filterWomenOnly)} className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 ${filterWomenOnly ? 'bg-gradient-to-r from-pink-600 to-purple-600 text-white ring-2 ring-pink-400' : 'bg-neutral-950 text-neutral-400 border border-neutral-800'}`}><span>🚺</span> {filterWomenOnly && '✓'}</button>
               </div>
             </div>
-
+            
             <div className="bg-neutral-950 p-1.5 rounded-2xl border border-neutral-800 flex items-center gap-1">
               <button onClick={() => setBuddyTabSubMode('discover')} className={`flex-1 py-2 rounded-xl text-xs font-bold transition ${buddyTabSubMode === 'discover' ? 'bg-orange-600 text-white' : 'text-neutral-400 hover:text-white'}`}>Découvrir</button>
               <button onClick={() => setBuddyTabSubMode('my_friends')} className={`flex-1 py-2 rounded-xl text-xs font-bold transition ${buddyTabSubMode === 'my_friends' ? 'bg-orange-600 text-white' : 'text-neutral-400 hover:text-white'}`}>Mes Amis ({myFriendsList.length})</button>
@@ -1406,6 +1181,7 @@ export default function App() {
                         <img src={friend.avatar_url} alt="" className="w-11 h-11 rounded-full object-cover border border-neutral-800" />
                         <div><h3 className="font-bold text-xs text-white">{friend.username}</h3></div>
                       </div>
+                      <button onClick={(e) => { e.stopPropagation(); handleDeleteConversationForBuddy(friend.id, friend.username); }} className="p-2.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-xl transition border border-red-500/20"><Trash2 className="w-4 h-4" /></button>
                     </div>
                   ))
                 )}
@@ -1419,13 +1195,13 @@ export default function App() {
             <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4">
               <h2 className="text-base font-black tracking-tight flex items-center gap-2"><Trophy className="w-5 h-5 text-yellow-500" /> Mes Records Personnels (PRs)</h2>
               <form onSubmit={handleAddPR} className="bg-neutral-950 p-3.5 rounded-2xl border border-neutral-800 space-y-3">
-                <span className="text-[11px] font-bold text-orange-400 block">Ajouter un nouveau record</span>
+                <span className="text-[11px] font-bold text-orange-400 block">Ajouter un record</span>
                 <div className="grid grid-cols-3 gap-2">
                   <input type="text" placeholder="Exercice" value={newPrExercise} onChange={(e) => setNewPrExercise(e.target.value)} className="bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white focus:border-orange-500" />
-                  <input type="number" placeholder="Poids (kg)" value={newPrWeight} onChange={(e) => setNewPrWeight(Number(e.target.value))} className="bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white focus:border-orange-500" />
+                  <input type="number" placeholder="Poids" value={newPrWeight} onChange={(e) => setNewPrWeight(Number(e.target.value))} className="bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white focus:border-orange-500" />
                   <input type="number" placeholder="Reps" value={newPrReps} onChange={(e) => setNewPrReps(Number(e.target.value))} className="bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white focus:border-orange-500" />
                 </div>
-                <button type="submit" className="w-full py-2 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-xl text-xs transition">Enregistrer le PR</button>
+                <button type="submit" className="w-full py-2 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-xl text-xs transition">Enregistrer</button>
               </form>
               <div className="space-y-2 pt-1">
                 {personalRecords.map((pr, index) => (
@@ -1438,25 +1214,24 @@ export default function App() {
             </div>
             
             <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4">
-              <h2 className="text-base font-black tracking-tight flex items-center gap-2"><Calendar className="w-5 h-5 text-orange-500" /> Planificateur de la semaine</h2>
+              <h2 className="text-base font-black tracking-tight flex items-center gap-2"><Calendar className="w-5 h-5 text-orange-500" /> Planificateur</h2>
               <div className="space-y-2.5">
                 {weeklyPlan.map((plan, i) => (
                   <div key={i} className="bg-neutral-950 p-3.5 rounded-2xl border border-neutral-800 flex flex-col space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-bold text-orange-400">{plan.day}</span>
                       {editingDayIndex === i ? (
-                        <button onClick={() => handleSaveWeeklyPlanEdit(i)} className="px-3 py-1 bg-green-600 text-white rounded-lg text-[10px] font-bold flex items-center gap-1"><Check className="w-3.5 h-3.5" /> Enregistrer</button>
+                        <button onClick={() => handleSaveWeeklyPlanEdit(i)} className="px-3 py-1 bg-green-600 text-white rounded-lg text-[10px] font-bold flex items-center gap-1"><Check className="w-3.5 h-3.5" /> OK</button>
                       ) : (
                         <button onClick={() => { setEditingDayIndex(i); setEditFocus(plan.focus); setEditExercisesText(plan.exercisesText); }} className="p-1 text-neutral-400 hover:text-white"><Edit3 className="w-4 h-4" /></button>
                       )}
                     </div>
-
                     {editingDayIndex === i ? (
                       <div className="space-y-2.5 pt-1">
                         <select value={editFocus} onChange={(e) => setEditFocus(e.target.value)} className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white">
                           {WORKOUT_CHOICES.map((choice) => <option key={choice} value={choice}>{choice}</option>)}
                         </select>
-                        <input type="text" placeholder="ex: Développé couché, Écartés..." value={editExercisesText} onChange={(e) => setEditExercisesText(e.target.value)} className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white" />
+                        <input type="text" placeholder="ex: Développé couché..." value={editExercisesText} onChange={(e) => setEditExercisesText(e.target.value)} className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white" />
                       </div>
                     ) : (
                       <><span className="text-[11px] bg-neutral-900 px-2.5 py-1 rounded-lg text-neutral-200 font-medium inline-block">{plan.focus}</span><p className="text-[11px] text-neutral-400">Exercices : {plan.exercisesText}</p></>
@@ -1481,8 +1256,7 @@ export default function App() {
             
             <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4">
               <div className="flex items-center justify-between">
-                <h3 className="font-bold text-sm text-white flex items-center gap-2"><ImageIcon className="w-4 h-4 text-orange-500" /> Carnet Avant / Après</h3>
-                <span className="text-[10px] text-neutral-400">100% Privé</span>
+                <h3 className="font-bold text-sm text-white flex items-center gap-2"><ImageIcon className="w-4 h-4 text-orange-500" /> Carnet Avant/Après</h3>
               </div>
               <form onSubmit={handleAddTransformation} className="bg-neutral-950 p-3.5 rounded-2xl border border-neutral-800 space-y-3">
                 <div className="grid grid-cols-2 gap-2">
@@ -1493,7 +1267,11 @@ export default function App() {
                 <input type="file" accept="image/*" ref={afterFileInputRef} onChange={(e) => handleImageSelect(e, 'trans_after')} className="hidden" />
                 <div className="grid grid-cols-2 gap-2">
                   <input type="number" step="0.1" placeholder="Poids (kg)" value={newTransWeight} onChange={(e) => setNewTransWeight(Number(e.target.value))} className="bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white" />
-                  <input type="text" placeholder="Note (ex: Fin de sèche)" value={newTransNote} onChange={(e) => setNewTransNote(e.target.value)} className="bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white" />
+                  <input type="text" placeholder="Note" value={newTransNote} onChange={(e) => setNewTransNote(e.target.value)} className="bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white" />
+                </div>
+                <div className="flex items-center justify-between bg-neutral-900 p-2.5 rounded-xl border border-neutral-800">
+                  <div className="flex items-center gap-2"><EyeOff className="w-4 h-4 text-orange-500" /><span className="text-[11px] font-semibold text-neutral-200">Privé (que moi)</span></div>
+                  <button type="button" onClick={() => setNewTransIsPrivate(!newTransIsPrivate)} className={`relative w-10 h-5 rounded-full transition-colors ${newTransIsPrivate ? 'bg-orange-500' : 'bg-neutral-800'}`}><div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${newTransIsPrivate ? 'translate-x-5' : 'translate-x-0.5'}`} /></button>
                 </div>
                 <button type="submit" className="w-full py-2 bg-orange-600 text-white font-bold rounded-xl text-xs">Enregistrer</button>
               </form>
@@ -1513,12 +1291,11 @@ export default function App() {
 
             <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4">
               <div className="flex items-center justify-between p-4 bg-neutral-950 rounded-2xl border border-neutral-800">
-                <div><span className="font-bold text-sm text-white block">Compte Privé</span><p className="text-[10px] text-neutral-400 max-w-[200px] mt-1">Séances visibles uniquement par tes Buddies.</p></div>
+                <div><span className="font-bold text-sm text-white block">Compte Privé</span><p className="text-[10px] text-neutral-400 mt-1">Séances visibles uniquement par tes Buddies.</p></div>
                 <button onClick={() => setIsPrivateMode(!isPrivateMode)} className={`relative w-12 h-6 rounded-full transition-colors ${isPrivateMode ? 'bg-orange-500' : 'bg-neutral-800'}`}><div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform ${isPrivateMode ? 'translate-x-7' : 'translate-x-1'}`} /></button>
               </div>
             </div>
-
-            <button onClick={() => supabase.auth.signOut()} className="w-full py-4 bg-neutral-900 hover:bg-neutral-800 text-red-400 rounded-3xl text-sm font-bold transition border border-neutral-800 flex items-center justify-center gap-2 shadow-sm"><LogOut className="w-5 h-5" /> Déconnexion</button>
+            <button onClick={() => supabase.auth.signOut()} className="w-full py-4 bg-neutral-900 hover:bg-neutral-800 text-red-400 rounded-3xl text-sm font-bold transition border border-neutral-800 flex items-center justify-center gap-2"><LogOut className="w-5 h-5" /> Déconnexion</button>
           </div>
         )}
       </main>
@@ -1532,10 +1309,9 @@ export default function App() {
               <button onClick={() => setInviteModalTarget(null)} className="p-1 text-neutral-400 hover:text-white"><X className="w-5 h-5" /></button>
             </div>
             <div className="space-y-3">
-              <p className="text-xs text-neutral-300">Invite <strong>{inviteModalTarget.username}</strong> à s'entraîner avec toi.</p>
+              <p className="text-xs text-neutral-300">Invite <strong>{inviteModalTarget.username}</strong> à s'entraîner.</p>
               <div>
-                <label className="block text-[11px] font-semibold text-neutral-400 mb-1">Quelle séance ?</label>
-                <select value={inviteType} onChange={(e) => setInviteType(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-orange-500">
+                <select value={inviteType} onChange={(e) => setInviteType(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2.5 text-xs text-white focus:border-orange-500">
                   <option value="Jambes (Leg Day)">Jambes (Leg Day)</option>
                   <option value="Push (Pecs, Épaules, Triceps)">Push (Pecs, Épaules)</option>
                   <option value="Pull (Dos, Biceps)">Pull (Dos, Biceps)</option>
@@ -1544,39 +1320,7 @@ export default function App() {
                 </select>
               </div>
             </div>
-            <button onClick={handleSendInvite} className="w-full py-3 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-xl text-xs transition flex items-center justify-center gap-2">
-              <Send className="w-4 h-4" /> Envoyer le défi
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL LECTURE DE STORY */}
-      {activeViewingStory && activeStoryIndex !== null && (
-        <div className="fixed inset-0 z-50 bg-black flex flex-col justify-between p-4 select-none">
-          <div className="w-full flex items-center gap-1.5 pt-2 z-20">
-            {friendStoriesList.map((_, idx) => (
-              <div key={idx} className="h-1 bg-white/30 rounded-full flex-1 overflow-hidden">
-                <div className="h-full bg-white transition-all ease-linear" style={{ width: idx < activeStoryIndex ? '100%' : idx === activeStoryIndex ? `${storyProgress}%` : '0%' }} />
-              </div>
-            ))}
-          </div>
-
-          <div className="flex items-center justify-between pt-3 z-20">
-            <div className="flex items-center gap-2.5">
-              <img src={activeViewingStory.avatar_url} alt="" className="w-10 h-10 rounded-full object-cover border-2 border-orange-500" />
-              <div><h4 className="font-bold text-xs text-white">{activeViewingStory.username}</h4></div>
-            </div>
-            <button onClick={() => { setActiveStoryIndex(null); setIsStoryPaused(false); }} className="p-2 bg-black/60 rounded-full text-white"><X className="w-6 h-6" /></button>
-          </div>
-
-          <div className="absolute inset-0 z-10 flex" style={{ bottom: '90px' }}>
-            <div className="w-1/3 h-full cursor-pointer" onClick={handlePrevStory} />
-            <div className="w-2/3 h-full cursor-pointer" onClick={handleNextStory} />
-          </div>
-
-          <div className="flex-1 flex items-center justify-center py-4 z-0 pointer-events-none">
-            <img src={activeViewingStory.image_url} alt="" className="max-h-[60vh] max-w-full rounded-2xl object-contain border border-neutral-800" />
+            <button onClick={handleSendInvite} className="w-full py-3 bg-orange-600 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2"><Send className="w-4 h-4" /> Envoyer</button>
           </div>
         </div>
       )}
@@ -1616,9 +1360,7 @@ export default function App() {
             <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover" />
           </div>
           <div className="w-full flex justify-center items-center pb-6 z-10">
-            <button type="button" onClick={capturePhoto} className="w-20 h-20 rounded-full border-4 border-white flex items-center justify-center p-1">
-              <div className="w-full h-full bg-orange-500 rounded-full shadow-lg" />
-            </button>
+            <button type="button" onClick={capturePhoto} className="w-20 h-20 rounded-full border-4 border-white flex items-center justify-center p-1"><div className="w-full h-full bg-orange-500 rounded-full shadow-lg" /></button>
           </div>
         </div>
       )}
@@ -1647,8 +1389,8 @@ export default function App() {
               )}
             </div>
             <form onSubmit={handleAddPostComment} className="p-4 bg-neutral-950 border-t border-neutral-800 flex items-center gap-2">
-              <input type="text" placeholder="Ajouter un commentaire..." value={postCommentInput} onChange={e => setPostCommentInput(e.target.value)} className="flex-1 bg-neutral-900 border border-neutral-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-orange-500" />
-              <button type="submit" disabled={!postCommentInput.trim()} className="p-2.5 bg-orange-600 disabled:bg-neutral-800 disabled:text-neutral-500 text-white rounded-xl transition"><SendHorizontal className="w-4 h-4" /></button>
+              <input type="text" placeholder="Ajouter un commentaire..." value={postCommentInput} onChange={e => setPostCommentInput(e.target.value)} className="flex-1 bg-neutral-900 border border-neutral-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:border-orange-500" />
+              <button type="submit" disabled={!postCommentInput.trim()} className="p-2.5 bg-orange-600 disabled:bg-neutral-800 text-white rounded-xl"><SendHorizontal className="w-4 h-4" /></button>
             </form>
           </div>
         </div>
@@ -1664,10 +1406,7 @@ export default function App() {
           <span className="text-[10px]">Séance</span>
         </button>
         <button onClick={() => setCurrentTab('chat')} className={`flex flex-col items-center gap-1 ${currentTab === 'chat' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}>
-          <div className="relative">
-            <MessageCircle className="w-5 h-5" />
-            {unreadChatCount > 0 && <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 border border-neutral-950 rounded-full animate-pulse"></span>}
-          </div>
+          <div className="relative"><MessageCircle className="w-5 h-5" />{unreadChatCount > 0 && <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 border border-neutral-950 rounded-full animate-pulse"></span>}</div>
           <span className="text-[10px]">Chat</span>
         </button>
         <button onClick={() => setCurrentTab('profile')} className={`flex flex-col items-center gap-1 ${currentTab === 'profile' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><User className="w-5 h-5" /><span className="text-[10px]">Profil</span></button>
