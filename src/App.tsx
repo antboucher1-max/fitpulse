@@ -508,7 +508,7 @@ export default function App() {
   const imgRef = useRef<HTMLImageElement>(null);
 
 
-  // 2. VARIABLES DÉRIVÉES ET FILTRES
+  // 2. VARIABLES DÉRIVÉES ET FILTRES (À DÉCLARER AVANT LES FONCTIONS HANDLERS)
   const acceptedFriendIds = friendRequests
     .filter(req => req.status === 'accepted')
     .map(req => (req.sender_id === user?.id ? req.receiver_id : req.sender_id));
@@ -598,8 +598,9 @@ export default function App() {
   ).length;
 
 
-  // 3. FONCTIONS HANDLERS / MÉTHODES
+  // 3. FONCTIONS HANDLERS / MÉTHODES (À déclarer avant les useEffect qui les utilisent)
 
+  // Fonctions Fetch
   const fetchCloudPosts = async () => {
     setFeedLoading(true);
     const { data, error } = await supabase.from('posts').select('*').order('created_at', { ascending: false });
@@ -758,7 +759,6 @@ export default function App() {
     const container = previewContainerRef.current;
 
     const canvas = document.createElement('canvas');
-    // Format Carré forcé pour le post (800x800)
     const outputWidth = 800;
     const outputHeight = 800;
     canvas.width = outputWidth;
@@ -963,7 +963,12 @@ export default function App() {
         audio: false
       });
       streamRef.current = stream;
-      // La référence vidéo sera attachée via la callback "ref={}" dans le rendu
+      // On s'assure que la modale a eu le temps de s'afficher avant d'associer le flux
+      setTimeout(() => {
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+        }
+      }, 100);
     } catch (err: any) {
       alert("Impossible d'accéder à la caméra : " + err.message);
       setIsCameraActive(false);
@@ -1185,8 +1190,7 @@ export default function App() {
           return { ...p, comments: updatedComments, comments_count: newCount };
         }
         return p;
-      }
-      ));
+      }));
       setPostCommentInput('');
     } else {
       alert("Erreur lors de l'enregistrement du commentaire : " + error.message);
@@ -1398,6 +1402,7 @@ export default function App() {
       fetchFriendRequests(user.id);
     }
   };
+
 
   // 4. EFFETS SECONDAIRES DE FIN (Session & Sockets)
   useEffect(() => {
