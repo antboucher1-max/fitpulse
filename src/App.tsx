@@ -336,23 +336,6 @@ interface DBMessage {
   created_at: string;
 }
 
-// AUCUN MEMBRE FICTIF PAR DÉFAUT (Tableau vide)
-const DEFAULT_MEMBERS: RealUser[] = [];
-
-const DEFAULT_STORIES: Story[] = [
-  {
-    id: 'demo-s1',
-    user_id: 'b1',
-    username: 'Thomas D.',
-    avatar_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150',
-    image_url: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?w=800',
-    caption: 'Prêt pour exploser le PR au dev couché #pr #pushday 🔥',
-    club_name: 'Club Tournai (Bastion)',
-    likes_count: 3,
-    created_at: new Date().toISOString()
-  }
-];
-
 export default function App() {
   const [user, setUser] = useState<SupabaseUser | null>(null);
 
@@ -419,7 +402,7 @@ export default function App() {
     try {
       const saved = localStorage.getItem('fitpulse_viewed_stories');
       return saved ? JSON.parse(saved) : [];
-    } catch { return {}; }
+    } catch { return []; }
   });
 
   useEffect(() => { localStorage.setItem('fitpulse_liked_stories', JSON.stringify(likedStories)); }, [likedStories]);
@@ -454,7 +437,7 @@ export default function App() {
   const [selectedExerciseDetail, setSelectedExerciseDetail] = useState<ExerciseGuide | null>(null);
 
   // Membres et Amis
-  const [registeredUsers, setRegisteredUsers] = useState<RealUser[]>(DEFAULT_MEMBERS);
+  const [registeredUsers, setRegisteredUsers] = useState<RealUser[]>([]);
   const [buddyTabSubMode, setBuddyTabSubMode] = useState<'discover' | 'my_friends' | 'requests'>('discover');
   const [userSearchQuery, setUserSearchQuery] = useState('');
   const [filterWomenOnly, setFilterWomenOnly] = useState(false);
@@ -726,7 +709,6 @@ export default function App() {
     }
   };
 
-  // GESTION DES DEMANDES D'AMIS RÉELLES SUR SUPABASE
   const fetchFriendRequests = async (userId: string) => {
     const { data, error } = await supabase
       .from('friend_requests')
@@ -839,7 +821,7 @@ export default function App() {
     try {
       const { data, error } = await supabase.from('stories').select('*').order('created_at', { ascending: false });
       if (!error && data && data.length > 0) {
-        setCloudStories((prev) => [...data as Story[], ...prev]);
+        setCloudStories(data as Story[]);
       }
     } catch (err) {}
   };
@@ -849,8 +831,9 @@ export default function App() {
     if (!error && data) setAllMessages(data as DBMessage[]);
   };
 
+  // Récupération dynamique et unique des vrais utilisateurs basée sur les posts du cloud
   const fetchRealUsers = async () => {
-    const { data, error } = await supabase.from('posts').select('user_id, username, club_name, avatar_url').limit(50);
+    const { data, error } = await supabase.from('posts').select('user_id, username, club_name, avatar_url').limit(100);
     if (!error && data) {
       const uniqueMap = new Map();
       data.forEach((p) => {
@@ -939,25 +922,14 @@ export default function App() {
       .eq('id', postId);
   };
 
-  const combinedAllStories = [...cloudStories, ...DEFAULT_STORIES];
-  const uniqueStoriesMap = new Map();
-  combinedAllStories.forEach((s) => {
-    if (!uniqueStoriesMap.has(s.id) && !uniqueStoriesMap.has(s.username)) {
-      uniqueStoriesMap.set(s.id || s.username, s);
-    }
-  });
-  const uniqueStoriesList = Array.from(uniqueStoriesMap.values());
-
-  // Liste des IDs d'amis acceptés
   const acceptedFriendIds = friendRequests
     .filter(req => req.status === 'accepted')
     .map(req => (req.sender_id === user?.id ? req.receiver_id : req.sender_id));
 
   const myFriendsList = registeredUsers.filter((u) => acceptedFriendIds.includes(u.id));
-
   const incomingRequests = friendRequests.filter(req => req.receiver_id === user?.id && req.status === 'pending');
 
-  const friendStoriesList = uniqueStoriesList.filter((s) => {
+  const friendStoriesList = cloudStories.filter((s) => {
     const storyDate = new Date(s.created_at).getTime();
     const isUnder24h = !isNaN(storyDate) ? storyDate >= Date.now() - 24 * 3600 * 1000 : true;
     return isUnder24h;
@@ -1832,7 +1804,7 @@ export default function App() {
                 <div className="space-y-3 pt-1">
                   {filteredBuddies.length === 0 ? (
                     <div className="text-center py-8 text-neutral-500 text-xs">
-                      Aucun athlète ne correspond à vos critères.
+                      Aucun autre athlète inscrit pour l'instant. Dès qu'un autre utilisateur s'inscrira, il apparaîtra ici !
                     </div>
                   ) : (
                     filteredBuddies.map((realUser) => {
@@ -2026,7 +1998,7 @@ export default function App() {
           </div>
         )}
 
-        {/* TAB 6: PROFIL (AVEC PHOTO DE PROFIL PERSISTANTE, MODE PRIVÉ, FLAMMES ET AVANT/APRÈS) */}
+        {/* TAB 6: PROFIL */}
         {currentTab === 'profile' && (
           <div className="space-y-4">
             <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-6 text-center space-y-4">
@@ -2182,7 +2154,7 @@ export default function App() {
             <div className="space-y-2 pt-2 border-t border-neutral-800 max-h-60 overflow-y-auto">
               <span className="text-[11px] font-bold text-orange-400 block mb-1">Résultats du match ({matchedBuddiesList.length}) :</span>
               {matchedBuddiesList.length === 0 ? (
-                <div className="text-center py-6 text-neutral-500 text-xs">Aucun athlète ne correspond exactement à ces critères.</div>
+                <div className="text-center py-6 text-neutral-500 text-xs">Aucun autre athlète ne correspond à ces critères.</div>
               ) : (
                 matchedBuddiesList.map((buddy) => (
                   <div key={buddy.id} className="bg-neutral-950 p-3 rounded-2xl border border-neutral-800 flex items-center justify-between">
