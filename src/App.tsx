@@ -1800,7 +1800,7 @@ export default function App() {
               {(!activePostForComments.comments || activePostForComments.comments.length === 0) ? (
                 <div className="text-center text-neutral-500 text-xs py-8">Aucun commentaire. Sois le premier à réagir !</div>
               ) : (
-                activePostForComments.comments.post?.map ? null : activePostForComments.comments.map(c => (
+                activePostForComments.comments.map(c => (
                   <div key={c.id} className="flex gap-3">
                     <img src={c.avatar_url} className="w-8 h-8 rounded-full object-cover border border-neutral-700" />
                     <div className="flex-1 bg-neutral-950 p-3 rounded-2xl rounded-tl-none border border-neutral-800">
