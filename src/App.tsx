@@ -312,6 +312,11 @@ export default function App() {
   const [cloudStories, setCloudStories] = useState<Story[]>([]);
   const [allMessages, setAllMessages] = useState<DBMessage[]>([]);
   
+  // Liste des Push Ups déjà envoyés pour griser les boutons
+  const [sentPushUps, setSentPushUps] = useState<Record<string, boolean>>(() => {
+    try { return JSON.parse(localStorage.getItem('fitpulse_sent_pushups') || '{}'); } catch { return {}; }
+  });
+  
   // Buddy Filters
   const [buddyTabSubMode, setBuddyTabSubMode] = useState<'discover' | 'my_friends' | 'requests'>('discover');
   const [userSearchQuery, setUserSearchQuery] = useState('');
@@ -750,7 +755,6 @@ export default function App() {
     setStoryCommentInput(''); setIsStoryPaused(false); alert('Réponse envoyée en message direct !');
   };
 
-  // Ferme la modale story pour laisser la caméra s'afficher au premier plan en plein écran
   const startCameraHandler = (target: 'post' | 'story' | 'trans_before' | 'trans_after' | 'profile_avatar') => {
     if (target === 'story') {
       setIsCreatingStory(false);
@@ -798,6 +802,7 @@ export default function App() {
     }, 'image/jpeg', 0.85);
   };
 
+  // Correction de la publication de Story avec un ID unique explicitement généré
   const handlePublishStory = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !storyImageFile) return;
@@ -811,8 +816,30 @@ export default function App() {
     } catch (err) {}
 
     const myName = user.user_metadata?.first_name || user.user_metadata?.username || user.email?.split('@')[0] || 'Moi';
-    const newStory: Story = { id: 'story-' + Date.now(), user_id: user.id, username: myName, avatar_url: userAvatarUrl, image_url: uploadedStoryUrl, caption: storyCaption, club_name: selectedClub, likes_count: 0, created_at: new Date().toISOString() };
-    const { error } = await supabase.from('stories').insert([{ user_id: user.id, username: myName, avatar_url: userAvatarUrl, image_url: uploadedStoryUrl, caption: storyCaption, club_name: selectedClub }]);
+    const uniqueStoryId = 'story-' + Date.now() + '-' + Math.random().toString(36).substring(2, 7);
+    
+    const newStory: Story = { 
+      id: uniqueStoryId, 
+      user_id: user.id, 
+      username: myName, 
+      avatar_url: userAvatarUrl, 
+      image_url: uploadedStoryUrl, 
+      caption: storyCaption, 
+      club_name: selectedClub, 
+      likes_count: 0, 
+      created_at: new Date().toISOString() 
+    };
+
+    const { error } = await supabase.from('stories').insert([{ 
+      id: uniqueStoryId,
+      user_id: user.id, 
+      username: myName, 
+      avatar_url: userAvatarUrl, 
+      image_url: uploadedStoryUrl, 
+      caption: storyCaption, 
+      club_name: selectedClub 
+    }]);
+
     if (error) {
       alert("Erreur publication story : " + error.message);
     } else {
@@ -946,10 +973,28 @@ export default function App() {
     if (!error && user) fetchFriendRequests(user.id);
   };
 
+  // Envoi de l'invitation Push Up avec notification système ciblée et mise à jour de l'état "Envoyé"
   const handleSendInvite = async () => {
     if (!inviteModalTarget || !user) return;
-    await supabase.from('direct_messages').insert([{ sender_id: user.id, receiver_id: inviteModalTarget.id, sender_name: user.user_metadata?.username || 'Un ami', text: `🏋️ INVITATION PUSH UP : Salut ! Es-tu prêt(e) pour une grosse séance **${inviteType}** avec moi ?` }]);
-    alert(`Invitation envoyée à ${inviteModalTarget.username} !`); 
+    const myName = user.user_metadata?.first_name || user.user_metadata?.username || user.email?.split('@')[0] || 'Un ami';
+    
+    // 1. Enregistre dans la messagerie directe
+    await supabase.from('direct_messages').insert([{ 
+      sender_id: user.id, 
+      receiver_id: inviteModalTarget.id, 
+      sender_name: myName, 
+      text: `🏋️ INVITATION PUSH UP : Salut ! Es-tu prêt(e) pour une grosse séance **${inviteType}** avec moi ?` 
+    }]);
+
+    // 2. Déclenche une vraie notification visible dans la cloche du destinataire
+    await sendSystemNotification(inviteModalTarget.id, `⚡ ${myName} vous a envoyé une invitation Push Up (${inviteType}) !`);
+
+    // 3. Marque comme envoyé dans le stockage local pour griser le bouton
+    const updatedPushUps = { ...sentPushUps, [inviteModalTarget.id]: true };
+    setSentPushUps(updatedPushUps);
+    try { localStorage.setItem('fitpulse_sent_pushups', JSON.stringify(updatedPushUps)); } catch(e) {}
+
+    alert(`Invitation Push Up envoyée à ${inviteModalTarget.username} !`); 
     setInviteModalTarget(null);
   };
 
@@ -1378,7 +1423,7 @@ export default function App() {
           </div>
         )}
 
-        {/* TAB BUDDY AVEC PASTILLES PRÉSENCE */}
+        {/* TAB BUDDY AVEC BOUTON PUSH UP GRISÉ / ENVOYÉ */}
         {currentTab === 'buddy' && (
           <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4">
             <div className="flex items-center justify-between">
@@ -1438,6 +1483,7 @@ export default function App() {
                       const isFriend = acceptedFriendIds.includes(realUser.id);
                       const existingReq = friendRequests.find(r => (r.sender_id === user?.id && r.receiver_id === realUser.id) || (r.sender_id === realUser.id && r.receiver_id === user?.id));
                       const isPending = existingReq && existingReq.status === 'pending';
+                      const isPushUpSent = sentPushUps[realUser.id];
 
                       const lastSeenTime = realUser.last_seen ? new Date(realUser.last_seen).getTime() : 0;
                       const diffMinutes = (Date.now() - lastSeenTime) / 60000;
@@ -1466,7 +1512,15 @@ export default function App() {
                           </div>
                           <div className="flex items-center gap-2">
                             {isFriend ? (
-                              <button onClick={() => setInviteModalTarget(realUser)} className="px-2 py-1.5 bg-orange-600/20 border border-orange-500/50 hover:bg-orange-600 text-orange-400 hover:text-white rounded-xl text-[10px] font-bold flex items-center gap-1 transition"><Zap className="w-3.5 h-3.5" /> Push Up</button>
+                              isPushUpSent ? (
+                                <button disabled className="px-3 py-1.5 bg-green-600/30 border border-green-500/50 text-green-400 rounded-xl text-[10px] font-bold flex items-center gap-1 cursor-not-allowed">
+                                  <Check className="w-3.5 h-3.5" /> Envoyé
+                                </button>
+                              ) : (
+                                <button onClick={() => setInviteModalTarget(realUser)} className="px-2.5 py-1.5 bg-orange-600/20 border border-orange-500/50 hover:bg-orange-600 text-orange-400 hover:text-white rounded-xl text-[10px] font-bold flex items-center gap-1 transition">
+                                  <Zap className="w-3.5 h-3.5" /> Push Up
+                                </button>
+                              )
                             ) : isPending ? (
                               <button disabled className="px-3 py-1.5 bg-neutral-900 text-neutral-400 rounded-xl text-xs font-medium">En attente</button>
                             ) : (
