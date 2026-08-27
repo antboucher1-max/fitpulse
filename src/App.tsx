@@ -234,6 +234,16 @@ const calculateAge = (birthDateString?: string): number => {
   return isNaN(age) ? 25 : age;
 };
 
+// Fonction utilitaire pour convertir l'âge en tranche d'âge publique
+const getAgeRangeLabel = (birthDateString?: string): string => {
+  const age = calculateAge(birthDateString);
+  if (age >= 18 && age <= 25) return '18 - 25 ans';
+  if (age >= 26 && age <= 35) return '26 - 35 ans';
+  if (age >= 36 && age <= 45) return '36 - 45 ans';
+  if (age >= 46) return '46+ ans';
+  return '25 ans';
+};
+
 const isMatchingClub = (postClubName?: string, selectedClubName?: string): boolean => {
   if (!postClubName || !selectedClubName) return false;
   if (postClubName === selectedClubName) return true;
@@ -272,7 +282,7 @@ export default function App() {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [username, setUsername] = useState('');
-  const [birthDate, setBirthDate] = useState('');
+  const [birthDateInput, setBirthDateInput] = useState(''); // Format JJ/MM/AAAA saisi par l'utilisateur
   const [gender, setGender] = useState<'M' | 'F'>('M');
   const [level, setLevel] = useState<'Débutant' | 'Intermédiaire' | 'Avancé'>('Intermédiaire');
   const [homeClub, setHomeClub] = useState<string>('Club Tournai (Bastion)');
@@ -442,11 +452,8 @@ export default function App() {
     if (filterWomenOnly && u.gender === 'M') return false;
     if (selectedGoalFilter !== 'all' && u.goal && !u.goal.toLowerCase().includes(selectedGoalFilter.toLowerCase())) return false;
     if (selectedAgeGroupFilter !== 'all') {
-      const age = u.age;
-      if (selectedAgeGroupFilter === '18-25' && (age < 18 || age > 25)) return false;
-      if (selectedAgeGroupFilter === '26-35' && (age < 26 || age > 35)) return false;
-      if (selectedAgeGroupFilter === '36-45' && (age < 36 || age > 45)) return false;
-      if (selectedAgeGroupFilter === '46+' && age < 46) return false;
+      const ageLabel = getAgeRangeLabel(u.birth_date);
+      if (ageLabel !== selectedAgeGroupFilter) return false;
     }
     if (userSearchQuery.trim()) {
       const q = userSearchQuery.toLowerCase();
@@ -499,9 +506,22 @@ export default function App() {
     try { sessionStorage.setItem('fitpulse_current_tab', tab); } catch (e) {}
   };
 
+  // Conversion du format JJ/MM/AAAA en AAAA-MM-JJ pour Supabase
+  const convertJJMMAAAAtoYYYYMMDD = (input: string): string => {
+    const parts = input.split('/');
+    if (parts.length === 3 && parts[2].length === 4) {
+      return `${parts[2]}-${parts[1]}-${parts[0]}`;
+    }
+    return '1995-01-01'; // Date par défaut sécurisée
+  };
+
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isSignUp && !acceptCGU) { alert("Veuillez accepter les CGU pour continuer."); return; }
+    
+    // Convertit la date JJ/MM/AAAA en format YYYY-MM-DD
+    const formattedBirthDate = isSignUp ? convertJJMMAAAAtoYYYYMMDD(birthDateInput) : '1995-01-01';
+
     setAuthLoading(true);
     if (isSignUp) {
       const { error } = await supabase.auth.signUp({ 
@@ -512,7 +532,7 @@ export default function App() {
             first_name: firstName, 
             last_name: lastName, 
             username: username || `${firstName}_${lastName}`.toLowerCase(), 
-            birth_date: birthDate, 
+            birth_date: formattedBirthDate, 
             gender, 
             level, 
             home_club: homeClub, 
@@ -535,13 +555,14 @@ export default function App() {
 
   const syncProfile = async (sessionUser: SupabaseUser) => {
     try {
+      const bDate = sessionUser.user_metadata?.birth_date || '1995-01-01';
       const profileData = {
         id: sessionUser.id,
         username: sessionUser.user_metadata?.username || sessionUser.email?.split('@')[0],
         email: sessionUser.email,
         gender: sessionUser.user_metadata?.gender || 'M',
-        birth_date: sessionUser.user_metadata?.birth_date || '1995-01-01',
-        age: calculateAge(sessionUser.user_metadata?.birth_date),
+        birth_date: bDate,
+        age: calculateAge(bDate),
         goal: sessionUser.user_metadata?.goal || 'Sportif',
         home_club: sessionUser.user_metadata?.home_club || selectedClub,
         preferred_time: sessionUser.user_metadata?.preferred_time || TIME_SLOTS[2],
@@ -578,7 +599,7 @@ export default function App() {
     if (!profilesError && profilesData && profilesData.length > 0) {
       profilesData.forEach((p) => {
         combinedUsers.set(p.id, {
-          id: p.id, username: p.username, email: p.email || '', gender: p.gender || 'M', age: p.age || 25, goal: p.goal || 'Sportif', home_club: p.home_club || selectedClub, preferred_time: p.preferred_time || '🌆 Soir (17h - 20h)', avatar_url: p.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150', last_seen: p.last_seen
+          id: p.id, username: p.username, email: p.email || '', gender: p.gender || 'M', birth_date: p.birth_date || '1995-01-01', age: p.age || 25, goal: p.goal || 'Sportif', home_club: p.home_club || selectedClub, preferred_time: p.preferred_time || '🌆 Soir (17h - 20h)', avatar_url: p.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150', last_seen: p.last_seen
         });
       });
     }
@@ -588,7 +609,7 @@ export default function App() {
       postsData.forEach((p) => {
         if (!combinedUsers.has(p.user_id)) {
           combinedUsers.set(p.user_id, {
-            id: p.user_id, username: p.username, email: `${p.username}@fitpulse.be`, gender: 'M', age: 28, goal: 'Prise de masse & Force', home_club: p.club_name || selectedClub, preferred_time: '🌆 Soir (17h - 20h)', avatar_url: p.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'
+            id: p.user_id, username: p.username, email: `${p.username}@fitpulse.be`, gender: 'M', birth_date: '1995-01-01', age: 28, goal: 'Prise de masse & Force', home_club: p.club_name || selectedClub, preferred_time: '🌆 Soir (17h - 20h)', avatar_url: p.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'
           });
         }
       });
@@ -596,7 +617,7 @@ export default function App() {
 
     if (user) {
       combinedUsers.set(user.id, {
-        id: user.id, username: user.user_metadata?.username || user.email?.split('@')[0] || 'Moi', email: user.email || '', gender: user.user_metadata?.gender || 'M', age: calculateAge(user.user_metadata?.birth_date), goal: user.user_metadata?.goal || 'Sportif', home_club: user.user_metadata?.home_club || selectedClub, preferred_time: user.user_metadata?.preferred_time || '🌆 Soir (17h - 20h)', avatar_url: userAvatarUrl, last_seen: new Date().toISOString()
+        id: user.id, username: user.user_metadata?.username || user.email?.split('@')[0] || 'Moi', email: user.email || '', gender: user.user_metadata?.gender || 'M', birth_date: user.user_metadata?.birth_date || '1995-01-01', age: calculateAge(user.user_metadata?.birth_date), goal: user.user_metadata?.goal || 'Sportif', home_club: user.user_metadata?.home_club || selectedClub, preferred_time: user.user_metadata?.preferred_time || '🌆 Soir (17h - 20h)', avatar_url: userAvatarUrl, last_seen: new Date().toISOString()
       });
     }
     setRegisteredUsers(Array.from(combinedUsers.values()));
@@ -1007,6 +1028,10 @@ export default function App() {
       setUserAvatarUrl(finalAvatarUrl); 
       await supabase.auth.updateUser({ data: { ...user.user_metadata, avatar_url: finalAvatarUrl } }); 
       await supabase.from('profiles').update({ avatar_url: finalAvatarUrl }).eq('id', user.id);
+      
+      // Met à jour la liste des profils en mémoire pour que tout le monde voie l'avatar à jour instantanément
+      setRegisteredUsers(prev => prev.map(u => u.id === user.id ? { ...u, avatar_url: finalAvatarUrl } : u));
+      
       alert('🌟 Photo de profil mise à jour !'); 
     }
   };
@@ -1213,7 +1238,17 @@ export default function App() {
                 </div>
                 <div className="grid grid-cols-2 gap-2.5">
                   <div><input type="text" required placeholder="Pseudo" value={username} onChange={(e) => setUsername(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3.5 py-3 text-sm text-white focus:border-orange-500" /></div>
-                  <div><input type="date" required value={birthDate} onChange={(e) => setBirthDate(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3.5 py-3 text-sm text-white focus:border-orange-500" /></div>
+                  <div>
+                    <input 
+                      type="text" 
+                      required 
+                      placeholder="JJ/MM/AAAA" 
+                      value={birthDateInput} 
+                      onChange={(e) => setBirthDateInput(e.target.value)} 
+                      maxLength={10}
+                      className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3.5 py-3 text-sm text-white focus:border-orange-500" 
+                    />
+                  </div>
                 </div>
                 <select value={preferredTime} onChange={(e) => setPreferredTime(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3.5 py-3 text-sm text-white focus:border-orange-500">{TIME_SLOTS.map((slot) => <option key={slot} value={slot}>{slot}</option>)}</select>
               </>
@@ -1548,7 +1583,7 @@ export default function App() {
                       ))}
                     </div>
                     <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
-                      {[{ label: 'Tous les âges', value: 'all' }, { label: '18 - 25 ans', value: '18-25' }, { label: '26 - 35 ans', value: '26-35' }, { label: '36 - 45 ans', value: '36-45' }, { label: '46+ ans', value: '46+' }].map((group) => (
+                      {[{ label: 'Tous les âges', value: 'all' }, { label: '18 - 25 ans', value: '18 - 25 ans' }, { label: '26 - 35 ans', value: '26 - 35 ans' }, { label: '36 - 45 ans', value: '36 - 45 ans' }, { label: '46+ ans', value: '46+ ans' }].map((group) => (
                         <button key={group.value} onClick={() => setSelectedAgeGroupFilter(group.value)} className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition border ${selectedAgeGroupFilter === group.value ? 'bg-orange-500 text-white border-orange-400' : 'bg-neutral-950 text-neutral-400 border-neutral-800'}`}>{group.label}</button>
                       ))}
                     </div>
@@ -1821,11 +1856,12 @@ export default function App() {
         )}
       </main>
 
-      {/* MODAL PROFIL TIERS (STYLE EXACT DE NOTRE PROFIL) */}
+      {/* MODAL PROFIL TIERS AVEC TRANCHE D'ÂGE */}
       {viewingProfileUser && (() => {
         const isFriend = acceptedFriendIds.includes(viewingProfileUser.id);
         const existingReq = friendRequests.find(r => (r.sender_id === user?.id && r.receiver_id === viewingProfileUser.id) || (r.sender_id === viewingProfileUser.id && r.receiver_id === user?.id));
         const isPending = existingReq && existingReq.status === 'pending';
+        const ageRange = getAgeRangeLabel(viewingProfileUser.birth_date);
 
         return (
           <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
@@ -1843,7 +1879,7 @@ export default function App() {
               <div className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 space-y-2 text-xs text-neutral-300">
                 <div className="flex justify-between py-1 border-b border-neutral-900"><span className="text-neutral-400">Objectif :</span><strong className="text-white">{viewingProfileUser.goal || 'Sportif'}</strong></div>
                 <div className="flex justify-between py-1 border-b border-neutral-900"><span className="text-neutral-400">Créneau préféré :</span><strong className="text-white">{viewingProfileUser.preferred_time || 'Flexible'}</strong></div>
-                <div className="flex justify-between py-1"><span className="text-neutral-400">Âge :</span><strong className="text-white">{viewingProfileUser.age} ans</strong></div>
+                <div className="flex justify-between py-1"><span className="text-neutral-400">Tranche d'âge :</span><strong className="text-white">{ageRange}</strong></div>
               </div>
 
               <div className="flex gap-2.5 pt-2">
