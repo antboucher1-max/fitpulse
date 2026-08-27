@@ -173,7 +173,7 @@ const EXERCISES_DATABASE: ExerciseGuide[] = [
     equipment: 'Machine Leg Press inclinée',
     targetMuscles: 'Quadriceps, Fessiers',
     settings: 'Assieds-toi, place tes pieds au milieu de la plateforme largeur d’épaules. Déverrouille les sécurités.',
-    execution: 'Fléchis les jambes pour ramener le chariot vers toi (angle à 90° aux genoux) puis pousse puissamment sans tendre complètement les genoux.',
+    execution: 'Fléchis les jambes pour ramener le chariot vers toi (angle à 90° aux genoux) puis pousse puissamment sans tendre complètement les coudes.',
     tips: 'Ne décolle jamais le bas du dos ou les talons du dossier pendant le mouvement.',
     image_url: 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?w=800'
   }
@@ -613,6 +613,17 @@ export default function App() {
       setPostCommentInput('');
     } else {
       alert("Erreur lors de l'enregistrement du commentaire : " + error.message);
+    }
+  };
+
+  const handleDeletePost = async (postId: string) => {
+    if (!window.confirm("Supprimer cette publication ?")) return;
+    const { error } = await supabase.from('posts').delete().eq('id', postId);
+    if (!error) {
+      setPosts((prev) => prev.filter((p) => p.id !== postId));
+      alert("Publication supprimée.");
+    } else {
+      alert("Erreur lors de la suppression : " + error.message);
     }
   };
 
@@ -1532,14 +1543,11 @@ export default function App() {
                           </div>
                         </div>
                       </div>
-                      
+
                       <div className="flex items-center gap-1">
-                        {/* BOUTON SIGNALER (Pour tout le monde) */}
                         <button onClick={() => handleReportPost(post)} title="Signaler ce post" className="p-2 text-neutral-500 hover:text-orange-400 rounded-lg transition">
                           <Flag className="w-4 h-4" />
                         </button>
-
-                        {/* BOUTON SUPPRIMER (Si c'est l'auteur ou le modérateur) */}
                         {post.user_id === user?.id && (
                           <button onClick={() => handleDeletePost(post.id)} title="Supprimer" className="p-2 text-neutral-500 hover:text-red-400 rounded-lg transition"><Trash2 className="w-4 h-4" /></button>
                         )}
