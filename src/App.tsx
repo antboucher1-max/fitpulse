@@ -173,7 +173,7 @@ const EXERCISES_DATABASE: ExerciseGuide[] = [
     equipment: 'Machine Leg Press inclinée',
     targetMuscles: 'Quadriceps, Fessiers',
     settings: 'Assieds-toi, place tes pieds au milieu de la plateforme largeur d’épaules. Déverrouille les sécurités.',
-    execution: 'Fléchis les jambes pour ramener le chariot vers toi (angle à 90° aux genoux) puis pousse puissamment sans tendre complètement les coudes.',
+    execution: 'Fléchis les jambes pour ramener le chariot vers toi (angle à 90° aux genoux) puis pousse puissamment sans tendre complètement les genoux.',
     tips: 'Ne décolle jamais le bas du dos ou les talons du dossier pendant le mouvement.',
     image_url: 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?w=800'
   }
