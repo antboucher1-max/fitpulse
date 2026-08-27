@@ -472,7 +472,6 @@ export default function App() {
     (m) => selectedBuddyChat && user && ((m.sender_id === user.id && m.receiver_id === selectedBuddyChat.id) || (m.sender_id === selectedBuddyChat.id && m.receiver_id === user.id))
   );
 
-  // Vérification de la limite de 3 messages pour les non-amis (Type Instagram)
   const isSelectedChatFriend = selectedBuddyChat ? acceptedFriendIds.includes(selectedBuddyChat.id) || selectedBuddyChat.id === 'system-bot' : true;
   const mySentMessagesCount = selectedBuddyChat && user 
     ? allMessages.filter(m => m.sender_id === user.id && m.receiver_id === selectedBuddyChat.id).length 
@@ -1307,10 +1306,17 @@ export default function App() {
 
                 {friendStoriesList.map((story, index) => {
                   const isViewed = viewedStoryIds.includes(story.id);
+                  const author = registeredUsers.find(u => u.id === story.user_id);
+                  const lastSeenTime = author?.last_seen ? new Date(author.last_seen).getTime() : 0;
+                  const isOnline = (Date.now() - lastSeenTime) / 60000 < 5;
+
                   return (
                     <div key={story.id || index} onClick={() => { setActiveStoryIndex(index); setStoryProgress(0); setIsStoryPaused(false); if (!viewedStoryIds.includes(story.id)) setViewedStoryIds([...viewedStoryIds, story.id]); }} className="flex flex-col items-center gap-1.5 flex-shrink-0 cursor-pointer">
-                      <div className={`w-16 h-16 rounded-full ${isViewed ? 'border-2 border-dashed border-neutral-600 opacity-70' : 'bg-gradient-to-tr from-orange-500 via-pink-500 to-amber-400'} p-[2.5px]`}>
-                        <div className="w-full h-full bg-neutral-950 rounded-full p-[2px]"><img src={story.avatar_url} alt="" className="w-full h-full rounded-full object-cover" /></div>
+                      <div className="relative">
+                        <div className={`w-16 h-16 rounded-full ${isViewed ? 'border-2 border-dashed border-neutral-600 opacity-70' : 'bg-gradient-to-tr from-orange-500 via-pink-500 to-amber-400'} p-[2.5px]`}>
+                          <div className="w-full h-full bg-neutral-950 rounded-full p-[2px]"><img src={story.avatar_url} alt="" className="w-full h-full rounded-full object-cover" /></div>
+                        </div>
+                        {isOnline && <span className="absolute bottom-0 right-0 w-4 h-4 bg-green-500 border-2 border-neutral-950 rounded-full" />}
                       </div>
                       <span className="text-xs font-medium truncate max-w-[64px] text-center">{story.username.split(' ')[0]}</span>
                     </div>
@@ -1671,23 +1677,33 @@ export default function App() {
                 )}
               </div>
             ) : (
-              <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-3">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-base font-black tracking-tight">Messagerie</h2>
-                  <span className="text-xs text-neutral-500">Conversations & Alertes 💬</span>
+              <div className="space-y-3">
+                <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-base font-black tracking-tight">Messagerie</h2>
+                    <span className="text-xs text-neutral-500">Conversations & Alertes 💬</span>
+                  </div>
+                  {activeChatUsers.length === 0 ? (
+                    <div className="text-center py-8 text-neutral-500 text-sm">Aucun ami dans ton réseau. Va dans l'onglet **Buddy** pour ajouter des athlètes !</div>
+                  ) : (
+                    activeChatUsers.map((friend) => {
+                      const lastSeenTime = friend.last_seen ? new Date(friend.last_seen).getTime() : 0;
+                      const isOnline = (Date.now() - lastSeenTime) / 60000 < 5;
+
+                      return (
+                        <div key={friend.id} onClick={() => setSelectedBuddyChat(friend)} className="p-4 bg-neutral-950 hover:bg-neutral-900/80 rounded-2xl border border-neutral-800 flex items-center justify-between cursor-pointer transition">
+                          <div className="flex items-center gap-3.5">
+                            <div className="relative flex-shrink-0">
+                              <img src={friend.avatar_url} alt="" className="w-12 h-12 rounded-full object-cover border border-neutral-800" />
+                              {isOnline && <span className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 border-2 border-neutral-950 rounded-full" />}
+                            </div>
+                            <div><h3 className="font-bold text-sm text-white">{friend.username}</h3></div>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
                 </div>
-                {activeChatUsers.length === 0 ? (
-                  <div className="text-center py-8 text-neutral-500 text-sm">Aucun ami dans ton réseau. Va dans l'onglet **Buddy** pour ajouter des athlètes !</div>
-                ) : (
-                  activeChatUsers.map((friend) => (
-                    <div key={friend.id} onClick={() => setSelectedBuddyChat(friend)} className="p-4 bg-neutral-950 hover:bg-neutral-900/80 rounded-2xl border border-neutral-800 flex items-center justify-between cursor-pointer transition">
-                      <div className="flex items-center gap-3.5">
-                        <img src={friend.avatar_url} alt="" className="w-12 h-12 rounded-full object-cover border border-neutral-800" />
-                        <div><h3 className="font-bold text-sm text-white">{friend.username}</h3></div>
-                      </div>
-                    </div>
-                  ))
-                )}
               </div>
             )}
           </div>
