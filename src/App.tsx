@@ -356,7 +356,7 @@ interface DBMessage {
 }
 
 export default function App() {
-  // 1. DÉCLARATION DE TOUS LES ÉTATS (useState)
+  // 1. DÉCLARATION DES ÉTATS (useState)
   const [user, setUser] = useState<SupabaseUser | null>(null);
 
   const [isSignUp, setIsSignUp] = useState(false);
@@ -499,11 +499,16 @@ export default function App() {
   const [postImageOffset, setPostImageOffset] = useState({ x: 0, y: 0 });
   const [isDraggingImage, setIsDraggingImage] = useState(false);
   const [dragStartPos, setDragStartPos] = useState({ x: 0, y: 0 });
+  
+  // États Pincement Tactile
+  const [initialPinchDistance, setInitialPinchDistance] = useState<number | null>(null);
+  const [initialPinchZoom, setInitialPinchZoom] = useState<number>(1);
+  
   const previewContainerRef = useRef<HTMLDivElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
 
 
-  // 2. VARIABLES DÉRIVÉES ET FILTRES (À DÉCLARER AVANT LES FONCTIONS HANDLERS)
+  // 2. VARIABLES DÉRIVÉES ET FILTRES
   const acceptedFriendIds = friendRequests
     .filter(req => req.status === 'accepted')
     .map(req => (req.sender_id === user?.id ? req.receiver_id : req.sender_id));
@@ -593,8 +598,9 @@ export default function App() {
   ).length;
 
 
-  // 3. FONCTIONS HANDLERS / MÉTHODES (À déclarer avant les useEffect qui les utilisent)
+  // 3. FONCTIONS HANDLERS / MÉTHODES
 
+  // Fonctions Fetch
   const fetchCloudPosts = async () => {
     setFeedLoading(true);
     const { data, error } = await supabase.from('posts').select('*').order('created_at', { ascending: false });
@@ -696,7 +702,7 @@ export default function App() {
     }
   };
 
-  // --- Gestion du Recadrage (Drag & Drop + Zoom) ---
+  // --- Gestion du Recadrage (Drag & Drop + Pinch-to-Zoom) ---
   const handleDragStart = (e: React.MouseEvent | React.TouchEvent) => {
     setIsDraggingImage(true);
     const clientX = 'touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
@@ -713,6 +719,38 @@ export default function App() {
 
   const handleDragEnd = () => {
     setIsDraggingImage(false);
+  };
+
+  const getPinchDistance = (touches: React.TouchList) => {
+    const dx = touches[0].clientX - touches[1].clientX;
+    const dy = touches[0].clientY - touches[1].clientY;
+    return Math.sqrt(dx * dx + dy * dy);
+  };
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length === 2) {
+      setInitialPinchDistance(getPinchDistance(e.touches));
+      setInitialPinchZoom(postImageZoom);
+      setIsDraggingImage(false);
+    } else if (e.touches.length === 1) {
+      handleDragStart(e);
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (e.touches.length === 2 && initialPinchDistance !== null) {
+      const currentDistance = getPinchDistance(e.touches);
+      const scale = currentDistance / initialPinchDistance;
+      const newZoom = Math.min(Math.max(1, initialPinchZoom * scale), 4);
+      setPostImageZoom(newZoom);
+    } else if (e.touches.length === 1 && isDraggingImage) {
+      handleDragMove(e);
+    }
+  };
+
+  const handleTouchEnd = () => {
+    setIsDraggingImage(false);
+    setInitialPinchDistance(null);
   };
 
   const getCroppedImageBlob = async (): Promise<Blob | null> => {
@@ -1074,7 +1112,6 @@ export default function App() {
     
     if (postImageFile && postImagePreview) {
       try {
-        // Applique le recadrage Canvas (Zoom + Pan) avant d'envoyer
         const finalBlob = await getCroppedImageBlob() || await compressImage(postImageFile, 800, 0.7);
         const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.jpg`;
         const { data: uploadData, error: uploadError } = await supabase.storage.from('posts').upload(fileName, finalBlob, { contentType: 'image/jpeg' });
@@ -1774,9 +1811,9 @@ export default function App() {
                     onMouseMove={handleDragMove}
                     onMouseUp={handleDragEnd}
                     onMouseLeave={handleDragEnd}
-                    onTouchStart={handleDragStart}
-                    onTouchMove={handleDragMove}
-                    onTouchEnd={handleDragEnd}
+                    onTouchStart={handleTouchStart}
+                    onTouchMove={handleTouchMove}
+                    onTouchEnd={handleTouchEnd}
                   >
                     <img
                       ref={imgRef}
@@ -1794,7 +1831,7 @@ export default function App() {
                       draggable={false}
                     />
                     <div className="absolute top-2 left-2 bg-black/60 px-2 py-1 rounded-lg flex items-center gap-1.5 text-white/80 text-[10px]">
-                      <Move className="w-3 h-3" /> Glisse pour recadrer
+                      <Move className="w-3 h-3" /> Glisse/Pince pour recadrer
                     </div>
                     <button type="button" onClick={() => setPostImagePreview(null)} className="absolute top-2 right-2 p-1.5 bg-black/80 text-white rounded-full"><X className="w-4 h-4" /></button>
                   </div>
@@ -1805,7 +1842,7 @@ export default function App() {
                     <input
                       type="range"
                       min="1"
-                      max="3"
+                      max="4"
                       step="0.05"
                       value={postImageZoom}
                       onChange={(e) => setPostImageZoom(Number(e.target.value))}
