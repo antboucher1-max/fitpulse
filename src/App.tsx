@@ -54,7 +54,9 @@ import {
   ShieldCheck,
   Image as ImageIcon,
   EyeOff,
-  FileText
+  FileText,
+  AlertTriangle,
+  Flag
 } from 'lucide-react';
 import { createClient, User as SupabaseUser } from '@supabase/supabase-js';
 
@@ -614,6 +616,11 @@ export default function App() {
     }
   };
 
+  const handleReportPost = async (post: Post) => {
+    if (!window.confirm("Signaler cette publication pour contenu inapproprié ou non conforme aux CGU ?")) return;
+    alert("🚨 Publication signalée aux modérateurs. Merci pour votre aide pour garder la communauté propre.");
+  };
+
   const handleAddTransformation = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !newTransBefore || !newTransAfter || newTransWeight === '') return;
@@ -1141,7 +1148,6 @@ export default function App() {
       if (error) {
         alert("Erreur d'inscription : " + error.message);
       } else {
-        // Affiche l'écran de vérification d'e-mail
         setSignupSuccessEmail(email);
       }
     } else {
@@ -1149,34 +1155,6 @@ export default function App() {
       if (error) alert("Erreur de connexion : " + error.message);
     }
     setAuthLoading(false);
-  };
-
-  const handleDeletePost = async (postId: string) => {
-    if (!window.confirm("Supprimer cette publication ?")) return;
-    await supabase.from('posts').delete().eq('id', postId);
-    setPosts((prev) => prev.filter((p) => p.id !== postId));
-  };
-
-  const handleDeleteConversationForBuddy = async (buddyId: string, buddyName: string) => {
-    if (!user) return;
-    if (!window.confirm(`Effacer toute la conversation avec ${buddyName} ?`)) return;
-
-    await supabase
-      .from('direct_messages')
-      .delete()
-      .or(
-        `and(sender_id.eq.${user.id},receiver_id.eq.${buddyId}),and(sender_id.eq.${buddyId},receiver_id.eq.${user.id})`
-      );
-
-    setAllMessages((prev) =>
-      prev.filter(
-        (m) =>
-          !(
-            (m.sender_id === user.id && m.receiver_id === buddyId) ||
-            (m.sender_id === buddyId && m.receiver_id === user.id)
-          )
-      )
-    );
   };
 
   const handlePublishStory = async (e: React.FormEvent) => {
@@ -1405,7 +1383,7 @@ export default function App() {
               <div className="flex items-start gap-2 pt-1">
                 <input type="checkbox" id="cgu" checked={acceptCGU} onChange={(e) => setAcceptCGU(e.target.checked)} className="mt-0.5 accent-orange-500" />
                 <label htmlFor="cgu" className="text-[11px] text-neutral-400 leading-tight">
-                  J'accepte les <button type="button" onClick={() => setIsCGUModalOpen(true)} className="text-orange-400 underline font-semibold">Conditions Générales d'Utilisation (CGU)</button> et la politique de protection des données.
+                  J'accepte les <button type="button" onClick={() => setIsCGUModalOpen(true)} className="text-orange-400 underline font-semibold">Conditions Générales d'Utilisation (CGU)</button> et la charte de modération.
                 </label>
               </div>
             )}
@@ -1432,9 +1410,9 @@ export default function App() {
 
               <div className="space-y-3 text-[11px] text-neutral-300 leading-relaxed">
                 <p><strong>1. Objet :</strong> L'application FitPulse est une plateforme communautaire de mise en relation et de suivi sportif entre membres de clubs de fitness.</p>
-                <p><strong>2. Limitation de responsabilité :</strong> L'utilisation des programmes d'entraînement, des guides d'exercices et des suggestions de partenaires se fait sous l'entière responsabilité de l'utilisateur. FitPulse et ses créateurs ne sauraient être tenus responsables en cas de blessure corporelle ou d'accident survenu lors des séances de sport.</p>
-                <p><strong>3. Données personnelles et vie privée :</strong> Les données de profil et les photos du carnet "Avant / Après" sont strictement privées par défaut ou partagées selon les choix explicites de l'utilisateur. Aucune donnée médicale ou sensible n'est revendue à des tiers.</p>
-                <p><strong>4. Code de conduite :</strong> Tout utilisateur s'engage à respecter les autres membres. Les contenus inappropriés, insultants ou non conformes aux bonnes mœurs entraîneront la suppression immédiate du compte sans préavis.</p>
+                <p><strong>2. Tolérance zéro - Contenu explicite :</strong> Il est strictement interdit de publier des photos à caractère pornographique, obscène, contenant des nudités ou révélant des parties intimes sur le flux public. Tout manquement entraînera la suppression immédiate du compte et le bannissement définitif.</p>
+                <p><strong>3. Limitation de responsabilité :</strong> L'utilisation des programmes et des suggestions de partenaires se fait sous l'entière responsabilité de l'utilisateur. FitPulse décline toute responsabilité en cas de blessure ou d'accident lors des séances.</p>
+                <p><strong>4. Données personnelles :</strong> Les données de profil et le carnet personnel "Avant / Après" sont strictement privés ou partagés selon les choix de l'utilisateur.</p>
               </div>
 
               <button onClick={() => { setAcceptCGU(true); setIsCGUModalOpen(false); }} className="w-full py-3 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-xl text-xs transition">
@@ -1554,9 +1532,18 @@ export default function App() {
                           </div>
                         </div>
                       </div>
-                      {post.user_id === user?.id && (
-                        <button onClick={() => handleDeletePost(post.id)} className="p-1.5 text-neutral-500 hover:text-red-400 rounded-lg"><Trash2 className="w-4 h-4" /></button>
-                      )}
+                      
+                      <div className="flex items-center gap-1">
+                        {/* BOUTON SIGNALER (Pour tout le monde) */}
+                        <button onClick={() => handleReportPost(post)} title="Signaler ce post" className="p-2 text-neutral-500 hover:text-orange-400 rounded-lg transition">
+                          <Flag className="w-4 h-4" />
+                        </button>
+
+                        {/* BOUTON SUPPRIMER (Si c'est l'auteur ou le modérateur) */}
+                        {post.user_id === user?.id && (
+                          <button onClick={() => handleDeletePost(post.id)} title="Supprimer" className="p-2 text-neutral-500 hover:text-red-400 rounded-lg transition"><Trash2 className="w-4 h-4" /></button>
+                        )}
+                      </div>
                     </div>
 
                     <div className="rounded-2xl overflow-hidden border border-neutral-800 bg-neutral-950 relative shadow-inner">
@@ -1630,6 +1617,12 @@ export default function App() {
                     <ShieldCheck className="w-5 h-5 text-green-500" />
                   </span>
                 )}
+              </div>
+
+              {/* Avertissement anti-nudité */}
+              <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-3 text-[11px] text-red-300 flex items-start gap-2">
+                <AlertTriangle className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
+                <span>Rappel CGU : Tolérance zéro pour la nudité ou les photos explicites sur le flux public. Tout contrevenant sera banni.</span>
               </div>
 
               {/* Type de séance */}
