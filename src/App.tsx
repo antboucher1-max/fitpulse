@@ -420,6 +420,7 @@ export default function App() {
   if (hasBotMessages) activeChatUsers.unshift(botUser);
 
   const myFriendsList = registeredUsers.filter((u) => acceptedFriendIds.includes(u.id));
+  const suggestedBuddiesList = registeredUsers.filter((u) => u.id !== user?.id && !acceptedFriendIds.includes(u.id));
   const incomingRequests = friendRequests.filter(req => req.receiver_id === user?.id && req.status === 'pending');
 
   const filteredBuddies = registeredUsers.filter((u) => {
@@ -618,6 +619,24 @@ export default function App() {
     } else { 
       setStoryProgress(0); 
     }
+  };
+
+  // Réaction rapide par émoji sur une story (envoyée en message direct)
+  const handleQuickEmojiReaction = async (emoji: string) => {
+    if (activeStoryIndex === null || !user) return;
+    const story = friendStoriesList[activeStoryIndex];
+    if (!story) return;
+    const myName = user.user_metadata?.first_name || user.user_metadata?.username || user.email?.split('@')[0] || 'Moi';
+    
+    await supabase.from('direct_messages').insert([{
+      sender_id: user.id,
+      receiver_id: story.user_id,
+      sender_name: myName,
+      text: `⚡ Réaction à votre story : ${emoji}`
+    }]);
+    
+    await sendSystemNotification(story.user_id, `❤️ ${myName} a réagi à votre story avec ${emoji}`);
+    alert(`Réaction ${emoji} envoyée !`);
   };
 
   const handleAddExerciseRow = () => setWorkoutExercises([...workoutExercises, { name: '', sets: 3, reps: 10, weight: 50 }]);
@@ -1067,7 +1086,6 @@ export default function App() {
     };
   }, [user?.id]);
 
-  // Lecteur de story automatique (défilement et barre de progression)
   useEffect(() => {
     let storyTimer: NodeJS.Timeout | null = null;
     if (activeStoryIndex !== null && !isStoryPaused) {
@@ -1077,7 +1095,7 @@ export default function App() {
             handleNextStory();
             return 0;
           }
-          return prev + 2; // Avance de 2% toutes les 100ms (5 secondes par story)
+          return prev + 2;
         });
       }, 100);
     }
@@ -1137,7 +1155,7 @@ export default function App() {
 
 
   // ==========================================
-  // 8. RENDU (JSX) - AVEC LECTEUR DE STORY CORRIGÉ
+  // 8. RENDU (JSX)
   // ==========================================
 
   if (!user) {
@@ -1446,117 +1464,144 @@ export default function App() {
           </div>
         )}
 
-        {/* TAB BUDDY */}
+        {/* TAB BUDDY AVEC SUGGESTIONS "PERSONNES QUE VOUS CONNAISSEZ PEUT-ÊTRE" */}
         {currentTab === 'buddy' && (
-          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4">
-            <div className="flex items-center justify-between">
-              <div><h2 className="text-base font-black tracking-tight">Réseau & Athlètes</h2><span className="text-xs text-orange-400 font-semibold">{selectedClub}</span></div>
-              <div className="flex items-center gap-2">
-                <button onClick={() => setIsMatchModalOpen(true)} className="px-3 py-1.5 bg-gradient-to-r from-orange-600 to-amber-500 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md hover:opacity-90"><Sparkles className="w-4 h-4" /> Match</button>
-                <button onClick={() => setFilterWomenOnly(!filterWomenOnly)} className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 ${filterWomenOnly ? 'bg-gradient-to-r from-pink-600 to-purple-600 text-white ring-2 ring-pink-400' : 'bg-neutral-950 text-neutral-400 border border-neutral-800'}`}><span>🚺</span> {filterWomenOnly && '✓'}</button>
-              </div>
-            </div>
-            
-            <div className="bg-neutral-950 p-1.5 rounded-2xl border border-neutral-800 flex items-center gap-1">
-              <button onClick={() => setBuddyTabSubMode('discover')} className={`flex-1 py-2 rounded-xl text-xs font-bold transition ${buddyTabSubMode === 'discover' ? 'bg-orange-600 text-white' : 'text-neutral-400 hover:text-white'}`}>Découvrir</button>
-              <button onClick={() => setBuddyTabSubMode('my_friends')} className={`flex-1 py-2 rounded-xl text-xs font-bold transition ${buddyTabSubMode === 'my_friends' ? 'bg-orange-600 text-white' : 'text-neutral-400 hover:text-white'}`}>Mes Amis ({myFriendsList.length})</button>
-              <button onClick={() => setBuddyTabSubMode('requests')} className={`flex-1 py-2 rounded-xl text-xs font-bold transition relative ${buddyTabSubMode === 'requests' ? 'bg-orange-600 text-white' : 'text-neutral-400 hover:text-white'}`}>Demandes {incomingRequests.length > 0 && <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center font-bold">{incomingRequests.length}</span>}</button>
-            </div>
-
-            {buddyTabSubMode === 'requests' ? (
-              <div className="space-y-3 pt-1">
-                {incomingRequests.length === 0 ? <div className="text-center py-8 text-neutral-500 text-sm">Aucune demande en attente.</div> : incomingRequests.map((req) => {
-                    const senderUser = registeredUsers.find(u => u.id === req.sender_id) || { username: 'Athlète', home_club: selectedClub, avatar_url: '' };
-                    return (
-                      <div key={req.id} className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <img src={senderUser.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'} alt="" className="w-11 h-11 rounded-full object-cover border border-neutral-700" />
-                          <div><h3 className="font-bold text-sm text-white">{senderUser.username}</h3></div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <button onClick={() => handleAcceptFriendRequest(req.id)} className="px-3.5 py-2 bg-green-600 text-white rounded-xl text-xs font-bold">Accepter</button>
-                          <button onClick={() => handleRejectFriendRequest(req.id)} className="p-2.5 bg-neutral-900 border border-neutral-800 text-red-400 rounded-xl"><X className="w-4 h-4" /></button>
-                        </div>
-                      </div>
-                    );
-                })}
-              </div>
-            ) : (
-              <>
-                <div className="space-y-2">
-                  <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
-                    {[{ label: 'Tous', value: 'all' }, { label: '💪 Prise de masse', value: 'masse' }, { label: '🔥 Cardio & HIIT', value: 'cardio' }, { label: '🧘 Remise en forme', value: 'remise' }].map((goal) => (
-                      <button key={goal.value} onClick={() => setSelectedGoalFilter(goal.value)} className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition border ${selectedGoalFilter === goal.value ? 'bg-orange-500 text-white border-orange-400' : 'bg-neutral-950 text-neutral-400 border-neutral-800'}`}>{goal.label}</button>
-                    ))}
-                  </div>
-                  <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
-                    {[{ label: 'Tous les âges', value: 'all' }, { label: '18 - 25 ans', value: '18-25' }, { label: '26 - 35 ans', value: '26-35' }, { label: '36 - 45 ans', value: '36-45' }, { label: '46+ ans', value: '46+' }].map((group) => (
-                      <button key={group.value} onClick={() => setSelectedAgeGroupFilter(group.value)} className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition border ${selectedAgeGroupFilter === group.value ? 'bg-orange-500 text-white border-orange-400' : 'bg-neutral-950 text-neutral-400 border-neutral-800'}`}>{group.label}</button>
-                    ))}
-                  </div>
+          <div className="space-y-4">
+            <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4">
+              <div className="flex items-center justify-between">
+                <div><h2 className="text-base font-black tracking-tight">Réseau & Athlètes</h2><span className="text-xs text-orange-400 font-semibold">{selectedClub}</span></div>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => setIsMatchModalOpen(true)} className="px-3 py-1.5 bg-gradient-to-r from-orange-600 to-amber-500 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md hover:opacity-90"><Sparkles className="w-4 h-4" /> Match</button>
+                  <button onClick={() => setFilterWomenOnly(!filterWomenOnly)} className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 ${filterWomenOnly ? 'bg-gradient-to-r from-pink-600 to-purple-600 text-white ring-2 ring-pink-400' : 'bg-neutral-950 text-neutral-400 border border-neutral-800'}`}><span>🚺</span> {filterWomenOnly && '✓'}</button>
                 </div>
+              </div>
+              
+              <div className="bg-neutral-950 p-1.5 rounded-2xl border border-neutral-800 flex items-center gap-1">
+                <button onClick={() => setBuddyTabSubMode('discover')} className={`flex-1 py-2 rounded-xl text-xs font-bold transition ${buddyTabSubMode === 'discover' ? 'bg-orange-600 text-white' : 'text-neutral-400 hover:text-white'}`}>Découvrir</button>
+                <button onClick={() => setBuddyTabSubMode('my_friends')} className={`flex-1 py-2 rounded-xl text-xs font-bold transition ${buddyTabSubMode === 'my_friends' ? 'bg-orange-600 text-white' : 'text-neutral-400 hover:text-white'}`}>Mes Amis ({myFriendsList.length})</button>
+                <button onClick={() => setBuddyTabSubMode('requests')} className={`flex-1 py-2 rounded-xl text-xs font-bold transition relative ${buddyTabSubMode === 'requests' ? 'bg-orange-600 text-white' : 'text-neutral-400 hover:text-white'}`}>Demandes {incomingRequests.length > 0 && <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center font-bold">{incomingRequests.length}</span>}</button>
+              </div>
 
-                <div className="relative pt-1">
-                  <Search className="absolute left-3.5 top-4.5 w-4 h-4 text-orange-500" />
-                  <input type="text" placeholder="Rechercher par pseudo..." value={userSearchQuery} onChange={(e) => setUserSearchQuery(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl pl-10 pr-3.5 py-3 text-sm text-white focus:border-orange-500" />
-                </div>
-
+              {buddyTabSubMode === 'requests' ? (
                 <div className="space-y-3 pt-1">
-                  {filteredBuddies.length === 0 ? <div className="text-center py-8 text-neutral-500 text-sm">Aucun autre athlète trouvé.</div> : filteredBuddies.map((realUser) => {
-                      const isFriend = acceptedFriendIds.includes(realUser.id);
-                      const existingReq = friendRequests.find(r => (r.sender_id === user?.id && r.receiver_id === realUser.id) || (r.sender_id === realUser.id && r.receiver_id === user?.id));
-                      const isPending = existingReq && existingReq.status === 'pending';
-                      const isPushUpSent = sentPushUps[realUser.id];
-
-                      const lastSeenTime = realUser.last_seen ? new Date(realUser.last_seen).getTime() : 0;
-                      const diffMinutes = (Date.now() - lastSeenTime) / 60000;
-                      
-                      let dotColor = 'bg-red-500';
-                      let statusText = 'Absent';
-                      if (diffMinutes < 5) { dotColor = 'bg-green-500'; statusText = 'En ligne'; }
-                      else if (diffMinutes < 30) { dotColor = 'bg-amber-500'; statusText = 'Récemment actif'; }
-
+                  {incomingRequests.length === 0 ? <div className="text-center py-8 text-neutral-500 text-sm">Aucune demande en attente.</div> : incomingRequests.map((req) => {
+                      const senderUser = registeredUsers.find(u => u.id === req.sender_id) || { username: 'Athlète', home_club: selectedClub, avatar_url: '' };
                       return (
-                        <div key={realUser.id} className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 flex items-center justify-between">
-                          <div className="flex items-center gap-3.5">
-                            <div className="relative flex-shrink-0">
-                              <img src={realUser.avatar_url} alt="" className="w-12 h-12 rounded-full object-cover border border-neutral-700" />
-                              <span className={`absolute bottom-0 right-0 w-3.5 h-3.5 ${dotColor} border-2 border-neutral-950 rounded-full`} title={statusText} />
-                            </div>
-                            <div>
-                              <h3 className="font-bold text-sm text-white flex items-center gap-2">
-                                {realUser.username} {realUser.gender === 'F' && '🚺'}
-                                <span className={`text-[10px] px-2 py-0.5 rounded font-medium ${diffMinutes < 5 ? 'bg-green-500/20 text-green-400' : 'bg-neutral-900 text-neutral-400'}`}>
-                                  {statusText}
-                                </span>
-                              </h3>
-                              <span className="text-xs text-orange-400 font-medium block mt-0.5">🎯 {realUser.goal || 'Sportif'}</span>
-                            </div>
+                        <div key={req.id} className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <img src={senderUser.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'} alt="" className="w-11 h-11 rounded-full object-cover border border-neutral-700" />
+                            <div><h3 className="font-bold text-sm text-white">{senderUser.username}</h3></div>
                           </div>
                           <div className="flex items-center gap-2">
-                            {isFriend ? (
-                              isPushUpSent ? (
-                                <button disabled className="px-3 py-2 bg-green-600/30 border border-green-500/50 text-green-400 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-not-allowed">
-                                  <Check className="w-4 h-4" /> Envoyé
-                                </button>
-                              ) : (
-                                <button onClick={() => setInviteModalTarget(realUser)} className="px-3 py-2 bg-orange-600/20 border border-orange-500/50 hover:bg-orange-600 text-orange-400 hover:text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition">
-                                  <Zap className="w-4 h-4" /> Push Up
-                                </button>
-                              )
-                            ) : isPending ? (
-                              <button disabled className="px-3.5 py-2 bg-neutral-900 text-neutral-400 rounded-xl text-xs font-medium">En attente</button>
-                            ) : (
-                              <button onClick={() => handleSendFriendRequest(realUser.id)} className="px-3.5 py-2 bg-orange-600 hover:bg-orange-500 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5"><UserPlus className="w-4 h-4" /> Ajouter</button>
-                            )}
-                            <button onClick={() => { setSelectedBuddyChat(realUser); setCurrentTab('chat'); }} className="p-2.5 bg-neutral-900 border border-neutral-800 hover:border-orange-500 text-neutral-200 rounded-xl"><MessageCircle className="w-4 h-4" /></button>
+                            <button onClick={() => handleAcceptFriendRequest(req.id)} className="px-3.5 py-2 bg-green-600 text-white rounded-xl text-xs font-bold">Accepter</button>
+                            <button onClick={() => handleRejectFriendRequest(req.id)} className="p-2.5 bg-neutral-900 border border-neutral-800 text-red-400 rounded-xl"><X className="w-4 h-4" /></button>
                           </div>
                         </div>
                       );
-                    })
-                  }
+                  })}
                 </div>
-              </>
+              ) : (
+                <>
+                  <div className="space-y-2">
+                    <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+                      {[{ label: 'Tous', value: 'all' }, { label: '💪 Prise de masse', value: 'masse' }, { label: '🔥 Cardio & HIIT', value: 'cardio' }, { label: '🧘 Remise en forme', value: 'remise' }].map((goal) => (
+                        <button key={goal.value} onClick={() => setSelectedGoalFilter(goal.value)} className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition border ${selectedGoalFilter === goal.value ? 'bg-orange-500 text-white border-orange-400' : 'bg-neutral-950 text-neutral-400 border-neutral-800'}`}>{goal.label}</button>
+                      ))}
+                    </div>
+                    <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+                      {[{ label: 'Tous les âges', value: 'all' }, { label: '18 - 25 ans', value: '18-25' }, { label: '26 - 35 ans', value: '26-35' }, { label: '36 - 45 ans', value: '36-45' }, { label: '46+ ans', value: '46+' }].map((group) => (
+                        <button key={group.value} onClick={() => setSelectedAgeGroupFilter(group.value)} className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition border ${selectedAgeGroupFilter === group.value ? 'bg-orange-500 text-white border-orange-400' : 'bg-neutral-950 text-neutral-400 border-neutral-800'}`}>{group.label}</button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="relative pt-1">
+                    <Search className="absolute left-3.5 top-4.5 w-4 h-4 text-orange-500" />
+                    <input type="text" placeholder="Rechercher par pseudo..." value={userSearchQuery} onChange={(e) => setUserSearchQuery(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl pl-10 pr-3.5 py-3 text-sm text-white focus:border-orange-500" />
+                  </div>
+
+                  <div className="space-y-3 pt-1">
+                    {filteredBuddies.length === 0 ? <div className="text-center py-8 text-neutral-500 text-sm">Aucun autre athlète trouvé.</div> : filteredBuddies.map((realUser) => {
+                        const isFriend = acceptedFriendIds.includes(realUser.id);
+                        const existingReq = friendRequests.find(r => (r.sender_id === user?.id && r.receiver_id === realUser.id) || (r.sender_id === realUser.id && r.receiver_id === user?.id));
+                        const isPending = existingReq && existingReq.status === 'pending';
+                        const isPushUpSent = sentPushUps[realUser.id];
+
+                        const lastSeenTime = realUser.last_seen ? new Date(realUser.last_seen).getTime() : 0;
+                        const diffMinutes = (Date.now() - lastSeenTime) / 60000;
+                        
+                        let dotColor = 'bg-red-500';
+                        let statusText = 'Absent';
+                        if (diffMinutes < 5) { dotColor = 'bg-green-500'; statusText = 'En ligne'; }
+                        else if (diffMinutes < 30) { dotColor = 'bg-amber-500'; statusText = 'Récemment actif'; }
+
+                        return (
+                          <div key={realUser.id} className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 flex items-center justify-between">
+                            <div className="flex items-center gap-3.5">
+                              <div className="relative flex-shrink-0">
+                                <img src={realUser.avatar_url} alt="" className="w-12 h-12 rounded-full object-cover border border-neutral-700" />
+                                <span className={`absolute bottom-0 right-0 w-3.5 h-3.5 ${dotColor} border-2 border-neutral-950 rounded-full`} title={statusText} />
+                              </div>
+                              <div>
+                                <h3 className="font-bold text-sm text-white flex items-center gap-2">
+                                  {realUser.username} {realUser.gender === 'F' && '🚺'}
+                                  <span className={`text-[10px] px-2 py-0.5 rounded font-medium ${diffMinutes < 5 ? 'bg-green-500/20 text-green-400' : 'bg-neutral-900 text-neutral-400'}`}>
+                                    {statusText}
+                                  </span>
+                                </h3>
+                                <span className="text-xs text-orange-400 font-medium block mt-0.5">🎯 {realUser.goal || 'Sportif'}</span>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {isFriend ? (
+                                isPushUpSent ? (
+                                  <button disabled className="px-3 py-2 bg-green-600/30 border border-green-500/50 text-green-400 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-not-allowed">
+                                    <Check className="w-4 h-4" /> Envoyé
+                                  </button>
+                                ) : (
+                                  <button onClick={() => setInviteModalTarget(realUser)} className="px-3 py-2 bg-orange-600/20 border border-orange-500/50 hover:bg-orange-600 text-orange-400 hover:text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition">
+                                    <Zap className="w-4 h-4" /> Push Up
+                                  </button>
+                                )
+                              ) : isPending ? (
+                                <button disabled className="px-3.5 py-2 bg-neutral-900 text-neutral-400 rounded-xl text-xs font-medium">En attente</button>
+                              ) : (
+                                <button onClick={() => handleSendFriendRequest(realUser.id)} className="px-3.5 py-2 bg-orange-600 hover:bg-orange-500 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5"><UserPlus className="w-4 h-4" /> Ajouter</button>
+                              )}
+                              <button onClick={() => { setSelectedBuddyChat(realUser); setCurrentTab('chat'); }} className="p-2.5 bg-neutral-900 border border-neutral-800 hover:border-orange-500 text-neutral-200 rounded-xl"><MessageCircle className="w-4 h-4" /></button>
+                            </div>
+                          </div>
+                        );
+                      })
+                    }
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* SECTION SUGGESTIONS : "Personnes que vous connaissez peut-être" */}
+            {suggestedBuddiesList.length > 0 && (
+              <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-3">
+                <h3 className="text-xs font-black text-orange-400 uppercase tracking-wider flex items-center gap-1.5">
+                  <Users className="w-4 h-4 text-orange-500" /> Personnes que vous connaissez peut-être
+                </h3>
+                <div className="space-y-2.5 pt-1">
+                  {suggestedBuddiesList.slice(0, 3).map((sUser) => (
+                    <div key={sUser.id} className="bg-neutral-950 p-3 rounded-2xl border border-neutral-800 flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <img src={sUser.avatar_url} alt="" className="w-10 h-10 rounded-full object-cover border border-neutral-700" />
+                        <div>
+                          <h4 className="font-bold text-xs text-white">{sUser.username}</h4>
+                          <span className="text-[10px] text-neutral-400">{sUser.home_club}</span>
+                        </div>
+                      </div>
+                      <button onClick={() => handleSendFriendRequest(sUser.id)} className="px-3 py-1.5 bg-orange-600/20 hover:bg-orange-600 text-orange-400 hover:text-white rounded-xl text-xs font-bold transition flex items-center gap-1">
+                        <UserPlus className="w-3.5 h-3.5" /> Ajouter
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
             )}
           </div>
         )}
@@ -1720,7 +1765,7 @@ export default function App() {
         )}
       </main>
 
-      {/* LECTEUR DE STORY PLEIN ÉCRAN */}
+      {/* LECTEUR DE STORY PLEIN ÉCRAN AVEC ÉMOJIS RAPIDES */}
       {activeViewingStory && (
         <div 
           className="fixed inset-0 z-50 bg-black flex flex-col justify-between p-4 select-none"
@@ -1752,7 +1797,7 @@ export default function App() {
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
             <img src={activeViewingStory.image_url} alt="" className="w-full h-full object-cover" />
             {activeViewingStory.caption && (
-              <div className="absolute bottom-24 left-4 right-4 bg-black/60 backdrop-blur-md p-3.5 rounded-2xl text-center border border-white/10 pointer-events-auto">
+              <div className="absolute bottom-28 left-4 right-4 bg-black/60 backdrop-blur-md p-3.5 rounded-2xl text-center border border-white/10 pointer-events-auto">
                 <p className="text-sm text-white font-medium">{activeViewingStory.caption}</p>
               </div>
             )}
@@ -1762,21 +1807,34 @@ export default function App() {
           <div className="absolute inset-y-0 left-0 w-1/3 cursor-pointer z-0" onClick={(e) => { e.stopPropagation(); handlePrevStory(); }} />
           <div className="absolute inset-y-0 right-0 w-1/3 cursor-pointer z-0" onClick={(e) => { e.stopPropagation(); handleNextStory(); }} />
 
-          {/* Bas de l'écran : Like & Réponse rapide */}
-          <div className="flex items-center gap-3 z-10 pb-4">
-            <form onSubmit={handleSendStoryComment} className="flex-1 flex items-center gap-2 bg-black/60 backdrop-blur-md border border-white/20 rounded-full px-4 py-2">
-              <input 
-                type="text" 
-                placeholder={`Répondre à ${activeViewingStory.username}...`} 
-                value={storyCommentInput} 
-                onChange={(e) => setStoryCommentInput(e.target.value)} 
-                className="flex-1 bg-transparent text-xs text-white focus:outline-none placeholder-white/60" 
-              />
-              <button type="submit" className="text-orange-400"><SendHorizontal className="w-4 h-4" /></button>
-            </form>
-            <button onClick={() => handleToggleStoryLike(activeViewingStory.id)} className="p-3 bg-black/60 backdrop-blur-md border border-white/20 rounded-full text-white transition">
-              <Heart className={`w-5 h-5 ${likedStories[activeViewingStory.id] ? 'fill-red-500 text-red-500' : ''}`} />
-            </button>
+          {/* Bas de l'écran : Émojis rapides de réaction & Input */}
+          <div className="space-y-2.5 z-10 pb-4">
+            <div className="flex justify-center gap-3 bg-black/50 backdrop-blur-md py-2 px-4 rounded-full border border-white/10 w-fit mx-auto">
+              {['❤️', '🔥', '👏', '😮', '💪', '🏆'].map((emoji) => (
+                <button 
+                  key={emoji} 
+                  onClick={(e) => { e.stopPropagation(); handleQuickEmojiReaction(emoji); }} 
+                  className="text-xl hover:scale-125 transition transform"
+                >
+                  {emoji}
+                </button>
+              ))}
+            </div>
+            <div className="flex items-center gap-3">
+              <form onSubmit={handleSendStoryComment} className="flex-1 flex items-center gap-2 bg-black/60 backdrop-blur-md border border-white/20 rounded-full px-4 py-2">
+                <input 
+                  type="text" 
+                  placeholder={`Répondre à ${activeViewingStory.username}...`} 
+                  value={storyCommentInput} 
+                  onChange={(e) => setStoryCommentInput(e.target.value)} 
+                  className="flex-1 bg-transparent text-xs text-white focus:outline-none placeholder-white/60" 
+                />
+                <button type="submit" className="text-orange-400"><SendHorizontal className="w-4 h-4" /></button>
+              </form>
+              <button onClick={() => handleToggleStoryLike(activeViewingStory.id)} className="p-3 bg-black/60 backdrop-blur-md border border-white/20 rounded-full text-white transition">
+                <Heart className={`w-5 h-5 ${likedStories[activeViewingStory.id] ? 'fill-red-500 text-red-500' : ''}`} />
+              </button>
+            </div>
           </div>
         </div>
       )}
