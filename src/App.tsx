@@ -835,8 +835,23 @@ export default function App() {
     const { data, error } = await supabase.from('posts').select('user_id, username, club_name, avatar_url').limit(100);
     if (!error && data) {
       const uniqueMap = new Map();
+      
+      // Toujours inclure l'utilisateur connecté s'il existe
+      if (user) {
+        uniqueMap.set(user.id, {
+          id: user.id,
+          username: user.user_metadata?.username || user.email?.split('@')[0] || 'Moi',
+          email: user.email || '',
+          gender: user.user_metadata?.gender || 'M',
+          goal: 'Prise de masse & Force',
+          home_club: user.user_metadata?.home_club || selectedClub,
+          preferred_time: user.user_metadata?.preferred_time || '🌆 Soir (17h - 20h)',
+          avatar_url: userAvatarUrl
+        });
+      }
+
       data.forEach((p) => {
-        if (p.user_id !== user?.id && !uniqueMap.has(p.user_id)) {
+        if (!uniqueMap.has(p.user_id)) {
           uniqueMap.set(p.user_id, {
             id: p.user_id,
             username: p.username,
@@ -1712,6 +1727,12 @@ export default function App() {
                 </button>
               </div>
             </div>
+
+            {/* MESSAGE D'INFORMATION EXPLICATIF */}
+            <div className="bg-orange-500/10 border border-orange-500/20 rounded-2xl p-3 text-xs text-orange-300 flex items-start gap-2">
+              <Info className="w-4 h-4 text-orange-400 flex-shrink-0 mt-0.5" />
+              <span>Pour apparaître dans cet onglet et être trouvé par tes amis, assurez-vous d'avoir enregistré une première séance ou un post !</span>
+            </div>
             
             <div className="bg-neutral-950 p-1.5 rounded-2xl border border-neutral-800 flex items-center gap-1">
               <button
@@ -1803,7 +1824,7 @@ export default function App() {
                 <div className="space-y-3 pt-1">
                   {filteredBuddies.length === 0 ? (
                     <div className="text-center py-8 text-neutral-500 text-xs">
-                      Aucun autre athlète inscrit pour l'instant. Dès qu'un autre utilisateur s'inscrira, il apparaîtra ici !
+                      Aucun autre athlète trouvé dans ce club pour l'instant. Publiez une première séance chacun pour vous retrouver !
                     </div>
                   ) : (
                     filteredBuddies.map((realUser) => {
