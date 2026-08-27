@@ -585,7 +585,7 @@ export default function App() {
     if (error) {
       alert("Erreur de mise à jour : " + error.message);
     } else {
-      alert("Mot de passe mis à jour avec succès ! Vous êtes connecté.");
+      alert("Mot de passe mis à jour avec succès !");
       setIsResetPasswordMode(false);
       setPassword('');
       setConfirmPassword('');
@@ -1129,9 +1129,12 @@ export default function App() {
       }
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       const activeUser = session?.user ?? null;
       setUser(activeUser);
+      if (event === 'PASSWORD_RECOVERY') {
+        setIsResetPasswordMode(true);
+      }
       if (activeUser) {
         if (activeUser.user_metadata?.home_club) setSelectedClub(activeUser.user_metadata.home_club);
         if (activeUser.user_metadata?.avatar_url) setUserAvatarUrl(activeUser.user_metadata.avatar_url);
@@ -1987,6 +1990,30 @@ export default function App() {
                   </div>
                 ))}
               </div>
+            </div>
+
+            {/* Formulaire de modification de mot de passe */}
+            <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4">
+              <h3 className="font-bold text-sm text-white flex items-center gap-2"><Key className="w-4 h-4 text-orange-500" /> Sécurité & Mot de passe</h3>
+              <form onSubmit={async (e) => {
+                e.preventDefault();
+                if (!password || password !== confirmPassword) {
+                  alert("Les mots de passe ne correspondent pas ou sont vides.");
+                  return;
+                }
+                const { error } = await supabase.auth.updateUser({ password });
+                if (error) {
+                  alert("Erreur : " + error.message);
+                } else {
+                  alert("🔒 Mot de passe mis à jour avec succès !");
+                  setPassword('');
+                  setConfirmPassword('');
+                }
+              }} className="space-y-3">
+                <input type="password" placeholder="Nouveau mot de passe" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:border-orange-500" />
+                <input type="password" placeholder="Confirmer le nouveau mot de passe" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:border-orange-500" />
+                <button type="submit" className="w-full py-2.5 bg-neutral-800 hover:bg-neutral-700 text-white font-bold rounded-xl text-xs transition">Changer mon mot de passe</button>
+              </form>
             </div>
 
             <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4">
