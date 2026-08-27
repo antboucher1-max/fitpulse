@@ -54,7 +54,7 @@ import {
   ShieldCheck,
   Image as ImageIcon,
   EyeOff,
-  Eye
+  FileText
 } from 'lucide-react';
 import { createClient, User as SupabaseUser } from '@supabase/supabase-js';
 
@@ -198,7 +198,7 @@ interface TransformationPhoto {
   date: string;
   weight: number;
   note: string;
-  is_private?: boolean; // Vrai si visible uniquement par l'utilisateur
+  is_private?: boolean;
 }
 
 const WORKOUT_CHOICES = [
@@ -368,8 +368,11 @@ export default function App() {
   const [level, setLevel] = useState<'Débutant' | 'Intermédiaire' | 'Avancé'>('Intermédiaire');
   const [homeClub, setHomeClub] = useState<string>('Club Tournai (Bastion)');
   const [preferredTime, setPreferredTime] = useState<string>(TIME_SLOTS[2]);
+  const [acceptCGU, setAcceptCGU] = useState(false);
 
   const [authLoading, setAuthLoading] = useState(false);
+  const [signupSuccessEmail, setSignupSuccessEmail] = useState<string | null>(null);
+  const [isCGUModalOpen, setIsCGUModalOpen] = useState(false);
 
   const [currentTab, setCurrentTab] = useState<'feed' | 'buddy' | 'workout' | 'exercises' | 'chat' | 'leaderboard' | 'profile'>('feed');
   const [selectedClub, setSelectedClub] = useState<string>('Club Tournai (Bastion)');
@@ -404,7 +407,7 @@ export default function App() {
   const [newTransWeight, setNewTransWeight] = useState<number | ''>('');
   const [newTransBefore, setNewTransBefore] = useState<string | null>(null);
   const [newTransAfter, setNewTransAfter] = useState<string | null>(null);
-  const [newTransIsPrivate, setNewTransIsPrivate] = useState<boolean>(true); // Par défaut privé
+  const [newTransIsPrivate, setNewTransIsPrivate] = useState<boolean>(true);
 
   useEffect(() => { localStorage.setItem('fitpulse_streak', userStreak.toString()); }, [userStreak]);
   useEffect(() => { localStorage.setItem('fitpulse_private', isPrivateMode.toString()); }, [isPrivateMode]);
@@ -460,7 +463,7 @@ export default function App() {
   const [userSearchQuery, setUserSearchQuery] = useState('');
   const [filterWomenOnly, setFilterWomenOnly] = useState(false);
   const [selectedGoalFilter, setSelectedGoalFilter] = useState<string>('all');
-  const [selectedAgeGroupFilter, setSelectedAgeGroupFilter] = useState<string>('all'); // Filtre tranche d'âge
+  const [selectedAgeGroupFilter, setSelectedAgeGroupFilter] = useState<string>('all');
 
   // Stories
   const [cloudStories, setCloudStories] = useState<Story[]>([]);
@@ -1124,15 +1127,23 @@ export default function App() {
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSignUp && !acceptCGU) {
+      alert("Veuillez accepter les conditions générales d'utilisation pour continuer.");
+      return;
+    }
     setAuthLoading(true);
     if (isSignUp) {
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: { data: { first_name: firstName, last_name: lastName, username: username || `${firstName}_${lastName}`.toLowerCase(), birth_date: birthDate, gender, level, home_club: homeClub, preferred_time: preferredTime, avatar_url: userAvatarUrl } }
       });
-      if (error) alert("Erreur d'inscription : " + error.message);
-      else setSelectedClub(homeClub);
+      if (error) {
+        alert("Erreur d'inscription : " + error.message);
+      } else {
+        // Affiche l'écran de vérification d'e-mail
+        setSignupSuccessEmail(email);
+      }
     } else {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) alert("Erreur de connexion : " + error.message);
@@ -1312,6 +1323,31 @@ export default function App() {
   const activeViewingStory = activeStoryIndex !== null ? friendStoriesList[activeStoryIndex] : null;
 
   if (!user) {
+    if (signupSuccessEmail) {
+      return (
+        <div className="min-h-screen bg-neutral-950 text-white flex flex-col justify-center items-center px-4 py-8">
+          <div className="w-full max-w-md bg-neutral-900 border border-neutral-800 rounded-3xl p-8 text-center space-y-5 shadow-2xl">
+            <div className="w-16 h-16 bg-orange-500/20 border border-orange-500/40 rounded-2xl flex items-center justify-center text-orange-500 mx-auto">
+              <Mail className="w-8 h-8 animate-bounce" />
+            </div>
+            <h2 className="text-xl font-black">Vérifie ta boîte mail !</h2>
+            <p className="text-xs text-neutral-300 leading-relaxed">
+              Un e-mail de confirmation a été envoyé à <strong className="text-orange-400">{signupSuccessEmail}</strong>. 
+            </p>
+            <div className="bg-neutral-950 p-3.5 rounded-2xl border border-neutral-800 text-[11px] text-neutral-400">
+              Clique sur le lien de validation dans l'e-mail. Dès que ce sera fait, tu seras connecté automatiquement ici !
+            </div>
+            <button 
+              onClick={() => { setSignupSuccessEmail(null); setIsSignUp(false); }}
+              className="w-full py-3 bg-neutral-800 hover:bg-neutral-700 text-white font-bold rounded-xl text-xs transition"
+            >
+              Retour à la connexion
+            </button>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="min-h-screen bg-neutral-950 text-white flex flex-col justify-center items-center px-4 py-8">
         <div className="w-full max-w-md bg-neutral-900/90 border border-neutral-800 rounded-3xl p-6 sm:p-8 shadow-2xl backdrop-blur-xl">
@@ -1364,6 +1400,16 @@ export default function App() {
               <label className="block text-[11px] font-semibold text-neutral-400 mb-1">Mot de passe</label>
               <input type="password" required placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-orange-500" />
             </div>
+
+            {isSignUp && (
+              <div className="flex items-start gap-2 pt-1">
+                <input type="checkbox" id="cgu" checked={acceptCGU} onChange={(e) => setAcceptCGU(e.target.checked)} className="mt-0.5 accent-orange-500" />
+                <label htmlFor="cgu" className="text-[11px] text-neutral-400 leading-tight">
+                  J'accepte les <button type="button" onClick={() => setIsCGUModalOpen(true)} className="text-orange-400 underline font-semibold">Conditions Générales d'Utilisation (CGU)</button> et la politique de protection des données.
+                </label>
+              </div>
+            )}
+
             <button type="submit" disabled={authLoading} className="w-full mt-2 bg-gradient-to-r from-orange-600 to-orange-500 text-white font-bold py-3 rounded-xl shadow-lg transition flex items-center justify-center gap-2 text-xs">
               {authLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : isSignUp ? "Créer mon compte" : "Se connecter"}
             </button>
@@ -1372,6 +1418,31 @@ export default function App() {
             {isSignUp ? "Déjà un compte ? Se connecter" : "Pas encore de compte ? S'inscrire"}
           </button>
         </div>
+
+        {/* MODAL CGU */}
+        {isCGUModalOpen && (
+          <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
+            <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-lg w-full p-6 space-y-4 max-h-[85vh] overflow-y-auto">
+              <div className="flex items-center justify-between pb-2 border-b border-neutral-800">
+                <h3 className="text-sm font-black text-white flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-orange-500" /> Conditions Générales d'Utilisation (CGU)
+                </h3>
+                <button onClick={() => setIsCGUModalOpen(false)} className="p-1 text-neutral-400 hover:text-white"><X className="w-5 h-5" /></button>
+              </div>
+
+              <div className="space-y-3 text-[11px] text-neutral-300 leading-relaxed">
+                <p><strong>1. Objet :</strong> L'application FitPulse est une plateforme communautaire de mise en relation et de suivi sportif entre membres de clubs de fitness.</p>
+                <p><strong>2. Limitation de responsabilité :</strong> L'utilisation des programmes d'entraînement, des guides d'exercices et des suggestions de partenaires se fait sous l'entière responsabilité de l'utilisateur. FitPulse et ses créateurs ne sauraient être tenus responsables en cas de blessure corporelle ou d'accident survenu lors des séances de sport.</p>
+                <p><strong>3. Données personnelles et vie privée :</strong> Les données de profil et les photos du carnet "Avant / Après" sont strictement privées par défaut ou partagées selon les choix explicites de l'utilisateur. Aucune donnée médicale ou sensible n'est revendue à des tiers.</p>
+                <p><strong>4. Code de conduite :</strong> Tout utilisateur s'engage à respecter les autres membres. Les contenus inappropriés, insultants ou non conformes aux bonnes mœurs entraîneront la suppression immédiate du compte sans préavis.</p>
+              </div>
+
+              <button onClick={() => { setAcceptCGU(true); setIsCGUModalOpen(false); }} className="w-full py-3 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-xl text-xs transition">
+                J'ai compris et j'accepte
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
