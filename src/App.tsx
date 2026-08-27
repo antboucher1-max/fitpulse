@@ -173,7 +173,7 @@ const EXERCISES_DATABASE: ExerciseGuide[] = [
     equipment: 'Machine Leg Press inclinée',
     targetMuscles: 'Quadriceps, Fessiers',
     settings: 'Assieds-toi, place tes pieds au milieu de la plateforme largeur d’épaules. Déverrouille les sécurités.',
-    execution: 'Fléchis les jambes pour ramener le chariot vers toi (angle à 90° aux genoux) puis pousse puissamment sans tendre complètement les genoux.',
+    execution: 'Fléchis les jambes pour ramener le chariot vers toi (angle à 90° aux genoux) puis pousse puissamment sans tendre complètement les coudes.',
     tips: 'Ne décolle jamais le bas du dos ou les talons du dossier pendant le mouvement.',
     image_url: 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?w=800'
   }
@@ -621,7 +621,7 @@ export default function App() {
     const { error } = await supabase.from('posts').delete().eq('id', postId);
     if (!error) {
       setPosts((prev) => prev.filter((p) => p.id !== postId));
-      alert("Publication supprimée.");
+      alert("Publication supprimée avec succès.");
     } else {
       alert("Erreur lors de la suppression : " + error.message);
     }
@@ -629,6 +629,33 @@ export default function App() {
 
   const handleReportPost = async (post: Post) => {
     if (!window.confirm("Signaler cette publication pour contenu inapproprié ou non conforme aux CGU ?")) return;
+    
+    if (user) {
+      // 1. Chercher "Antbou" dans la liste locale des utilisateurs
+      let adminId = registeredUsers.find(u => u.username.toLowerCase() === 'antbou')?.id;
+      
+      // 2. S'il n'est pas dans la liste locale, on cherche son ID dans la base de données
+      if (!adminId) {
+        const { data } = await supabase.from('posts').select('user_id').ilike('username', 'antbou').limit(1);
+        if (data && data.length > 0) {
+          adminId = data[0].user_id;
+        }
+      }
+      
+      // 3. Envoyer un message privé direct au modérateur
+      if (adminId) {
+        const myName = user.user_metadata?.username || user.email?.split('@')[0] || 'Un utilisateur';
+        const alertText = `🚨 SIGNALEMENT : ${myName} a signalé un post de ${post.username}. Message du post : "${post.caption || 'Photo uniquement'}".`;
+        
+        await supabase.from('direct_messages').insert([{
+          sender_id: user.id,
+          receiver_id: adminId,
+          sender_name: '⚠️ FitPulse Bot',
+          text: alertText
+        }]);
+      }
+    }
+
     alert("🚨 Publication signalée aux modérateurs. Merci pour votre aide pour garder la communauté propre.");
   };
 
