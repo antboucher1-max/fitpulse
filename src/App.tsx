@@ -135,7 +135,7 @@ interface Story {
 }
 
 interface RealUser {
-  id: string; username: string; email: string; gender?: 'M' | 'F'; birth_date?: string; age: number; goal?: string; home_club: string; preferred_time?: string; avatar_url: string;
+  id: string; username: string; email: string; gender?: 'M' | 'F'; birth_date?: string; age: number; goal?: string; home_club: string; preferred_time?: string; avatar_url: string; last_seen?: string;
 }
 
 interface FriendRequest {
@@ -227,7 +227,7 @@ export default function App() {
   const [userStreak, setUserStreak] = useState<number>(() => { try { return parseInt(localStorage.getItem('fitpulse_streak') || '2', 10); } catch { return 2; } });
   const [isPrivateMode, setIsPrivateMode] = useState<boolean>(() => { try { return localStorage.getItem('fitpulse_private') === 'true'; } catch { return false; } });
   
-  // Notifications
+  // Notifications & Présence
   const [lastNotifOpenTime, setLastNotifOpenTime] = useState<number>(() => { try { return parseInt(localStorage.getItem('fitpulse_last_notif') || '0', 10); } catch { return 0; } });
   const [isNotifModalOpen, setIsNotifModalOpen] = useState(false);
 
@@ -420,7 +420,8 @@ export default function App() {
         goal: sessionUser.user_metadata?.goal || 'Sportif',
         home_club: sessionUser.user_metadata?.home_club || selectedClub,
         preferred_time: sessionUser.user_metadata?.preferred_time || TIME_SLOTS[2],
-        avatar_url: sessionUser.user_metadata?.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'
+        avatar_url: sessionUser.user_metadata?.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+        last_seen: new Date().toISOString()
       };
       await supabase.from('profiles').upsert(profileData);
     } catch(e) {}
@@ -452,7 +453,7 @@ export default function App() {
     if (!profilesError && profilesData && profilesData.length > 0) {
       profilesData.forEach((p) => {
         combinedUsers.set(p.id, {
-          id: p.id, username: p.username, email: p.email || '', gender: p.gender || 'M', age: p.age || 25, goal: p.goal || 'Sportif', home_club: p.home_club || selectedClub, preferred_time: p.preferred_time || '🌆 Soir (17h - 20h)', avatar_url: p.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'
+          id: p.id, username: p.username, email: p.email || '', gender: p.gender || 'M', age: p.age || 25, goal: p.goal || 'Sportif', home_club: p.home_club || selectedClub, preferred_time: p.preferred_time || '🌆 Soir (17h - 20h)', avatar_url: p.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150', last_seen: p.last_seen
         });
       });
     }
@@ -470,7 +471,7 @@ export default function App() {
 
     if (user) {
       combinedUsers.set(user.id, {
-        id: user.id, username: user.user_metadata?.username || user.email?.split('@')[0] || 'Moi', email: user.email || '', gender: user.user_metadata?.gender || 'M', age: calculateAge(user.user_metadata?.birth_date), goal: user.user_metadata?.goal || 'Sportif', home_club: user.user_metadata?.home_club || selectedClub, preferred_time: user.user_metadata?.preferred_time || '🌆 Soir (17h - 20h)', avatar_url: userAvatarUrl
+        id: user.id, username: user.user_metadata?.username || user.email?.split('@')[0] || 'Moi', email: user.email || '', gender: user.user_metadata?.gender || 'M', age: calculateAge(user.user_metadata?.birth_date), goal: user.user_metadata?.goal || 'Sportif', home_club: user.user_metadata?.home_club || selectedClub, preferred_time: user.user_metadata?.preferred_time || '🌆 Soir (17h - 20h)', avatar_url: userAvatarUrl, last_seen: new Date().toISOString()
       });
     }
     setRegisteredUsers(Array.from(combinedUsers.values()));
@@ -871,6 +872,11 @@ export default function App() {
     fetchCloudStories();
     fetchRealUsers();
 
+    // Heartbeat présence toutes les 60 secondes
+    const presenceInterval = setInterval(() => {
+      if (user) syncProfile(user);
+    }, 60000);
+
     const channel = supabase
       .channel('schema-db-changes')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'direct_messages' }, (payload) => {
@@ -893,6 +899,7 @@ export default function App() {
     return () => {
       subscription.unsubscribe();
       supabase.removeChannel(channel);
+      clearInterval(presenceInterval);
       stopCameraStream();
     };
   }, [user?.id]);
@@ -945,35 +952,6 @@ export default function App() {
     }
     return () => { if (timer) clearInterval(timer); };
   }, [isRestTimerActive, restTimeRemaining]);
-
-  useEffect(() => {
-    if (activeStoryIndex === null || isStoryPaused) return;
-
-    const currentStory = friendStoriesList[activeStoryIndex];
-    if (currentStory && !viewedStoryIds.includes(currentStory.id)) {
-      setViewedStoryIds((prev) => [...prev, currentStory.id]);
-    }
-
-    const interval = 50;
-    const step = (interval / 5000) * 100;
-    const timer = setInterval(() => {
-      setStoryProgress((prev) => {
-        if (prev >= 100) {
-          if (activeStoryIndex < friendStoriesList.length - 1) {
-            setActiveStoryIndex(activeStoryIndex + 1);
-            setStoryProgress(0);
-            setStoryCommentInput('');
-          } else {
-            setActiveStoryIndex(null);
-          }
-          return 0;
-        }
-        return prev + step;
-      });
-    }, interval);
-
-    return () => clearInterval(timer);
-  }, [activeStoryIndex, isStoryPaused, friendStoriesList.length]);
 
 
   // ==========================================
@@ -1286,7 +1264,7 @@ export default function App() {
           </div>
         )}
 
-        {/* TAB BUDDY */}
+        {/* TAB BUDDY (AVEC PASTILLE VERTE EN LIGNE FAÇON MESSENGER) */}
         {currentTab === 'buddy' && (
           <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4">
             <div className="flex items-center justify-between">
@@ -1347,10 +1325,17 @@ export default function App() {
                       const existingReq = friendRequests.find(r => (r.sender_id === user?.id && r.receiver_id === realUser.id) || (r.sender_id === realUser.id && r.receiver_id === user?.id));
                       const isPending = existingReq && existingReq.status === 'pending';
 
+                      // Calcul du statut En Ligne (moins de 5 minutes)
+                      const lastSeenTime = realUser.last_seen ? new Date(realUser.last_seen).getTime() : 0;
+                      const isOnline = Date.now() - lastSeenTime < 5 * 60 * 1000;
+
                       return (
                         <div key={realUser.id} className="bg-neutral-950 p-3.5 rounded-2xl border border-neutral-800 flex items-center justify-between">
                           <div className="flex items-center gap-3">
-                            <img src={realUser.avatar_url} alt="" className="w-11 h-11 rounded-full object-cover border border-neutral-700 flex-shrink-0" />
+                            <div className="relative flex-shrink-0">
+                              <img src={realUser.avatar_url} alt="" className="w-11 h-11 rounded-full object-cover border border-neutral-700" />
+                              {isOnline && <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-neutral-950 rounded-full" title="En ligne" />}
+                            </div>
                             <div>
                               <h3 className="font-bold text-sm text-white">{realUser.username} {realUser.gender === 'F' && '🚺'}</h3>
                               <span className="text-[10px] text-orange-400 font-medium block">🎯 {realUser.goal || 'Sportif'}</span>
