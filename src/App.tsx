@@ -108,7 +108,7 @@ interface ExerciseGuide {
   settings: string;
   execution: string;
   tips: string;
-  video_url: string; // Vidéo en boucle (GIF/MP4)
+  video_url: string;
 }
 
 const EXERCISES_DATABASE: ExerciseGuide[] = [
@@ -1025,6 +1025,35 @@ export default function App() {
     return () => { if (timer) clearInterval(timer); };
   }, [isRestTimerActive, restTimeRemaining]);
 
+  useEffect(() => {
+    if (activeStoryIndex === null || isStoryPaused) return;
+
+    const currentStory = friendStoriesList[activeStoryIndex];
+    if (currentStory && !viewedStoryIds.includes(currentStory.id)) {
+      setViewedStoryIds((prev) => [...prev, currentStory.id]);
+    }
+
+    const interval = 50;
+    const step = (interval / 5000) * 100;
+    const timer = setInterval(() => {
+      setStoryProgress((prev) => {
+        if (prev >= 100) {
+          if (activeStoryIndex < friendStoriesList.length - 1) {
+            setActiveStoryIndex(activeStoryIndex + 1);
+            setStoryProgress(0);
+            setStoryCommentInput('');
+          } else {
+            setActiveStoryIndex(null);
+          }
+          return 0;
+        }
+        return prev + step;
+      });
+    }, interval);
+
+    return () => clearInterval(timer);
+  }, [activeStoryIndex, isStoryPaused, friendStoriesList.length]);
+
 
   // ==========================================
   // 8. RENDU (JSX)
@@ -1323,7 +1352,6 @@ export default function App() {
                 {EXERCISES_DATABASE.filter((ex) => (selectedCategoryFilter === 'Tous' || ex.category === selectedCategoryFilter) && (ex.name.toLowerCase().includes(exerciseSearch.toLowerCase()) || ex.targetMuscles.toLowerCase().includes(exerciseSearch.toLowerCase()))).map((ex) => (
                   <div key={ex.id} onClick={() => setSelectedExerciseDetail(ex)} className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 hover:border-orange-500/50 cursor-pointer flex items-center justify-between">
                     <div className="flex items-center gap-4">
-                      {/* Affichage de la vidéo en boucle (GIF/MP4) */}
                       <video src={ex.video_url} autoPlay loop muted playsInline className="w-16 h-16 rounded-xl object-cover border border-neutral-800 flex-shrink-0" />
                       <div>
                         <div className="flex items-center gap-2 mb-1"><span className="text-sm font-bold text-white">{ex.name}</span><span className="text-[10px] bg-orange-500/10 text-orange-400 px-2 py-0.5 rounded-md border border-orange-500/20">{ex.category}</span></div>
@@ -1677,7 +1705,7 @@ export default function App() {
         </div>
       )}
 
-      {/* MODAL PUBLIER STORY (AVEC CHOIX ALBUM TEL OU APPAREIL PHOTO) */}
+      {/* MODAL PUBLIER STORY */}
       {isCreatingStory && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-md w-full p-5 space-y-4">
@@ -1786,7 +1814,7 @@ export default function App() {
         </div>
       )}
 
-      {/* BOTTOM NAV AVEC RETENTION DE L'ONGLET ACTUEL */}
+      {/* BOTTOM NAV */}
       <nav className="fixed bottom-0 left-0 right-0 z-40 bg-neutral-950/90 backdrop-blur-xl border-t border-neutral-800/80 px-2 py-2 flex justify-around items-center">
         <button onClick={() => handleTabChange('feed')} className={`flex flex-col items-center gap-1 ${currentTab === 'feed' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Home className="w-5 h-5" /><span className="text-[10px]">Accueil</span></button>
         <button onClick={() => handleTabChange('buddy')} className={`flex flex-col items-center gap-1 ${currentTab === 'buddy' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Users className="w-5 h-5" /><span className="text-[10px]">Buddy</span></button>
