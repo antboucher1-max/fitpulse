@@ -52,7 +52,9 @@ import {
   Activity,
   ShieldAlert,
   ShieldCheck,
-  Image as ImageIcon
+  Image as ImageIcon,
+  EyeOff,
+  Eye
 } from 'lucide-react';
 import { createClient, User as SupabaseUser } from '@supabase/supabase-js';
 
@@ -196,6 +198,7 @@ interface TransformationPhoto {
   date: string;
   weight: number;
   note: string;
+  is_private?: boolean; // Vrai si visible uniquement par l'utilisateur
 }
 
 const WORKOUT_CHOICES = [
@@ -228,6 +231,18 @@ const DEFAULT_WEEKLY_PLAN: WeeklyPlan[] = [
   { day: 'Vendredi', focus: 'Full Body (Corps entier)', exercisesText: 'Développé incliné, Tractions, Dips' },
   { day: 'Samedi & Dimanche', focus: 'Repos & Cardio léger', exercisesText: 'Marche / Randonnée' }
 ];
+
+const calculateAge = (birthDateString?: string): number => {
+  if (!birthDateString) return 25;
+  const birthDate = new Date(birthDateString);
+  const today = new Date();
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const m = today.getMonth() - birthDate.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+    age--;
+  }
+  return isNaN(age) ? 25 : age;
+};
 
 const isMatchingClub = (postClubName?: string, selectedClubName?: string): boolean => {
   if (!postClubName || !selectedClubName) return false;
@@ -314,6 +329,8 @@ interface RealUser {
   username: string;
   email: string;
   gender?: 'M' | 'F';
+  birth_date?: string;
+  age: number;
   goal?: string;
   home_club: string;
   preferred_time?: string;
@@ -346,7 +363,7 @@ export default function App() {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [username, setUsername] = useState('');
-  const [age, setAge] = useState<number | ''>('');
+  const [birthDate, setBirthDate] = useState('');
   const [gender, setGender] = useState<'M' | 'F'>('M');
   const [level, setLevel] = useState<'Débutant' | 'Intermédiaire' | 'Avancé'>('Intermédiaire');
   const [homeClub, setHomeClub] = useState<string>('Club Tournai (Bastion)');
@@ -387,6 +404,7 @@ export default function App() {
   const [newTransWeight, setNewTransWeight] = useState<number | ''>('');
   const [newTransBefore, setNewTransBefore] = useState<string | null>(null);
   const [newTransAfter, setNewTransAfter] = useState<string | null>(null);
+  const [newTransIsPrivate, setNewTransIsPrivate] = useState<boolean>(true); // Par défaut privé
 
   useEffect(() => { localStorage.setItem('fitpulse_streak', userStreak.toString()); }, [userStreak]);
   useEffect(() => { localStorage.setItem('fitpulse_private', isPrivateMode.toString()); }, [isPrivateMode]);
@@ -442,6 +460,7 @@ export default function App() {
   const [userSearchQuery, setUserSearchQuery] = useState('');
   const [filterWomenOnly, setFilterWomenOnly] = useState(false);
   const [selectedGoalFilter, setSelectedGoalFilter] = useState<string>('all');
+  const [selectedAgeGroupFilter, setSelectedAgeGroupFilter] = useState<string>('all'); // Filtre tranche d'âge
 
   // Stories
   const [cloudStories, setCloudStories] = useState<Story[]>([]);
@@ -633,7 +652,8 @@ export default function App() {
       after_url: afterUrl,
       date: new Date().toISOString().split('T')[0],
       weight: Number(newTransWeight),
-      note: newTransNote || 'Évolution physique'
+      note: newTransNote || 'Évolution physique',
+      is_private: newTransIsPrivate
     };
 
     const { data, error } = await supabase.from('transformations').insert([newItem]).select('*');
@@ -645,7 +665,7 @@ export default function App() {
       setNewTransAfter(null);
       setNewTransNote('');
       setNewTransWeight('');
-      alert('📸 Transformation enregistrée et sauvegardée dans le cloud !');
+      alert('📸 Transformation enregistrée dans ton carnet !');
     }
   };
 
@@ -836,13 +856,15 @@ export default function App() {
     if (!error && data) {
       const uniqueMap = new Map();
       
-      // Toujours inclure l'utilisateur connecté s'il existe
       if (user) {
+        const myBirth = user.user_metadata?.birth_date;
         uniqueMap.set(user.id, {
           id: user.id,
           username: user.user_metadata?.username || user.email?.split('@')[0] || 'Moi',
           email: user.email || '',
           gender: user.user_metadata?.gender || 'M',
+          birth_date: myBirth,
+          age: calculateAge(myBirth),
           goal: 'Prise de masse & Force',
           home_club: user.user_metadata?.home_club || selectedClub,
           preferred_time: user.user_metadata?.preferred_time || '🌆 Soir (17h - 20h)',
@@ -857,6 +879,8 @@ export default function App() {
             username: p.username,
             email: `${p.username}@fitpulse.be`,
             gender: 'M',
+            birth_date: undefined,
+            age: 28,
             goal: 'Prise de masse & Force',
             home_club: p.club_name || selectedClub,
             preferred_time: '🌆 Soir (17h - 20h)',
@@ -1105,7 +1129,7 @@ export default function App() {
       const { error } = await supabase.auth.signUp({
         email,
         password,
-        options: { data: { first_name: firstName, last_name: lastName, username: username || `${firstName}_${lastName}`.toLowerCase(), age: Number(age) || 25, gender, level, home_club: homeClub, preferred_time: preferredTime, avatar_url: userAvatarUrl } }
+        options: { data: { first_name: firstName, last_name: lastName, username: username || `${firstName}_${lastName}`.toLowerCase(), birth_date: birthDate, gender, level, home_club: homeClub, preferred_time: preferredTime, avatar_url: userAvatarUrl } }
       });
       if (error) alert("Erreur d'inscription : " + error.message);
       else setSelectedClub(homeClub);
@@ -1248,6 +1272,14 @@ export default function App() {
       return false;
     }
 
+    if (selectedAgeGroupFilter !== 'all') {
+      const age = u.age;
+      if (selectedAgeGroupFilter === '18-25' && (age < 18 || age > 25)) return false;
+      if (selectedAgeGroupFilter === '26-35' && (age < 26 || age > 35)) return false;
+      if (selectedAgeGroupFilter === '36-45' && (age < 36 || age > 45)) return false;
+      if (selectedAgeGroupFilter === '46+' && age < 46) return false;
+    }
+
     if (userSearchQuery.trim()) {
       const q = userSearchQuery.toLowerCase();
       return u.username.toLowerCase().includes(q) || u.home_club.toLowerCase().includes(q);
@@ -1310,8 +1342,8 @@ export default function App() {
                     <input type="text" required placeholder="Alex_Fit" value={username} onChange={(e) => setUsername(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-orange-500" />
                   </div>
                   <div>
-                    <label className="block text-[11px] font-semibold text-neutral-400 mb-1">Âge</label>
-                    <input type="number" required min="14" max="99" placeholder="28" value={age} onChange={(e) => setAge(Number(e.target.value))} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-orange-500" />
+                    <label className="block text-[11px] font-semibold text-neutral-400 mb-1">Date de naissance</label>
+                    <input type="date" required value={birthDate} onChange={(e) => setBirthDate(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-orange-500" />
                   </div>
                 </div>
                 <div>
@@ -1728,7 +1760,6 @@ export default function App() {
               </div>
             </div>
 
-            {/* MESSAGE D'INFORMATION EXPLICATIF */}
             <div className="bg-orange-500/10 border border-orange-500/20 rounded-2xl p-3 text-xs text-orange-300 flex items-start gap-2">
               <Info className="w-4 h-4 text-orange-400 flex-shrink-0 mt-0.5" />
               <span>Pour apparaître dans cet onglet et être trouvé par tes amis, assurez-vous d'avoir enregistré une première séance ou un post !</span>
@@ -1786,8 +1817,10 @@ export default function App() {
               </div>
             ) : (
               <>
-                <div className="space-y-1.5">
-                  <span className="text-[11px] font-semibold text-neutral-400 block">Filtrer par objectif :</span>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-semibold text-neutral-400">Filtrer par objectif :</span>
+                  </div>
                   <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
                     {[
                       { label: 'Tous', value: 'all' },
@@ -1808,10 +1841,33 @@ export default function App() {
                       </button>
                     ))}
                   </div>
+
+                  <span className="text-[11px] font-semibold text-neutral-400 block pt-1">Tranche d'âge :</span>
+                  <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+                    {[
+                      { label: 'Tous les âges', value: 'all' },
+                      { label: '18 - 25 ans', value: '18-25' },
+                      { label: '26 - 35 ans', value: '26-35' },
+                      { label: '36 - 45 ans', value: '36-45' },
+                      { label: '46+ ans', value: '46+' }
+                    ].map((group) => (
+                      <button
+                        key={group.value}
+                        onClick={() => setSelectedAgeGroupFilter(group.value)}
+                        className={`px-3 py-1.5 rounded-xl text-[11px] font-bold whitespace-nowrap transition border ${
+                          selectedAgeGroupFilter === group.value
+                            ? 'bg-orange-500 text-white border-orange-400 shadow-md'
+                            : 'bg-neutral-950 text-neutral-400 border-neutral-800 hover:text-white'
+                        }`}
+                      >
+                        {group.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
-                <div className="relative">
-                  <Search className="absolute left-3.5 top-3.5 w-4 h-4 text-orange-500" />
+                <div className="relative pt-1">
+                  <Search className="absolute left-3.5 top-4.5 w-4 h-4 text-orange-500" />
                   <input
                     type="text"
                     placeholder="Rechercher par pseudo..."
@@ -1837,11 +1893,10 @@ export default function App() {
                           <div className="flex items-center gap-3">
                             <img src={realUser.avatar_url} alt="" className="w-12 h-12 rounded-full object-cover border border-neutral-700" />
                             <div>
-                              <h3 className="font-bold text-sm text-white">{realUser.username} {realUser.gender === 'F' && '🚺'}</h3>
+                              <h3 className="font-bold text-sm text-white">{realUser.username} {realUser.gender === 'F' && '🚺'} <span className="text-xs font-normal text-neutral-400">({realUser.age} ans)</span></h3>
                               <span className="text-[11px] text-orange-400 font-medium block">● {realUser.home_club}</span>
                               <div className="flex items-center gap-2 mt-0.5">
                                 {realUser.goal && <span className="text-[10px] text-neutral-400 italic">🎯 {realUser.goal}</span>}
-                                {realUser.preferred_time && <span className="text-[10px] text-amber-400/80 font-medium">🕒 {realUser.preferred_time.split(' ')[1]}</span>}
                               </div>
                             </div>
                           </div>
@@ -2042,13 +2097,13 @@ export default function App() {
               </div>
             </div>
 
-            {/* SECTION AVANT / APRÈS PERSONNEL & PARTAGE */}
+            {/* SECTION AVANT / APRÈS PERSONNEL & CONFIDENTIALITÉ STRICTE */}
             <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4">
               <div className="flex items-center justify-between">
                 <h3 className="font-bold text-sm text-white flex items-center gap-2">
                   <ImageIcon className="w-4 h-4 text-orange-500" /> Carnet Avant / Après
                 </h3>
-                <span className="text-[10px] text-neutral-400">Suivi personnel & partage sécurisé</span>
+                <span className="text-[10px] text-neutral-400">100% Privé (Visible que par toi)</span>
               </div>
 
               {/* Formulaire ajout avant/après */}
@@ -2069,6 +2124,21 @@ export default function App() {
                   <input type="number" step="0.1" placeholder="Poids actuel (kg)" value={newTransWeight} onChange={(e) => setNewTransWeight(Number(e.target.value))} className="bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-orange-500" />
                   <input type="text" placeholder="Note (ex: Fin de sèche)" value={newTransNote} onChange={(e) => setNewTransNote(e.target.value)} className="bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-orange-500" />
                 </div>
+
+                <div className="flex items-center justify-between bg-neutral-900 p-2.5 rounded-xl border border-neutral-800">
+                  <div className="flex items-center gap-2">
+                    <EyeOff className="w-4 h-4 text-orange-500" />
+                    <span className="text-[11px] font-semibold text-neutral-200">Visible uniquement par moi</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setNewTransIsPrivate(!newTransIsPrivate)}
+                    className={`relative w-10 h-5 rounded-full transition-colors ${newTransIsPrivate ? 'bg-orange-500' : 'bg-neutral-800'}`}
+                  >
+                    <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${newTransIsPrivate ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                  </button>
+                </div>
+
                 <button type="submit" className="w-full py-2 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-xl text-xs transition">Enregistrer dans mon carnet</button>
               </form>
 
@@ -2081,7 +2151,10 @@ export default function App() {
                     <div key={item.id} className="bg-neutral-950 p-3.5 rounded-2xl border border-neutral-800 space-y-3">
                       <div className="flex items-center justify-between text-xs">
                         <span className="font-bold text-orange-400">📅 {item.date} — {item.weight} kg</span>
-                        <span className="text-neutral-400 italic">{item.note}</span>
+                        <div className="flex items-center gap-1.5 text-neutral-400 italic">
+                          <EyeOff className="w-3.5 h-3.5 text-orange-500" />
+                          <span>Privé (Visible que par toi)</span>
+                        </div>
                       </div>
                       <div className="grid grid-cols-2 gap-2">
                         <div className="relative rounded-xl overflow-hidden h-36 bg-neutral-900 border border-neutral-800">
@@ -2094,7 +2167,7 @@ export default function App() {
                         </div>
                       </div>
                       <button onClick={() => handleShareTransformationToFeed(item)} className="w-full py-2 bg-neutral-900 hover:bg-orange-600/20 border border-neutral-800 hover:border-orange-500 text-neutral-300 hover:text-orange-400 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5">
-                        <Share2 className="w-3.5 h-3.5" /> Partager ce bilan (Privé ou Public)
+                        <Share2 className="w-3.5 h-3.5" /> Partager ce bilan sur le fil
                       </button>
                     </div>
                   ))
