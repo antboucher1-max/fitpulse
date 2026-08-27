@@ -1821,7 +1821,7 @@ export default function App() {
         )}
       </main>
 
-      {/* MODAL PROFIL TIERS AVEC BOUTON "DEMANDER EN AMI" */}
+      {/* MODAL PROFIL TIERS (STYLE EXACT DE NOTRE PROFIL) */}
       {viewingProfileUser && (() => {
         const isFriend = acceptedFriendIds.includes(viewingProfileUser.id);
         const existingReq = friendRequests.find(r => (r.sender_id === user?.id && r.receiver_id === viewingProfileUser.id) || (r.sender_id === viewingProfileUser.id && r.receiver_id === user?.id));
@@ -1847,7 +1847,7 @@ export default function App() {
               </div>
 
               <div className="flex gap-2.5 pt-2">
-                <button onClick={() => { const target = viewingProfileUser; setViewingProfileUser(null); setSelectedBuddyChat(target); setCurrentTab('chat'); }} className="flex-1 py-3 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-lg"><MessageCircle className="w-4 h-4" /> Message</button>
+                <button onClick={() => { const target = viewingProfileUser; setViewingProfileUser(null); setSelectedBuddyChat(target); setCurrentTab('chat'); }} className="flex-1 py-3.5 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 shadow-lg"><MessageCircle className="w-4 h-4" /> Message</button>
                 
                 {!isFriend && !isPending && viewingProfileUser.id !== user?.id && (
                   <button onClick={() => handleSendFriendRequest(viewingProfileUser.id)} className="px-4 py-3 bg-neutral-800 hover:bg-neutral-700 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5"><UserPlus className="w-4 h-4 text-orange-400" /> Demander en ami</button>
