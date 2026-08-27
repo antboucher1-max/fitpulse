@@ -108,8 +108,8 @@ interface ExerciseGuide {
   settings: string;
   execution: string;
   tips: string;
-  start_image_url: string; // Photo Départ
-  end_image_url: string;   // Photo Arrivée
+  start_image_url: string;
+  end_image_url: string;
 }
 
 const EXERCISES_DATABASE: ExerciseGuide[] = [
@@ -1315,7 +1315,7 @@ export default function App() {
           <div className="space-y-4">
             <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4">
               <div className="flex items-center justify-between">
-                <h2 className="text-lg font-black tracking-tight flex items-center gap-2"><BookOpen className="w-6 h-6 text-orange-500" /> Guide des Exercices (2 Photos : Départ & Arrivée)</h2>
+                <h2 className="text-lg font-black tracking-tight flex items-center gap-2"><BookOpen className="w-6 h-6 text-orange-500" /> Guide des Exercices (2 Photos)</h2>
               </div>
               <div className="relative">
                 <Search className="absolute left-3.5 top-3.5 w-5 h-5 text-orange-500" />
@@ -1336,7 +1336,6 @@ export default function App() {
                       </div>
                       <span className="text-[10px] bg-orange-500/10 text-orange-400 px-2 py-0.5 rounded-md border border-orange-500/20">{ex.category}</span>
                     </div>
-                    {/* Les 2 photos (Départ et Arrivée) */}
                     <div className="grid grid-cols-2 gap-2">
                       <div className="relative rounded-xl overflow-hidden h-28 bg-neutral-900 border border-neutral-800">
                         <img src={ex.start_image_url} alt="Départ" className="w-full h-full object-cover" />
@@ -1705,8 +1704,15 @@ export default function App() {
               </div>
               <button onClick={() => setSelectedExerciseDetail(null)} className="p-1.5 bg-neutral-800 text-white rounded-full"><X className="w-5 h-5" /></button>
             </div>
-            <div className="rounded-2xl overflow-hidden border border-neutral-800 bg-neutral-950 h-56 w-full relative flex items-center justify-center">
-              <video src={selectedExerciseDetail.video_url} autoPlay loop muted playsInline className="w-full h-full object-cover" />
+            <div className="grid grid-cols-2 gap-2">
+              <div className="rounded-2xl overflow-hidden border border-neutral-800 bg-neutral-950 h-40 relative">
+                <img src={selectedExerciseDetail.start_image_url} alt="Départ" className="w-full h-full object-cover" />
+                <span className="absolute bottom-2 left-2 bg-black/70 text-[10px] text-white px-2 py-0.5 rounded">1. Départ</span>
+              </div>
+              <div className="rounded-2xl overflow-hidden border border-neutral-800 bg-neutral-950 h-40 relative">
+                <img src={selectedExerciseDetail.end_image_url} alt="Arrivée" className="w-full h-full object-cover" />
+                <span className="absolute bottom-2 left-2 bg-black/70 text-[10px] text-white px-2 py-0.5 rounded">2. Arrivée</span>
+              </div>
             </div>
             <div className="space-y-3 text-sm">
               <div className="bg-neutral-950 p-3.5 rounded-2xl border border-neutral-800/80 space-y-1"><span className="font-bold text-orange-400 uppercase text-[11px] block">Équipement</span><p className="text-neutral-200">{selectedExerciseDetail.equipment}</p></div>
@@ -1732,6 +1738,42 @@ export default function App() {
           </div>
           <div className="w-full flex justify-center items-center pb-6 z-10">
             <button type="button" onClick={capturePhoto} className="w-20 h-20 rounded-full border-4 border-white flex items-center justify-center p-1"><div className="w-full h-full bg-orange-500 rounded-full shadow-lg" /></button>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL PUBLIER STORY */}
+      {isCreatingStory && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-md w-full p-5 space-y-4">
+            <div className="flex items-center justify-between pb-2 border-b border-neutral-800">
+              <h3 className="text-sm font-bold text-white flex items-center gap-2"><Sparkles className="w-4 h-4 text-orange-500" /> Ajouter à ma story (24h)</h3>
+              <button onClick={() => setIsCreatingStory(false)} className="p-1 text-neutral-400 hover:text-white"><X className="w-5 h-5" /></button>
+            </div>
+            <form onSubmit={handlePublishStory} className="space-y-3.5">
+              <input type="file" accept="image/*" ref={storyFileInputRef} onChange={handleImageSelect} className="hidden" />
+              {storyImagePreview ? (
+                <div className="relative rounded-2xl overflow-hidden border border-neutral-700 bg-neutral-950 h-56 flex items-center justify-center">
+                  <img src={storyImagePreview} alt="" className="max-h-full object-contain" />
+                  <button type="button" onClick={() => setStoryImagePreview(null)} className="absolute top-2 right-2 p-1 bg-black/80 text-white rounded-full"><X className="w-4 h-4" /></button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-2.5">
+                  <button type="button" onClick={() => startCameraHandler('story')} className="py-8 border-2 border-dashed border-neutral-800 hover:border-orange-500 rounded-2xl flex flex-col items-center justify-center gap-2 text-neutral-400 bg-neutral-950 transition">
+                    <Camera className="w-6 h-6 text-orange-500" /><span className="text-xs font-semibold">Prendre photo</span>
+                  </button>
+                  <button type="button" onClick={() => storyFileInputRef.current?.click()} className="py-8 border-2 border-dashed border-neutral-800 hover:border-orange-500 rounded-2xl flex flex-col items-center justify-center gap-2 text-neutral-400 bg-neutral-950 transition">
+                    <FolderOpen className="w-6 h-6 text-neutral-400" /><span className="text-xs font-semibold">Album tel</span>
+                  </button>
+                </div>
+              )}
+              <div className="space-y-2">
+                <input type="text" placeholder="Légende de la story..." value={storyCaption} onChange={(e) => setStoryCaption(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-orange-500" />
+              </div>
+              <button type="submit" disabled={storyUploading || !storyImageFile} className="w-full bg-orange-600 hover:bg-orange-500 text-white font-bold py-3 rounded-xl shadow-lg transition flex items-center justify-center gap-2 text-xs">
+                {storyUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Partager ma story"}
+              </button>
+            </form>
           </div>
         </div>
       )}
