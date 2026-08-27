@@ -600,14 +600,24 @@ export default function App() {
 
   const handleNextStory = () => {
     if (activeStoryIndex === null) return;
-    if (activeStoryIndex < friendStoriesList.length - 1) { setActiveStoryIndex(activeStoryIndex + 1); setStoryProgress(0); setStoryCommentInput(''); } 
-    else setActiveStoryIndex(null);
+    if (activeStoryIndex < friendStoriesList.length - 1) { 
+      setActiveStoryIndex(activeStoryIndex + 1); 
+      setStoryProgress(0); 
+      setStoryCommentInput(''); 
+    } else { 
+      setActiveStoryIndex(null); 
+    }
   };
 
   const handlePrevStory = () => {
     if (activeStoryIndex === null) return;
-    if (activeStoryIndex > 0) { setActiveStoryIndex(activeStoryIndex - 1); setStoryProgress(0); setStoryCommentInput(''); } 
-    else setStoryProgress(0);
+    if (activeStoryIndex > 0) { 
+      setActiveStoryIndex(activeStoryIndex - 1); 
+      setStoryProgress(0); 
+      setStoryCommentInput(''); 
+    } else { 
+      setStoryProgress(0); 
+    }
   };
 
   const handleAddExerciseRow = () => setWorkoutExercises([...workoutExercises, { name: '', sets: 3, reps: 10, weight: 50 }]);
@@ -635,7 +645,6 @@ export default function App() {
   };
 
   const handleAddWorkoutHashtag = (tag: string) => { if (!workoutCaption.includes(tag)) setWorkoutCaption((prev) => (prev ? `${prev} ${tag}` : tag)); };
-  const handleAddStoryHashtag = (tag: string) => { if (!storyCaption.includes(tag)) setStoryCaption((prev) => (prev ? `${prev} ${tag}` : tag)); };
 
   const handleDragStart = (e: React.MouseEvent | React.TouchEvent) => {
     setIsDraggingImage(true);
@@ -1058,6 +1067,25 @@ export default function App() {
     };
   }, [user?.id]);
 
+  // Lecteur de story automatique (défilement et barre de progression)
+  useEffect(() => {
+    let storyTimer: NodeJS.Timeout | null = null;
+    if (activeStoryIndex !== null && !isStoryPaused) {
+      storyTimer = setInterval(() => {
+        setStoryProgress((prev) => {
+          if (prev >= 100) {
+            handleNextStory();
+            return 0;
+          }
+          return prev + 2; // Avance de 2% toutes les 100ms (5 secondes par story)
+        });
+      }, 100);
+    }
+    return () => {
+      if (storyTimer) clearInterval(storyTimer);
+    };
+  }, [activeStoryIndex, isStoryPaused, friendStoriesList.length]);
+
   useEffect(() => {
     let currentStream: MediaStream | null = null;
     if (isCameraActive) {
@@ -1109,7 +1137,7 @@ export default function App() {
 
 
   // ==========================================
-  // 8. RENDU (JSX) - AVEC POLICES HARMONISÉES (Style Instagram)
+  // 8. RENDU (JSX) - AVEC LECTEUR DE STORY CORRIGÉ
   // ==========================================
 
   if (!user) {
@@ -1233,7 +1261,7 @@ export default function App() {
                 {friendStoriesList.map((story, index) => {
                   const isViewed = viewedStoryIds.includes(story.id);
                   return (
-                    <div key={story.id || index} onClick={() => { setActiveStoryIndex(index); setStoryProgress(0); setIsStoryPaused(false); }} className="flex flex-col items-center gap-1.5 flex-shrink-0 cursor-pointer">
+                    <div key={story.id || index} onClick={() => { setActiveStoryIndex(index); setStoryProgress(0); setIsStoryPaused(false); if (!viewedStoryIds.includes(story.id)) setViewedStoryIds([...viewedStoryIds, story.id]); }} className="flex flex-col items-center gap-1.5 flex-shrink-0 cursor-pointer">
                       <div className={`w-16 h-16 rounded-full ${isViewed ? 'border-2 border-dashed border-neutral-600 opacity-70' : 'bg-gradient-to-tr from-orange-500 via-pink-500 to-amber-400'} p-[2.5px]`}>
                         <div className="w-full h-full bg-neutral-950 rounded-full p-[2px]"><img src={story.avatar_url} alt="" className="w-full h-full rounded-full object-cover" /></div>
                       </div>
@@ -1691,6 +1719,67 @@ export default function App() {
           </div>
         )}
       </main>
+
+      {/* LECTEUR DE STORY PLEIN ÉCRAN */}
+      {activeViewingStory && (
+        <div 
+          className="fixed inset-0 z-50 bg-black flex flex-col justify-between p-4 select-none"
+          onMouseDown={() => setIsStoryPaused(true)}
+          onMouseUp={() => setIsStoryPaused(false)}
+          onTouchStart={() => setIsStoryPaused(true)}
+          onTouchEnd={() => setIsStoryPaused(false)}
+        >
+          {/* Barre de progression */}
+          <div className="w-full flex gap-1.5 pt-2 z-10">
+            <div className="h-1 flex-1 bg-white/30 rounded-full overflow-hidden">
+              <div className="h-full bg-white transition-all duration-100 ease-linear" style={{ width: `${storyProgress}%` }} />
+            </div>
+          </div>
+
+          {/* En-tête de la story */}
+          <div className="flex items-center justify-between pt-3 z-10">
+            <div className="flex items-center gap-2.5">
+              <img src={activeViewingStory.avatar_url} alt="" className="w-9 h-9 rounded-full object-cover border border-white/20" />
+              <div>
+                <h4 className="font-bold text-xs text-white leading-none">{activeViewingStory.username}</h4>
+                <span className="text-[10px] text-white/70">{activeViewingStory.club_name}</span>
+              </div>
+            </div>
+            <button onClick={() => { setActiveStoryIndex(null); setIsStoryPaused(false); }} className="p-2 bg-black/40 text-white rounded-full"><X className="w-5 h-5" /></button>
+          </div>
+
+          {/* Image de la story au centre */}
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <img src={activeViewingStory.image_url} alt="" className="w-full h-full object-cover" />
+            {activeViewingStory.caption && (
+              <div className="absolute bottom-24 left-4 right-4 bg-black/60 backdrop-blur-md p-3.5 rounded-2xl text-center border border-white/10 pointer-events-auto">
+                <p className="text-sm text-white font-medium">{activeViewingStory.caption}</p>
+              </div>
+            )}
+          </div>
+
+          {/* Zones cliquables gauche/droite pour changer de story */}
+          <div className="absolute inset-y-0 left-0 w-1/3 cursor-pointer z-0" onClick={(e) => { e.stopPropagation(); handlePrevStory(); }} />
+          <div className="absolute inset-y-0 right-0 w-1/3 cursor-pointer z-0" onClick={(e) => { e.stopPropagation(); handleNextStory(); }} />
+
+          {/* Bas de l'écran : Like & Réponse rapide */}
+          <div className="flex items-center gap-3 z-10 pb-4">
+            <form onSubmit={handleSendStoryComment} className="flex-1 flex items-center gap-2 bg-black/60 backdrop-blur-md border border-white/20 rounded-full px-4 py-2">
+              <input 
+                type="text" 
+                placeholder={`Répondre à ${activeViewingStory.username}...`} 
+                value={storyCommentInput} 
+                onChange={(e) => setStoryCommentInput(e.target.value)} 
+                className="flex-1 bg-transparent text-xs text-white focus:outline-none placeholder-white/60" 
+              />
+              <button type="submit" className="text-orange-400"><SendHorizontal className="w-4 h-4" /></button>
+            </form>
+            <button onClick={() => handleToggleStoryLike(activeViewingStory.id)} className="p-3 bg-black/60 backdrop-blur-md border border-white/20 rounded-full text-white transition">
+              <Heart className={`w-5 h-5 ${likedStories[activeViewingStory.id] ? 'fill-red-500 text-red-500' : ''}`} />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* POP-UP MATCHMAKING PARTNER */}
       {isMatchModalOpen && (
