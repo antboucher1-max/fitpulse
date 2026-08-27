@@ -632,6 +632,28 @@ export default function App() {
     alert("🚨 Publication signalée aux modérateurs. Merci pour votre aide pour garder la communauté propre.");
   };
 
+  const handleDeleteConversationForBuddy = async (buddyId: string, buddyName: string) => {
+    if (!user) return;
+    if (!window.confirm(`Effacer toute la conversation avec ${buddyName} ?`)) return;
+
+    await supabase
+      .from('direct_messages')
+      .delete()
+      .or(
+        `and(sender_id.eq.${user.id},receiver_id.eq.${buddyId}),and(sender_id.eq.${buddyId},receiver_id.eq.${user.id})`
+      );
+
+    setAllMessages((prev) =>
+      prev.filter(
+        (m) =>
+          !(
+            (m.sender_id === user.id && m.receiver_id === buddyId) ||
+            (m.sender_id === buddyId && m.receiver_id === user.id)
+          )
+      )
+    );
+  };
+
   const handleAddTransformation = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !newTransBefore || !newTransAfter || newTransWeight === '') return;
