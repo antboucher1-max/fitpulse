@@ -600,7 +600,6 @@ export default function App() {
 
   // 3. FONCTIONS HANDLERS / MÉTHODES
 
-  // Fonctions Fetch
   const fetchCloudPosts = async () => {
     setFeedLoading(true);
     const { data, error } = await supabase.from('posts').select('*').order('created_at', { ascending: false });
@@ -759,8 +758,9 @@ export default function App() {
     const container = previewContainerRef.current;
 
     const canvas = document.createElement('canvas');
+    // Format Carré forcé pour le post (800x800)
     const outputWidth = 800;
-    const outputHeight = (container.clientHeight / container.clientWidth) * outputWidth;
+    const outputHeight = 800;
     canvas.width = outputWidth;
     canvas.height = outputHeight;
     const ctx = canvas.getContext('2d');
@@ -958,17 +958,12 @@ export default function App() {
     setCameraTarget(target);
     setIsCameraActive(true);
     try {
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach((t) => t.stop());
-      }
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: { ideal: target === 'profile_avatar' ? 'user' : 'environment' } },
         audio: false
       });
       streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-      }
+      // La référence vidéo sera attachée via la callback "ref={}" dans le rendu
     } catch (err: any) {
       alert("Impossible d'accéder à la caméra : " + err.message);
       setIsCameraActive(false);
@@ -1190,7 +1185,8 @@ export default function App() {
           return { ...p, comments: updatedComments, comments_count: newCount };
         }
         return p;
-      }));
+      }
+      ));
       setPostCommentInput('');
     } else {
       alert("Erreur lors de l'enregistrement du commentaire : " + error.message);
@@ -1702,7 +1698,7 @@ export default function App() {
                       </div>
                     </div>
 
-                    <div className="rounded-2xl overflow-hidden border border-neutral-800 bg-neutral-950 relative shadow-inner aspect-[4/5] flex items-center justify-center">
+                    <div className="rounded-2xl overflow-hidden border border-neutral-800 bg-neutral-950 relative shadow-inner aspect-square flex items-center justify-center">
                       {post.image_url ? (
                         <>
                           <img src={post.image_url} alt="" className="w-full h-full object-cover pointer-events-none" />
@@ -1806,7 +1802,7 @@ export default function App() {
                 <div className="space-y-3">
                   <div
                     ref={previewContainerRef}
-                    className="relative rounded-2xl overflow-hidden border border-neutral-700 w-full aspect-[4/5] bg-neutral-950 flex items-center justify-center touch-none cursor-move"
+                    className="relative rounded-2xl overflow-hidden border border-neutral-700 w-full aspect-square bg-neutral-950 flex items-center justify-center touch-none cursor-move"
                     onMouseDown={handleDragStart}
                     onMouseMove={handleDragMove}
                     onMouseUp={handleDragEnd}
