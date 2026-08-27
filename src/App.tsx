@@ -113,9 +113,11 @@ interface ExerciseGuide {
 
 const EXERCISES_DATABASE: ExerciseGuide[] = [
   { id: 'ex-1', name: 'Développé couché (Barre / Haltères)', category: 'Pectoraux', equipment: 'Banc & Barre', targetMuscles: 'Pectoraux, Triceps, Deltoïdes antérieurs', settings: 'Banc à plat. Pieds au sol.', execution: 'Descendre la barre au milieu de la poitrine, pousser en expirant.', tips: 'Garde les omoplates serrées.', image_url: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=800' },
-  { id: 'ex-2', name: 'Tirage vertical / Lat Pulldown', category: 'Dos', equipment: 'Poulie haute', targetMuscles: 'Grand dorsal, Biceps', settings: 'Ajuste les boudins.', execution: 'Tire la barre vers la poitrine.', tips: 'Ne te penche pas trop en arrière.', image_url: 'https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?w=800' },
-  { id: 'ex-3', name: 'Squat', category: 'Jambes', equipment: 'Barre libre ou Guidée', targetMuscles: 'Quadriceps, Fessiers', settings: 'Barre sur trapèzes.', execution: 'Descends comme pour t\'asseoir.', tips: 'Genoux dans l\'axe des pieds.', image_url: 'https://images.unsplash.com/photo-1574680096145-d05b474e2155?w=800' },
-  { id: 'ex-4', name: 'Leg Press', category: 'Jambes', equipment: 'Presse', targetMuscles: 'Quadriceps', settings: 'Pieds au centre.', execution: 'Fléchis puis pousse.', tips: 'Ne décolle pas le bas du dos.', image_url: 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?w=800' }
+  { id: 'ex-2', name: 'Développé chest press (Machine)', category: 'Pectoraux', equipment: 'Machine Chest Press convergente', targetMuscles: 'Pectoraux, Triceps', settings: 'Régler la hauteur du siège.', execution: 'Pousse les poignées vers l’avant.', tips: 'Idéal pour l’isolation.', image_url: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=800' },
+  { id: 'ex-3', name: 'Tirage vertical / Lat Pulldown', category: 'Dos', equipment: 'Poulie haute', targetMuscles: 'Grand dorsal, Biceps', settings: 'Ajuste les boudins.', execution: 'Tire la barre vers la poitrine.', tips: 'Ne te penche pas trop en arrière.', image_url: 'https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?w=800' },
+  { id: 'ex-4', name: 'Rowing poulie basse / Seated Row', category: 'Dos', equipment: 'Poulie basse', targetMuscles: 'Trapèzes, Rhomboïdes, Grand dorsal, Biceps', settings: 'Place tes pieds sur les cale-pieds.', execution: 'Tire la poignée vers ton nombril.', tips: 'Ne arrondis surtout pas le bas du dos.', image_url: 'https://images.unsplash.com/photo-1584735935682-2f2b69dff9d2?w=800' },
+  { id: 'ex-5', name: 'Squat', category: 'Jambes', equipment: 'Barre libre ou Guidée', targetMuscles: 'Quadriceps, Fessiers', settings: 'Barre sur trapèzes.', execution: 'Descends comme pour t\'asseoir.', tips: 'Genoux dans l\'axe des pieds.', image_url: 'https://images.unsplash.com/photo-1574680096145-d05b474e2155?w=800' },
+  { id: 'ex-6', name: 'Leg Press', category: 'Jambes', equipment: 'Presse', targetMuscles: 'Quadriceps', settings: 'Pieds au centre.', execution: 'Fléchis puis pousse.', tips: 'Ne décolle pas le bas du dos.', image_url: 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?w=800' }
 ];
 
 interface PersonalRecord { exercise: string; weight: number; reps: number; date: string; }
@@ -671,20 +673,6 @@ export default function App() {
       else { setStoryImageFile(new File([blob], `photo-${Date.now()}.jpg`, { type: 'image/jpeg' })); setStoryImagePreview(previewUrl); setIsCreatingStory(true); }
       stopCameraStream();
     }, 'image/jpeg', 0.85);
-  };
-
-  const handleAuth = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (isSignUp && !acceptCGU) { alert("Veuillez accepter les CGU pour continuer."); return; }
-    setAuthLoading(true);
-    if (isSignUp) {
-      const { error } = await supabase.auth.signUp({ email, password, options: { data: { first_name: firstName, last_name: lastName, username: username || `${firstName}_${lastName}`.toLowerCase(), birth_date: birthDate, gender, level, home_club: homeClub, preferred_time: preferredTime, avatar_url: userAvatarUrl } } });
-      if (error) alert("Erreur d'inscription : " + error.message); else setSignupSuccessEmail(email);
-    } else {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) alert("Erreur de connexion : " + error.message);
-    }
-    setAuthLoading(false);
   };
 
   const handlePublishStory = async (e: React.FormEvent) => {
@@ -1335,6 +1323,61 @@ export default function App() {
         )}
       </main>
 
+      {/* POP-UP MATCHMAKING PARTNER (AVEC HORAIRES) */}
+      {isMatchModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-md w-full p-5 space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between pb-2 border-b border-neutral-800">
+              <h3 className="text-sm font-black text-white flex items-center gap-2"><Sparkles className="w-4 h-4 text-orange-500" /> Trouver un partenaire (Match)</h3>
+              <button onClick={() => setIsMatchModalOpen(false)} className="p-1 text-neutral-400 hover:text-white"><X className="w-5 h-5" /></button>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="block text-[11px] font-semibold text-neutral-400 mb-1">Objectif :</label>
+                <select value={matchGoal} onChange={(e) => setMatchGoal(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white focus:border-orange-500">
+                  <option value="Tous">Tous les objectifs</option>
+                  <option value="masse">Prise de masse & Force</option>
+                  <option value="cardio">Cardio & HIIT</option>
+                  <option value="remise">Remise en forme</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-neutral-400 mb-1">Horaire recherché :</label>
+                <select value={matchTime} onChange={(e) => setMatchTime(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white focus:border-orange-500">
+                  <option value="Tous">Tous les horaires</option>
+                  {TIME_SLOTS.map((slot) => <option key={slot} value={slot.split(' ')[1]}>{slot}</option>)}
+                </select>
+              </div>
+            </div>
+
+            <div className="space-y-2 pt-2 border-t border-neutral-800 max-h-60 overflow-y-auto">
+              <span className="text-[11px] font-bold text-orange-400 block mb-1">Résultats ({matchedBuddiesList.length}) :</span>
+              {matchedBuddiesList.length === 0 ? (
+                <div className="text-center py-6 text-neutral-500 text-xs">Aucun athlète ne correspond à cet horaire/objectif.</div>
+              ) : (
+                matchedBuddiesList.map((buddy) => (
+                  <div key={buddy.id} className="bg-neutral-950 p-3 rounded-2xl border border-neutral-800 flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <img src={buddy.avatar_url} alt="" className="w-10 h-10 rounded-full object-cover border border-neutral-700" />
+                      <div>
+                        <h4 className="font-bold text-xs text-white">{buddy.username} {buddy.gender === 'F' && '🚺'}</h4>
+                        <span className="text-[10px] text-orange-400 block">🎯 {buddy.goal || 'Sportif'}</span>
+                        <span className="text-[9px] text-amber-400 font-semibold">🕒 {buddy.preferred_time || 'Flexible'}</span>
+                      </div>
+                    </div>
+                    <button onClick={() => { setIsMatchModalOpen(false); setSelectedBuddyChat(buddy); setCurrentTab('chat'); }} className="px-3 py-1.5 bg-orange-600 text-white rounded-xl text-xs font-bold flex items-center gap-1"><MessageCircle className="w-3.5 h-3.5" /> Contacter</button>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <button onClick={() => setIsMatchModalOpen(false)} className="w-full py-3 bg-neutral-950 text-white font-bold rounded-xl text-xs border border-neutral-800">Fermer</button>
+          </div>
+        </div>
+      )}
+
       {/* MODAL PUSH UP (INVITATION) */}
       {inviteModalTarget && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
@@ -1356,57 +1399,6 @@ export default function App() {
               </div>
             </div>
             <button onClick={handleSendInvite} className="w-full py-3 bg-orange-600 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2"><Send className="w-4 h-4" /> Envoyer</button>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL MATCHMAKING */}
-      {isMatchModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-md w-full p-5 space-y-4 shadow-2xl">
-            <div className="flex items-center justify-between pb-2 border-b border-neutral-800">
-              <h3 className="text-sm font-black text-white flex items-center gap-2"><Sparkles className="w-4 h-4 text-orange-500" /> Trouver un partenaire (Match)</h3>
-              <button onClick={() => setIsMatchModalOpen(false)} className="p-1 text-neutral-400 hover:text-white"><X className="w-5 h-5" /></button>
-            </div>
-            <div className="space-y-3">
-              <div>
-                <label className="block text-[11px] font-semibold text-neutral-400 mb-1">Objectif :</label>
-                <select value={matchGoal} onChange={(e) => setMatchGoal(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white focus:border-orange-500">
-                  <option value="Tous">Tous les objectifs</option>
-                  <option value="masse">Prise de masse & Force</option>
-                  <option value="cardio">Cardio & HIIT</option>
-                  <option value="remise">Remise en forme</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-[11px] font-semibold text-neutral-400 mb-1">Horaire recherché :</label>
-                <select value={matchTime} onChange={(e) => setMatchTime(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white focus:border-orange-500">
-                  <option value="Tous">Tous les horaires</option>
-                  {TIME_SLOTS.map((slot) => <option key={slot} value={slot.split(' ')[1]}>{slot}</option>)}
-                </select>
-              </div>
-            </div>
-            <div className="space-y-2 pt-2 border-t border-neutral-800 max-h-60 overflow-y-auto">
-              <span className="text-[11px] font-bold text-orange-400 block mb-1">Résultats ({matchedBuddiesList.length}) :</span>
-              {matchedBuddiesList.length === 0 ? (
-                <div className="text-center py-6 text-neutral-500 text-xs">Aucun athlète ne correspond à cet horaire/objectif.</div>
-              ) : (
-                matchedBuddiesList.map((buddy) => (
-                  <div key={buddy.id} className="bg-neutral-950 p-3 rounded-2xl border border-neutral-800 flex items-center justify-between">
-                    <div className="flex items-center gap-2.5">
-                      <img src={buddy.avatar_url} alt="" className="w-10 h-10 rounded-full object-cover border border-neutral-700" />
-                      <div>
-                        <h4 className="font-bold text-xs text-white">{buddy.username} {buddy.gender === 'F' && '🚺'}</h4>
-                        <span className="text-[10px] text-orange-400 block">🎯 {buddy.goal || 'Sportif'}</span>
-                        <span className="text-[9px] text-amber-400 font-semibold">🕒 {buddy.preferred_time || 'Flexible'}</span>
-                      </div>
-                    </div>
-                    <button onClick={() => { setIsMatchModalOpen(false); setSelectedBuddyChat(buddy); setCurrentTab('chat'); }} className="px-3 py-1.5 bg-orange-600 text-white rounded-xl text-xs font-bold flex items-center gap-1"><MessageCircle className="w-3.5 h-3.5" /> Contacter</button>
-                  </div>
-                ))
-              )}
-            </div>
-            <button onClick={() => setIsMatchModalOpen(false)} className="w-full py-3 bg-neutral-950 text-white font-bold rounded-xl text-xs border border-neutral-800">Fermer</button>
           </div>
         </div>
       )}
