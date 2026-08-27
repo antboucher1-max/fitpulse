@@ -312,12 +312,11 @@ export default function App() {
   const [cloudStories, setCloudStories] = useState<Story[]>([]);
   const [allMessages, setAllMessages] = useState<DBMessage[]>([]);
   
-  // Liste des Push Ups actifs avec horodatage (pour expiration automatique après 24h)
+  // Liste des Push Ups actifs avec horodatage (expiration auto après 24h)
   const [sentPushUps, setSentPushUps] = useState<Record<string, number>>(() => {
     try {
       const saved = JSON.parse(localStorage.getItem('fitpulse_sent_pushups_time') || '{}');
       const now = Date.now();
-      // Nettoie ceux qui ont plus de 24h
       const cleaned: Record<string, number> = {};
       Object.keys(saved).forEach((id) => {
         if (now - saved[id] < 24 * 3600 * 1000) {
@@ -330,7 +329,7 @@ export default function App() {
     }
   });
   
-  // Consultation d'un profil tiers (Modal Profil Athlète)
+  // Consultation d'un profil tiers (Modal Profil Athlète complète)
   const [viewingProfileUser, setViewingProfileUser] = useState<RealUser | null>(null);
 
   // Buddy Filters
@@ -1542,7 +1541,6 @@ export default function App() {
                         const existingReq = friendRequests.find(r => (r.sender_id === user?.id && r.receiver_id === realUser.id) || (r.sender_id === realUser.id && r.receiver_id === user?.id));
                         const isPending = existingReq && existingReq.status === 'pending';
                         
-                        // Vérifie si le Push Up est encore actif (moins de 24h)
                         const pushUpTime = sentPushUps[realUser.id];
                         const isPushUpSent = pushUpTime && (Date.now() - pushUpTime < 24 * 3600 * 1000);
 
@@ -1628,7 +1626,7 @@ export default function App() {
               <div className="bg-neutral-900 border border-neutral-800 rounded-3xl overflow-hidden flex flex-col h-[74vh]">
                 <div className="p-4 bg-neutral-950 border-b border-neutral-800 flex items-center justify-between">
                   <button onClick={() => setSelectedBuddyChat(null)} className="p-1.5 text-neutral-400 hover:text-white"><ArrowLeft className="w-5 h-5" /></button>
-                  <h3 className="font-bold text-sm text-white">{selectedBuddyChat.username}</h3>
+                  <h3 className="font-bold text-sm text-white cursor-pointer hover:text-orange-400" onClick={() => setViewingProfileUser(selectedBuddyChat)}>{selectedBuddyChat.username}</h3>
                   <button onClick={() => handleDeleteConversationForBuddy(selectedBuddyChat.id, selectedBuddyChat.username)} className="p-2 text-neutral-500 hover:text-red-400"><Trash2 className="w-4 h-4" /></button>
                 </div>
                 <div className="flex-1 p-4 overflow-y-auto space-y-3">
@@ -1781,23 +1779,28 @@ export default function App() {
         )}
       </main>
 
-      {/* MODAL CONSULTATION PROFIL TIERS */}
+      {/* MODAL PROFIL TIERS (STYLE EXACT DE NOTRE PROFIL) */}
       {viewingProfileUser && (
         <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-sm w-full p-6 space-y-4 text-center shadow-2xl relative">
-            <button onClick={() => setViewingProfileUser(null)} className="absolute top-4 right-4 p-1.5 bg-neutral-800 text-white rounded-full"><X className="w-4 h-4" /></button>
-            <img src={viewingProfileUser.avatar_url} alt="" className="w-20 h-20 rounded-full object-cover border-2 border-orange-500 mx-auto shadow-lg" />
-            <div>
-              <h3 className="text-base font-bold text-white">{viewingProfileUser.username} {viewingProfileUser.gender === 'F' && '🚺'}</h3>
-              <span className="text-xs text-orange-400 block mt-0.5"><MapPin className="w-3 h-3 inline mr-1" />{viewingProfileUser.home_club}</span>
+          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-sm w-full p-6 space-y-5 shadow-2xl relative max-h-[85vh] overflow-y-auto">
+            <button onClick={() => setViewingProfileUser(null)} className="absolute top-4 right-4 p-2 bg-neutral-800 text-white rounded-full"><X className="w-4 h-4" /></button>
+            
+            <div className="text-center space-y-3 pt-2">
+              <img src={viewingProfileUser.avatar_url} alt="" className="w-24 h-24 rounded-full object-cover border-2 border-orange-500 mx-auto shadow-xl" />
+              <div>
+                <h3 className="text-lg font-black text-white">{viewingProfileUser.username} {viewingProfileUser.gender === 'F' && '🚺'}</h3>
+                <span className="text-xs text-orange-400 font-semibold block mt-0.5"><MapPin className="w-3.5 h-3.5 inline mr-1" />{viewingProfileUser.home_club}</span>
+              </div>
             </div>
-            <div className="bg-neutral-950 p-3.5 rounded-2xl border border-neutral-800 text-left space-y-1.5 text-xs text-neutral-300">
-              <p>🎯 <strong className="text-white">Objectif :</strong> {viewingProfileUser.goal || 'Sportif'}</p>
-              <p>🕒 <strong className="text-white">Créneau :</strong> {viewingProfileUser.preferred_time || 'Flexible'}</p>
-              <p>🎂 <strong className="text-white">Âge :</strong> {viewingProfileUser.age} ans</p>
+
+            <div className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 space-y-2 text-xs text-neutral-300">
+              <div className="flex justify-between py-1 border-b border-neutral-900"><span className="text-neutral-400">Objectif :</span><strong className="text-white">{viewingProfileUser.goal || 'Sportif'}</strong></div>
+              <div className="flex justify-between py-1 border-b border-neutral-900"><span className="text-neutral-400">Créneau préféré :</span><strong className="text-white">{viewingProfileUser.preferred_time || 'Flexible'}</strong></div>
+              <div className="flex justify-between py-1"><span className="text-neutral-400">Âge :</span><strong className="text-white">{viewingProfileUser.age} ans</strong></div>
             </div>
-            <div className="flex gap-2 pt-2">
-              <button onClick={() => { const target = viewingProfileUser; setViewingProfileUser(null); setSelectedBuddyChat(target); setCurrentTab('chat'); }} className="flex-1 py-3 bg-orange-600 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5"><MessageCircle className="w-4 h-4" /> Message</button>
+
+            <div className="flex gap-2.5 pt-2">
+              <button onClick={() => { const target = viewingProfileUser; setViewingProfileUser(null); setSelectedBuddyChat(target); setCurrentTab('chat'); }} className="flex-1 py-3.5 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 shadow-lg"><MessageCircle className="w-4 h-4" /> Envoyer un message</button>
             </div>
           </div>
         </div>
