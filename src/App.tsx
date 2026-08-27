@@ -278,8 +278,10 @@ export default function App() {
   // Auth States
   const [isSignUp, setIsSignUp] = useState(false);
   const [isForgotPassword, setIsForgotPassword] = useState(false);
+  const [isResetPasswordMode, setIsResetPasswordMode] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [username, setUsername] = useState('');
@@ -568,6 +570,25 @@ export default function App() {
       alert("Erreur : " + error.message);
     } else {
       setForgotPasswordSent(true);
+    }
+  };
+
+  const handleUpdatePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!password || password !== confirmPassword) {
+      alert("Les mots de passe ne correspondent pas ou sont vides.");
+      return;
+    }
+    setAuthLoading(true);
+    const { error } = await supabase.auth.updateUser({ password });
+    setAuthLoading(false);
+    if (error) {
+      alert("Erreur de mise à jour : " + error.message);
+    } else {
+      alert("Mot de passe mis à jour avec succès ! Vous êtes connecté.");
+      setIsResetPasswordMode(false);
+      setPassword('');
+      setConfirmPassword('');
     }
   };
 
@@ -1237,6 +1258,24 @@ export default function App() {
             <h2 className="text-xl font-black">Vérifie ta boîte mail !</h2>
             <p className="text-sm text-neutral-300 leading-relaxed">Un e-mail a été envoyé à <strong className="text-orange-400">{signupSuccessEmail}</strong>.</p>
             <button onClick={() => { setSignupSuccessEmail(null); setIsSignUp(false); }} className="w-full py-3 bg-neutral-800 hover:bg-neutral-700 text-white font-bold rounded-xl text-sm transition">Retour à la connexion</button>
+          </div>
+        </div>
+      );
+    }
+
+    if (isResetPasswordMode) {
+      return (
+        <div className="min-h-screen bg-neutral-950 text-white flex flex-col justify-center items-center px-4 py-8">
+          <div className="w-full max-w-md bg-neutral-900/90 border border-neutral-800 rounded-3xl p-6 sm:p-8 shadow-2xl backdrop-blur-xl">
+            <div className="flex justify-center mb-4"><div className="w-14 h-14 rounded-2xl bg-orange-500/20 border border-orange-500/40 flex items-center justify-center text-orange-500"><Key className="w-7 h-7" /></div></div>
+            <h1 className="text-xl font-black text-center tracking-tight mb-1">Nouveau mot de passe</h1>
+            <form onSubmit={handleUpdatePassword} className="space-y-4 mt-6">
+              <input type="password" required placeholder="Nouveau mot de passe" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3.5 py-3 text-sm text-white focus:border-orange-500" />
+              <input type="password" required placeholder="Confirmer le mot de passe" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3.5 py-3 text-sm text-white focus:border-orange-500" />
+              <button type="submit" disabled={authLoading} className="w-full bg-gradient-to-r from-orange-600 to-orange-500 text-white font-bold py-3.5 rounded-xl shadow-lg transition text-sm flex justify-center">
+                {authLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Mettre à jour le mot de passe"}
+              </button>
+            </form>
           </div>
         </div>
       );
