@@ -215,8 +215,16 @@ export default function App() {
   const [signupSuccessEmail, setSignupSuccessEmail] = useState<string | null>(null);
   const [isCGUModalOpen, setIsCGUModalOpen] = useState(false);
 
-  // App States
-  const [currentTab, setCurrentTab] = useState<'feed' | 'buddy' | 'workout' | 'exercises' | 'chat' | 'leaderboard' | 'profile'>('feed');
+  // App States (Restauration intelligente de l'onglet via sessionStorage pour application mobile/PWA)
+  const [currentTab, setCurrentTab] = useState<'feed' | 'buddy' | 'workout' | 'exercises' | 'chat' | 'leaderboard' | 'profile'>(() => {
+    try {
+      const savedTab = sessionStorage.getItem('fitpulse_current_tab');
+      return (savedTab as any) || 'feed';
+    } catch {
+      return 'feed';
+    }
+  });
+
   const [selectedClub, setSelectedClub] = useState<string>('Club Tournai (Bastion)');
   const [posts, setPosts] = useState<Post[]>([]);
   const [feedLoading, setFeedLoading] = useState(false);
@@ -224,8 +232,8 @@ export default function App() {
   const [userAvatarUrl, setUserAvatarUrl] = useState<string>('https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150');
   const profileAvatarInputRef = useRef<HTMLInputElement>(null);
 
-  const [userStreak, setUserStreak] = useState<number>(() => { try { return parseInt(localStorage.getItem('fitpulse_streak') || '2', 10); } catch { return 2; } });
-  const [isPrivateMode, setIsPrivateMode] = useState<boolean>(() => { try { return localStorage.getItem('fitpulse_private') === 'true'; } catch { return false; } });
+  const [userStreak, setUserStreak] = useState<number>(2);
+  const [isPrivateMode, setIsPrivateMode] = useState<boolean>(false);
   
   // Notifications & Présence
   const [lastNotifOpenTime, setLastNotifOpenTime] = useState<number>(() => { try { return parseInt(localStorage.getItem('fitpulse_last_notif') || '0', 10); } catch { return 0; } });
@@ -277,7 +285,7 @@ export default function App() {
   const streamRef = useRef<MediaStream | null>(null);
 
   // Chat & Invites
-  const [lastChatOpenTime, setLastChatOpenTime] = useState<number>(() => { try { return parseInt(localStorage.getItem('fitpulse_last_chat') || '0', 10); } catch { return 0; } });
+  const [lastChatOpenTime, setLastChatOpenTime] = useState<number>(0);
   const [selectedBuddyChat, setSelectedBuddyChat] = useState<RealUser | null>(null);
   const [currentMessageInput, setCurrentMessageInput] = useState('');
   const [inviteModalTarget, setInviteModalTarget] = useState<RealUser | null>(null);
@@ -321,8 +329,8 @@ export default function App() {
   const [editExercisesText, setEditExercisesText] = useState('');
   const [activeAnatomyExercise, setActiveAnatomyExercise] = useState<string | null>(null);
   
-  const [likedStories, setLikedStories] = useState<Record<string, boolean>>(() => { try { return JSON.parse(localStorage.getItem('fitpulse_liked_stories') || '{}'); } catch { return {}; } });
-  const [viewedStoryIds, setViewedStoryIds] = useState<string[]>(() => { try { return JSON.parse(localStorage.getItem('fitpulse_viewed_stories') || '[]'); } catch { return []; } });
+  const [likedStories, setLikedStories] = useState<Record<string, boolean>>({});
+  const [viewedStoryIds, setViewedStoryIds] = useState<string[]>([]);
 
 
   // ==========================================
@@ -393,6 +401,13 @@ export default function App() {
   // ==========================================
   // FONCTIONS ET HANDLERS
   // ==========================================
+
+  const handleTabChange = (tab: 'feed' | 'buddy' | 'workout' | 'exercises' | 'chat' | 'leaderboard' | 'profile') => {
+    setCurrentTab(tab);
+    try {
+      sessionStorage.setItem('fitpulse_current_tab', tab);
+    } catch (e) {}
+  };
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -729,7 +744,7 @@ export default function App() {
     const { data, error } = await supabase.from('posts').insert([newPostData]).select('*');
     if (error) alert("Erreur publication : " + error.message);
     else if (data && data.length > 0) {
-      setPosts([data[0] as Post, ...posts]); setUserStreak(prev => prev + 1); setWorkoutCaption(''); setPostImageFile(null); setPostImagePreview(null); setPostImageZoom(1); setPostImageOffset({ x: 0, y: 0 }); setWorkoutExercises([]); setCurrentTab('feed');
+      setPosts([data[0] as Post, ...posts]); setUserStreak(prev => prev + 1); setWorkoutCaption(''); setPostImageFile(null); setPostImagePreview(null); setPostImageZoom(1); setPostImageOffset({ x: 0, y: 0 }); setWorkoutExercises([]); handleTabChange('feed');
     }
     setIsUploading(false);
   };
@@ -872,7 +887,6 @@ export default function App() {
     fetchCloudStories();
     fetchRealUsers();
 
-    // Heartbeat présence toutes les 60 secondes
     const presenceInterval = setInterval(() => {
       if (user) syncProfile(user);
     }, 60000);
@@ -1264,7 +1278,7 @@ export default function App() {
           </div>
         )}
 
-        {/* TAB BUDDY (AVEC PASTILLE VERTE EN LIGNE FAÇON MESSENGER) */}
+        {/* TAB BUDDY */}
         {currentTab === 'buddy' && (
           <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4">
             <div className="flex items-center justify-between">
@@ -1325,7 +1339,6 @@ export default function App() {
                       const existingReq = friendRequests.find(r => (r.sender_id === user?.id && r.receiver_id === realUser.id) || (r.sender_id === realUser.id && r.receiver_id === user?.id));
                       const isPending = existingReq && existingReq.status === 'pending';
 
-                      // Calcul du statut En Ligne (moins de 5 minutes)
                       const lastSeenTime = realUser.last_seen ? new Date(realUser.last_seen).getTime() : 0;
                       const isOnline = Date.now() - lastSeenTime < 5 * 60 * 1000;
 
@@ -1676,23 +1689,23 @@ export default function App() {
         </div>
       )}
 
-      {/* BOTTOM NAV */}
+      {/* BOTTOM NAV AVEC RETIEN DE L'ONGLET ACTUEL */}
       <nav className="fixed bottom-0 left-0 right-0 z-40 bg-neutral-950/90 backdrop-blur-xl border-t border-neutral-800/80 px-2 py-2 flex justify-around items-center">
-        <button onClick={() => setCurrentTab('feed')} className={`flex flex-col items-center gap-1 ${currentTab === 'feed' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Home className="w-5 h-5" /><span className="text-[10px]">Accueil</span></button>
-        <button onClick={() => setCurrentTab('buddy')} className={`flex flex-col items-center gap-1 ${currentTab === 'buddy' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Users className="w-5 h-5" /><span className="text-[10px]">Buddy</span></button>
-        <button onClick={() => setCurrentTab('exercises')} className={`flex flex-col items-center gap-1 ${currentTab === 'exercises' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><BookOpen className="w-5 h-5" /><span className="text-[10px]">Exercices</span></button>
-        <button onClick={() => setCurrentTab('workout')} className={`flex flex-col items-center gap-1 ${currentTab === 'workout' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}>
+        <button onClick={() => handleTabChange('feed')} className={`flex flex-col items-center gap-1 ${currentTab === 'feed' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Home className="w-5 h-5" /><span className="text-[10px]">Accueil</span></button>
+        <button onClick={() => handleTabChange('buddy')} className={`flex flex-col items-center gap-1 ${currentTab === 'buddy' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Users className="w-5 h-5" /><span className="text-[10px]">Buddy</span></button>
+        <button onClick={() => handleTabChange('exercises')} className={`flex flex-col items-center gap-1 ${currentTab === 'exercises' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><BookOpen className="w-5 h-5" /><span className="text-[10px]">Exercices</span></button>
+        <button onClick={() => handleTabChange('workout')} className={`flex flex-col items-center gap-1 ${currentTab === 'workout' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}>
           <div className="w-8 h-8 rounded-xl bg-orange-600 text-white flex items-center justify-center -mt-2.5 shadow-lg"><Plus className="w-5 h-5" /></div>
           <span className="text-[10px]">Séance</span>
         </button>
-        <button onClick={() => setCurrentTab('chat')} className={`flex flex-col items-center gap-1 ${currentTab === 'chat' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}>
+        <button onClick={() => handleTabChange('chat')} className={`flex flex-col items-center gap-1 ${currentTab === 'chat' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}>
           <div className="relative">
             <MessageCircle className="w-5 h-5" />
             {unreadChatCount > 0 && <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 border border-neutral-950 rounded-full animate-pulse"></span>}
           </div>
           <span className="text-[10px]">Chat</span>
         </button>
-        <button onClick={() => setCurrentTab('profile')} className={`flex flex-col items-center gap-1 ${currentTab === 'profile' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><User className="w-5 h-5" /><span className="text-[10px]">Profil</span></button>
+        <button onClick={() => handleTabChange('profile')} className={`flex flex-col items-center gap-1 ${currentTab === 'profile' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><User className="w-5 h-5" /><span className="text-[10px]">Profil</span></button>
       </nav>
     </div>
   );
