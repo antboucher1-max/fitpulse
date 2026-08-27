@@ -57,7 +57,8 @@ import {
   FileText,
   AlertTriangle,
   Flag,
-  Bell
+  Bell,
+  Key
 } from 'lucide-react';
 import { createClient, User as SupabaseUser } from '@supabase/supabase-js';
 
