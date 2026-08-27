@@ -390,8 +390,22 @@ export default function App() {
 
 
   // ==========================================
-  // FONCTIONS ET HANDLERS
+  // FONCTIONS ET HANDLERS (AVEC HANDLEAUTH REPLACED)
   // ==========================================
+
+  const handleAuth = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (isSignUp && !acceptCGU) { alert("Veuillez accepter les CGU pour continuer."); return; }
+    setAuthLoading(true);
+    if (isSignUp) {
+      const { error } = await supabase.auth.signUp({ email, password, options: { data: { first_name: firstName, last_name: lastName, username: username || `${firstName}_${lastName}`.toLowerCase(), birth_date: birthDate, gender, level, home_club: homeClub, preferred_time: preferredTime, avatar_url: userAvatarUrl } } });
+      if (error) alert("Erreur d'inscription : " + error.message); else setSignupSuccessEmail(email);
+    } else {
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) alert("Erreur de connexion : " + error.message);
+    }
+    setAuthLoading(false);
+  };
 
   const syncProfile = async (sessionUser: SupabaseUser) => {
     try {
@@ -808,7 +822,7 @@ export default function App() {
 
   const handleAcceptFriendRequest = async (requestId: string) => {
     const { error } = await supabase.from('friend_requests').update({ status: 'accepted' }).eq('id', requestId);
-    if (!error && user) { alert("Demande acceptée !"); fetchFriendRequests(user.id); const req = friendRequests.find(r => r.id === requestId); if (req) sendSystemNotification(req.sender_id, `✅ ${user.user_metadata?.username || 'Un utilisateur'} a accepté votre demande d'smi !`); }
+    if (!error && user) { alert("Demande acceptée !"); fetchFriendRequests(user.id); const req = friendRequests.find(r => r.id === requestId); if (req) sendSystemNotification(req.sender_id, `✅ ${user.user_metadata?.username || 'Un utilisateur'} a accepté votre demande d'ami !`); }
   };
 
   const handleRejectFriendRequest = async (requestId: string) => {
@@ -824,7 +838,7 @@ export default function App() {
 
 
   // ==========================================
-  // 5. EFFETS SECONDAIRES (useEffect)
+  // 7. EFFETS SECONDAIRES DE COMPOSANT (useEffect)
   // ==========================================
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -906,34 +920,9 @@ export default function App() {
     };
   }, [isCameraActive, cameraTarget, facingMode]);
 
-  useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [allMessages, selectedBuddyChat]);
-  useEffect(() => { localStorage.setItem('fitpulse_streak', userStreak.toString()); }, [userStreak]);
-  useEffect(() => { localStorage.setItem('fitpulse_private', isPrivateMode.toString()); }, [isPrivateMode]);
-  useEffect(() => { localStorage.setItem('fitpulse_liked_stories', JSON.stringify(likedStories)); }, [likedStories]);
-  useEffect(() => { localStorage.setItem('fitpulse_viewed_stories', JSON.stringify(viewedStoryIds)); }, [viewedStoryIds]);
-
-  useEffect(() => {
-    if (currentTab === 'chat') {
-      const now = Date.now();
-      setLastChatOpenTime(now);
-      localStorage.setItem('fitpulse_last_chat', now.toString());
-    }
-  }, [allMessages, currentTab]);
-
-  useEffect(() => {
-    let timer: NodeJS.Timeout | null = null;
-    if (isRestTimerActive && restTimeRemaining > 0) {
-      timer = setInterval(() => setRestTimeRemaining((prev) => prev - 1), 1000);
-    } else if (restTimeRemaining === 0 && isRestTimerActive) {
-      setIsRestTimerActive(false);
-      alert('⏰ Temps de repos terminé ! Prépare ta prochaine série 💪');
-    }
-    return () => { if (timer) clearInterval(timer); };
-  }, [isRestTimerActive, restTimeRemaining]);
-
 
   // ==========================================
-  // 6. RENDU (JSX)
+  // 8. RENDU (JSX)
   // ==========================================
 
   if (!user) {
