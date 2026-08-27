@@ -328,7 +328,6 @@ export default function App() {
     }
   });
   
-  // Consultation d'un profil tiers
   const [viewingProfileUser, setViewingProfileUser] = useState<RealUser | null>(null);
 
   // Buddy Filters
@@ -472,6 +471,13 @@ export default function App() {
   const currentChatMessages = allMessages.filter(
     (m) => selectedBuddyChat && user && ((m.sender_id === user.id && m.receiver_id === selectedBuddyChat.id) || (m.sender_id === selectedBuddyChat.id && m.receiver_id === user.id))
   );
+
+  // Vérification de la limite de 3 messages pour les non-amis (Type Instagram)
+  const isSelectedChatFriend = selectedBuddyChat ? acceptedFriendIds.includes(selectedBuddyChat.id) || selectedBuddyChat.id === 'system-bot' : true;
+  const mySentMessagesCount = selectedBuddyChat && user 
+    ? allMessages.filter(m => m.sender_id === user.id && m.receiver_id === selectedBuddyChat.id).length 
+    : 0;
+  const isMessageLimitReached = !isSelectedChatFriend && mySentMessagesCount >= 3;
 
   const friendStoriesList = cloudStories.filter((s) => {
     const storyDate = new Date(s.created_at).getTime();
@@ -747,6 +753,10 @@ export default function App() {
 
   const handleSendMessage = async () => {
     if (!currentMessageInput.trim() || !selectedBuddyChat || !user) return;
+    if (isMessageLimitReached) {
+      alert("Limite de 3 messages atteinte. Attendez que la personne accepte la conversation.");
+      return;
+    }
     const text = currentMessageInput.trim();
     const myName = user.user_metadata?.first_name || user.user_metadata?.username || user.email?.split('@')[0] || 'Moi';
     const { data, error } = await supabase.from('direct_messages').insert([{ sender_id: user.id, receiver_id: selectedBuddyChat.id, sender_name: myName, text }]);
@@ -1646,9 +1656,17 @@ export default function App() {
                   <div ref={messagesEndRef} />
                 </div>
                 {selectedBuddyChat.id !== 'system-bot' && (
-                  <div className="p-3.5 bg-neutral-950 border-t border-neutral-800 flex items-center gap-2.5">
-                    <input type="text" placeholder="Écrire un message..." value={currentMessageInput} onChange={(e) => setCurrentMessageInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()} className="flex-1 bg-neutral-900 border border-neutral-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-orange-500" />
-                    <button onClick={() => handleSendMessage()} className="p-3 bg-orange-600 text-white rounded-xl"><SendHorizontal className="w-4 h-4" /></button>
+                  <div className="p-3.5 bg-neutral-950 border-t border-neutral-800">
+                    {isMessageLimitReached ? (
+                      <div className="text-center py-2 text-xs text-amber-400 font-semibold bg-amber-500/10 border border-amber-500/30 rounded-xl">
+                        🔒 Limite de 3 messages atteinte. En attente d'acceptation.
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2.5">
+                        <input type="text" placeholder="Écrire un message..." value={currentMessageInput} onChange={(e) => setCurrentMessageInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()} className="flex-1 bg-neutral-900 border border-neutral-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-orange-500" />
+                        <button onClick={() => handleSendMessage()} className="p-3 bg-orange-600 text-white rounded-xl"><SendHorizontal className="w-4 h-4" /></button>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -1785,7 +1803,7 @@ export default function App() {
         )}
       </main>
 
-      {/* MODAL PROFIL TIERS (STYLE EXACT DE NOTRE PROFIL) */}
+      {/* MODAL PROFIL TIERS */}
       {viewingProfileUser && (
         <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
           <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-sm w-full p-6 space-y-5 shadow-2xl relative max-h-[85vh] overflow-y-auto">
