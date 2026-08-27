@@ -173,7 +173,7 @@ const EXERCISES_DATABASE: ExerciseGuide[] = [
     equipment: 'Machine Leg Press inclinée',
     targetMuscles: 'Quadriceps, Fessiers',
     settings: 'Assieds-toi, place tes pieds au milieu de la plateforme largeur d’épaules. Déverrouille les sécurités.',
-    execution: 'Fléchis les jambes pour ramener le chariot vers toi (angle à 90° aux genoux) puis pousse puissamment sans tendre complètement les genoux.',
+    execution: 'Fléchis les jambes pour ramener le chariot vers toi (angle à 90° aux genoux) puis pousse puissamment sans tendre complètement les coudes.',
     tips: 'Ne décolle jamais le bas du dos ou les talons du dossier pendant le mouvement.',
     image_url: 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?w=800'
   }
@@ -356,9 +356,9 @@ interface DBMessage {
 }
 
 export default function App() {
+  // 1. DÉCLARATION DE TOUS LES ÉTATS (useState)
   const [user, setUser] = useState<SupabaseUser | null>(null);
 
-  // Auth & Navigation
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -382,18 +382,15 @@ export default function App() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [feedLoading, setFeedLoading] = useState(false);
 
-  // Pop-up Matchmaking Partner
   const [isMatchModalOpen, setIsMatchModalOpen] = useState(false);
   const [matchGoal, setMatchGoal] = useState('Tous');
   const [matchTime, setMatchTime] = useState('Tous');
 
-  // Avatar utilisateur
   const [userAvatarUrl, setUserAvatarUrl] = useState<string>(() => {
     return 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150';
   });
   const profileAvatarInputRef = useRef<HTMLInputElement>(null);
 
-  // Paramètres Utilisateur & Demandes d'amis
   const [userStreak, setUserStreak] = useState<number>(() => {
     try { return parseInt(localStorage.getItem('fitpulse_streak') || '2', 10); } catch { return 2; }
   });
@@ -402,7 +399,6 @@ export default function App() {
     try { return localStorage.getItem('fitpulse_private') === 'true'; } catch { return false; }
   });
 
-  // Gestion des badges et messages non lus
   const [lastChatOpenTime, setLastChatOpenTime] = useState<number>(() => {
     try { return parseInt(localStorage.getItem('fitpulse_last_chat') || '0', 10); } catch { return 0; }
   });
@@ -415,9 +411,6 @@ export default function App() {
   const [newTransBefore, setNewTransBefore] = useState<string | null>(null);
   const [newTransAfter, setNewTransAfter] = useState<string | null>(null);
   const [newTransIsPrivate, setNewTransIsPrivate] = useState<boolean>(true);
-
-  useEffect(() => { localStorage.setItem('fitpulse_streak', userStreak.toString()); }, [userStreak]);
-  useEffect(() => { localStorage.setItem('fitpulse_private', isPrivateMode.toString()); }, [isPrivateMode]);
 
   const [likedStories, setLikedStories] = useState<Record<string, boolean>>(() => {
     try {
@@ -433,17 +426,12 @@ export default function App() {
     } catch { return []; }
   });
 
-  useEffect(() => { localStorage.setItem('fitpulse_liked_stories', JSON.stringify(likedStories)); }, [likedStories]);
-  useEffect(() => { localStorage.setItem('fitpulse_viewed_stories', JSON.stringify(viewedStoryIds)); }, [viewedStoryIds]);
-
   const [activeAnatomyExercise, setActiveAnatomyExercise] = useState<string | null>(null);
 
-  // Chronomètre de repos
   const [restTimerSeconds, setRestTimerSeconds] = useState(90);
   const [isRestTimerActive, setIsRestTimerActive] = useState(false);
   const [restTimeRemaining, setRestTimeRemaining] = useState(90);
 
-  // Records Personnels (PRs)
   const [personalRecords, setPersonalRecords] = useState<PersonalRecord[]>([
     { exercise: 'Développé couché', weight: 100, reps: 5, date: '2026-08-10' },
     { exercise: 'Squat', weight: 140, reps: 5, date: '2026-08-12' },
@@ -453,18 +441,15 @@ export default function App() {
   const [newPrWeight, setNewPrWeight] = useState<number | ''>('');
   const [newPrReps, setNewPrReps] = useState<number | ''>('');
 
-  // Planificateur
   const [weeklyPlan, setWeeklyPlan] = useState<WeeklyPlan[]>(DEFAULT_WEEKLY_PLAN);
   const [editingDayIndex, setEditingDayIndex] = useState<number | null>(null);
   const [editFocus, setEditFocus] = useState(WORKOUT_CHOICES[0]);
   const [editExercisesText, setEditExercisesText] = useState('');
 
-  // Guide
   const [exerciseSearch, setExerciseSearch] = useState('');
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>('Tous');
   const [selectedExerciseDetail, setSelectedExerciseDetail] = useState<ExerciseGuide | null>(null);
 
-  // Membres et Amis
   const [registeredUsers, setRegisteredUsers] = useState<RealUser[]>([]);
   const [buddyTabSubMode, setBuddyTabSubMode] = useState<'discover' | 'my_friends' | 'requests'>('discover');
   const [userSearchQuery, setUserSearchQuery] = useState('');
@@ -472,7 +457,6 @@ export default function App() {
   const [selectedGoalFilter, setSelectedGoalFilter] = useState<string>('all');
   const [selectedAgeGroupFilter, setSelectedAgeGroupFilter] = useState<string>('all');
 
-  // Stories
   const [cloudStories, setCloudStories] = useState<Story[]>([]);
   const [activeStoryIndex, setActiveStoryIndex] = useState<number | null>(null);
   const [storyProgress, setStoryProgress] = useState(0);
@@ -485,7 +469,6 @@ export default function App() {
   const [storyUploading, setStoryUploading] = useState(false);
   const storyFileInputRef = useRef<HTMLInputElement>(null);
 
-  // Workout Creation State
   const [workoutType, setWorkoutType] = useState('Musculation (Push)');
   const [workoutCaption, setWorkoutCaption] = useState('');
   const [postImageFile, setPostImageFile] = useState<File | null>(null);
@@ -497,7 +480,6 @@ export default function App() {
   const beforeFileInputRef = useRef<HTMLInputElement>(null);
   const afterFileInputRef = useRef<HTMLInputElement>(null);
 
-  // Caméra
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [cameraTarget, setCameraTarget] = useState<'post' | 'story' | 'trans_before' | 'trans_after' | 'profile_avatar'>('post');
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('environment');
@@ -512,7 +494,103 @@ export default function App() {
   const [activeCommentPostId, setActiveCommentPostId] = useState<string | null>(null);
   const [postCommentInput, setPostCommentInput] = useState('');
 
-  // Initialisation Supabase
+
+  // 2. VARIABLES DÉRIVÉES ET LISTES FILTRÉES (DOIVENT ÊTRE DÉCLARÉES ICI !)
+  const acceptedFriendIds = friendRequests
+    .filter(req => req.status === 'accepted')
+    .map(req => (req.sender_id === user?.id ? req.receiver_id : req.sender_id));
+
+  const botUser: RealUser = {
+    id: 'system-bot',
+    username: '⚠️ Modération Bot',
+    email: 'bot@fitpulse',
+    home_club: 'Système',
+    age: 99,
+    avatar_url: 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=150'
+  };
+
+  const hasBotMessages = allMessages.some(m => m.sender_id === 'system-bot' && m.receiver_id === user?.id);
+
+  const activeChatUsers = registeredUsers.filter((u) => {
+    if (u.id === user?.id) return false;
+    const hasExchanged = allMessages.some(m => (m.sender_id === user?.id && m.receiver_id === u.id) || (m.sender_id === u.id && m.receiver_id === user?.id));
+    return acceptedFriendIds.includes(u.id) || hasExchanged;
+  });
+
+  if (hasBotMessages) {
+    activeChatUsers.unshift(botUser);
+  }
+
+  const myFriendsList = registeredUsers.filter((u) => acceptedFriendIds.includes(u.id));
+  const incomingRequests = friendRequests.filter(req => req.receiver_id === user?.id && req.status === 'pending');
+
+  const filteredBuddies = registeredUsers.filter((u) => {
+    if (u.id === user?.id) return false;
+    if (buddyTabSubMode === 'my_friends' && !acceptedFriendIds.includes(u.id)) return false;
+    if (filterWomenOnly && u.gender === 'M') return false;
+    
+    if (selectedGoalFilter !== 'all' && u.goal && !u.goal.toLowerCase().includes(selectedGoalFilter.toLowerCase())) {
+      return false;
+    }
+
+    if (selectedAgeGroupFilter !== 'all') {
+      const age = u.age;
+      if (selectedAgeGroupFilter === '18-25' && (age < 18 || age > 25)) return false;
+      if (selectedAgeGroupFilter === '26-35' && (age < 26 || age > 35)) return false;
+      if (selectedAgeGroupFilter === '36-45' && (age < 36 || age > 45)) return false;
+      if (selectedAgeGroupFilter === '46+' && age < 46) return false;
+    }
+
+    if (userSearchQuery.trim()) {
+      const q = userSearchQuery.toLowerCase();
+      return u.username.toLowerCase().includes(q) || u.home_club.toLowerCase().includes(q);
+    }
+
+    return true;
+  });
+
+  const matchedBuddiesList = registeredUsers.filter((u) => {
+    if (u.id === user?.id) return false;
+    if (filterWomenOnly && u.gender === 'M') return false;
+    const matchG = matchGoal === 'Tous' || (u.goal && u.goal.toLowerCase().includes(matchGoal.toLowerCase()));
+    const matchT = matchTime === 'Tous' || (u.preferred_time && u.preferred_time.includes(matchTime));
+    return matchG && matchT;
+  });
+
+  const displayedPosts = posts.filter((post) => {
+    if (post.is_private) {
+      if (post.user_id !== user?.id && !acceptedFriendIds.includes(post.user_id)) {
+        return false;
+      }
+    }
+    return isMatchingClub(post.club_name, selectedClub);
+  });
+
+  const currentChatMessages = allMessages.filter(
+    (m) => selectedBuddyChat && user && ((m.sender_id === user.id && m.receiver_id === selectedBuddyChat.id) || (m.sender_id === selectedBuddyChat.id && m.receiver_id === user.id))
+  );
+
+  const friendStoriesList = cloudStories.filter((s) => {
+    const storyDate = new Date(s.created_at).getTime();
+    const isUnder24h = !isNaN(storyDate) ? storyDate >= Date.now() - 24 * 3600 * 1000 : true;
+    return isUnder24h;
+  });
+
+  const activeViewingStory = activeStoryIndex !== null ? friendStoriesList[activeStoryIndex] : null;
+
+  const activePostForComments = posts.find((p) => p.id === activeCommentPostId);
+
+  const unreadChatCount = allMessages.filter(
+    (m) => m.receiver_id === user?.id && new Date(m.created_at).getTime() > lastChatOpenTime
+  ).length;
+
+
+  // 3. EFFETS SECONDAIRES (useEffect)
+  useEffect(() => { localStorage.setItem('fitpulse_streak', userStreak.toString()); }, [userStreak]);
+  useEffect(() => { localStorage.setItem('fitpulse_private', isPrivateMode.toString()); }, [isPrivateMode]);
+  useEffect(() => { localStorage.setItem('fitpulse_liked_stories', JSON.stringify(likedStories)); }, [likedStories]);
+  useEffect(() => { localStorage.setItem('fitpulse_viewed_stories', JSON.stringify(viewedStoryIds)); }, [viewedStoryIds]);
+
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       const activeUser = session?.user ?? null;
@@ -565,14 +643,12 @@ export default function App() {
       supabase.removeChannel(channel);
       stopCameraStream();
     };
-  }, [user?.id]); // Ajout de user?.id pour s'assurer que ça recharge si besoin
+  }, [user?.id]);
 
-  // Auto-scroll chat
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [allMessages, selectedBuddyChat]);
 
-  // Gestion pastille rouge (Messages non lus)
   useEffect(() => {
     if (currentTab === 'chat') {
       const now = Date.now();
@@ -581,11 +657,42 @@ export default function App() {
     }
   }, [allMessages, currentTab]);
 
-  const unreadChatCount = allMessages.filter(
-    (m) => m.receiver_id === user?.id && new Date(m.created_at).getTime() > lastChatOpenTime
-  ).length;
+  useEffect(() => {
+    let timer: NodeJS.Timeout | null = null;
+    if (isRestTimerActive && restTimeRemaining > 0) {
+      timer = setInterval(() => setRestTimeRemaining((prev) => prev - 1), 1000);
+    } else if (restTimeRemaining === 0 && isRestTimerActive) {
+      setIsRestTimerActive(false);
+      alert('⏰ Temps de repos terminé ! Prépare ta prochaine série 💪');
+    }
+    return () => { if (timer) clearInterval(timer); };
+  }, [isRestTimerActive, restTimeRemaining]);
 
-  // Fonctions Fetch
+  useEffect(() => {
+    if (activeStoryIndex === null || isStoryPaused) return;
+
+    const currentStory = friendStoriesList[activeStoryIndex];
+    if (currentStory && !viewedStoryIds.includes(currentStory.id)) {
+      setViewedStoryIds((prev) => [...prev, currentStory.id]);
+    }
+
+    const interval = 50;
+    const step = (interval / 5000) * 100;
+    const timer = setInterval(() => {
+      setStoryProgress((prev) => {
+        if (prev >= 100) {
+          handleNextStory();
+          return 0;
+        }
+        return prev + step;
+      });
+    }, interval);
+
+    return () => clearInterval(timer);
+  }, [activeStoryIndex, isStoryPaused, friendStoriesList.length]);
+
+
+  // 4. FONCTIONS DE FETCH (Réseau)
   const fetchCloudPosts = async () => {
     setFeedLoading(true);
     const { data, error } = await supabase.from('posts').select('*').order('created_at', { ascending: false });
@@ -665,7 +772,7 @@ export default function App() {
     }
   };
 
-  // Fonctions Actions UI
+  // 5. FONCTIONS HANDLERS (Interactions)
   const handleAddExerciseRow = () => {
     setWorkoutExercises([...workoutExercises, { name: '', sets: 3, reps: 10, weight: 50 }]);
   };
@@ -674,14 +781,47 @@ export default function App() {
     setWorkoutExercises(workoutExercises.filter((_, i) => i !== index));
   };
 
-  const renderCaptionWithHashtags = (text: string) => {
-    if (!text) return null;
-    return text.split(' ').map((word, i) => {
-      if (word.startsWith('#')) {
-        return <span key={i} className="text-orange-500 font-bold">{word} </span>;
-      }
-      return word + ' ';
-    });
+  const startRestTimer = (seconds: number) => {
+    setRestTimerSeconds(seconds);
+    setRestTimeRemaining(seconds);
+    setIsRestTimerActive(true);
+  };
+
+  const handleAddPR = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newPrExercise.trim() || newPrWeight === '' || newPrReps === '') return;
+    const newRecord: PersonalRecord = {
+      exercise: newPrExercise.trim(),
+      weight: Number(newPrWeight),
+      reps: Number(newPrReps),
+      date: new Date().toISOString().split('T')[0]
+    };
+    setPersonalRecords([newRecord, ...personalRecords]);
+    setNewPrExercise('');
+    setNewPrWeight('');
+    setNewPrReps('');
+    alert('🏆 Nouveau record enregistré avec succès !');
+  };
+
+  const handleSaveWeeklyPlanEdit = (index: number) => {
+    const updated = [...weeklyPlan];
+    updated[index] = {
+      ...updated[index],
+      focus: editFocus,
+      exercisesText: editExercisesText
+    };
+    setWeeklyPlan(updated);
+    setEditingDayIndex(null);
+  };
+
+  const handleAddWorkoutHashtag = (tag: string) => {
+    if (workoutCaption.includes(tag)) return;
+    setWorkoutCaption((prev) => (prev ? `${prev} ${tag}` : tag));
+  };
+
+  const handleAddStoryHashtag = (tag: string) => {
+    if (storyCaption.includes(tag)) return;
+    setStoryCaption((prev) => (prev ? `${prev} ${tag}` : tag));
   };
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>, targetType?: string) => {
@@ -750,28 +890,6 @@ export default function App() {
       .from('posts')
       .update({ likes_count: newCount, liked_by: updatedLikedBy })
       .eq('id', postId);
-  };
-
-  const handleNextStory = () => {
-    if (activeStoryIndex === null) return;
-    if (activeStoryIndex < friendStoriesList.length - 1) {
-      setActiveStoryIndex(activeStoryIndex + 1);
-      setStoryProgress(0);
-      setStoryCommentInput('');
-    } else {
-      setActiveStoryIndex(null);
-    }
-  };
-
-  const handlePrevStory = () => {
-    if (activeStoryIndex === null) return;
-    if (activeStoryIndex > 0) {
-      setActiveStoryIndex(activeStoryIndex - 1);
-      setStoryProgress(0);
-      setStoryCommentInput('');
-    } else {
-      setStoryProgress(0);
-    }
   };
 
   const handleToggleStoryLike = async (storyId: string) => {
@@ -1050,7 +1168,6 @@ export default function App() {
     if (!window.confirm("Signaler cette publication pour contenu inapproprié ou non conforme aux CGU ?")) return;
     
     if (user) {
-      // 1. Chercher l'ID de l'admin (Antbou)
       let adminId = registeredUsers.find(u => u.username.toLowerCase() === 'antbou')?.id;
       
       if (!adminId) {
@@ -1060,7 +1177,6 @@ export default function App() {
         }
       }
       
-      // 2. Envoyer le message d'alerte avec le profil système (system-bot)
       if (adminId) {
         const myName = user.user_metadata?.username || user.email?.split('@')[0] || 'Un utilisateur';
         const alertText = `🚨 SIGNALEMENT : ${myName} a signalé le post de ${post.username}. Message du post : "${post.caption || 'Photo uniquement'}".`;
@@ -1243,82 +1359,6 @@ export default function App() {
     }
   };
 
-  // Traitement conditionnel des variables pour le rendu JSX
-  const acceptedFriendIds = friendRequests
-    .filter(req => req.status === 'accepted')
-    .map(req => (req.sender_id === user?.id ? req.receiver_id : req.sender_id));
-
-  const botUser: RealUser = {
-    id: 'system-bot',
-    username: '⚠️ Modération Bot',
-    email: 'bot@fitpulse',
-    home_club: 'Système',
-    age: 99,
-    avatar_url: 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=150'
-  };
-
-  const hasBotMessages = allMessages.some(m => m.sender_id === 'system-bot' && m.receiver_id === user?.id);
-
-  const activeChatUsers = registeredUsers.filter((u) => {
-    if (u.id === user?.id) return false;
-    const hasExchanged = allMessages.some(m => (m.sender_id === user?.id && m.receiver_id === u.id) || (m.sender_id === u.id && m.receiver_id === user?.id));
-    return acceptedFriendIds.includes(u.id) || hasExchanged;
-  });
-
-  if (hasBotMessages) {
-    activeChatUsers.unshift(botUser);
-  }
-
-  const myFriendsList = registeredUsers.filter((u) => acceptedFriendIds.includes(u.id));
-  const incomingRequests = friendRequests.filter(req => req.receiver_id === user?.id && req.status === 'pending');
-
-  const filteredBuddies = registeredUsers.filter((u) => {
-    if (u.id === user?.id) return false;
-    if (buddyTabSubMode === 'my_friends' && !acceptedFriendIds.includes(u.id)) return false;
-    if (filterWomenOnly && u.gender === 'M') return false;
-    
-    if (selectedGoalFilter !== 'all' && u.goal && !u.goal.toLowerCase().includes(selectedGoalFilter.toLowerCase())) {
-      return false;
-    }
-
-    if (selectedAgeGroupFilter !== 'all') {
-      const age = u.age;
-      if (selectedAgeGroupFilter === '18-25' && (age < 18 || age > 25)) return false;
-      if (selectedAgeGroupFilter === '26-35' && (age < 26 || age > 35)) return false;
-      if (selectedAgeGroupFilter === '36-45' && (age < 36 || age > 45)) return false;
-      if (selectedAgeGroupFilter === '46+' && age < 46) return false;
-    }
-
-    if (userSearchQuery.trim()) {
-      const q = userSearchQuery.toLowerCase();
-      return u.username.toLowerCase().includes(q) || u.home_club.toLowerCase().includes(q);
-    }
-
-    return true;
-  });
-
-  const matchedBuddiesList = registeredUsers.filter((u) => {
-    if (u.id === user?.id) return false;
-    if (filterWomenOnly && u.gender === 'M') return false;
-    const matchG = matchGoal === 'Tous' || (u.goal && u.goal.toLowerCase().includes(matchGoal.toLowerCase()));
-    const matchT = matchTime === 'Tous' || (u.preferred_time && u.preferred_time.includes(matchTime));
-    return matchG && matchT;
-  });
-
-  const displayedPosts = posts.filter((post) => {
-    if (post.is_private) {
-      if (post.user_id !== user?.id && !acceptedFriendIds.includes(post.user_id)) {
-        return false;
-      }
-    }
-    return isMatchingClub(post.club_name, selectedClub);
-  });
-
-  const currentChatMessages = allMessages.filter(
-    (m) => selectedBuddyChat && user && ((m.sender_id === user.id && m.receiver_id === selectedBuddyChat.id) || (m.sender_id === selectedBuddyChat.id && m.receiver_id === user.id))
-  );
-
-  const activeViewingStory = activeStoryIndex !== null ? friendStoriesList[activeStoryIndex] : null;
 
   // RENDU LOGIN
   if (!user) {
@@ -2285,6 +2325,62 @@ export default function App() {
           </div>
         )}
       </main>
+
+      {/* MODAL LECTURE DE STORY */}
+      {activeViewingStory && activeStoryIndex !== null && (
+        <div className="fixed inset-0 z-50 bg-black flex flex-col justify-between p-4 select-none">
+          <div className="w-full flex items-center gap-1.5 pt-2 z-20">
+            {friendStoriesList.map((_, idx) => (
+              <div key={idx} className="h-1 bg-white/30 rounded-full flex-1 overflow-hidden">
+                <div className="h-full bg-white transition-all ease-linear" style={{ width: idx < activeStoryIndex ? '100%' : idx === activeStoryIndex ? `${storyProgress}%` : '0%' }} />
+              </div>
+            ))}
+          </div>
+
+          <div className="flex items-center justify-between pt-3 z-20">
+            <div className="flex items-center gap-2.5">
+              <img src={activeViewingStory.avatar_url} alt="" className="w-10 h-10 rounded-full object-cover border-2 border-orange-500" />
+              <div>
+                <h4 className="font-bold text-xs text-white">{activeViewingStory.username}</h4>
+                <span className="text-[10px] text-neutral-400">{activeViewingStory.club_name}</span>
+              </div>
+            </div>
+            <button onClick={() => { setActiveStoryIndex(null); setIsStoryPaused(false); }} className="p-2 bg-black/60 rounded-full text-white"><X className="w-6 h-6" /></button>
+          </div>
+
+          <div className="absolute inset-0 z-10 flex" style={{ bottom: '90px' }}>
+            <div className="w-1/3 h-full cursor-pointer" onClick={handlePrevStory} />
+            <div className="w-2/3 h-full cursor-pointer" onClick={handleNextStory} />
+          </div>
+
+          <div className="flex-1 flex items-center justify-center py-4 z-0 pointer-events-none">
+            <img src={activeViewingStory.image_url} alt="" className="max-h-[60vh] max-w-full rounded-2xl object-contain border border-neutral-800" />
+          </div>
+
+          {activeViewingStory.caption && (
+            <div className="bg-neutral-950/80 backdrop-blur-lg px-3.5 py-2 rounded-xl border border-neutral-800 text-center mb-2 z-20">
+              <p className="text-xs text-neutral-100 font-medium">{renderCaptionWithHashtags(activeViewingStory.caption)}</p>
+            </div>
+          )}
+
+          <div className="z-30 space-y-2">
+            <div className="flex justify-center gap-4 py-1">
+              {['🔥', '💪', '👏', '❤️'].map((emoji) => (
+                <button key={emoji} onClick={() => handleSendStoryComment(undefined, emoji)} className="text-xl bg-neutral-900/80 p-1.5 rounded-full border border-neutral-800">{emoji}</button>
+              ))}
+            </div>
+            <div className="flex items-center gap-2">
+              <form onSubmit={(e) => handleSendStoryComment(e)} className="flex-1 flex items-center bg-neutral-900 border border-neutral-800 rounded-2xl px-3 py-1.5">
+                <input type="text" placeholder="Répondre..." value={storyCommentInput} onFocus={() => setIsStoryPaused(true)} onBlur={() => !storyCommentInput && setIsStoryPaused(false)} onChange={(e) => setStoryCommentInput(e.target.value)} className="flex-1 bg-transparent text-xs text-white focus:outline-none" />
+                {storyCommentInput.trim() && <button type="submit" className="text-orange-400 p-1"><SendHorizontal className="w-4 h-4" /></button>}
+              </form>
+              <button onClick={() => handleToggleStoryLike(activeViewingStory.id)} className="p-3 bg-neutral-900 border border-neutral-800 rounded-2xl text-white">
+                <Heart className={`w-5 h-5 ${likedStories[activeViewingStory.id] ? 'fill-red-500 text-red-500' : ''}`} />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* BOTTOM NAV */}
       <nav className="fixed bottom-0 left-0 right-0 z-40 bg-neutral-950/90 backdrop-blur-xl border-t border-neutral-800/80 px-2 py-2 flex justify-around items-center">
