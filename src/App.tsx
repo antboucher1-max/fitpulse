@@ -750,7 +750,11 @@ export default function App() {
     setStoryCommentInput(''); setIsStoryPaused(false); alert('Réponse envoyée en message direct !');
   };
 
+  // Ferme la modale story pour laisser la caméra s'afficher au premier plan en plein écran
   const startCameraHandler = (target: 'post' | 'story' | 'trans_before' | 'trans_after' | 'profile_avatar') => {
+    if (target === 'story') {
+      setIsCreatingStory(false);
+    }
     setCameraTarget(target);
     setIsCameraActive(true);
   };
@@ -758,6 +762,9 @@ export default function App() {
   const stopCameraStream = () => {
     if (streamRef.current) { streamRef.current.getTracks().forEach((t) => t.stop()); streamRef.current = null; }
     setIsCameraActive(false);
+    if (cameraTarget === 'story') {
+      setIsCreatingStory(true);
+    }
   };
 
   const switchCameraFacing = async () => {
@@ -943,7 +950,7 @@ export default function App() {
     if (!inviteModalTarget || !user) return;
     await supabase.from('direct_messages').insert([{ sender_id: user.id, receiver_id: inviteModalTarget.id, sender_name: user.user_metadata?.username || 'Un ami', text: `🏋️ INVITATION PUSH UP : Salut ! Es-tu prêt(e) pour une grosse séance **${inviteType}** avec moi ?` }]);
     alert(`Invitation envoyée à ${inviteModalTarget.username} !`); 
-    setInviteModalTarget(null); // Ferme correctement la modale Push Up
+    setInviteModalTarget(null);
   };
 
 
@@ -1435,7 +1442,6 @@ export default function App() {
                       const lastSeenTime = realUser.last_seen ? new Date(realUser.last_seen).getTime() : 0;
                       const diffMinutes = (Date.now() - lastSeenTime) / 60000;
                       
-                      // PASTILLES DE PRÉSENCE (Verte = < 5 min, Orange = < 30 min, Rouge = Inactif)
                       let dotColor = 'bg-red-500';
                       let statusText = 'Absent';
                       if (diffMinutes < 5) { dotColor = 'bg-green-500'; statusText = 'En ligne'; }
