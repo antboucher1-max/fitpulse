@@ -802,7 +802,6 @@ export default function App() {
     }, 'image/jpeg', 0.85);
   };
 
-  // Correction de la publication de Story avec un ID unique explicitement généré
   const handlePublishStory = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !storyImageFile) return;
@@ -973,12 +972,10 @@ export default function App() {
     if (!error && user) fetchFriendRequests(user.id);
   };
 
-  // Envoi de l'invitation Push Up avec notification système ciblée et mise à jour de l'état "Envoyé"
   const handleSendInvite = async () => {
     if (!inviteModalTarget || !user) return;
     const myName = user.user_metadata?.first_name || user.user_metadata?.username || user.email?.split('@')[0] || 'Un ami';
     
-    // 1. Enregistre dans la messagerie directe
     await supabase.from('direct_messages').insert([{ 
       sender_id: user.id, 
       receiver_id: inviteModalTarget.id, 
@@ -986,10 +983,8 @@ export default function App() {
       text: `🏋️ INVITATION PUSH UP : Salut ! Es-tu prêt(e) pour une grosse séance **${inviteType}** avec moi ?` 
     }]);
 
-    // 2. Déclenche une vraie notification visible dans la cloche du destinataire
     await sendSystemNotification(inviteModalTarget.id, `⚡ ${myName} vous a envoyé une invitation Push Up (${inviteType}) !`);
 
-    // 3. Marque comme envoyé dans le stockage local pour griser le bouton
     const updatedPushUps = { ...sentPushUps, [inviteModalTarget.id]: true };
     setSentPushUps(updatedPushUps);
     try { localStorage.setItem('fitpulse_sent_pushups', JSON.stringify(updatedPushUps)); } catch(e) {}
@@ -1114,7 +1109,7 @@ export default function App() {
 
 
   // ==========================================
-  // 8. RENDU (JSX)
+  // 8. RENDU (JSX) - AVEC POLICES HARMONISÉES (Style Instagram)
   // ==========================================
 
   if (!user) {
@@ -1124,8 +1119,8 @@ export default function App() {
           <div className="w-full max-w-md bg-neutral-900 border border-neutral-800 rounded-3xl p-8 text-center space-y-5 shadow-2xl">
             <div className="w-16 h-16 bg-orange-500/20 border border-orange-500/40 rounded-2xl flex items-center justify-center text-orange-500 mx-auto"><Mail className="w-8 h-8 animate-bounce" /></div>
             <h2 className="text-xl font-black">Vérifie ta boîte mail !</h2>
-            <p className="text-xs text-neutral-300 leading-relaxed">Un e-mail a été envoyé à <strong className="text-orange-400">{signupSuccessEmail}</strong>.</p>
-            <button onClick={() => { setSignupSuccessEmail(null); setIsSignUp(false); }} className="w-full py-3 bg-neutral-800 hover:bg-neutral-700 text-white font-bold rounded-xl text-xs transition">Retour à la connexion</button>
+            <p className="text-sm text-neutral-300 leading-relaxed">Un e-mail a été envoyé à <strong className="text-orange-400">{signupSuccessEmail}</strong>.</p>
+            <button onClick={() => { setSignupSuccessEmail(null); setIsSignUp(false); }} className="w-full py-3 bg-neutral-800 hover:bg-neutral-700 text-white font-bold rounded-xl text-sm transition">Retour à la connexion</button>
           </div>
         </div>
       );
@@ -1135,40 +1130,40 @@ export default function App() {
         <div className="w-full max-w-md bg-neutral-900/90 border border-neutral-800 rounded-3xl p-6 sm:p-8 shadow-2xl backdrop-blur-xl">
           <div className="flex justify-center mb-4"><div className="w-14 h-14 rounded-2xl bg-orange-500/20 border border-orange-500/40 flex items-center justify-center text-orange-500"><Zap className="w-7 h-7" /></div></div>
           <h1 className="text-2xl font-black text-center tracking-tight mb-1">FitPulse</h1>
-          <form onSubmit={handleAuth} className="space-y-3.5 mt-6">
+          <form onSubmit={handleAuth} className="space-y-4 mt-6">
             {isSignUp && (
               <>
                 <div className="grid grid-cols-2 gap-2.5">
-                  <div><input type="text" required placeholder="Prénom" value={firstName} onChange={(e) => setFirstName(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white focus:border-orange-500" /></div>
-                  <div><input type="text" required placeholder="Nom" value={lastName} onChange={(e) => setLastName(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white focus:border-orange-500" /></div>
+                  <div><input type="text" required placeholder="Prénom" value={firstName} onChange={(e) => setFirstName(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3.5 py-3 text-sm text-white focus:border-orange-500" /></div>
+                  <div><input type="text" required placeholder="Nom" value={lastName} onChange={(e) => setLastName(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3.5 py-3 text-sm text-white focus:border-orange-500" /></div>
                 </div>
                 <div className="grid grid-cols-2 gap-2.5">
-                  <div><input type="text" required placeholder="Pseudo" value={username} onChange={(e) => setUsername(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white focus:border-orange-500" /></div>
-                  <div><input type="date" required value={birthDate} onChange={(e) => setBirthDate(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white focus:border-orange-500" /></div>
+                  <div><input type="text" required placeholder="Pseudo" value={username} onChange={(e) => setUsername(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3.5 py-3 text-sm text-white focus:border-orange-500" /></div>
+                  <div><input type="date" required value={birthDate} onChange={(e) => setBirthDate(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3.5 py-3 text-sm text-white focus:border-orange-500" /></div>
                 </div>
-                <select value={preferredTime} onChange={(e) => setPreferredTime(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white focus:border-orange-500">{TIME_SLOTS.map((slot) => <option key={slot} value={slot}>{slot}</option>)}</select>
+                <select value={preferredTime} onChange={(e) => setPreferredTime(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3.5 py-3 text-sm text-white focus:border-orange-500">{TIME_SLOTS.map((slot) => <option key={slot} value={slot}>{slot}</option>)}</select>
               </>
             )}
-            <input type="email" required placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white focus:border-orange-500" />
-            <input type="password" required placeholder="Mot de passe" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white focus:border-orange-500" />
+            <input type="email" required placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3.5 py-3 text-sm text-white focus:border-orange-500" />
+            <input type="password" required placeholder="Mot de passe" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3.5 py-3 text-sm text-white focus:border-orange-500" />
             {isSignUp && (
-              <div className="flex items-start gap-2 pt-1">
-                <input type="checkbox" id="cgu" checked={acceptCGU} onChange={(e) => setAcceptCGU(e.target.checked)} className="mt-0.5 accent-orange-500" />
-                <label htmlFor="cgu" className="text-[11px] text-neutral-400 leading-tight">J'accepte les <button type="button" onClick={() => setIsCGUModalOpen(true)} className="text-orange-400 underline font-semibold">Conditions Générales d'Utilisation</button>.</label>
+              <div className="flex items-start gap-2.5 pt-1">
+                <input type="checkbox" id="cgu" checked={acceptCGU} onChange={(e) => setAcceptCGU(e.target.checked)} className="mt-1 accent-orange-500 w-4 h-4" />
+                <label htmlFor="cgu" className="text-xs text-neutral-400 leading-tight">J'accepte les <button type="button" onClick={() => setIsCGUModalOpen(true)} className="text-orange-400 underline font-semibold">Conditions Générales d'Utilisation</button>.</label>
               </div>
             )}
-            <button type="submit" disabled={authLoading} className="w-full mt-2 bg-gradient-to-r from-orange-600 to-orange-500 text-white font-bold py-3 rounded-xl shadow-lg transition text-xs flex justify-center">
-              {authLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : isSignUp ? "Créer mon compte" : "Se connecter"}
+            <button type="submit" disabled={authLoading} className="w-full mt-2 bg-gradient-to-r from-orange-600 to-orange-500 text-white font-bold py-3.5 rounded-xl shadow-lg transition text-sm flex justify-center">
+              {authLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : isSignUp ? "Créer mon compte" : "Se connecter"}
             </button>
           </form>
-          <button onClick={() => setIsSignUp(!isSignUp)} className="w-full text-center text-xs text-neutral-400 hover:text-white mt-5 transition">{isSignUp ? "Déjà un compte ? Se connecter" : "Pas encore de compte ? S'inscrire"}</button>
+          <button onClick={() => setIsSignUp(!isSignUp)} className="w-full text-center text-sm text-neutral-400 hover:text-white mt-5 transition">{isSignUp ? "Déjà un compte ? Se connecter" : "Pas encore de compte ? S'inscrire"}</button>
         </div>
         {isCGUModalOpen && (
           <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4">
             <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-lg w-full p-6 space-y-4">
-              <h3 className="text-sm font-black text-white">CGU & Tolérance Zéro</h3>
-              <p className="text-[11px] text-neutral-300">Il est strictement interdit de publier des contenus inappropriés. Tout manquement entraînera le bannissement définitif.</p>
-              <button onClick={() => { setAcceptCGU(true); setIsCGUModalOpen(false); }} className="w-full py-3 bg-orange-600 text-white font-bold rounded-xl text-xs">Accepter</button>
+              <h3 className="text-base font-black text-white">CGU & Tolérance Zéro</h3>
+              <p className="text-sm text-neutral-300 leading-relaxed">Il est strictement interdit de publier des contenus inappropriés. Tout manquement entraînera le bannissement définitif.</p>
+              <button onClick={() => { setAcceptCGU(true); setIsCGUModalOpen(false); }} className="w-full py-3 bg-orange-600 text-white font-bold rounded-xl text-sm">Accepter</button>
             </div>
           </div>
         )}
@@ -1181,15 +1176,15 @@ export default function App() {
       <header className="sticky top-0 z-40 bg-neutral-950/80 backdrop-blur-md border-b border-neutral-900 px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-xl bg-orange-500/20 flex items-center justify-center text-orange-500"><Zap className="w-5 h-5" /></div>
-          <div><h1 className="text-base font-black tracking-tight leading-none">FitPulse</h1><span className="text-[10px] text-orange-400 font-semibold truncate block max-w-[150px]">{selectedClub}</span></div>
+          <div><h1 className="text-base font-black tracking-tight leading-none">FitPulse</h1><span className="text-xs text-orange-400 font-semibold truncate block max-w-[150px]">{selectedClub}</span></div>
         </div>
         <div className="flex items-center gap-3">
           <button onClick={() => { setIsNotifModalOpen(true); setLastNotifOpenTime(Date.now()); localStorage.setItem('fitpulse_last_notif', Date.now().toString()); }} className="relative p-1.5 text-neutral-400 hover:text-white transition">
             <Bell className="w-5 h-5" />
             {unreadNotifsCount > 0 && <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 border-2 border-neutral-950 rounded-full animate-pulse"></span>}
           </button>
-          <div className="flex items-center gap-1 bg-orange-500/10 px-2.5 py-1.5 rounded-full border border-orange-500/20">
-            <Flame className="w-3.5 h-3.5 text-orange-500" /><span className="text-xs font-black text-orange-500">{userStreak}</span>
+          <div className="flex items-center gap-1.5 bg-orange-500/10 px-3 py-1.5 rounded-full border border-orange-500/20">
+            <Flame className="w-4 h-4 text-orange-500" /><span className="text-sm font-black text-orange-500">{userStreak}</span>
           </div>
         </div>
       </header>
@@ -1203,11 +1198,11 @@ export default function App() {
               <button onClick={() => setIsNotifModalOpen(false)} className="p-1 text-neutral-400 hover:text-white"><X className="w-5 h-5" /></button>
             </div>
             {notifications.length === 0 ? (
-              <div className="text-center py-8 text-neutral-500 text-xs">Aucune notification pour le moment.</div>
+              <div className="text-center py-8 text-neutral-500 text-sm">Aucune notification pour le moment.</div>
             ) : (
               <div className="space-y-2">
                 {notifications.slice().reverse().map(n => (
-                  <div key={n.id} className="p-3 bg-neutral-950 rounded-xl border border-neutral-800 text-xs text-neutral-200">{n.text}</div>
+                  <div key={n.id} className="p-3.5 bg-neutral-950 rounded-xl border border-neutral-800 text-sm text-neutral-200">{n.text}</div>
                 ))}
               </div>
             )}
@@ -1216,9 +1211,9 @@ export default function App() {
       )}
 
       {isRestTimerActive && (
-        <div className="bg-orange-600 text-white px-4 py-2 flex items-center justify-between sticky top-[53px] z-30 shadow-lg animate-pulse">
-          <div className="flex items-center gap-2 text-xs font-bold"><Timer className="w-4 h-4 animate-spin" /> Repos : {Math.floor(restTimeRemaining / 60)}:{(restTimeRemaining % 60).toString().padStart(2, '0')}</div>
-          <button onClick={() => setIsRestTimerActive(false)} className="text-[11px] bg-black/30 hover:bg-black/50 px-2.5 py-1 rounded-lg">Arrêter</button>
+        <div className="bg-orange-600 text-white px-4 py-2.5 flex items-center justify-between sticky top-[53px] z-30 shadow-lg animate-pulse">
+          <div className="flex items-center gap-2 text-sm font-bold"><Timer className="w-4 h-4 animate-spin" /> Repos : {Math.floor(restTimeRemaining / 60)}:{(restTimeRemaining % 60).toString().padStart(2, '0')}</div>
+          <button onClick={() => setIsRestTimerActive(false)} className="text-xs bg-black/30 hover:bg-black/50 px-3 py-1 rounded-lg">Arrêter</button>
         </div>
       )}
 
@@ -1232,7 +1227,7 @@ export default function App() {
                     <div className="w-full h-full bg-neutral-950 rounded-full flex items-center justify-center text-orange-400 font-bold text-lg">+</div>
                     <div className="absolute bottom-0 right-0 w-5 h-5 bg-gradient-to-tr from-orange-600 to-amber-500 rounded-full flex items-center justify-center text-white border-2 border-neutral-950 shadow-md"><Plus className="w-3 h-3 stroke-[3]" /></div>
                   </div>
-                  <span className="text-[10px] font-semibold text-neutral-300">Ta story</span>
+                  <span className="text-xs font-semibold text-neutral-300">Ta story</span>
                 </div>
 
                 {friendStoriesList.map((story, index) => {
@@ -1242,7 +1237,7 @@ export default function App() {
                       <div className={`w-16 h-16 rounded-full ${isViewed ? 'border-2 border-dashed border-neutral-600 opacity-70' : 'bg-gradient-to-tr from-orange-500 via-pink-500 to-amber-400'} p-[2.5px]`}>
                         <div className="w-full h-full bg-neutral-950 rounded-full p-[2px]"><img src={story.avatar_url} alt="" className="w-full h-full rounded-full object-cover" /></div>
                       </div>
-                      <span className="text-[10px] font-medium truncate max-w-[64px] text-center">{story.username.split(' ')[0]}</span>
+                      <span className="text-xs font-medium truncate max-w-[64px] text-center">{story.username.split(' ')[0]}</span>
                     </div>
                   );
                 })}
@@ -1252,7 +1247,7 @@ export default function App() {
             {feedLoading ? (
               <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 text-orange-500 animate-spin" /></div>
             ) : displayedPosts.length === 0 ? (
-              <div className="text-center py-16 text-neutral-500 text-xs bg-neutral-900/50 rounded-3xl border border-neutral-800/60 p-6">Aucune publication pour l'instant dans ce club.</div>
+              <div className="text-center py-16 text-neutral-500 text-sm bg-neutral-900/50 rounded-3xl border border-neutral-800/60 p-6">Aucune publication pour l'instant dans ce club.</div>
             ) : (
               displayedPosts.map((post) => {
                 const isAlreadyLikedByMe = user ? (post.liked_by || []).includes(user.id) : false;
@@ -1262,8 +1257,8 @@ export default function App() {
                       <div className="flex items-center gap-3">
                         <img src={post.avatar_url} alt="" className="w-10 h-10 rounded-full object-cover border border-neutral-700" />
                         <div>
-                          <div className="flex items-center gap-1.5"><h3 className="font-bold text-sm leading-snug">{post.username}</h3>{post.is_private && <Lock className="w-3 h-3 text-neutral-500" />}</div>
-                          <div className="flex items-center gap-1 text-[11px] text-orange-400 font-medium"><MapPin className="w-3 h-3" />{post.club_name}</div>
+                          <div className="flex items-center gap-1.5"><h3 className="font-bold text-sm leading-snug">{post.username}</h3>{post.is_private && <Lock className="w-3.5 h-3.5 text-neutral-500" />}</div>
+                          <div className="flex items-center gap-1 text-xs text-orange-400 font-medium"><MapPin className="w-3.5 h-3.5" />{post.club_name}</div>
                         </div>
                       </div>
                       <div className="flex items-center gap-1">
@@ -1274,36 +1269,36 @@ export default function App() {
 
                     <div className="rounded-2xl overflow-hidden border border-neutral-800 bg-neutral-950 relative shadow-inner aspect-square flex items-center justify-center">
                       {post.image_url ? (
-                        <><img src={post.image_url} alt="" className="w-full h-full object-cover pointer-events-none" /><div className="absolute top-3 left-3 bg-black/70 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/10 flex items-center gap-2"><Flame className="w-4 h-4 text-orange-500 animate-pulse" /><span className="text-xs font-black text-white">{post.session_type}</span></div></>
+                        <><img src={post.image_url} alt="" className="w-full h-full object-cover pointer-events-none" /><div className="absolute top-3 left-3 bg-black/70 backdrop-blur-md px-3.5 py-1.5 rounded-xl border border-white/10 flex items-center gap-2"><Flame className="w-4 h-4 text-orange-500 animate-pulse" /><span className="text-sm font-black text-white">{post.session_type}</span></div></>
                       ) : (
-                        <div className="p-6 bg-gradient-to-br from-neutral-900 to-neutral-950 flex flex-col justify-center items-center text-center space-y-2"><Dumbbell className="w-10 h-10 text-orange-500 mb-1" /><span className="text-sm font-black text-white">{post.session_type}</span></div>
+                        <div className="p-6 bg-gradient-to-br from-neutral-900 to-neutral-950 flex flex-col justify-center items-center text-center space-y-2"><Dumbbell className="w-10 h-10 text-orange-500 mb-1" /><span className="text-base font-black text-white">{post.session_type}</span></div>
                       )}
                     </div>
-                    {post.caption && <p className="text-xs text-neutral-200 leading-relaxed font-medium">{renderCaptionWithHashtags(post.caption)}</p>}
+                    {post.caption && <p className="text-sm text-neutral-200 leading-relaxed font-normal">{renderCaptionWithHashtags(post.caption)}</p>}
                     
                     {post.exercises && post.exercises.length > 0 && (
-                      <div className="bg-neutral-950/80 rounded-2xl p-3.5 border border-neutral-800/80 space-y-2.5">
+                      <div className="bg-neutral-950/80 rounded-2xl p-4 border border-neutral-800/80 space-y-2.5">
                         <div className="flex items-center justify-between">
-                          <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider flex items-center gap-1.5"><Dumbbell className="w-3.5 h-3.5 text-orange-500" /> Exercices</span>
-                          <div className="flex items-center gap-1.5">
-                            <button onClick={() => startRestTimer(60)} className="px-2 py-0.5 bg-neutral-900 hover:bg-orange-600 text-neutral-300 hover:text-white rounded text-[10px]">⏱ 60s</button>
-                            <button onClick={() => startRestTimer(90)} className="px-2 py-0.5 bg-neutral-900 hover:bg-orange-600 text-neutral-300 hover:text-white rounded text-[10px]">⏱ 90s</button>
+                          <span className="text-xs font-bold text-neutral-400 uppercase tracking-wider flex items-center gap-1.5"><Dumbbell className="w-4 h-4 text-orange-500" /> Exercices</span>
+                          <div className="flex items-center gap-2">
+                            <button onClick={() => startRestTimer(60)} className="px-2.5 py-1 bg-neutral-900 hover:bg-orange-600 text-neutral-300 hover:text-white rounded-lg text-xs">⏱ 60s</button>
+                            <button onClick={() => startRestTimer(90)} className="px-2.5 py-1 bg-neutral-900 hover:bg-orange-600 text-neutral-300 hover:text-white rounded-lg text-xs">⏱ 90s</button>
                           </div>
                         </div>
                         {post.exercises.map((ex, i) => (
-                          <div key={i} className="flex items-center justify-between text-xs py-1.5 border-b border-neutral-900 last:border-none">
+                          <div key={i} className="flex items-center justify-between text-sm py-1.5 border-b border-neutral-900 last:border-none">
                             <span className="font-semibold text-neutral-200">{ex.name}</span>
-                            <div className="flex items-center gap-2">
-                              <span className="font-mono text-[11px] text-orange-400 font-bold">{ex.sets} s × {ex.reps} r ({ex.weight} kg)</span>
-                              <button onClick={() => setActiveAnatomyExercise(ex.name)} className="p-1 bg-orange-600/20 hover:bg-orange-600 text-orange-400 hover:text-white rounded-lg"><Activity className="w-3 h-3" /></button>
+                            <div className="flex items-center gap-2.5">
+                              <span className="font-mono text-xs text-orange-400 font-bold">{ex.sets} s × {ex.reps} r ({ex.weight} kg)</span>
+                              <button onClick={() => setActiveAnatomyExercise(ex.name)} className="p-1.5 bg-orange-600/20 hover:bg-orange-600 text-orange-400 hover:text-white rounded-lg"><Activity className="w-3.5 h-3.5" /></button>
                             </div>
                           </div>
                         ))}
                       </div>
                     )}
-                    <div className="flex items-center justify-between pt-2 border-t border-neutral-800/60 text-neutral-400 text-xs">
-                      <button onClick={() => handleToggleLike(post.id)} className={`flex items-center gap-1.5 transition ${isAlreadyLikedByMe ? 'text-red-500 font-bold' : 'hover:text-white'}`}><Heart className={`w-4 h-4 ${isAlreadyLikedByMe ? 'fill-red-500 text-red-500' : ''}`} /><span>{post.likes_count}</span></button>
-                      <button onClick={() => setActiveCommentPostId(post.id)} className="flex items-center gap-1.5 hover:text-white transition"><MessageSquare className="w-4 h-4" /><span>{post.comments_count || 0}</span></button>
+                    <div className="flex items-center justify-between pt-2 border-t border-neutral-800/60 text-neutral-400 text-sm">
+                      <button onClick={() => handleToggleLike(post.id)} className={`flex items-center gap-2 transition ${isAlreadyLikedByMe ? 'text-red-500 font-bold' : 'hover:text-white'}`}><Heart className={`w-4 h-4 ${isAlreadyLikedByMe ? 'fill-red-500 text-red-500' : ''}`} /><span>{post.likes_count}</span></button>
+                      <button onClick={() => setActiveCommentPostId(post.id)} className="flex items-center gap-2 hover:text-white transition"><MessageSquare className="w-4 h-4" /><span>{post.comments_count || 0}</span></button>
                     </div>
                   </article>
                 );
@@ -1320,18 +1315,18 @@ export default function App() {
                 {isPrivateMode && <ShieldCheck className="w-5 h-5 text-green-500" />}
               </div>
 
-              <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-3 text-[11px] text-red-300 flex items-start gap-2">
+              <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-3.5 text-xs text-red-300 flex items-start gap-2.5">
                 <AlertTriangle className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
                 <span>Rappel CGU : Tolérance zéro pour la nudité ou les photos explicites sur le flux public. Tout contrevenant sera banni.</span>
               </div>
 
               <div className="space-y-1">
-                <select value={workoutType} onChange={(e) => setWorkoutType(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2.5 text-xs text-white focus:border-orange-500">
+                <select value={workoutType} onChange={(e) => setWorkoutType(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3.5 py-3 text-sm text-white focus:border-orange-500">
                   {WORKOUT_CHOICES.map((choice) => <option key={choice} value={choice}>{choice}</option>)}
                 </select>
               </div>
 
-              <div className="grid grid-cols-2 gap-2.5">
+              <div className="grid grid-cols-2 gap-3">
                 <button type="button" onClick={() => startCameraHandler('post')} className="py-6 border-2 border-dashed border-neutral-800 hover:border-orange-500 rounded-2xl flex flex-col items-center justify-center gap-2 text-neutral-400 bg-neutral-950 transition"><Camera className="w-6 h-6 text-orange-500" /><span className="text-xs font-semibold">Prendre photo</span></button>
                 <button type="button" onClick={() => fileInputRef.current?.click()} className="py-6 border-2 border-dashed border-neutral-800 hover:border-orange-500 rounded-2xl flex flex-col items-center justify-center gap-2 text-neutral-400 bg-neutral-950 transition"><FolderOpen className="w-6 h-6 text-neutral-400" /><span className="text-xs font-semibold">Galerie</span></button>
               </div>
@@ -1346,8 +1341,8 @@ export default function App() {
                     onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}
                   >
                     <img ref={imgRef} src={postImagePreview} alt="" style={{ transform: `translate(${postImageOffset.x}px, ${postImageOffset.y}px) scale(${postImageZoom})`, transition: isDraggingImage ? 'none' : 'transform 0.1s ease-out', objectFit: 'cover', width: '100%', height: '100%', transformOrigin: 'center' }} className="pointer-events-none select-none" draggable={false} />
-                    <div className="absolute top-2 left-2 bg-black/60 px-2 py-1 rounded-lg flex items-center gap-1.5 text-white/80 text-[10px]"><Move className="w-3 h-3" /> Pince/Glisse pour recadrer</div>
-                    <button type="button" onClick={() => setPostImagePreview(null)} className="absolute top-2 right-2 p-1.5 bg-black/80 text-white rounded-full"><X className="w-4 h-4" /></button>
+                    <div className="absolute top-2.5 left-2.5 bg-black/60 px-2.5 py-1 rounded-lg flex items-center gap-1.5 text-white/80 text-xs"><Move className="w-3.5 h-3.5" /> Pince/Glisse pour recadrer</div>
+                    <button type="button" onClick={() => setPostImagePreview(null)} className="absolute top-2.5 right-2.5 p-1.5 bg-black/80 text-white rounded-full"><X className="w-4 h-4" /></button>
                   </div>
                   <div className="flex items-center gap-3 bg-neutral-950 p-3 rounded-2xl border border-neutral-800">
                     <ZoomIn className="w-5 h-5 text-neutral-400" />
@@ -1356,36 +1351,36 @@ export default function App() {
                 </div>
               )}
               
-              <div className="space-y-2 pt-2 border-t border-neutral-800">
+              <div className="space-y-2.5 pt-2 border-t border-neutral-800">
                 <div className="flex items-center justify-between">
-                  <label className="block text-[11px] font-semibold text-orange-400 uppercase tracking-wider">Exercices réalisés :</label>
-                  <button type="button" onClick={handleAddExerciseRow} className="px-2.5 py-1 bg-orange-600/20 hover:bg-orange-600 text-orange-400 hover:text-white rounded-lg text-[10px] font-bold flex items-center gap-1"><Plus className="w-3 h-3" /> Ajouter</button>
+                  <label className="block text-xs font-semibold text-orange-400 uppercase tracking-wider">Exercices réalisés :</label>
+                  <button type="button" onClick={handleAddExerciseRow} className="px-3 py-1 bg-orange-600/20 hover:bg-orange-600 text-orange-400 hover:text-white rounded-lg text-xs font-bold flex items-center gap-1"><Plus className="w-3.5 h-3.5" /> Ajouter</button>
                 </div>
                 {workoutExercises.map((ex, index) => (
-                  <div key={index} className="bg-neutral-950 p-3 rounded-2xl border border-neutral-800 space-y-2">
+                  <div key={index} className="bg-neutral-950 p-3.5 rounded-2xl border border-neutral-800 space-y-2.5">
                     <div className="flex items-center gap-2">
-                      <input type="text" placeholder="Nom de l'exercice" value={ex.name} onChange={(e) => { const updated = [...workoutExercises]; updated[index].name = e.target.value; setWorkoutExercises(updated); }} className="flex-1 bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-1.5 text-xs text-white focus:border-orange-500" />
-                      <button type="button" onClick={() => handleRemoveExerciseRow(index)} className="p-1.5 text-neutral-500 hover:text-red-400"><Trash2 className="w-4 h-4" /></button>
+                      <input type="text" placeholder="Nom de l'exercice" value={ex.name} onChange={(e) => { const updated = [...workoutExercises]; updated[index].name = e.target.value; setWorkoutExercises(updated); }} className="flex-1 bg-neutral-900 border border-neutral-800 rounded-xl px-3.5 py-2 text-sm text-white focus:border-orange-500" />
+                      <button type="button" onClick={() => handleRemoveExerciseRow(index)} className="p-2 text-neutral-500 hover:text-red-400"><Trash2 className="w-4 h-4" /></button>
                     </div>
                     <div className="grid grid-cols-3 gap-2">
-                      <input type="number" placeholder="Séries" value={ex.sets} onChange={(e) => { const updated = [...workoutExercises]; updated[index].sets = Number(e.target.value); setWorkoutExercises(updated); }} className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-2 py-1 text-xs text-white text-center focus:border-orange-500" />
-                      <input type="number" placeholder="Reps" value={ex.reps} onChange={(e) => { const updated = [...workoutExercises]; updated[index].reps = Number(e.target.value); setWorkoutExercises(updated); }} className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-2 py-1 text-xs text-white text-center focus:border-orange-500" />
-                      <input type="number" placeholder="Poids" value={ex.weight} onChange={(e) => { const updated = [...workoutExercises]; updated[index].weight = Number(e.target.value); setWorkoutExercises(updated); }} className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-2 py-1 text-xs text-white text-center focus:border-orange-500" />
+                      <input type="number" placeholder="Séries" value={ex.sets} onChange={(e) => { const updated = [...workoutExercises]; updated[index].sets = Number(e.target.value); setWorkoutExercises(updated); }} className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-2.5 py-2 text-sm text-white text-center focus:border-orange-500" />
+                      <input type="number" placeholder="Reps" value={ex.reps} onChange={(e) => { const updated = [...workoutExercises]; updated[index].reps = Number(e.target.value); setWorkoutExercises(updated); }} className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-2.5 py-2 text-sm text-white text-center focus:border-orange-500" />
+                      <input type="number" placeholder="Poids" value={ex.weight} onChange={(e) => { const updated = [...workoutExercises]; updated[index].weight = Number(e.target.value); setWorkoutExercises(updated); }} className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-2.5 py-2 text-sm text-white text-center focus:border-orange-500" />
                     </div>
                   </div>
                 ))}
               </div>
 
-              <div className="space-y-2 pt-2 border-t border-neutral-800">
-                <textarea rows={3} placeholder="Comment s'est passée la séance ?" value={workoutCaption} onChange={(e) => setWorkoutCaption(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:border-orange-500" />
+              <div className="space-y-2.5 pt-2 border-t border-neutral-800">
+                <textarea rows={3} placeholder="Comment s'est passée la séance ?" value={workoutCaption} onChange={(e) => setWorkoutCaption(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3.5 py-3 text-sm text-white focus:border-orange-500" />
                 <div className="flex flex-wrap gap-2">
                   {POPULAR_HASHTAGS.map((tag) => (
-                    <button key={tag} type="button" onClick={() => handleAddWorkoutHashtag(tag)} className="px-2.5 py-1.5 bg-neutral-950 hover:bg-orange-600/20 border border-neutral-800 text-neutral-300 text-[10px] rounded-lg">{tag}</button>
+                    <button key={tag} type="button" onClick={() => handleAddWorkoutHashtag(tag)} className="px-3 py-1.5 bg-neutral-950 hover:bg-orange-600/20 border border-neutral-800 text-neutral-300 text-xs rounded-lg">{tag}</button>
                   ))}
                 </div>
               </div>
-              <button type="submit" disabled={isUploading} className="w-full bg-orange-600 hover:bg-orange-500 text-white font-bold py-3.5 rounded-xl shadow-lg transition flex items-center justify-center gap-2">
-                {isUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Partager ma séance'}
+              <button type="submit" disabled={isUploading} className="w-full bg-orange-600 hover:bg-orange-500 text-white font-bold py-3.5 rounded-xl shadow-lg transition flex items-center justify-center gap-2 text-sm">
+                {isUploading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Partager ma séance'}
               </button>
             </div>
           </form>
@@ -1412,8 +1407,8 @@ export default function App() {
                     <div className="flex items-center gap-4">
                       <img src={ex.image_url} alt="" className="w-16 h-16 rounded-xl object-cover border border-neutral-800 flex-shrink-0" />
                       <div>
-                        <div className="flex items-center gap-2 mb-1"><span className="text-sm font-bold text-white">{ex.name}</span><span className="text-[10px] bg-orange-500/10 text-orange-400 px-2 py-0.5 rounded-md border border-orange-500/20">{ex.category}</span></div>
-                        <p className="text-[10px] text-neutral-400">🎯 {ex.targetMuscles}</p>
+                        <div className="flex items-center gap-2 mb-1"><span className="text-sm font-bold text-white">{ex.name}</span><span className="text-xs bg-orange-500/10 text-orange-400 px-2.5 py-0.5 rounded-md border border-orange-500/20">{ex.category}</span></div>
+                        <p className="text-xs text-neutral-400">🎯 {ex.targetMuscles}</p>
                       </div>
                     </div>
                   </div>
@@ -1423,13 +1418,13 @@ export default function App() {
           </div>
         )}
 
-        {/* TAB BUDDY AVEC BOUTON PUSH UP GRISÉ / ENVOYÉ */}
+        {/* TAB BUDDY */}
         {currentTab === 'buddy' && (
           <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4">
             <div className="flex items-center justify-between">
-              <div><h2 className="text-base font-black tracking-tight">Réseau & Athlètes</h2><span className="text-[10px] text-orange-400 font-semibold">{selectedClub}</span></div>
+              <div><h2 className="text-base font-black tracking-tight">Réseau & Athlètes</h2><span className="text-xs text-orange-400 font-semibold">{selectedClub}</span></div>
               <div className="flex items-center gap-2">
-                <button onClick={() => setIsMatchModalOpen(true)} className="px-3 py-1.5 bg-gradient-to-r from-orange-600 to-amber-500 text-white rounded-xl text-xs font-bold flex items-center gap-1 shadow-md hover:opacity-90"><Sparkles className="w-3.5 h-3.5" /> Match</button>
+                <button onClick={() => setIsMatchModalOpen(true)} className="px-3 py-1.5 bg-gradient-to-r from-orange-600 to-amber-500 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md hover:opacity-90"><Sparkles className="w-4 h-4" /> Match</button>
                 <button onClick={() => setFilterWomenOnly(!filterWomenOnly)} className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 ${filterWomenOnly ? 'bg-gradient-to-r from-pink-600 to-purple-600 text-white ring-2 ring-pink-400' : 'bg-neutral-950 text-neutral-400 border border-neutral-800'}`}><span>🚺</span> {filterWomenOnly && '✓'}</button>
               </div>
             </div>
@@ -1437,22 +1432,22 @@ export default function App() {
             <div className="bg-neutral-950 p-1.5 rounded-2xl border border-neutral-800 flex items-center gap-1">
               <button onClick={() => setBuddyTabSubMode('discover')} className={`flex-1 py-2 rounded-xl text-xs font-bold transition ${buddyTabSubMode === 'discover' ? 'bg-orange-600 text-white' : 'text-neutral-400 hover:text-white'}`}>Découvrir</button>
               <button onClick={() => setBuddyTabSubMode('my_friends')} className={`flex-1 py-2 rounded-xl text-xs font-bold transition ${buddyTabSubMode === 'my_friends' ? 'bg-orange-600 text-white' : 'text-neutral-400 hover:text-white'}`}>Mes Amis ({myFriendsList.length})</button>
-              <button onClick={() => setBuddyTabSubMode('requests')} className={`flex-1 py-2 rounded-xl text-xs font-bold transition relative ${buddyTabSubMode === 'requests' ? 'bg-orange-600 text-white' : 'text-neutral-400 hover:text-white'}`}>Demandes {incomingRequests.length > 0 && <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] w-4 h-4 rounded-full flex items-center justify-center font-bold">{incomingRequests.length}</span>}</button>
+              <button onClick={() => setBuddyTabSubMode('requests')} className={`flex-1 py-2 rounded-xl text-xs font-bold transition relative ${buddyTabSubMode === 'requests' ? 'bg-orange-600 text-white' : 'text-neutral-400 hover:text-white'}`}>Demandes {incomingRequests.length > 0 && <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center font-bold">{incomingRequests.length}</span>}</button>
             </div>
 
             {buddyTabSubMode === 'requests' ? (
               <div className="space-y-3 pt-1">
-                {incomingRequests.length === 0 ? <div className="text-center py-8 text-neutral-500 text-xs">Aucune demande en attente.</div> : incomingRequests.map((req) => {
+                {incomingRequests.length === 0 ? <div className="text-center py-8 text-neutral-500 text-sm">Aucune demande en attente.</div> : incomingRequests.map((req) => {
                     const senderUser = registeredUsers.find(u => u.id === req.sender_id) || { username: 'Athlète', home_club: selectedClub, avatar_url: '' };
                     return (
                       <div key={req.id} className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 flex items-center justify-between">
                         <div className="flex items-center gap-3">
                           <img src={senderUser.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'} alt="" className="w-11 h-11 rounded-full object-cover border border-neutral-700" />
-                          <div><h3 className="font-bold text-xs text-white">{senderUser.username}</h3></div>
+                          <div><h3 className="font-bold text-sm text-white">{senderUser.username}</h3></div>
                         </div>
                         <div className="flex items-center gap-2">
-                          <button onClick={() => handleAcceptFriendRequest(req.id)} className="px-3 py-1.5 bg-green-600 text-white rounded-xl text-xs font-bold">Accepter</button>
-                          <button onClick={() => handleRejectFriendRequest(req.id)} className="p-2 bg-neutral-900 border border-neutral-800 text-red-400 rounded-xl"><X className="w-4 h-4" /></button>
+                          <button onClick={() => handleAcceptFriendRequest(req.id)} className="px-3.5 py-2 bg-green-600 text-white rounded-xl text-xs font-bold">Accepter</button>
+                          <button onClick={() => handleRejectFriendRequest(req.id)} className="p-2.5 bg-neutral-900 border border-neutral-800 text-red-400 rounded-xl"><X className="w-4 h-4" /></button>
                         </div>
                       </div>
                     );
@@ -1463,23 +1458,23 @@ export default function App() {
                 <div className="space-y-2">
                   <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
                     {[{ label: 'Tous', value: 'all' }, { label: '💪 Prise de masse', value: 'masse' }, { label: '🔥 Cardio & HIIT', value: 'cardio' }, { label: '🧘 Remise en forme', value: 'remise' }].map((goal) => (
-                      <button key={goal.value} onClick={() => setSelectedGoalFilter(goal.value)} className={`px-3 py-1.5 rounded-xl text-[11px] font-bold whitespace-nowrap transition border ${selectedGoalFilter === goal.value ? 'bg-orange-500 text-white border-orange-400' : 'bg-neutral-950 text-neutral-400 border-neutral-800'}`}>{goal.label}</button>
+                      <button key={goal.value} onClick={() => setSelectedGoalFilter(goal.value)} className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition border ${selectedGoalFilter === goal.value ? 'bg-orange-500 text-white border-orange-400' : 'bg-neutral-950 text-neutral-400 border-neutral-800'}`}>{goal.label}</button>
                     ))}
                   </div>
                   <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
                     {[{ label: 'Tous les âges', value: 'all' }, { label: '18 - 25 ans', value: '18-25' }, { label: '26 - 35 ans', value: '26-35' }, { label: '36 - 45 ans', value: '36-45' }, { label: '46+ ans', value: '46+' }].map((group) => (
-                      <button key={group.value} onClick={() => setSelectedAgeGroupFilter(group.value)} className={`px-3 py-1.5 rounded-xl text-[11px] font-bold whitespace-nowrap transition border ${selectedAgeGroupFilter === group.value ? 'bg-orange-500 text-white border-orange-400' : 'bg-neutral-950 text-neutral-400 border-neutral-800'}`}>{group.label}</button>
+                      <button key={group.value} onClick={() => setSelectedAgeGroupFilter(group.value)} className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition border ${selectedAgeGroupFilter === group.value ? 'bg-orange-500 text-white border-orange-400' : 'bg-neutral-950 text-neutral-400 border-neutral-800'}`}>{group.label}</button>
                     ))}
                   </div>
                 </div>
 
                 <div className="relative pt-1">
                   <Search className="absolute left-3.5 top-4.5 w-4 h-4 text-orange-500" />
-                  <input type="text" placeholder="Rechercher par pseudo..." value={userSearchQuery} onChange={(e) => setUserSearchQuery(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl pl-10 pr-3 py-3 text-xs text-white focus:border-orange-500" />
+                  <input type="text" placeholder="Rechercher par pseudo..." value={userSearchQuery} onChange={(e) => setUserSearchQuery(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl pl-10 pr-3.5 py-3 text-sm text-white focus:border-orange-500" />
                 </div>
 
                 <div className="space-y-3 pt-1">
-                  {filteredBuddies.length === 0 ? <div className="text-center py-8 text-neutral-500 text-xs">Aucun autre athlète trouvé.</div> : filteredBuddies.map((realUser) => {
+                  {filteredBuddies.length === 0 ? <div className="text-center py-8 text-neutral-500 text-sm">Aucun autre athlète trouvé.</div> : filteredBuddies.map((realUser) => {
                       const isFriend = acceptedFriendIds.includes(realUser.id);
                       const existingReq = friendRequests.find(r => (r.sender_id === user?.id && r.receiver_id === realUser.id) || (r.sender_id === realUser.id && r.receiver_id === user?.id));
                       const isPending = existingReq && existingReq.status === 'pending';
@@ -1494,39 +1489,39 @@ export default function App() {
                       else if (diffMinutes < 30) { dotColor = 'bg-amber-500'; statusText = 'Récemment actif'; }
 
                       return (
-                        <div key={realUser.id} className="bg-neutral-950 p-3.5 rounded-2xl border border-neutral-800 flex items-center justify-between">
-                          <div className="flex items-center gap-3">
+                        <div key={realUser.id} className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 flex items-center justify-between">
+                          <div className="flex items-center gap-3.5">
                             <div className="relative flex-shrink-0">
-                              <img src={realUser.avatar_url} alt="" className="w-11 h-11 rounded-full object-cover border border-neutral-700" />
+                              <img src={realUser.avatar_url} alt="" className="w-12 h-12 rounded-full object-cover border border-neutral-700" />
                               <span className={`absolute bottom-0 right-0 w-3.5 h-3.5 ${dotColor} border-2 border-neutral-950 rounded-full`} title={statusText} />
                             </div>
                             <div>
-                              <h3 className="font-bold text-sm text-white flex items-center gap-1.5">
+                              <h3 className="font-bold text-sm text-white flex items-center gap-2">
                                 {realUser.username} {realUser.gender === 'F' && '🚺'}
-                                <span className={`text-[9px] px-1.5 py-0.5 rounded font-normal ${diffMinutes < 5 ? 'bg-green-500/20 text-green-400' : 'bg-neutral-900 text-neutral-400'}`}>
+                                <span className={`text-[10px] px-2 py-0.5 rounded font-medium ${diffMinutes < 5 ? 'bg-green-500/20 text-green-400' : 'bg-neutral-900 text-neutral-400'}`}>
                                   {statusText}
                                 </span>
                               </h3>
-                              <span className="text-[10px] text-orange-400 font-medium block">🎯 {realUser.goal || 'Sportif'}</span>
+                              <span className="text-xs text-orange-400 font-medium block mt-0.5">🎯 {realUser.goal || 'Sportif'}</span>
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
                             {isFriend ? (
                               isPushUpSent ? (
-                                <button disabled className="px-3 py-1.5 bg-green-600/30 border border-green-500/50 text-green-400 rounded-xl text-[10px] font-bold flex items-center gap-1 cursor-not-allowed">
-                                  <Check className="w-3.5 h-3.5" /> Envoyé
+                                <button disabled className="px-3 py-2 bg-green-600/30 border border-green-500/50 text-green-400 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-not-allowed">
+                                  <Check className="w-4 h-4" /> Envoyé
                                 </button>
                               ) : (
-                                <button onClick={() => setInviteModalTarget(realUser)} className="px-2.5 py-1.5 bg-orange-600/20 border border-orange-500/50 hover:bg-orange-600 text-orange-400 hover:text-white rounded-xl text-[10px] font-bold flex items-center gap-1 transition">
-                                  <Zap className="w-3.5 h-3.5" /> Push Up
+                                <button onClick={() => setInviteModalTarget(realUser)} className="px-3 py-2 bg-orange-600/20 border border-orange-500/50 hover:bg-orange-600 text-orange-400 hover:text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition">
+                                  <Zap className="w-4 h-4" /> Push Up
                                 </button>
                               )
                             ) : isPending ? (
-                              <button disabled className="px-3 py-1.5 bg-neutral-900 text-neutral-400 rounded-xl text-xs font-medium">En attente</button>
+                              <button disabled className="px-3.5 py-2 bg-neutral-900 text-neutral-400 rounded-xl text-xs font-medium">En attente</button>
                             ) : (
-                              <button onClick={() => handleSendFriendRequest(realUser.id)} className="px-3 py-1.5 bg-orange-600 hover:bg-orange-500 text-white rounded-xl text-xs font-bold transition flex items-center gap-1"><UserPlus className="w-3.5 h-3.5" /> Ajouter</button>
+                              <button onClick={() => handleSendFriendRequest(realUser.id)} className="px-3.5 py-2 bg-orange-600 hover:bg-orange-500 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5"><UserPlus className="w-4 h-4" /> Ajouter</button>
                             )}
-                            <button onClick={() => { setSelectedBuddyChat(realUser); setCurrentTab('chat'); }} className="p-2 bg-neutral-900 border border-neutral-800 hover:border-orange-500 text-neutral-200 rounded-xl"><MessageCircle className="w-4 h-4" /></button>
+                            <button onClick={() => { setSelectedBuddyChat(realUser); setCurrentTab('chat'); }} className="p-2.5 bg-neutral-900 border border-neutral-800 hover:border-orange-500 text-neutral-200 rounded-xl"><MessageCircle className="w-4 h-4" /></button>
                           </div>
                         </div>
                       );
@@ -1542,15 +1537,15 @@ export default function App() {
           <div className="space-y-4">
             {selectedBuddyChat ? (
               <div className="bg-neutral-900 border border-neutral-800 rounded-3xl overflow-hidden flex flex-col h-[74vh]">
-                <div className="p-3.5 bg-neutral-950 border-b border-neutral-800 flex items-center justify-between">
-                  <button onClick={() => setSelectedBuddyChat(null)} className="p-1 text-neutral-400 hover:text-white"><ArrowLeft className="w-5 h-5" /></button>
-                  <h3 className="font-bold text-xs text-white">{selectedBuddyChat.username}</h3>
-                  <button onClick={() => handleDeleteConversationForBuddy(selectedBuddyChat.id, selectedBuddyChat.username)} className="p-1.5 text-neutral-500 hover:text-red-400"><Trash2 className="w-4 h-4" /></button>
+                <div className="p-4 bg-neutral-950 border-b border-neutral-800 flex items-center justify-between">
+                  <button onClick={() => setSelectedBuddyChat(null)} className="p-1.5 text-neutral-400 hover:text-white"><ArrowLeft className="w-5 h-5" /></button>
+                  <h3 className="font-bold text-sm text-white">{selectedBuddyChat.username}</h3>
+                  <button onClick={() => handleDeleteConversationForBuddy(selectedBuddyChat.id, selectedBuddyChat.username)} className="p-2 text-neutral-500 hover:text-red-400"><Trash2 className="w-4 h-4" /></button>
                 </div>
                 <div className="flex-1 p-4 overflow-y-auto space-y-3">
                   {currentChatMessages.map((msg) => (
                     <div key={msg.id} className={`flex flex-col ${msg.sender_id === user?.id ? 'items-end' : 'items-start'}`}>
-                      <div className={`max-w-[80%] rounded-2xl px-3.5 py-2.5 text-xs ${msg.sender_id === user?.id ? 'bg-orange-600 text-white' : 'bg-neutral-800 text-neutral-200'}`}>
+                      <div className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${msg.sender_id === user?.id ? 'bg-orange-600 text-white' : 'bg-neutral-800 text-neutral-200'}`}>
                         {msg.text}
                       </div>
                     </div>
@@ -1558,9 +1553,9 @@ export default function App() {
                   <div ref={messagesEndRef} />
                 </div>
                 {selectedBuddyChat.id !== 'system-bot' && (
-                  <div className="p-3 bg-neutral-950 border-t border-neutral-800 flex items-center gap-2">
-                    <input type="text" placeholder="Écrire un message..." value={currentMessageInput} onChange={(e) => setCurrentMessageInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()} className="flex-1 bg-neutral-900 border border-neutral-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-orange-500" />
-                    <button onClick={() => handleSendMessage()} className="p-2.5 bg-orange-600 text-white rounded-xl"><SendHorizontal className="w-4 h-4" /></button>
+                  <div className="p-3.5 bg-neutral-950 border-t border-neutral-800 flex items-center gap-2.5">
+                    <input type="text" placeholder="Écrire un message..." value={currentMessageInput} onChange={(e) => setCurrentMessageInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()} className="flex-1 bg-neutral-900 border border-neutral-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-orange-500" />
+                    <button onClick={() => handleSendMessage()} className="p-3 bg-orange-600 text-white rounded-xl"><SendHorizontal className="w-4 h-4" /></button>
                   </div>
                 )}
               </div>
@@ -1568,16 +1563,16 @@ export default function App() {
               <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-3">
                 <div className="flex items-center justify-between">
                   <h2 className="text-base font-black tracking-tight">Messagerie</h2>
-                  <span className="text-[10px] text-neutral-500">Conversations & Alertes 💬</span>
+                  <span className="text-xs text-neutral-500">Conversations & Alertes 💬</span>
                 </div>
                 {activeChatUsers.length === 0 ? (
-                  <div className="text-center py-8 text-neutral-500 text-xs">Aucun ami dans ton réseau. Va dans l'onglet **Buddy** pour ajouter des athlètes !</div>
+                  <div className="text-center py-8 text-neutral-500 text-sm">Aucun ami dans ton réseau. Va dans l'onglet **Buddy** pour ajouter des athlètes !</div>
                 ) : (
                   activeChatUsers.map((friend) => (
-                    <div key={friend.id} onClick={() => setSelectedBuddyChat(friend)} className="p-3.5 bg-neutral-950 hover:bg-neutral-900/80 rounded-2xl border border-neutral-800 flex items-center justify-between cursor-pointer transition">
-                      <div className="flex items-center gap-3">
-                        <img src={friend.avatar_url} alt="" className="w-11 h-11 rounded-full object-cover border border-neutral-800" />
-                        <div><h3 className="font-bold text-xs text-white">{friend.username}</h3></div>
+                    <div key={friend.id} onClick={() => setSelectedBuddyChat(friend)} className="p-4 bg-neutral-950 hover:bg-neutral-900/80 rounded-2xl border border-neutral-800 flex items-center justify-between cursor-pointer transition">
+                      <div className="flex items-center gap-3.5">
+                        <img src={friend.avatar_url} alt="" className="w-12 h-12 rounded-full object-cover border border-neutral-800" />
+                        <div><h3 className="font-bold text-sm text-white">{friend.username}</h3></div>
                       </div>
                     </div>
                   ))
@@ -1591,20 +1586,20 @@ export default function App() {
           <div className="space-y-4">
             <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4">
               <h2 className="text-base font-black tracking-tight flex items-center gap-2"><Trophy className="w-5 h-5 text-yellow-500" /> Mes Records Personnels (PRs)</h2>
-              <form onSubmit={handleAddPR} className="bg-neutral-950 p-3.5 rounded-2xl border border-neutral-800 space-y-3">
-                <span className="text-[11px] font-bold text-orange-400 block">Ajouter un record</span>
-                <div className="grid grid-cols-3 gap-2">
-                  <input type="text" placeholder="Exercice" value={newPrExercise} onChange={(e) => setNewPrExercise(e.target.value)} className="bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white focus:border-orange-500" />
-                  <input type="number" placeholder="Poids (kg)" value={newPrWeight} onChange={(e) => setNewPrWeight(Number(e.target.value))} className="bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white focus:border-orange-500" />
-                  <input type="number" placeholder="Reps" value={newPrReps} onChange={(e) => setNewPrReps(Number(e.target.value))} className="bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white focus:border-orange-500" />
+              <form onSubmit={handleAddPR} className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 space-y-3">
+                <span className="text-xs font-bold text-orange-400 block">Ajouter un record</span>
+                <div className="grid grid-cols-3 gap-2.5">
+                  <input type="text" placeholder="Exercice" value={newPrExercise} onChange={(e) => setNewPrExercise(e.target.value)} className="bg-neutral-900 border border-neutral-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:border-orange-500" />
+                  <input type="number" placeholder="Poids (kg)" value={newPrWeight} onChange={(e) => setNewPrWeight(Number(e.target.value))} className="bg-neutral-900 border border-neutral-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:border-orange-500" />
+                  <input type="number" placeholder="Reps" value={newPrReps} onChange={(e) => setNewPrReps(Number(e.target.value))} className="bg-neutral-900 border border-neutral-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:border-orange-500" />
                 </div>
-                <button type="submit" className="w-full py-2 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-xl text-xs transition">Enregistrer</button>
+                <button type="submit" className="w-full py-2.5 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-xl text-sm transition">Enregistrer</button>
               </form>
-              <div className="space-y-2 pt-1">
+              <div className="space-y-2.5 pt-1">
                 {personalRecords.map((pr, index) => (
-                  <div key={index} className="flex items-center justify-between p-3 bg-neutral-950 rounded-2xl border border-neutral-800">
-                    <div><span className="text-xs font-bold text-white block">{pr.exercise}</span><span className="text-[10px] text-neutral-400">Atteint le {pr.date}</span></div>
-                    <div className="flex items-center gap-2"><span className="text-sm font-black font-mono text-orange-400">{pr.weight} kg ({pr.reps} reps)</span><span>🏆</span></div>
+                  <div key={index} className="flex items-center justify-between p-3.5 bg-neutral-950 rounded-2xl border border-neutral-800">
+                    <div><span className="text-sm font-bold text-white block">{pr.exercise}</span><span className="text-xs text-neutral-400">Atteint le {pr.date}</span></div>
+                    <div className="flex items-center gap-2.5"><span className="text-sm font-black font-mono text-orange-400">{pr.weight} kg ({pr.reps} reps)</span><span>🏆</span></div>
                   </div>
                 ))}
               </div>
@@ -1612,26 +1607,26 @@ export default function App() {
             
             <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4">
               <h2 className="text-base font-black tracking-tight flex items-center gap-2"><Calendar className="w-5 h-5 text-orange-500" /> Planificateur</h2>
-              <div className="space-y-2.5">
+              <div className="space-y-3">
                 {weeklyPlan.map((plan, i) => (
-                  <div key={i} className="bg-neutral-950 p-3.5 rounded-2xl border border-neutral-800 flex flex-col space-y-2">
+                  <div key={i} className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 flex flex-col space-y-2.5">
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-bold text-orange-400">{plan.day}</span>
                       {editingDayIndex === i ? (
-                        <button onClick={() => handleSaveWeeklyPlanEdit(i)} className="px-3 py-1 bg-green-600 text-white rounded-lg text-[10px] font-bold flex items-center gap-1"><Check className="w-3.5 h-3.5" /> OK</button>
+                        <button onClick={() => handleSaveWeeklyPlanEdit(i)} className="px-3.5 py-1.5 bg-green-600 text-white rounded-lg text-xs font-bold flex items-center gap-1.5"><Check className="w-4 h-4" /> OK</button>
                       ) : (
-                        <button onClick={() => { setEditingDayIndex(i); setEditFocus(plan.focus); setEditExercisesText(plan.exercisesText); }} className="p-1 text-neutral-400 hover:text-white"><Edit3 className="w-4 h-4" /></button>
+                        <button onClick={() => { setEditingDayIndex(i); setEditFocus(plan.focus); setEditExercisesText(plan.exercisesText); }} className="p-1.5 text-neutral-400 hover:text-white"><Edit3 className="w-4 h-4" /></button>
                       )}
                     </div>
                     {editingDayIndex === i ? (
-                      <div className="space-y-2.5 pt-1">
-                        <select value={editFocus} onChange={(e) => setEditFocus(e.target.value)} className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white">
+                      <div className="space-y-3 pt-1">
+                        <select value={editFocus} onChange={(e) => setEditFocus(e.target.value)} className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-3.5 py-2.5 text-sm text-white">
                           {WORKOUT_CHOICES.map((choice) => <option key={choice} value={choice}>{choice}</option>)}
                         </select>
-                        <input type="text" placeholder="ex: Développé couché..." value={editExercisesText} onChange={(e) => setEditExercisesText(e.target.value)} className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white" />
+                        <input type="text" placeholder="ex: Développé couché..." value={editExercisesText} onChange={(e) => setEditExercisesText(e.target.value)} className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-3.5 py-2.5 text-sm text-white" />
                       </div>
                     ) : (
-                      <><span className="text-[11px] bg-neutral-900 px-2.5 py-1 rounded-lg text-neutral-200 font-medium inline-block">{plan.focus}</span><p className="text-[11px] text-neutral-400">Exercices : {plan.exercisesText}</p></>
+                      <><span className="text-xs bg-neutral-900 px-3 py-1.5 rounded-lg text-neutral-200 font-medium inline-block">{plan.focus}</span><p className="text-xs text-neutral-400">Exercices : {plan.exercisesText}</p></>
                     )}
                   </div>
                 ))}
@@ -1648,39 +1643,39 @@ export default function App() {
                 <div className="absolute inset-0 bg-black/50 rounded-full flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition"><Camera className="w-6 h-6 text-white" /></div>
               </div>
               <input type="file" accept="image/*" ref={profileAvatarInputRef} onChange={(e) => handleImageSelect(e, 'profile_avatar')} className="hidden" />
-              <div><h2 className="font-extrabold text-xl">{user.user_metadata?.first_name || user.email?.split('@')[0]}</h2></div>
+              <div><h2 className="font-extrabold text-lg text-white">{user.user_metadata?.first_name || user.email?.split('@')[0]}</h2></div>
             </div>
             
             <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4">
               <div className="flex items-center justify-between">
                 <h3 className="font-bold text-sm text-white flex items-center gap-2"><ImageIcon className="w-4 h-4 text-orange-500" /> Carnet Avant/Après</h3>
               </div>
-              <form onSubmit={handleAddTransformation} className="bg-neutral-950 p-3.5 rounded-2xl border border-neutral-800 space-y-3">
-                <div className="grid grid-cols-2 gap-2">
-                  <button type="button" onClick={() => startCameraHandler('trans_before')} className="p-3 bg-neutral-900 border border-neutral-800 rounded-xl text-xs text-neutral-300 flex items-center justify-center gap-1.5"><Camera className="w-4 h-4 text-orange-500" /> {newTransBefore ? '(✓)' : 'Avant'}</button>
-                  <button type="button" onClick={() => startCameraHandler('trans_after')} className="p-3 bg-neutral-900 border border-neutral-800 rounded-xl text-xs text-neutral-300 flex items-center justify-center gap-1.5"><Camera className="w-4 h-4 text-orange-500" /> {newTransAfter ? '(✓)' : 'Après'}</button>
+              <form onSubmit={handleAddTransformation} className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 space-y-3">
+                <div className="grid grid-cols-2 gap-2.5">
+                  <button type="button" onClick={() => startCameraHandler('trans_before')} className="p-3.5 bg-neutral-900 border border-neutral-800 rounded-xl text-xs text-neutral-300 flex items-center justify-center gap-2"><Camera className="w-4 h-4 text-orange-500" /> {newTransBefore ? '(✓)' : 'Avant'}</button>
+                  <button type="button" onClick={() => startCameraHandler('trans_after')} className="p-3.5 bg-neutral-900 border border-neutral-800 rounded-xl text-xs text-neutral-300 flex items-center justify-center gap-2"><Camera className="w-4 h-4 text-orange-500" /> {newTransAfter ? '(✓)' : 'Après'}</button>
                 </div>
                 <input type="file" accept="image/*" ref={beforeFileInputRef} onChange={(e) => handleImageSelect(e, 'trans_before')} className="hidden" />
                 <input type="file" accept="image/*" ref={afterFileInputRef} onChange={(e) => handleImageSelect(e, 'trans_after')} className="hidden" />
-                <div className="grid grid-cols-2 gap-2">
-                  <input type="number" step="0.1" placeholder="Poids (kg)" value={newTransWeight} onChange={(e) => setNewTransWeight(Number(e.target.value))} className="bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white" />
-                  <input type="text" placeholder="Note" value={newTransNote} onChange={(e) => setNewTransNote(e.target.value)} className="bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white" />
+                <div className="grid grid-cols-2 gap-2.5">
+                  <input type="number" step="0.1" placeholder="Poids (kg)" value={newTransWeight} onChange={(e) => setNewTransWeight(Number(e.target.value))} className="bg-neutral-900 border border-neutral-800 rounded-xl px-3.5 py-2.5 text-sm text-white" />
+                  <input type="text" placeholder="Note" value={newTransNote} onChange={(e) => setNewTransNote(e.target.value)} className="bg-neutral-900 border border-neutral-800 rounded-xl px-3.5 py-2.5 text-sm text-white" />
                 </div>
-                <div className="flex items-center justify-between bg-neutral-900 p-2.5 rounded-xl border border-neutral-800">
-                  <div className="flex items-center gap-2"><EyeOff className="w-4 h-4 text-orange-500" /><span className="text-[11px] font-semibold text-neutral-200">Privé (que moi)</span></div>
-                  <button type="button" onClick={() => setNewTransIsPrivate(!newTransIsPrivate)} className={`relative w-10 h-5 rounded-full transition-colors ${newTransIsPrivate ? 'bg-orange-500' : 'bg-neutral-800'}`}><div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${newTransIsPrivate ? 'translate-x-5' : 'translate-x-0.5'}`} /></button>
+                <div className="flex items-center justify-between bg-neutral-900 p-3 rounded-xl border border-neutral-800">
+                  <div className="flex items-center gap-2"><EyeOff className="w-4 h-4 text-orange-500" /><span className="text-xs font-semibold text-neutral-200">Privé (que moi)</span></div>
+                  <button type="button" onClick={() => setNewTransIsPrivate(!newTransIsPrivate)} className={`relative w-11 h-6 rounded-full transition-colors ${newTransIsPrivate ? 'bg-orange-500' : 'bg-neutral-800'}`}><div className={`absolute top-0.5 w-5 h-5 rounded-full bg-white transition-transform ${newTransIsPrivate ? 'translate-x-5.5' : 'translate-x-0.5'}`} /></button>
                 </div>
-                <button type="submit" className="w-full py-2 bg-orange-600 text-white font-bold rounded-xl text-xs">Enregistrer</button>
+                <button type="submit" className="w-full py-2.5 bg-orange-600 text-white font-bold rounded-xl text-sm">Enregistrer</button>
               </form>
-              <div className="space-y-3 pt-1">
-                {transformations.length === 0 ? <div className="text-center py-6 text-neutral-500 text-xs">Aucune photo enregistrée.</div> : transformations.map((item) => (
-                  <div key={item.id} className="bg-neutral-950 p-3.5 rounded-2xl border border-neutral-800 space-y-3">
+              <div className="space-y-3.5 pt-1">
+                {transformations.length === 0 ? <div className="text-center py-6 text-neutral-500 text-sm">Aucune photo enregistrée.</div> : transformations.map((item) => (
+                  <div key={item.id} className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 space-y-3">
                     <div className="flex items-center justify-between text-xs"><span className="font-bold text-orange-400">📅 {item.date} — {item.weight} kg</span></div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="relative rounded-xl overflow-hidden h-36 bg-neutral-900 border border-neutral-800"><img src={item.before_url} alt="" className="w-full h-full object-cover" /><span className="absolute bottom-1 left-1 bg-black/70 text-[9px] text-white px-2 py-0.5 rounded">Avant</span></div>
-                      <div className="relative rounded-xl overflow-hidden h-36 bg-neutral-900 border border-neutral-800"><img src={item.after_url} alt="" className="w-full h-full object-cover" /><span className="absolute bottom-1 left-1 bg-black/70 text-[9px] text-white px-2 py-0.5 rounded">Après</span></div>
+                    <div className="grid grid-cols-2 gap-2.5">
+                      <div className="relative rounded-xl overflow-hidden h-36 bg-neutral-900 border border-neutral-800"><img src={item.before_url} alt="" className="w-full h-full object-cover" /><span className="absolute bottom-1.5 left-1.5 bg-black/70 text-[10px] text-white px-2 py-0.5 rounded">Avant</span></div>
+                      <div className="relative rounded-xl overflow-hidden h-36 bg-neutral-900 border border-neutral-800"><img src={item.after_url} alt="" className="w-full h-full object-cover" /><span className="absolute bottom-1.5 left-1.5 bg-black/70 text-[10px] text-white px-2 py-0.5 rounded">Après</span></div>
                     </div>
-                    <button onClick={() => handleShareTransformationToFeed(item)} className="w-full py-2 bg-neutral-900 border border-neutral-800 hover:border-orange-500 text-neutral-300 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5"><Share2 className="w-3.5 h-3.5" /> Partager ce bilan</button>
+                    <button onClick={() => handleShareTransformationToFeed(item)} className="w-full py-2.5 bg-neutral-900 border border-neutral-800 hover:border-orange-500 text-neutral-300 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2"><Share2 className="w-4 h-4" /> Partager ce bilan</button>
                   </div>
                 ))}
               </div>
@@ -1688,7 +1683,7 @@ export default function App() {
 
             <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4">
               <div className="flex items-center justify-between p-4 bg-neutral-950 rounded-2xl border border-neutral-800">
-                <div><span className="font-bold text-sm text-white block">Compte Privé</span><p className="text-[10px] text-neutral-400 mt-1">Séances visibles uniquement par tes Buddies.</p></div>
+                <div><span className="font-bold text-sm text-white block">Compte Privé</span><p className="text-xs text-neutral-400 mt-1">Séances visibles uniquement par tes Buddies.</p></div>
                 <button onClick={() => setIsPrivateMode(!isPrivateMode)} className={`relative w-12 h-6 rounded-full transition-colors ${isPrivateMode ? 'bg-orange-500' : 'bg-neutral-800'}`}><div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform ${isPrivateMode ? 'translate-x-7' : 'translate-x-1'}`} /></button>
               </div>
             </div>
@@ -1707,8 +1702,8 @@ export default function App() {
             </div>
             <div className="space-y-3">
               <div>
-                <label className="block text-[11px] font-semibold text-neutral-400 mb-1">Objectif :</label>
-                <select value={matchGoal} onChange={(e) => setMatchGoal(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white focus:border-orange-500">
+                <label className="block text-xs font-semibold text-neutral-400 mb-1">Objectif :</label>
+                <select value={matchGoal} onChange={(e) => setMatchGoal(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:border-orange-500">
                   <option value="Tous">Tous les objectifs</option>
                   <option value="masse">Prise de masse & Force</option>
                   <option value="cardio">Cardio & HIIT</option>
@@ -1716,43 +1711,43 @@ export default function App() {
                 </select>
               </div>
               <div>
-                <label className="block text-[11px] font-semibold text-neutral-400 mb-1">Horaire recherché :</label>
-                <select value={matchTime} onChange={(e) => setMatchTime(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white focus:border-orange-500">
+                <label className="block text-xs font-semibold text-neutral-400 mb-1">Horaire recherché :</label>
+                <select value={matchTime} onChange={(e) => setMatchTime(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:border-orange-500">
                   <option value="Tous">Tous les horaires</option>
                   {TIME_SLOTS.map((slot) => <option key={slot} value={slot.split(' ')[1]}>{slot}</option>)}
                 </select>
               </div>
               <div className="flex items-center justify-between pt-1">
-                <span className="text-[11px] text-neutral-400">Filtrer uniquement entre femmes :</span>
+                <span className="text-xs text-neutral-400">Filtrer uniquement entre femmes :</span>
                 <button
                   onClick={() => setMatchWomenOnly(!matchWomenOnly)}
-                  className={`px-3 py-1 rounded-lg text-xs font-bold transition ${matchWomenOnly ? 'bg-pink-600 text-white' : 'bg-neutral-950 text-neutral-400 border border-neutral-800'}`}
+                  className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition ${matchWomenOnly ? 'bg-pink-600 text-white' : 'bg-neutral-950 text-neutral-400 border border-neutral-800'}`}
                 >
                   {matchWomenOnly ? 'Activé (🚺)' : 'Désactivé'}
                 </button>
               </div>
             </div>
-            <div className="space-y-2 pt-2 border-t border-neutral-800 max-h-60 overflow-y-auto">
-              <span className="text-[11px] font-bold text-orange-400 block mb-1">Résultats ({matchedBuddiesList.length}) :</span>
+            <div className="space-y-2.5 pt-2 border-t border-neutral-800 max-h-60 overflow-y-auto">
+              <span className="text-xs font-bold text-orange-400 block mb-1">Résultats ({matchedBuddiesList.length}) :</span>
               {matchedBuddiesList.length === 0 ? (
-                <div className="text-center py-6 text-neutral-500 text-xs">Aucun athlète ne correspond à cet horaire/objectif.</div>
+                <div className="text-center py-6 text-neutral-500 text-sm">Aucun athlète ne correspond à cet horaire/objectif.</div>
               ) : (
                 matchedBuddiesList.map((buddy) => (
-                  <div key={buddy.id} className="bg-neutral-950 p-3 rounded-2xl border border-neutral-800 flex items-center justify-between">
-                    <div className="flex items-center gap-2.5">
-                      <img src={buddy.avatar_url} alt="" className="w-10 h-10 rounded-full object-cover border border-neutral-700" />
+                  <div key={buddy.id} className="bg-neutral-950 p-3.5 rounded-2xl border border-neutral-800 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <img src={buddy.avatar_url} alt="" className="w-11 h-11 rounded-full object-cover border border-neutral-700" />
                       <div>
-                        <h4 className="font-bold text-xs text-white">{buddy.username} {buddy.gender === 'F' && '🚺'}</h4>
-                        <span className="text-[10px] text-orange-400 block">🎯 {buddy.goal || 'Sportif'}</span>
-                        <span className="text-[9px] text-amber-400 font-semibold">🕒 {buddy.preferred_time || 'Flexible'}</span>
+                        <h4 className="font-bold text-sm text-white">{buddy.username} {buddy.gender === 'F' && '🚺'}</h4>
+                        <span className="text-xs text-orange-400 block">🎯 {buddy.goal || 'Sportif'}</span>
+                        <span className="text-[11px] text-amber-400 font-semibold">🕒 {buddy.preferred_time || 'Flexible'}</span>
                       </div>
                     </div>
-                    <button onClick={() => { setIsMatchModalOpen(false); setSelectedBuddyChat(buddy); setCurrentTab('chat'); }} className="px-3 py-1.5 bg-orange-600 text-white rounded-xl text-xs font-bold flex items-center gap-1"><MessageCircle className="w-3.5 h-3.5" /> Contacter</button>
+                    <button onClick={() => { setIsMatchModalOpen(false); setSelectedBuddyChat(buddy); setCurrentTab('chat'); }} className="px-3.5 py-2 bg-orange-600 text-white rounded-xl text-xs font-bold flex items-center gap-1.5"><MessageCircle className="w-4 h-4" /> Contacter</button>
                   </div>
                 ))
               )}
             </div>
-            <button onClick={() => setIsMatchModalOpen(false)} className="w-full py-3 bg-neutral-950 text-white font-bold rounded-xl text-xs border border-neutral-800">Fermer</button>
+            <button onClick={() => setIsMatchModalOpen(false)} className="w-full py-3 bg-neutral-950 text-white font-bold rounded-xl text-sm border border-neutral-800">Fermer</button>
           </div>
         </div>
       )}
@@ -1766,9 +1761,9 @@ export default function App() {
               <button onClick={() => setInviteModalTarget(null)} className="p-1 text-neutral-400 hover:text-white"><X className="w-5 h-5" /></button>
             </div>
             <div className="space-y-3">
-              <p className="text-xs text-neutral-300">Invite <strong>{inviteModalTarget.username}</strong> à s'entraîner.</p>
+              <p className="text-sm text-neutral-300">Invite <strong>{inviteModalTarget.username}</strong> à s'entraîner.</p>
               <div>
-                <select value={inviteType} onChange={(e) => setInviteType(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2.5 text-xs text-white focus:border-orange-500">
+                <select value={inviteType} onChange={(e) => setInviteType(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3.5 py-3 text-sm text-white focus:border-orange-500">
                   <option value="Jambes (Leg Day)">Jambes (Leg Day)</option>
                   <option value="Push (Pecs, Épaules, Triceps)">Push (Pecs, Épaules)</option>
                   <option value="Pull (Dos, Biceps)">Pull (Dos, Biceps)</option>
@@ -1777,7 +1772,7 @@ export default function App() {
                 </select>
               </div>
             </div>
-            <button onClick={handleSendInvite} className="w-full py-3 bg-orange-600 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2"><Send className="w-4 h-4" /> Envoyer</button>
+            <button onClick={handleSendInvite} className="w-full py-3.5 bg-orange-600 text-white font-bold rounded-xl text-sm flex items-center justify-center gap-2"><Send className="w-4 h-4" /> Envoyer</button>
           </div>
         </div>
       )}
@@ -1788,29 +1783,29 @@ export default function App() {
           <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-lg w-full mx-auto p-5 space-y-4 max-h-[88vh] overflow-y-auto shadow-2xl">
             <div className="flex items-center justify-between pb-3 border-b border-neutral-800">
               <div className="flex items-center gap-2">
-                <span className="text-xs bg-orange-500/20 text-orange-400 px-2.5 py-1 rounded-lg font-bold">{selectedExerciseDetail.category}</span>
+                <span className="text-xs bg-orange-500/20 text-orange-400 px-3 py-1 rounded-lg font-bold">{selectedExerciseDetail.category}</span>
                 <h3 className="text-sm font-black text-white">{selectedExerciseDetail.name}</h3>
               </div>
-              <button onClick={() => setSelectedExerciseDetail(null)} className="p-1.5 bg-neutral-800 text-white rounded-full"><X className="w-5 h-5" /></button>
+              <button onClick={() => setSelectedExerciseDetail(null)} className="p-2 bg-neutral-800 text-white rounded-full"><X className="w-5 h-5" /></button>
             </div>
             <div className="rounded-2xl overflow-hidden border border-neutral-800 bg-neutral-950 h-48 w-full relative">
               <img src={selectedExerciseDetail.image_url} alt="" className="w-full h-full object-cover" />
             </div>
-            <div className="space-y-3 text-xs leading-relaxed text-neutral-300">
-              <div className="bg-neutral-950 p-3.5 rounded-2xl border border-neutral-800 space-y-1">
-                <span className="font-bold text-orange-400 uppercase text-[10px] block">Description détaillée</span>
+            <div className="space-y-3 text-sm leading-relaxed text-neutral-300">
+              <div className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 space-y-1.5">
+                <span className="font-bold text-orange-400 uppercase text-xs block">Description détaillée</span>
                 <p>{selectedExerciseDetail.detailedDescription}</p>
               </div>
-              <div className="bg-neutral-950 p-3.5 rounded-2xl border border-neutral-800 space-y-1">
-                <span className="font-bold text-orange-400 uppercase text-[10px] block">Équipement requis</span>
+              <div className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 space-y-1.5">
+                <span className="font-bold text-orange-400 uppercase text-xs block">Équipement requis</span>
                 <p className="text-neutral-200">{selectedExerciseDetail.equipment}</p>
               </div>
-              <div className="bg-neutral-950 p-3.5 rounded-2xl border border-neutral-800 space-y-1">
-                <span className="font-bold text-orange-400 uppercase text-[10px] block">Exécution du mouvement</span>
+              <div className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 space-y-1.5">
+                <span className="font-bold text-orange-400 uppercase text-xs block">Exécution du mouvement</span>
                 <p className="text-neutral-200">{selectedExerciseDetail.execution}</p>
               </div>
-              <div className="bg-orange-950/20 p-3.5 rounded-2xl border border-orange-500/20 space-y-1">
-                <span className="font-bold text-orange-400 uppercase text-[10px] block">Conseil du Coach</span>
+              <div className="bg-orange-950/20 p-4 rounded-2xl border border-orange-500/20 space-y-1.5">
+                <span className="font-bold text-orange-400 uppercase text-xs block">Conseil du Coach</span>
                 <p className="text-neutral-200 italic">{selectedExerciseDetail.tips}</p>
               </div>
             </div>
@@ -1822,10 +1817,10 @@ export default function App() {
       {isCameraActive && (
         <div className="fixed inset-0 z-50 bg-black flex flex-col justify-between items-center p-4">
           <div className="w-full flex items-center justify-between z-10 pt-2">
-            <span className="text-xs font-bold text-white bg-black/50 px-3 py-1.5 rounded-full border border-neutral-800">Caméra</span>
+            <span className="text-xs font-bold text-white bg-black/50 px-3.5 py-1.5 rounded-full border border-neutral-800">Caméra</span>
             <div className="flex items-center gap-2">
-              <button type="button" onClick={switchCameraFacing} className="p-2.5 bg-black/60 rounded-full text-white"><SwitchCamera className="w-5 h-5" /></button>
-              <button type="button" onClick={stopCameraStream} className="p-2.5 bg-black/60 rounded-full text-white"><X className="w-5 h-5" /></button>
+              <button type="button" onClick={switchCameraFacing} className="p-3 bg-black/60 rounded-full text-white"><SwitchCamera className="w-5 h-5" /></button>
+              <button type="button" onClick={stopCameraStream} className="p-3 bg-black/60 rounded-full text-white"><X className="w-5 h-5" /></button>
             </div>
           </div>
           <div className="relative w-full flex-1 max-w-sm my-auto rounded-3xl overflow-hidden bg-neutral-950 flex items-center justify-center border border-neutral-800">
@@ -1845,15 +1840,15 @@ export default function App() {
               <h3 className="text-sm font-bold text-white flex items-center gap-2"><Sparkles className="w-4 h-4 text-orange-500" /> Ajouter à ma story (24h)</h3>
               <button onClick={() => setIsCreatingStory(false)} className="p-1 text-neutral-400 hover:text-white"><X className="w-5 h-5" /></button>
             </div>
-            <form onSubmit={handlePublishStory} className="space-y-3.5">
+            <form onSubmit={handlePublishStory} className="space-y-4">
               <input type="file" accept="image/*" ref={storyFileInputRef} onChange={handleImageSelect} className="hidden" />
               {storyImagePreview ? (
                 <div className="relative rounded-2xl overflow-hidden border border-neutral-700 bg-neutral-950 h-56 flex items-center justify-center">
                   <img src={storyImagePreview} alt="" className="max-h-full object-contain" />
-                  <button type="button" onClick={() => setStoryImagePreview(null)} className="absolute top-2 right-2 p-1 bg-black/80 text-white rounded-full"><X className="w-4 h-4" /></button>
+                  <button type="button" onClick={() => setStoryImagePreview(null)} className="absolute top-2.5 right-2.5 p-1.5 bg-black/80 text-white rounded-full"><X className="w-4 h-4" /></button>
                 </div>
               ) : (
-                <div className="grid grid-cols-2 gap-2.5">
+                <div className="grid grid-cols-2 gap-3">
                   <button type="button" onClick={() => startCameraHandler('story')} className="py-8 border-2 border-dashed border-neutral-800 hover:border-orange-500 rounded-2xl flex flex-col items-center justify-center gap-2 text-neutral-400 bg-neutral-950 transition">
                     <Camera className="w-6 h-6 text-orange-500" /><span className="text-xs font-semibold">Prendre photo</span>
                   </button>
@@ -1863,9 +1858,9 @@ export default function App() {
                 </div>
               )}
               <div className="space-y-2">
-                <input type="text" placeholder="Légende de la story..." value={storyCaption} onChange={(e) => setStoryCaption(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-orange-500" />
+                <input type="text" placeholder="Légende de la story..." value={storyCaption} onChange={(e) => setStoryCaption(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3.5 py-3 text-sm text-white focus:outline-none focus:border-orange-500" />
               </div>
-              <button type="submit" disabled={storyUploading || !storyImageFile} className="w-full bg-orange-600 hover:bg-orange-500 text-white font-bold py-3 rounded-xl shadow-lg transition flex items-center justify-center gap-2 text-xs">
+              <button type="submit" disabled={storyUploading || !storyImageFile} className="w-full bg-orange-600 hover:bg-orange-500 text-white font-bold py-3.5 rounded-xl shadow-lg transition flex items-center justify-center gap-2 text-sm">
                 {storyUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Partager ma story"}
               </button>
             </form>
@@ -1879,26 +1874,26 @@ export default function App() {
           <div className="bg-neutral-900 border-t border-neutral-800 rounded-t-3xl h-[70vh] flex flex-col shadow-2xl">
             <div className="flex items-center justify-between p-4 border-b border-neutral-800">
               <h3 className="font-bold text-sm text-white flex items-center gap-2"><MessageSquare className="w-4 h-4 text-orange-500" /> Commentaires ({activePostForComments.comments_count || 0})</h3>
-              <button onClick={() => setActiveCommentPostId(null)} className="p-1.5 bg-neutral-800 text-white rounded-full"><X className="w-4 h-4" /></button>
+              <button onClick={() => setActiveCommentPostId(null)} className="p-2 bg-neutral-800 text-white rounded-full"><X className="w-4 h-4" /></button>
             </div>
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
               {(!activePostForComments.comments || activePostForComments.comments.length === 0) ? (
-                <div className="text-center text-neutral-500 text-xs py-8">Aucun commentaire. Sois le premier à réagir !</div>
+                <div className="text-center text-neutral-500 text-sm py-8">Aucun commentaire. Sois le premier à réagir !</div>
               ) : (
                 activePostForComments.comments.map(c => (
                   <div key={c.id} className="flex gap-3">
-                    <img src={c.avatar_url} className="w-8 h-8 rounded-full object-cover border border-neutral-700" />
-                    <div className="flex-1 bg-neutral-950 p-3 rounded-2xl rounded-tl-none border border-neutral-800">
+                    <img src={c.avatar_url} className="w-9 h-9 rounded-full object-cover border border-neutral-700" />
+                    <div className="flex-1 bg-neutral-950 p-3.5 rounded-2xl rounded-tl-none border border-neutral-800">
                       <span className="font-bold text-xs text-white block mb-1">{c.username}</span>
-                      <p className="text-xs text-neutral-300">{c.text}</p>
+                      <p className="text-sm text-neutral-300 leading-relaxed">{c.text}</p>
                     </div>
                   </div>
                 ))
               )}
             </div>
-            <form onSubmit={handleAddPostComment} className="p-4 bg-neutral-950 border-t border-neutral-800 flex items-center gap-2">
-              <input type="text" placeholder="Ajouter un commentaire..." value={postCommentInput} onChange={e => setPostCommentInput(e.target.value)} className="flex-1 bg-neutral-900 border border-neutral-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:border-orange-500" />
-              <button type="submit" disabled={!postCommentInput.trim()} className="p-2.5 bg-orange-600 disabled:bg-neutral-800 text-white rounded-xl"><SendHorizontal className="w-4 h-4" /></button>
+            <form onSubmit={handleAddPostComment} className="p-3.5 bg-neutral-950 border-t border-neutral-800 flex items-center gap-2.5">
+              <input type="text" placeholder="Ajouter un commentaire..." value={postCommentInput} onChange={e => setPostCommentInput(e.target.value)} className="flex-1 bg-neutral-900 border border-neutral-800 rounded-xl px-4 py-3 text-sm text-white focus:border-orange-500" />
+              <button type="submit" disabled={!postCommentInput.trim()} className="p-3 bg-orange-600 disabled:bg-neutral-800 text-white rounded-xl"><SendHorizontal className="w-4 h-4" /></button>
             </form>
           </div>
         </div>
