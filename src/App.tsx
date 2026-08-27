@@ -276,6 +276,7 @@ export default function App() {
 
   // Auth States
   const [isSignUp, setIsSignUp] = useState(false);
+  const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [firstName, setFirstName] = useState('');
@@ -289,6 +290,7 @@ export default function App() {
   const [acceptCGU, setAcceptCGU] = useState(false);
   const [authLoading, setAuthLoading] = useState(false);
   const [signupSuccessEmail, setSignupSuccessEmail] = useState<string | null>(null);
+  const [forgotPasswordSent, setForgotPasswordSent] = useState(false);
   const [isCGUModalOpen, setIsCGUModalOpen] = useState(false);
 
   // App States
@@ -495,9 +497,8 @@ export default function App() {
   const notifications = allMessages.filter(m => m.receiver_id === user?.id && m.sender_id === 'system-notification');
   const unreadNotifsCount = notifications.filter(m => new Date(m.created_at).getTime() > lastNotifOpenTime).length;
 
-  // Statut Admin connecté (pour l'affichage du panneau de gestion des coachs)
   const currentUserProfile = registeredUsers.find(u => u.id === user?.id);
-  const isAdmin = currentUserProfile?.is_admin || user?.email === 'antbou@fitpulse.be'; // Remplace par ton email admin si besoin
+  const isAdmin = currentUserProfile?.is_admin || user?.email === 'antbou@fitpulse.be';
 
 
   // ==========================================
@@ -552,6 +553,21 @@ export default function App() {
       if (error) alert("Erreur de connexion : " + error.message);
     }
     setAuthLoading(false);
+  };
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email) { alert("Veuillez entrer votre adresse e-mail."); return; }
+    setAuthLoading(true);
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin,
+    });
+    setAuthLoading(false);
+    if (error) {
+      alert("Erreur : " + error.message);
+    } else {
+      setForgotPasswordSent(true);
+    }
   };
 
   const syncProfile = async (sessionUser: SupabaseUser) => {
@@ -1224,6 +1240,33 @@ export default function App() {
         </div>
       );
     }
+
+    if (isForgotPassword) {
+      return (
+        <div className="min-h-screen bg-neutral-950 text-white flex flex-col justify-center items-center px-4 py-8">
+          <div className="w-full max-w-md bg-neutral-900/90 border border-neutral-800 rounded-3xl p-6 sm:p-8 shadow-2xl backdrop-blur-xl">
+            <div className="flex justify-center mb-4"><div className="w-14 h-14 rounded-2xl bg-orange-500/20 border border-orange-500/40 flex items-center justify-center text-orange-500"><Key className="w-7 h-7" /></div></div>
+            <h1 className="text-xl font-black text-center tracking-tight mb-1">Mot de passe oublié</h1>
+            {forgotPasswordSent ? (
+              <div className="space-y-4 text-center mt-4">
+                <p className="text-sm text-neutral-300">Un lien de réinitialisation a été envoyé à <strong className="text-orange-400">{email}</strong>.</p>
+                <button onClick={() => { setIsForgotPassword(false); setForgotPasswordSent(false); }} className="w-full py-3.5 bg-orange-600 text-white font-bold rounded-xl text-sm transition">Retour à la connexion</button>
+              </div>
+            ) : (
+              <form onSubmit={handleForgotPassword} className="space-y-4 mt-6">
+                <p className="text-xs text-neutral-400 leading-relaxed">Entre ton e-mail pour recevoir les instructions de réinitialisation.</p>
+                <input type="email" required placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3.5 py-3 text-sm text-white focus:border-orange-500" />
+                <button type="submit" disabled={authLoading} className="w-full bg-gradient-to-r from-orange-600 to-orange-500 text-white font-bold py-3.5 rounded-xl shadow-lg transition text-sm flex justify-center">
+                  {authLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Envoyer le lien"}
+                </button>
+                <button type="button" onClick={() => setIsForgotPassword(false)} className="w-full text-center text-sm text-neutral-400 hover:text-white mt-3 transition">Retour</button>
+              </form>
+            )}
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="min-h-screen bg-neutral-950 text-white flex flex-col justify-center items-center px-4 py-8">
         <div className="w-full max-w-md bg-neutral-900/90 border border-neutral-800 rounded-3xl p-6 sm:p-8 shadow-2xl backdrop-blur-xl">
@@ -1255,6 +1298,13 @@ export default function App() {
             )}
             <input type="email" required placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3.5 py-3 text-sm text-white focus:border-orange-500" />
             <input type="password" required placeholder="Mot de passe" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3.5 py-3 text-sm text-white focus:border-orange-500" />
+            
+            {!isSignUp && (
+              <div className="text-right">
+                <button type="button" onClick={() => setIsForgotPassword(true)} className="text-xs text-orange-400 hover:underline">Mot de passe oublié ?</button>
+              </div>
+            )}
+
             {isSignUp && (
               <div className="flex items-start gap-2.5 pt-1">
                 <input type="checkbox" id="cgu" checked={acceptCGU} onChange={(e) => setAcceptCGU(e.target.checked)} className="mt-1 accent-orange-500 w-4 h-4" />
