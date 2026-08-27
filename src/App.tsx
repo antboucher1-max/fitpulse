@@ -242,7 +242,7 @@ export default function App() {
   const [selectedGoalFilter, setSelectedGoalFilter] = useState<string>('all');
   const [selectedAgeGroupFilter, setSelectedAgeGroupFilter] = useState<string>('all');
   
-  // Match & Modals
+  // Modals & Active items
   const [isMatchModalOpen, setIsMatchModalOpen] = useState(false);
   const [matchGoal, setMatchGoal] = useState('Tous');
   const [matchTime, setMatchTime] = useState('Tous');
@@ -322,7 +322,75 @@ export default function App() {
   const [viewedStoryIds, setViewedStoryIds] = useState<string[]>(() => { try { return JSON.parse(localStorage.getItem('fitpulse_viewed_stories') || '[]'); } catch { return []; } });
 
 
-  // --- SYNC PROFILES ---
+  // ==========================================
+  // VARIABLES DÉRIVÉES ET CALCULÉES
+  // ==========================================
+  const acceptedFriendIds = friendRequests.filter(req => req.status === 'accepted').map(req => (req.sender_id === user?.id ? req.receiver_id : req.sender_id));
+
+  const botUser: RealUser = { id: 'system-bot', username: '⚠️ Modération Bot', email: 'bot@fitpulse', home_club: 'Système', age: 99, avatar_url: 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=150' };
+  const hasBotMessages = allMessages.some(m => m.sender_id === 'system-bot' && m.receiver_id === user?.id);
+  const activeChatUsers = registeredUsers.filter((u) => {
+    if (u.id === user?.id) return false;
+    const hasExchanged = allMessages.some(m => (m.sender_id === user?.id && m.receiver_id === u.id) || (m.sender_id === u.id && m.receiver_id === user?.id));
+    return acceptedFriendIds.includes(u.id) || hasExchanged;
+  });
+  if (hasBotMessages) activeChatUsers.unshift(botUser);
+
+  const myFriendsList = registeredUsers.filter((u) => acceptedFriendIds.includes(u.id));
+  const incomingRequests = friendRequests.filter(req => req.receiver_id === user?.id && req.status === 'pending');
+
+  const filteredBuddies = registeredUsers.filter((u) => {
+    if (u.id === user?.id) return false;
+    if (buddyTabSubMode === 'my_friends' && !acceptedFriendIds.includes(u.id)) return false;
+    if (filterWomenOnly && u.gender === 'M') return false;
+    if (selectedGoalFilter !== 'all' && u.goal && !u.goal.toLowerCase().includes(selectedGoalFilter.toLowerCase())) return false;
+    if (selectedAgeGroupFilter !== 'all') {
+      const age = u.age;
+      if (selectedAgeGroupFilter === '18-25' && (age < 18 || age > 25)) return false;
+      if (selectedAgeGroupFilter === '26-35' && (age < 26 || age > 35)) return false;
+      if (selectedAgeGroupFilter === '36-45' && (age < 36 || age > 45)) return false;
+      if (selectedAgeGroupFilter === '46+' && age < 46) return false;
+    }
+    if (userSearchQuery.trim()) {
+      const q = userSearchQuery.toLowerCase();
+      return u.username.toLowerCase().includes(q) || u.home_club.toLowerCase().includes(q);
+    }
+    return true;
+  });
+
+  const matchedBuddiesList = registeredUsers.filter((u) => {
+    if (u.id === user?.id) return false;
+    if (filterWomenOnly && u.gender === 'M') return false;
+    const matchG = matchGoal === 'Tous' || (u.goal && u.goal.toLowerCase().includes(matchGoal.toLowerCase()));
+    const matchT = matchTime === 'Tous' || (u.preferred_time && u.preferred_time.includes(matchTime));
+    return matchG && matchT;
+  });
+
+  const displayedPosts = posts.filter((post) => {
+    if (post.is_private && post.user_id !== user?.id && !acceptedFriendIds.includes(post.user_id)) return false;
+    return isMatchingClub(post.club_name, selectedClub);
+  });
+
+  const currentChatMessages = allMessages.filter(
+    (m) => selectedBuddyChat && user && ((m.sender_id === user.id && m.receiver_id === selectedBuddyChat.id) || (m.sender_id === selectedBuddyChat.id && m.receiver_id === user.id))
+  );
+
+  const friendStoriesList = cloudStories.filter((s) => {
+    const storyDate = new Date(s.created_at).getTime();
+    return !isNaN(storyDate) ? storyDate >= Date.now() - 24 * 3600 * 1000 : true;
+  });
+
+  const activeViewingStory = activeStoryIndex !== null ? friendStoriesList[activeStoryIndex] : null;
+  const activePostForComments = posts.find((p) => p.id === activeCommentPostId);
+  const unreadChatCount = allMessages.filter((m) => m.receiver_id === user?.id && new Date(m.created_at).getTime() > lastChatOpenTime).length;
+  const notifications = allMessages.filter(m => m.receiver_id === user?.id && m.sender_id === 'system-notification');
+  const unreadNotifsCount = notifications.filter(m => new Date(m.created_at).getTime() > lastNotifOpenTime).length;
+
+
+  // ==========================================
+  // FONCTIONS ET HANDLERS
+  // ==========================================
+
   const syncProfile = async (sessionUser: SupabaseUser) => {
     try {
       const profileData = {
@@ -341,8 +409,6 @@ export default function App() {
     } catch(e) {}
   };
 
-
-  // --- FETCH FUNCTIONS ---
   const fetchCloudPosts = async () => {
     setFeedLoading(true);
     const { data, error } = await supabase.from('posts').select('*').order('created_at', { ascending: false });
@@ -409,71 +475,6 @@ export default function App() {
     }]);
   };
 
-
-  // --- VARIABLES DÉRIVÉES (Dépendantes des states) ---
-  const acceptedFriendIds = friendRequests.filter(req => req.status === 'accepted').map(req => (req.sender_id === user?.id ? req.receiver_id : req.sender_id));
-
-  const botUser: RealUser = { id: 'system-bot', username: '⚠️ Modération Bot', email: 'bot@fitpulse', home_club: 'Système', age: 99, avatar_url: 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=150' };
-  const hasBotMessages = allMessages.some(m => m.sender_id === 'system-bot' && m.receiver_id === user?.id);
-  const activeChatUsers = registeredUsers.filter((u) => {
-    if (u.id === user?.id) return false;
-    const hasExchanged = allMessages.some(m => (m.sender_id === user?.id && m.receiver_id === u.id) || (m.sender_id === u.id && m.receiver_id === user?.id));
-    return acceptedFriendIds.includes(u.id) || hasExchanged;
-  });
-  if (hasBotMessages) activeChatUsers.unshift(botUser);
-
-  const myFriendsList = registeredUsers.filter((u) => acceptedFriendIds.includes(u.id));
-  const incomingRequests = friendRequests.filter(req => req.receiver_id === user?.id && req.status === 'pending');
-
-  const filteredBuddies = registeredUsers.filter((u) => {
-    if (u.id === user?.id) return false;
-    if (buddyTabSubMode === 'my_friends' && !acceptedFriendIds.includes(u.id)) return false;
-    if (filterWomenOnly && u.gender === 'M') return false;
-    if (selectedGoalFilter !== 'all' && u.goal && !u.goal.toLowerCase().includes(selectedGoalFilter.toLowerCase())) return false;
-    if (selectedAgeGroupFilter !== 'all') {
-      const age = u.age;
-      if (selectedAgeGroupFilter === '18-25' && (age < 18 || age > 25)) return false;
-      if (selectedAgeGroupFilter === '26-35' && (age < 26 || age > 35)) return false;
-      if (selectedAgeGroupFilter === '36-45' && (age < 36 || age > 45)) return false;
-      if (selectedAgeGroupFilter === '46+' && age < 46) return false;
-    }
-    if (userSearchQuery.trim()) {
-      const q = userSearchQuery.toLowerCase();
-      return u.username.toLowerCase().includes(q) || u.home_club.toLowerCase().includes(q);
-    }
-    return true;
-  });
-
-  const matchedBuddiesList = registeredUsers.filter((u) => {
-    if (u.id === user?.id) return false;
-    if (filterWomenOnly && u.gender === 'M') return false;
-    const matchG = matchGoal === 'Tous' || (u.goal && u.goal.toLowerCase().includes(matchGoal.toLowerCase()));
-    const matchT = matchTime === 'Tous' || (u.preferred_time && u.preferred_time.includes(matchTime));
-    return matchG && matchT;
-  });
-
-  const displayedPosts = posts.filter((post) => {
-    if (post.is_private && post.user_id !== user?.id && !acceptedFriendIds.includes(post.user_id)) return false;
-    return isMatchingClub(post.club_name, selectedClub);
-  });
-
-  const currentChatMessages = allMessages.filter(
-    (m) => selectedBuddyChat && user && ((m.sender_id === user.id && m.receiver_id === selectedBuddyChat.id) || (m.sender_id === selectedBuddyChat.id && m.receiver_id === user.id))
-  );
-
-  const friendStoriesList = cloudStories.filter((s) => {
-    const storyDate = new Date(s.created_at).getTime();
-    return !isNaN(storyDate) ? storyDate >= Date.now() - 24 * 3600 * 1000 : true;
-  });
-
-  const activeViewingStory = activeStoryIndex !== null ? friendStoriesList[activeStoryIndex] : null;
-  const activePostForComments = posts.find((p) => p.id === activeCommentPostId);
-  const unreadChatCount = allMessages.filter((m) => m.receiver_id === user?.id && new Date(m.created_at).getTime() > lastChatOpenTime).length;
-  const notifications = allMessages.filter(m => m.receiver_id === user?.id && m.sender_id === 'system-notification');
-  const unreadNotifsCount = notifications.filter(m => new Date(m.created_at).getTime() > lastNotifOpenTime).length;
-
-
-  // --- HANDLERS ACTIONS ---
   const handleNextStory = () => {
     if (activeStoryIndex === null) return;
     if (activeStoryIndex < friendStoriesList.length - 1) { setActiveStoryIndex(activeStoryIndex + 1); setStoryProgress(0); setStoryCommentInput(''); } 
@@ -672,6 +673,20 @@ export default function App() {
     }, 'image/jpeg', 0.85);
   };
 
+  const handleAuth = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (isSignUp && !acceptCGU) { alert("Veuillez accepter les CGU pour continuer."); return; }
+    setAuthLoading(true);
+    if (isSignUp) {
+      const { error } = await supabase.auth.signUp({ email, password, options: { data: { first_name: firstName, last_name: lastName, username: username || `${firstName}_${lastName}`.toLowerCase(), birth_date: birthDate, gender, level, home_club: homeClub, preferred_time: preferredTime, avatar_url: userAvatarUrl } } });
+      if (error) alert("Erreur d'inscription : " + error.message); else setSignupSuccessEmail(email);
+    } else {
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) alert("Erreur de connexion : " + error.message);
+    }
+    setAuthLoading(false);
+  };
+
   const handlePublishStory = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !storyImageFile) return;
@@ -813,70 +828,16 @@ export default function App() {
     if (!error && user) fetchFriendRequests(user.id);
   };
 
+  const handleSendInvite = async () => {
+    if (!inviteModalTarget || !user) return;
+    await supabase.from('direct_messages').insert([{ sender_id: user.id, receiver_id: inviteModalTarget.id, sender_name: user.user_metadata?.username || 'Un ami', text: `🏋️ INVITATION PUSH UP : Salut ! Es-tu prêt(e) pour une grosse séance **${inviteType}** avec moi ?` }]);
+    alert(`Invitation envoyée à ${inviteModalTarget.username} !`); setInviteModalTarget(null);
+  };
+
 
   // ==========================================
-  // 6. RENDU (JSX)
+  // 6. RENDU APPLICATION CONNECTÉE
   // ==========================================
-
-  if (!user) {
-    if (signupSuccessEmail) {
-      return (
-        <div className="min-h-screen bg-neutral-950 text-white flex flex-col justify-center items-center px-4 py-8">
-          <div className="w-full max-w-md bg-neutral-900 border border-neutral-800 rounded-3xl p-8 text-center space-y-5 shadow-2xl">
-            <div className="w-16 h-16 bg-orange-500/20 border border-orange-500/40 rounded-2xl flex items-center justify-center text-orange-500 mx-auto"><Mail className="w-8 h-8 animate-bounce" /></div>
-            <h2 className="text-xl font-black">Vérifie ta boîte mail !</h2>
-            <p className="text-xs text-neutral-300 leading-relaxed">Un e-mail a été envoyé à <strong className="text-orange-400">{signupSuccessEmail}</strong>.</p>
-            <button onClick={() => { setSignupSuccessEmail(null); setIsSignUp(false); }} className="w-full py-3 bg-neutral-800 hover:bg-neutral-700 text-white font-bold rounded-xl text-xs transition">Retour à la connexion</button>
-          </div>
-        </div>
-      );
-    }
-    return (
-      <div className="min-h-screen bg-neutral-950 text-white flex flex-col justify-center items-center px-4 py-8">
-        <div className="w-full max-w-md bg-neutral-900/90 border border-neutral-800 rounded-3xl p-6 sm:p-8 shadow-2xl backdrop-blur-xl">
-          <div className="flex justify-center mb-4"><div className="w-14 h-14 rounded-2xl bg-orange-500/20 border border-orange-500/40 flex items-center justify-center text-orange-500"><Zap className="w-7 h-7" /></div></div>
-          <h1 className="text-2xl font-black text-center tracking-tight mb-1">FitPulse</h1>
-          <form onSubmit={handleAuth} className="space-y-3.5 mt-6">
-            {isSignUp && (
-              <>
-                <div className="grid grid-cols-2 gap-2.5">
-                  <div><input type="text" required placeholder="Prénom" value={firstName} onChange={(e) => setFirstName(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white focus:border-orange-500" /></div>
-                  <div><input type="text" required placeholder="Nom" value={lastName} onChange={(e) => setLastName(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white focus:border-orange-500" /></div>
-                </div>
-                <div className="grid grid-cols-2 gap-2.5">
-                  <div><input type="text" required placeholder="Pseudo" value={username} onChange={(e) => setUsername(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white focus:border-orange-500" /></div>
-                  <div><input type="date" required value={birthDate} onChange={(e) => setBirthDate(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white focus:border-orange-500" /></div>
-                </div>
-                <select value={preferredTime} onChange={(e) => setPreferredTime(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white focus:border-orange-500">{TIME_SLOTS.map((slot) => <option key={slot} value={slot}>{slot}</option>)}</select>
-              </>
-            )}
-            <input type="email" required placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white focus:border-orange-500" />
-            <input type="password" required placeholder="Mot de passe" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white focus:border-orange-500" />
-            {isSignUp && (
-              <div className="flex items-start gap-2 pt-1">
-                <input type="checkbox" id="cgu" checked={acceptCGU} onChange={(e) => setAcceptCGU(e.target.checked)} className="mt-0.5 accent-orange-500" />
-                <label htmlFor="cgu" className="text-[11px] text-neutral-400 leading-tight">J'accepte les <button type="button" onClick={() => setIsCGUModalOpen(true)} className="text-orange-400 underline font-semibold">Conditions Générales d'Utilisation</button>.</label>
-              </div>
-            )}
-            <button type="submit" disabled={authLoading} className="w-full mt-2 bg-gradient-to-r from-orange-600 to-orange-500 text-white font-bold py-3 rounded-xl shadow-lg transition text-xs flex justify-center">
-              {authLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : isSignUp ? "Créer mon compte" : "Se connecter"}
-            </button>
-          </form>
-          <button onClick={() => setIsSignUp(!isSignUp)} className="w-full text-center text-xs text-neutral-400 hover:text-white mt-5 transition">{isSignUp ? "Déjà un compte ? Se connecter" : "Pas encore de compte ? S'inscrire"}</button>
-        </div>
-        {isCGUModalOpen && (
-          <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4">
-            <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-lg w-full p-6 space-y-4">
-              <h3 className="text-sm font-black text-white">CGU & Tolérance Zéro</h3>
-              <p className="text-[11px] text-neutral-300">Il est strictement interdit de publier des contenus inappropriés. Tout manquement entraînera le bannissement définitif.</p>
-              <button onClick={() => { setAcceptCGU(true); setIsCGUModalOpen(false); }} className="w-full py-3 bg-orange-600 text-white font-bold rounded-xl text-xs">Accepter</button>
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col font-sans select-none">
       <header className="sticky top-0 z-40 bg-neutral-950/80 backdrop-blur-md border-b border-neutral-900 px-4 py-3 flex items-center justify-between">
@@ -1374,61 +1335,6 @@ export default function App() {
         )}
       </main>
 
-      {/* POP-UP MATCHMAKING PARTNER (AVEC HORAIRES) */}
-      {isMatchModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-md w-full p-5 space-y-4 shadow-2xl">
-            <div className="flex items-center justify-between pb-2 border-b border-neutral-800">
-              <h3 className="text-sm font-black text-white flex items-center gap-2"><Sparkles className="w-4 h-4 text-orange-500" /> Trouver un partenaire (Match)</h3>
-              <button onClick={() => setIsMatchModalOpen(false)} className="p-1 text-neutral-400 hover:text-white"><X className="w-5 h-5" /></button>
-            </div>
-
-            <div className="space-y-3">
-              <div>
-                <label className="block text-[11px] font-semibold text-neutral-400 mb-1">Objectif :</label>
-                <select value={matchGoal} onChange={(e) => setMatchGoal(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white focus:border-orange-500">
-                  <option value="Tous">Tous les objectifs</option>
-                  <option value="masse">Prise de masse & Force</option>
-                  <option value="cardio">Cardio & HIIT</option>
-                  <option value="remise">Remise en forme</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-semibold text-neutral-400 mb-1">Horaire recherché :</label>
-                <select value={matchTime} onChange={(e) => setMatchTime(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white focus:border-orange-500">
-                  <option value="Tous">Tous les horaires</option>
-                  {TIME_SLOTS.map((slot) => <option key={slot} value={slot.split(' ')[1]}>{slot}</option>)}
-                </select>
-              </div>
-            </div>
-
-            <div className="space-y-2 pt-2 border-t border-neutral-800 max-h-60 overflow-y-auto">
-              <span className="text-[11px] font-bold text-orange-400 block mb-1">Résultats ({matchedBuddiesList.length}) :</span>
-              {matchedBuddiesList.length === 0 ? (
-                <div className="text-center py-6 text-neutral-500 text-xs">Aucun athlète ne correspond à cet horaire/objectif.</div>
-              ) : (
-                matchedBuddiesList.map((buddy) => (
-                  <div key={buddy.id} className="bg-neutral-950 p-3 rounded-2xl border border-neutral-800 flex items-center justify-between">
-                    <div className="flex items-center gap-2.5">
-                      <img src={buddy.avatar_url} alt="" className="w-10 h-10 rounded-full object-cover border border-neutral-700" />
-                      <div>
-                        <h4 className="font-bold text-xs text-white">{buddy.username} {buddy.gender === 'F' && '🚺'}</h4>
-                        <span className="text-[10px] text-orange-400 block">🎯 {buddy.goal || 'Sportif'}</span>
-                        <span className="text-[9px] text-amber-400 font-semibold">🕒 {buddy.preferred_time || 'Flexible'}</span>
-                      </div>
-                    </div>
-                    <button onClick={() => { setIsMatchModalOpen(false); setSelectedBuddyChat(buddy); setCurrentTab('chat'); }} className="px-3 py-1.5 bg-orange-600 text-white rounded-xl text-xs font-bold flex items-center gap-1"><MessageCircle className="w-3.5 h-3.5" /> Contacter</button>
-                  </div>
-                ))
-              )}
-            </div>
-
-            <button onClick={() => setIsMatchModalOpen(false)} className="w-full py-3 bg-neutral-950 text-white font-bold rounded-xl text-xs border border-neutral-800">Fermer</button>
-          </div>
-        </div>
-      )}
-
       {/* MODAL PUSH UP (INVITATION) */}
       {inviteModalTarget && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
@@ -1450,6 +1356,57 @@ export default function App() {
               </div>
             </div>
             <button onClick={handleSendInvite} className="w-full py-3 bg-orange-600 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2"><Send className="w-4 h-4" /> Envoyer</button>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL MATCHMAKING */}
+      {isMatchModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-md w-full p-5 space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between pb-2 border-b border-neutral-800">
+              <h3 className="text-sm font-black text-white flex items-center gap-2"><Sparkles className="w-4 h-4 text-orange-500" /> Trouver un partenaire (Match)</h3>
+              <button onClick={() => setIsMatchModalOpen(false)} className="p-1 text-neutral-400 hover:text-white"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-[11px] font-semibold text-neutral-400 mb-1">Objectif :</label>
+                <select value={matchGoal} onChange={(e) => setMatchGoal(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white focus:border-orange-500">
+                  <option value="Tous">Tous les objectifs</option>
+                  <option value="masse">Prise de masse & Force</option>
+                  <option value="cardio">Cardio & HIIT</option>
+                  <option value="remise">Remise en forme</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-[11px] font-semibold text-neutral-400 mb-1">Horaire recherché :</label>
+                <select value={matchTime} onChange={(e) => setMatchTime(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white focus:border-orange-500">
+                  <option value="Tous">Tous les horaires</option>
+                  {TIME_SLOTS.map((slot) => <option key={slot} value={slot.split(' ')[1]}>{slot}</option>)}
+                </select>
+              </div>
+            </div>
+            <div className="space-y-2 pt-2 border-t border-neutral-800 max-h-60 overflow-y-auto">
+              <span className="text-[11px] font-bold text-orange-400 block mb-1">Résultats ({matchedBuddiesList.length}) :</span>
+              {matchedBuddiesList.length === 0 ? (
+                <div className="text-center py-6 text-neutral-500 text-xs">Aucun athlète ne correspond à cet horaire/objectif.</div>
+              ) : (
+                matchedBuddiesList.map((buddy) => (
+                  <div key={buddy.id} className="bg-neutral-950 p-3 rounded-2xl border border-neutral-800 flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <img src={buddy.avatar_url} alt="" className="w-10 h-10 rounded-full object-cover border border-neutral-700" />
+                      <div>
+                        <h4 className="font-bold text-xs text-white">{buddy.username} {buddy.gender === 'F' && '🚺'}</h4>
+                        <span className="text-[10px] text-orange-400 block">🎯 {buddy.goal || 'Sportif'}</span>
+                        <span className="text-[9px] text-amber-400 font-semibold">🕒 {buddy.preferred_time || 'Flexible'}</span>
+                      </div>
+                    </div>
+                    <button onClick={() => { setIsMatchModalOpen(false); setSelectedBuddyChat(buddy); setCurrentTab('chat'); }} className="px-3 py-1.5 bg-orange-600 text-white rounded-xl text-xs font-bold flex items-center gap-1"><MessageCircle className="w-3.5 h-3.5" /> Contacter</button>
+                  </div>
+                ))
+              )}
+            </div>
+            <button onClick={() => setIsMatchModalOpen(false)} className="w-full py-3 bg-neutral-950 text-white font-bold rounded-xl text-xs border border-neutral-800">Fermer</button>
           </div>
         </div>
       )}
