@@ -202,7 +202,7 @@ interface Story {
 }
 
 interface RealUser {
-  id: string; username: string; email: string; gender?: 'M' | 'F'; birth_date?: string; age: number; goal?: string; home_club: string; preferred_time?: string; avatar_url: string; last_seen?: string;
+  id: string; username: string; email: string; gender?: 'M' | 'F'; birth_date?: string; age: number; goal?: string; home_club: string; preferred_time?: string; avatar_url: string; last_seen?: string; is_verified?: boolean; is_admin?: boolean;
 }
 
 interface FriendRequest {
@@ -234,7 +234,6 @@ const calculateAge = (birthDateString?: string): number => {
   return isNaN(age) ? 25 : age;
 };
 
-// Fonction utilitaire pour convertir l'âge en tranche d'âge publique
 const getAgeRangeLabel = (birthDateString?: string): string => {
   const age = calculateAge(birthDateString);
   if (age >= 18 && age <= 25) return '18 - 25 ans';
@@ -282,7 +281,7 @@ export default function App() {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [username, setUsername] = useState('');
-  const [birthDateInput, setBirthDateInput] = useState(''); // Format JJ/MM/AAAA saisi par l'utilisateur
+  const [birthDateInput, setBirthDateInput] = useState('');
   const [gender, setGender] = useState<'M' | 'F'>('M');
   const [level, setLevel] = useState<'Débutant' | 'Intermédiaire' | 'Avancé'>('Intermédiaire');
   const [homeClub, setHomeClub] = useState<string>('Club Tournai (Bastion)');
@@ -496,6 +495,10 @@ export default function App() {
   const notifications = allMessages.filter(m => m.receiver_id === user?.id && m.sender_id === 'system-notification');
   const unreadNotifsCount = notifications.filter(m => new Date(m.created_at).getTime() > lastNotifOpenTime).length;
 
+  // Statut Admin connecté (pour l'affichage du panneau de gestion des coachs)
+  const currentUserProfile = registeredUsers.find(u => u.id === user?.id);
+  const isAdmin = currentUserProfile?.is_admin || user?.email === 'antbou@fitpulse.be'; // Remplace par ton email admin si besoin
+
 
   // ==========================================
   // FONCTIONS ET HANDLERS
@@ -506,20 +509,18 @@ export default function App() {
     try { sessionStorage.setItem('fitpulse_current_tab', tab); } catch (e) {}
   };
 
-  // Conversion du format JJ/MM/AAAA en AAAA-MM-JJ pour Supabase
   const convertJJMMAAAAtoYYYYMMDD = (input: string): string => {
     const parts = input.split('/');
     if (parts.length === 3 && parts[2].length === 4) {
       return `${parts[2]}-${parts[1]}-${parts[0]}`;
     }
-    return '1995-01-01'; // Date par défaut sécurisée
+    return '1995-01-01';
   };
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isSignUp && !acceptCGU) { alert("Veuillez accepter les CGU pour continuer."); return; }
     
-    // Convertit la date JJ/MM/AAAA en format YYYY-MM-DD
     const formattedBirthDate = isSignUp ? convertJJMMAAAAtoYYYYMMDD(birthDateInput) : '1995-01-01';
 
     setAuthLoading(true);
@@ -599,7 +600,7 @@ export default function App() {
     if (!profilesError && profilesData && profilesData.length > 0) {
       profilesData.forEach((p) => {
         combinedUsers.set(p.id, {
-          id: p.id, username: p.username, email: p.email || '', gender: p.gender || 'M', birth_date: p.birth_date || '1995-01-01', age: p.age || 25, goal: p.goal || 'Sportif', home_club: p.home_club || selectedClub, preferred_time: p.preferred_time || '🌆 Soir (17h - 20h)', avatar_url: p.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150', last_seen: p.last_seen
+          id: p.id, username: p.username, email: p.email || '', gender: p.gender || 'M', birth_date: p.birth_date || '1995-01-01', age: p.age || 25, goal: p.goal || 'Sportif', home_club: p.home_club || selectedClub, preferred_time: p.preferred_time || '🌆 Soir (17h - 20h)', avatar_url: p.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150', last_seen: p.last_seen, is_verified: p.is_verified || false, is_admin: p.is_admin || false
         });
       });
     }
@@ -609,7 +610,7 @@ export default function App() {
       postsData.forEach((p) => {
         if (!combinedUsers.has(p.user_id)) {
           combinedUsers.set(p.user_id, {
-            id: p.user_id, username: p.username, email: `${p.username}@fitpulse.be`, gender: 'M', birth_date: '1995-01-01', age: 28, goal: 'Prise de masse & Force', home_club: p.club_name || selectedClub, preferred_time: '🌆 Soir (17h - 20h)', avatar_url: p.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'
+            id: p.user_id, username: p.username, email: `${p.username}@fitpulse.be`, gender: 'M', birth_date: '1995-01-01', age: 28, goal: 'Prise de masse & Force', home_club: p.club_name || selectedClub, preferred_time: '🌆 Soir (17h - 20h)', avatar_url: p.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150', is_verified: false, is_admin: false
           });
         }
       });
@@ -1029,7 +1030,6 @@ export default function App() {
       await supabase.auth.updateUser({ data: { ...user.user_metadata, avatar_url: finalAvatarUrl } }); 
       await supabase.from('profiles').update({ avatar_url: finalAvatarUrl }).eq('id', user.id);
       
-      // Met à jour la liste des profils en mémoire pour que tout le monde voie l'avatar à jour instantanément
       setRegisteredUsers(prev => prev.map(u => u.id === user.id ? { ...u, avatar_url: finalAvatarUrl } : u));
       
       alert('🌟 Photo de profil mise à jour !'); 
@@ -1377,7 +1377,11 @@ export default function App() {
                       <div className="flex items-center gap-3 cursor-pointer" onClick={() => setViewingProfileUser(authorUser)}>
                         <img src={postRealAvatar} alt="" className="w-10 h-10 rounded-full object-cover border border-neutral-700" />
                         <div>
-                          <div className="flex items-center gap-1.5"><h3 className="font-bold text-sm leading-snug hover:text-orange-400 transition">{post.username}</h3>{post.is_private && <Lock className="w-3.5 h-3.5 text-neutral-500" />}</div>
+                          <div className="flex items-center gap-1.5">
+                            <h3 className="font-bold text-sm leading-snug hover:text-orange-400 transition">{post.username}</h3>
+                            {authorUser.is_verified && <ShieldCheck className="w-4 h-4 text-orange-500 fill-orange-500/20" />}
+                            {post.is_private && <Lock className="w-3.5 h-3.5 text-neutral-500" />}
+                          </div>
                           <div className="flex items-center gap-1 text-xs text-orange-400 font-medium"><MapPin className="w-3.5 h-3.5" />{post.club_name}</div>
                         </div>
                       </div>
@@ -1619,8 +1623,9 @@ export default function App() {
                                 <span className={`absolute bottom-0 right-0 w-3.5 h-3.5 ${dotColor} border-2 border-neutral-950 rounded-full`} title={statusText} />
                               </div>
                               <div>
-                                <h3 className="font-bold text-sm text-white flex items-center gap-2 hover:text-orange-400 transition">
+                                <h3 className="font-bold text-sm text-white flex items-center gap-1.5 hover:text-orange-400 transition">
                                   {realUser.username} {realUser.gender === 'F' && '🚺'}
+                                  {realUser.is_verified && <ShieldCheck className="w-4 h-4 text-orange-500 fill-orange-500/20" />}
                                 </h3>
                                 <span className="text-xs text-orange-400 font-medium block mt-0.5">🎯 {realUser.goal || 'Sportif'}</span>
                               </div>
@@ -1664,7 +1669,9 @@ export default function App() {
                       <div className="flex items-center gap-3 cursor-pointer" onClick={() => setViewingProfileUser(sUser)}>
                         <img src={sUser.avatar_url} alt="" className="w-10 h-10 rounded-full object-cover border border-neutral-700" />
                         <div>
-                          <h4 className="font-bold text-xs text-white hover:text-orange-400 transition">{sUser.username}</h4>
+                          <h4 className="font-bold text-xs text-white hover:text-orange-400 transition flex items-center gap-1">
+                            {sUser.username} {sUser.is_verified && <ShieldCheck className="w-3.5 h-3.5 text-orange-500 fill-orange-500/20" />}
+                          </h4>
                           <span className="text-[10px] text-neutral-400">{sUser.home_club}</span>
                         </div>
                       </div>
@@ -1685,7 +1692,9 @@ export default function App() {
               <div className="bg-neutral-900 border border-neutral-800 rounded-3xl overflow-hidden flex flex-col h-[74vh]">
                 <div className="p-4 bg-neutral-950 border-b border-neutral-800 flex items-center justify-between">
                   <button onClick={() => setSelectedBuddyChat(null)} className="p-1.5 text-neutral-400 hover:text-white"><ArrowLeft className="w-5 h-5" /></button>
-                  <h3 className="font-bold text-sm text-white cursor-pointer hover:text-orange-400" onClick={() => setViewingProfileUser(selectedBuddyChat)}>{selectedBuddyChat.username}</h3>
+                  <h3 className="font-bold text-sm text-white cursor-pointer hover:text-orange-400 flex items-center gap-1.5" onClick={() => setViewingProfileUser(selectedBuddyChat)}>
+                    {selectedBuddyChat.username} {selectedBuddyChat.is_verified && <ShieldCheck className="w-4 h-4 text-orange-500 fill-orange-500/20" />}
+                  </h3>
                   <button onClick={() => handleDeleteConversationForBuddy(selectedBuddyChat.id, selectedBuddyChat.username)} className="p-2 text-neutral-500 hover:text-red-400"><Trash2 className="w-4 h-4" /></button>
                 </div>
                 <div className="flex-1 p-4 overflow-y-auto space-y-3">
@@ -1734,7 +1743,11 @@ export default function App() {
                               <img src={friend.avatar_url} alt="" className="w-12 h-12 rounded-full object-cover border border-neutral-800" />
                               {isOnline && <span className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 border-2 border-neutral-950 rounded-full" />}
                             </div>
-                            <div><h3 className="font-bold text-sm text-white">{friend.username}</h3></div>
+                            <div>
+                              <h3 className="font-bold text-sm text-white flex items-center gap-1">
+                                {friend.username} {friend.is_verified && <ShieldCheck className="w-3.5 h-3.5 text-orange-500 fill-orange-500/20" />}
+                              </h3>
+                            </div>
                           </div>
                         </div>
                       );
@@ -1807,8 +1820,49 @@ export default function App() {
                 <div className="absolute inset-0 bg-black/50 rounded-full flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition"><Camera className="w-6 h-6 text-white" /></div>
               </div>
               <input type="file" accept="image/*" ref={profileAvatarInputRef} onChange={(e) => handleImageSelect(e, 'profile_avatar')} className="hidden" />
-              <div><h2 className="font-extrabold text-lg text-white">{user.user_metadata?.first_name || user.email?.split('@')[0]}</h2></div>
+              <div>
+                <h2 className="font-extrabold text-lg text-white flex items-center justify-center gap-1.5">
+                  {user.user_metadata?.first_name || user.email?.split('@')[0]}
+                  {currentUserProfile?.is_verified && <ShieldCheck className="w-5 h-5 text-orange-500 fill-orange-500/20" />}
+                </h2>
+              </div>
             </div>
+
+            {/* Panneau de Gestion Admin (Certification des coachs) */}
+            {isAdmin && (
+              <div className="bg-neutral-900 border border-orange-500/40 rounded-3xl p-5 space-y-3 shadow-xl">
+                <h3 className="text-sm font-black text-orange-400 flex items-center gap-2">
+                  <ShieldCheck className="w-5 h-5" /> Gestion des Certifications (Admin)
+                </h3>
+                <p className="text-xs text-neutral-400">Certifiez les comptes des coachs ou partenaires en un clic.</p>
+                <div className="space-y-2 pt-1 max-h-60 overflow-y-auto">
+                  {registeredUsers.map(u => (
+                    <div key={u.id} className="bg-neutral-950 p-3 rounded-2xl border border-neutral-800 flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-3">
+                        <img src={u.avatar_url} alt="" className="w-9 h-9 rounded-full object-cover" />
+                        <div>
+                          <span className="font-bold text-white block flex items-center gap-1">
+                            {u.username} {u.is_verified && <ShieldCheck className="w-3.5 h-3.5 text-orange-500 fill-orange-500/20" />}
+                          </span>
+                          <span className="text-[10px] text-neutral-400">{u.home_club}</span>
+                        </div>
+                      </div>
+                      <button 
+                        onClick={async () => {
+                          const newStatus = !u.is_verified;
+                          await supabase.from('profiles').update({ is_verified: newStatus }).eq('id', u.id);
+                          setRegisteredUsers(prev => prev.map(item => item.id === u.id ? { ...item, is_verified: newStatus } : item));
+                          alert(`Statut de certification mis à jour pour ${u.username}`);
+                        }}
+                        className={`px-3 py-1.5 rounded-xl font-bold transition ${u.is_verified ? 'bg-orange-600 text-white' : 'bg-neutral-900 text-neutral-400 hover:text-white'}`}
+                      >
+                        {u.is_verified ? 'Certifié ✓' : 'Certifier'}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             
             <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4">
               <div className="flex items-center justify-between">
@@ -1856,7 +1910,7 @@ export default function App() {
         )}
       </main>
 
-      {/* MODAL PROFIL TIERS AVEC TRANCHE D'ÂGE */}
+      {/* MODAL PROFIL TIERS */}
       {viewingProfileUser && (() => {
         const isFriend = acceptedFriendIds.includes(viewingProfileUser.id);
         const existingReq = friendRequests.find(r => (r.sender_id === user?.id && r.receiver_id === viewingProfileUser.id) || (r.sender_id === viewingProfileUser.id && r.receiver_id === user?.id));
@@ -1871,7 +1925,10 @@ export default function App() {
               <div className="text-center space-y-3 pt-2">
                 <img src={viewingProfileUser.avatar_url} alt="" className="w-24 h-24 rounded-full object-cover border-2 border-orange-500 mx-auto shadow-xl" />
                 <div>
-                  <h3 className="text-lg font-black text-white">{viewingProfileUser.username} {viewingProfileUser.gender === 'F' && '🚺'}</h3>
+                  <h3 className="text-lg font-black text-white flex items-center justify-center gap-1.5">
+                    {viewingProfileUser.username} {viewingProfileUser.gender === 'F' && '🚺'}
+                    {viewingProfileUser.is_verified && <ShieldCheck className="w-5 h-5 text-orange-500 fill-orange-500/20" />}
+                  </h3>
                   <span className="text-xs text-orange-400 font-semibold block mt-0.5"><MapPin className="w-3.5 h-3.5 inline mr-1" />{viewingProfileUser.home_club}</span>
                 </div>
               </div>
