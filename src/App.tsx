@@ -356,7 +356,7 @@ interface DBMessage {
 }
 
 export default function App() {
-  // 1. DÉCLARATION DES ÉTATS (useState)
+  // 1. DÉCLARATION DE TOUS LES ÉTATS (useState)
   const [user, setUser] = useState<SupabaseUser | null>(null);
 
   const [isSignUp, setIsSignUp] = useState(false);
@@ -494,6 +494,14 @@ export default function App() {
   const [activeCommentPostId, setActiveCommentPostId] = useState<string | null>(null);
   const [postCommentInput, setPostCommentInput] = useState('');
 
+  // États pour le recadrage (zoom/drag)
+  const [postImageZoom, setPostImageZoom] = useState(1);
+  const [postImageOffset, setPostImageOffset] = useState({ x: 0, y: 0 });
+  const [isDraggingImage, setIsDraggingImage] = useState(false);
+  const [dragStartPos, setDragStartPos] = useState({ x: 0, y: 0 });
+  const previewContainerRef = useRef<HTMLDivElement>(null);
+  const imgRef = useRef<HTMLImageElement>(null);
+
 
   // 2. VARIABLES DÉRIVÉES ET FILTRES (À DÉCLARER AVANT LES FONCTIONS HANDLERS)
   const acceptedFriendIds = friendRequests
@@ -587,7 +595,6 @@ export default function App() {
 
   // 3. FONCTIONS HANDLERS / MÉTHODES (À déclarer avant les useEffect qui les utilisent)
 
-  // Fonctions Fetch
   const fetchCloudPosts = async () => {
     setFeedLoading(true);
     const { data, error } = await supabase.from('posts').select('*').order('created_at', { ascending: false });
@@ -689,6 +696,71 @@ export default function App() {
     }
   };
 
+  // --- Gestion du Recadrage (Drag & Drop + Zoom) ---
+  const handleDragStart = (e: React.MouseEvent | React.TouchEvent) => {
+    setIsDraggingImage(true);
+    const clientX = 'touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
+    const clientY = 'touches' in e ? e.touches[0].clientY : (e as React.MouseEvent).clientY;
+    setDragStartPos({ x: clientX - postImageOffset.x, y: clientY - postImageOffset.y });
+  };
+
+  const handleDragMove = (e: React.MouseEvent | React.TouchEvent) => {
+    if (!isDraggingImage) return;
+    const clientX = 'touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
+    const clientY = 'touches' in e ? e.touches[0].clientY : (e as React.MouseEvent).clientY;
+    setPostImageOffset({ x: clientX - dragStartPos.x, y: clientY - dragStartPos.y });
+  };
+
+  const handleDragEnd = () => {
+    setIsDraggingImage(false);
+  };
+
+  const getCroppedImageBlob = async (): Promise<Blob | null> => {
+    if (!imgRef.current || !previewContainerRef.current) return null;
+    const img = imgRef.current;
+    const container = previewContainerRef.current;
+
+    const canvas = document.createElement('canvas');
+    const outputWidth = 800;
+    const outputHeight = (container.clientHeight / container.clientWidth) * outputWidth;
+    canvas.width = outputWidth;
+    canvas.height = outputHeight;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+
+    ctx.fillStyle = '#0a0a0a';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    const coverRatio = Math.max(container.clientWidth / img.naturalWidth, container.clientHeight / img.naturalHeight);
+    const baseWidth = img.naturalWidth * coverRatio;
+    const baseHeight = img.naturalHeight * coverRatio;
+    const baseX = (container.clientWidth - baseWidth) / 2;
+    const baseY = (container.clientHeight - baseHeight) / 2;
+
+    const centerX = container.clientWidth / 2;
+    const centerY = container.clientHeight / 2;
+
+    const finalX = centerX + (baseX - centerX) * postImageZoom + postImageOffset.x;
+    const finalY = centerY + (baseY - centerY) * postImageZoom + postImageOffset.y;
+    const finalWidth = baseWidth * postImageZoom;
+    const finalHeight = baseHeight * postImageZoom;
+
+    const scaleMultiplier = outputWidth / container.clientWidth;
+
+    ctx.drawImage(
+      img,
+      finalX * scaleMultiplier,
+      finalY * scaleMultiplier,
+      finalWidth * scaleMultiplier,
+      finalHeight * scaleMultiplier
+    );
+
+    return new Promise((resolve) => {
+      canvas.toBlob((blob) => resolve(blob), 'image/jpeg', 0.85);
+    });
+  };
+  // ------------------------------------------------
+
   const handleAddExerciseRow = () => {
     setWorkoutExercises([...workoutExercises, { name: '', sets: 3, reps: 10, weight: 50 }]);
   };
@@ -763,6 +835,8 @@ export default function App() {
       } else if (cameraTarget === 'post') {
         setPostImageFile(file);
         setPostImagePreview(previewUrl);
+        setPostImageZoom(1);
+        setPostImageOffset({ x: 0, y: 0 });
       } else if (cameraTarget === 'profile_avatar') {
         handleUpdateProfileAvatar(file);
       } else {
@@ -912,6 +986,8 @@ export default function App() {
         const file = new File([blob], `photo-${Date.now()}.jpg`, { type: 'image/jpeg' });
         setPostImageFile(file);
         setPostImagePreview(previewUrl);
+        setPostImageZoom(1);
+        setPostImageOffset({ x: 0, y: 0 });
       } else {
         const file = new File([blob], `photo-${Date.now()}.jpg`, { type: 'image/jpeg' });
         setStoryImageFile(file);
@@ -995,11 +1071,13 @@ export default function App() {
     }
     setIsUploading(true);
     let uploadedImageUrl = undefined;
-    if (postImageFile) {
+    
+    if (postImageFile && postImagePreview) {
       try {
-        const compressedBlob = await compressImage(postImageFile, 800, 0.7);
+        // Applique le recadrage Canvas (Zoom + Pan) avant d'envoyer
+        const finalBlob = await getCroppedImageBlob() || await compressImage(postImageFile, 800, 0.7);
         const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.jpg`;
-        const { data: uploadData, error: uploadError } = await supabase.storage.from('posts').upload(fileName, compressedBlob, { contentType: 'image/jpeg' });
+        const { data: uploadData, error: uploadError } = await supabase.storage.from('posts').upload(fileName, finalBlob, { contentType: 'image/jpeg' });
         if (uploadError) {
           alert("Erreur image : " + uploadError.message);
         } else if (uploadData) {
@@ -1010,6 +1088,7 @@ export default function App() {
         console.error(err);
       }
     }
+    
     const validExercises = workoutExercises.filter((ex) => ex.name.trim() !== '');
     const newPostData = {
       user_id: user.id,
@@ -1035,6 +1114,8 @@ export default function App() {
       setWorkoutCaption('');
       setPostImageFile(null);
       setPostImagePreview(null);
+      setPostImageZoom(1);
+      setPostImageOffset({ x: 0, y: 0 });
       setWorkoutExercises([]);
       setCurrentTab('feed');
       fetchCloudPosts();
@@ -1285,7 +1366,6 @@ export default function App() {
     }
   };
 
-
   // 4. EFFETS SECONDAIRES DE FIN (Session & Sockets)
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -1492,6 +1572,7 @@ export default function App() {
         </div>
       </header>
 
+      {/* CHRONOMÈTRE DE REPOS FLOTTANT */}
       {isRestTimerActive && (
         <div className="bg-orange-600 text-white px-4 py-2 flex items-center justify-between sticky top-[53px] z-30 shadow-lg animate-pulse">
           <div className="flex items-center gap-2 text-xs font-bold">
@@ -1507,6 +1588,7 @@ export default function App() {
       <main className="flex-1 max-w-lg w-full mx-auto px-4 py-3 pb-24">
         {currentTab === 'feed' && (
           <div className="space-y-4">
+            {/* STORIES ROW */}
             <div className="bg-neutral-900/60 border border-neutral-800/80 rounded-3xl p-3">
               <div className="flex items-center gap-3.5 overflow-x-auto no-scrollbar py-1">
                 <div onClick={() => { setCameraTarget('story'); setIsCreatingStory(true); }} className="flex flex-col items-center gap-1.5 flex-shrink-0 cursor-pointer group">
@@ -1545,6 +1627,7 @@ export default function App() {
               </div>
             </div>
 
+            {/* Posts Feed */}
             {feedLoading ? (
               <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 text-orange-500 animate-spin" /></div>
             ) : displayedPosts.length === 0 ? (
@@ -1582,15 +1665,15 @@ export default function App() {
                       </div>
                     </div>
 
-                    <div className="rounded-2xl overflow-hidden border border-neutral-800 bg-neutral-950 relative shadow-inner">
+                    <div className="rounded-2xl overflow-hidden border border-neutral-800 bg-neutral-950 relative shadow-inner aspect-[4/5] flex items-center justify-center">
                       {post.image_url ? (
-                        <div className="h-72 w-full relative flex items-center justify-center">
-                          <img src={post.image_url} alt="" className="max-h-full max-w-full object-contain pointer-events-none" />
+                        <>
+                          <img src={post.image_url} alt="" className="w-full h-full object-cover pointer-events-none" />
                           <div className="absolute top-3 left-3 bg-black/70 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/10 flex items-center gap-2">
                             <Flame className="w-4 h-4 text-orange-500 animate-pulse" />
                             <span className="text-xs font-black text-white">{post.session_type}</span>
                           </div>
-                        </div>
+                        </>
                       ) : (
                         <div className="p-6 bg-gradient-to-br from-neutral-900 to-neutral-950 flex flex-col justify-center items-center text-center space-y-2">
                           <Dumbbell className="w-10 h-10 text-orange-500 mb-1" />
@@ -1602,6 +1685,7 @@ export default function App() {
 
                     {post.caption && <p className="text-xs text-neutral-200 leading-relaxed font-medium">{renderCaptionWithHashtags(post.caption)}</p>}
 
+                    {/* EXERCICES & REPOS */}
                     {post.exercises && post.exercises.length > 0 && (
                       <div className="bg-neutral-950/80 rounded-2xl p-3.5 border border-neutral-800/80 space-y-2.5">
                         <div className="flex items-center justify-between">
@@ -1641,6 +1725,7 @@ export default function App() {
           </div>
         )}
 
+        {/* TAB WORKOUT / SEANCE */}
         {currentTab === 'workout' && (
           <form onSubmit={handlePublishWorkout} className="space-y-4">
             <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4">
@@ -1653,11 +1738,13 @@ export default function App() {
                 )}
               </div>
 
+              {/* Avertissement anti-nudité */}
               <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-3 text-[11px] text-red-300 flex items-start gap-2">
                 <AlertTriangle className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
                 <span>Rappel CGU : Tolérance zéro pour la nudité ou les photos explicites sur le flux public. Tout contrevenant sera banni.</span>
               </div>
 
+              {/* Type de séance */}
               <div className="space-y-1">
                 <label className="block text-[11px] font-semibold text-neutral-400">Type de séance :</label>
                 <select value={workoutType} onChange={(e) => setWorkoutType(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-orange-500">
@@ -1676,13 +1763,59 @@ export default function App() {
                 </button>
               </div>
               <input type="file" accept="image/*" ref={fileInputRef} onChange={handleImageSelect} className="hidden" />
+              
+              {/* === RECADRAGE DE L'IMAGE === */}
               {postImagePreview && (
-                <div className="relative rounded-2xl overflow-hidden border border-neutral-700 h-48 flex items-center justify-center bg-neutral-950">
-                  <img src={postImagePreview} alt="" className="max-h-full object-contain" />
-                  <button type="button" onClick={() => setPostImagePreview(null)} className="absolute top-2 right-2 p-1 bg-black/80 text-white rounded-full"><X className="w-4 h-4" /></button>
+                <div className="space-y-3">
+                  <div
+                    ref={previewContainerRef}
+                    className="relative rounded-2xl overflow-hidden border border-neutral-700 w-full aspect-[4/5] bg-neutral-950 flex items-center justify-center touch-none cursor-move"
+                    onMouseDown={handleDragStart}
+                    onMouseMove={handleDragMove}
+                    onMouseUp={handleDragEnd}
+                    onMouseLeave={handleDragEnd}
+                    onTouchStart={handleDragStart}
+                    onTouchMove={handleDragMove}
+                    onTouchEnd={handleDragEnd}
+                  >
+                    <img
+                      ref={imgRef}
+                      src={postImagePreview}
+                      alt=""
+                      style={{
+                        transform: `translate(${postImageOffset.x}px, ${postImageOffset.y}px) scale(${postImageZoom})`,
+                        transition: isDraggingImage ? 'none' : 'transform 0.1s ease-out',
+                        objectFit: 'cover',
+                        width: '100%',
+                        height: '100%',
+                        transformOrigin: 'center'
+                      }}
+                      className="pointer-events-none select-none"
+                      draggable={false}
+                    />
+                    <div className="absolute top-2 left-2 bg-black/60 px-2 py-1 rounded-lg flex items-center gap-1.5 text-white/80 text-[10px]">
+                      <Move className="w-3 h-3" /> Glisse pour recadrer
+                    </div>
+                    <button type="button" onClick={() => setPostImagePreview(null)} className="absolute top-2 right-2 p-1.5 bg-black/80 text-white rounded-full"><X className="w-4 h-4" /></button>
+                  </div>
+                  
+                  {/* Slider de Zoom */}
+                  <div className="flex items-center gap-3 bg-neutral-950 p-3 rounded-2xl border border-neutral-800">
+                    <ZoomIn className="w-5 h-5 text-neutral-400" />
+                    <input
+                      type="range"
+                      min="1"
+                      max="3"
+                      step="0.05"
+                      value={postImageZoom}
+                      onChange={(e) => setPostImageZoom(Number(e.target.value))}
+                      className="flex-1 accent-orange-500"
+                    />
+                  </div>
                 </div>
               )}
               
+              {/* Liste dynamique des exercices réalisés */}
               <div className="space-y-2 pt-2 border-t border-neutral-800">
                 <div className="flex items-center justify-between">
                   <label className="block text-[11px] font-semibold text-orange-400 uppercase tracking-wider">Exercices de la séance :</label>
@@ -1756,6 +1889,7 @@ export default function App() {
           </form>
         )}
 
+        {/* TAB 3: EXERCICES */}
         {currentTab === 'exercises' && (
           <div className="space-y-4">
             <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4">
@@ -1826,6 +1960,7 @@ export default function App() {
           </div>
         )}
 
+        {/* TAB 2: BUDDY */}
         {currentTab === 'buddy' && (
           <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4">
             <div className="flex items-center justify-between">
@@ -2021,6 +2156,7 @@ export default function App() {
           </div>
         )}
 
+        {/* TAB 4: CHAT */}
         {currentTab === 'chat' && (
           <div className="space-y-4">
             {selectedBuddyChat ? (
@@ -2041,6 +2177,7 @@ export default function App() {
                   <div ref={messagesEndRef} />
                 </div>
                 
+                {/* On cache la barre d'envoi si on discute avec le Bot Système */}
                 {selectedBuddyChat.id !== 'system-bot' && (
                   <div className="p-3 bg-neutral-950 border-t border-neutral-800 flex items-center gap-2">
                     <input type="text" placeholder="Écrire un message..." value={currentMessageInput} onChange={(e) => setCurrentMessageInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()} className="flex-1 bg-neutral-900 border border-neutral-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-orange-500" />
@@ -2091,8 +2228,10 @@ export default function App() {
           </div>
         )}
 
+        {/* TAB 5: LEADERBOARD & RECORDS + PLANIFICATEUR MODIFIABLE */}
         {currentTab === 'leaderboard' && (
           <div className="space-y-4">
+            {/* PRs */}
             <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4">
               <h2 className="text-base font-black tracking-tight flex items-center gap-2"><Trophy className="w-5 h-5 text-yellow-500" /> Mes Records Personnels (PRs)</h2>
               <p className="text-xs text-neutral-400">Suivi de tes charges maximales par exercice.</p>
@@ -2123,6 +2262,7 @@ export default function App() {
               </div>
             </div>
 
+            {/* PLANIFICATEUR DE SEMAINE AVEC CHOIX PRÉDÉFINIS */}
             <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4">
               <h2 className="text-base font-black tracking-tight flex items-center gap-2"><Calendar className="w-5 h-5 text-orange-500" /> Planificateur de la semaine</h2>
               <div className="space-y-2.5">
@@ -2165,6 +2305,7 @@ export default function App() {
           </div>
         )}
 
+        {/* TAB 6: PROFIL */}
         {currentTab === 'profile' && (
           <div className="space-y-4">
             <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-6 text-center space-y-4">
@@ -2188,6 +2329,7 @@ export default function App() {
               </div>
             </div>
 
+            {/* SECTION AVANT / APRÈS PERSONNEL & CONFIDENTIALITÉ STRICTE */}
             <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4">
               <div className="flex items-center justify-between">
                 <h3 className="font-bold text-sm text-white flex items-center gap-2">
@@ -2196,6 +2338,7 @@ export default function App() {
                 <span className="text-[10px] text-neutral-400">100% Privé (Visible que par toi)</span>
               </div>
 
+              {/* Formulaire ajout avant/après */}
               <form onSubmit={handleAddTransformation} className="bg-neutral-950 p-3.5 rounded-2xl border border-neutral-800 space-y-3">
                 <span className="text-[11px] font-bold text-orange-400 block">Ajouter un point d'évolution</span>
                 <div className="grid grid-cols-2 gap-2">
@@ -2231,6 +2374,7 @@ export default function App() {
                 <button type="submit" className="w-full py-2 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-xl text-xs transition">Enregistrer dans mon carnet</button>
               </form>
 
+              {/* Liste des transformations enregistrées */}
               <div className="space-y-3 pt-1">
                 {transformations.length === 0 ? (
                   <div className="text-center py-6 text-neutral-500 text-xs">Aucune photo avant/après enregistrée pour l'instant.</div>
@@ -2289,218 +2433,7 @@ export default function App() {
         )}
       </main>
 
-      {/* POP-UP MATCHMAKING PARTNER */}
-      {isMatchModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-md w-full p-5 space-y-4 shadow-2xl">
-            <div className="flex items-center justify-between pb-2 border-b border-neutral-800">
-              <h3 className="text-sm font-black text-white flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-orange-500" /> Trouver un partenaire (Match)
-              </h3>
-              <button onClick={() => setIsMatchModalOpen(false)} className="p-1 text-neutral-400 hover:text-white"><X className="w-5 h-5" /></button>
-            </div>
-
-            <div className="space-y-3">
-              <div>
-                <label className="block text-[11px] font-semibold text-neutral-400 mb-1">Objectif recherché :</label>
-                <select value={matchGoal} onChange={(e) => setMatchGoal(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-orange-500">
-                  <option value="Tous">Tous les objectifs</option>
-                  <option value="masse">Prise de masse & Force</option>
-                  <option value="cardio">Cardio & HIIT</option>
-                  <option value="remise">Remise en forme</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-semibold text-neutral-400 mb-1">Créneau horaire :</label>
-                <select value={matchTime} onChange={(e) => setMatchTime(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-orange-500">
-                  <option value="Tous">Tous les créneaux</option>
-                  {TIME_SLOTS.map((slot) => (
-                    <option key={slot} value={slot.split(' ')[1]}>{slot}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="flex items-center justify-between pt-1">
-                <span className="text-[11px] text-neutral-400">Filtrer uniquement entre femmes :</span>
-                <button
-                  onClick={() => setFilterWomenOnly(!filterWomenOnly)}
-                  className={`px-3 py-1 rounded-lg text-xs font-bold transition ${filterWomenOnly ? 'bg-pink-600 text-white' : 'bg-neutral-950 text-neutral-400 border border-neutral-800'}`}
-                >
-                  {filterWomenOnly ? 'Activé (🚺)' : 'Désactivé'}
-                </button>
-              </div>
-            </div>
-
-            <div className="space-y-2 pt-2 border-t border-neutral-800 max-h-60 overflow-y-auto">
-              <span className="text-[11px] font-bold text-orange-400 block mb-1">Résultats du match ({matchedBuddiesList.length}) :</span>
-              {matchedBuddiesList.length === 0 ? (
-                <div className="text-center py-6 text-neutral-500 text-xs">Aucun autre athlète ne correspond à ces critères.</div>
-              ) : (
-                matchedBuddiesList.map((buddy) => (
-                  <div key={buddy.id} className="bg-neutral-950 p-3 rounded-2xl border border-neutral-800 flex items-center justify-between">
-                    <div className="flex items-center gap-2.5">
-                      <img src={buddy.avatar_url} alt="" className="w-10 h-10 rounded-full object-cover border border-neutral-700" />
-                      <div>
-                        <h4 className="font-bold text-xs text-white">{buddy.username} {buddy.gender === 'F' && '🚺'}</h4>
-                        <span className="text-[10px] text-orange-400 block">{buddy.goal || 'Sportif'}</span>
-                        <span className="text-[9px] text-amber-400">🕒 {buddy.preferred_time || 'Créneau flexible'}</span>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => {
-                        setIsMatchModalOpen(false);
-                        setSelectedBuddyChat(buddy);
-                        setCurrentTab('chat');
-                      }}
-                      className="px-3 py-1.5 bg-orange-600 hover:bg-orange-500 text-white rounded-xl text-xs font-bold transition flex items-center gap-1"
-                    >
-                      <MessageCircle className="w-3.5 h-3.5" /> Contacter
-                    </button>
-                  </div>
-                ))
-              )}
-            </div>
-
-            <button onClick={() => setIsMatchModalOpen(false)} className="w-full py-3 bg-neutral-950 hover:bg-neutral-800 text-white font-bold rounded-xl text-xs transition border border-neutral-800">
-              Fermer
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL LECTURE DES COMMENTAIRES D'UN POST */}
-      {activeCommentPostId && activePostForComments && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex flex-col justify-end">
-          <div className="bg-neutral-900 border-t border-neutral-800 rounded-t-3xl h-[70vh] flex flex-col shadow-2xl">
-            <div className="flex items-center justify-between p-4 border-b border-neutral-800">
-              <h3 className="font-bold text-sm text-white flex items-center gap-2"><MessageSquare className="w-4 h-4 text-orange-500" /> Commentaires ({activePostForComments.comments_count || 0})</h3>
-              <button onClick={() => setActiveCommentPostId(null)} className="p-1.5 bg-neutral-800 text-white rounded-full"><X className="w-4 h-4" /></button>
-            </div>
-            
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
-              {(!activePostForComments.comments || activePostForComments.comments.length === 0) ? (
-                <div className="text-center text-neutral-500 text-xs py-8">Aucun commentaire pour le moment. Sois le premier à réagir !</div>
-              ) : (
-                activePostForComments.comments.map(c => (
-                  <div key={c.id} className="flex gap-3">
-                    <img src={c.avatar_url} className="w-8 h-8 rounded-full object-cover border border-neutral-700" />
-                    <div className="flex-1 bg-neutral-950 p-3 rounded-2xl rounded-tl-none border border-neutral-800">
-                      <span className="font-bold text-xs text-white block mb-1">{c.username}</span>
-                      <p className="text-xs text-neutral-300">{c.text}</p>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-
-            <form onSubmit={handleAddPostComment} className="p-4 bg-neutral-950 border-t border-neutral-800 flex items-center gap-2">
-              <input type="text" placeholder="Ajouter un commentaire..." value={postCommentInput} onChange={e => setPostCommentInput(e.target.value)} className="flex-1 bg-neutral-900 border border-neutral-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-orange-500" />
-              <button type="submit" disabled={!postCommentInput.trim()} className="p-2.5 bg-orange-600 disabled:bg-neutral-800 disabled:text-neutral-500 text-white rounded-xl transition"><SendHorizontal className="w-4 h-4" /></button>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL FICHE EXPLICATIVE EXERCICE / MACHINE */}
-      {selectedExerciseDetail && (
-        <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex flex-col justify-end sm:justify-center p-4">
-          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-lg w-full mx-auto p-5 space-y-4 max-h-[88vh] overflow-y-auto shadow-2xl">
-            <div className="flex items-center justify-between pb-3 border-b border-neutral-800">
-              <div className="flex items-center gap-2">
-                <span className="text-xs bg-orange-500/20 text-orange-400 px-2.5 py-1 rounded-lg font-bold">{selectedExerciseDetail.category}</span>
-                <h3 className="text-sm font-black text-white">{selectedExerciseDetail.name}</h3>
-              </div>
-              <button onClick={() => setSelectedExerciseDetail(null)} className="p-1.5 bg-neutral-800 text-white rounded-full"><X className="w-5 h-5" /></button>
-            </div>
-
-            <div className="rounded-2xl overflow-hidden border border-neutral-800 bg-neutral-950 h-48 w-full relative">
-              <img src={selectedExerciseDetail.image_url} alt="" className="w-full h-full object-cover" />
-            </div>
-
-            <div className="space-y-3 text-sm">
-              <div className="bg-neutral-950 p-3.5 rounded-2xl border border-neutral-800/80 space-y-1">
-                <span className="font-bold text-orange-400 uppercase text-[11px] tracking-wider block">Équipement & Matériel</span>
-                <p className="text-neutral-200">{selectedExerciseDetail.equipment}</p>
-              </div>
-
-              <div className="bg-neutral-950 p-3.5 rounded-2xl border border-neutral-800/80 space-y-1">
-                <span className="font-bold text-orange-400 uppercase text-[11px] tracking-wider block">Muscles Ciblés</span>
-                <p className="text-neutral-200">{selectedExerciseDetail.targetMuscles}</p>
-              </div>
-
-              <div className="bg-neutral-950 p-3.5 rounded-2xl border border-neutral-800/80 space-y-1">
-                <span className="font-bold text-orange-400 uppercase text-[11px] tracking-wider block">Réglages de la Machine</span>
-                <p className="text-neutral-200">{selectedExerciseDetail.settings}</p>
-              </div>
-
-              <div className="bg-neutral-950 p-3.5 rounded-2xl border border-neutral-800/80 space-y-1">
-                <span className="font-bold text-orange-400 uppercase text-[11px] tracking-wider block">Exécution du Mouvement</span>
-                <p className="text-neutral-200 leading-relaxed">{selectedExerciseDetail.execution}</p>
-              </div>
-
-              <div className="bg-orange-950/20 p-3.5 rounded-2xl border border-orange-500/20 space-y-1">
-                <span className="font-bold text-orange-400 uppercase text-[11px] tracking-wider block">Conseil Coach</span>
-                <p className="text-neutral-200 italic">{selectedExerciseDetail.tips}</p>
-              </div>
-            </div>
-
-            <button onClick={() => setSelectedExerciseDetail(null)} className="w-full py-3 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-xl text-sm transition">
-              Fermer la fiche
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL VISUALISEUR ANATOMIE 2D AMÉLIORÉ */}
-      {activeAnatomyExercise && (
-        <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex flex-col justify-between p-4">
-          <div className="flex items-center justify-between pt-2">
-            <div className="flex items-center gap-2 text-orange-400 font-bold text-sm">
-              <Dumbbell className="w-5 h-5" /> Anatomie : {activeAnatomyExercise}
-            </div>
-            <button onClick={() => setActiveAnatomyExercise(null)} className="p-2 bg-neutral-800 text-white rounded-full"><X className="w-5 h-5" /></button>
-          </div>
-          
-          <div className="flex-1 w-full flex flex-col items-center justify-center my-auto space-y-4">
-            <div className="relative w-full max-w-sm h-72 rounded-3xl bg-neutral-900 border border-neutral-800 flex flex-col items-center justify-center shadow-2xl overflow-hidden p-6 text-center space-y-3">
-              <div className="w-12 h-12 rounded-2xl bg-orange-500/20 border border-orange-500/40 flex items-center justify-center text-orange-500 mx-auto">
-                <Activity className="w-6 h-6 animate-pulse" />
-              </div>
-              <h3 className="text-base font-black text-white">{activeAnatomyExercise}</h3>
-              <p className="text-xs text-neutral-300 leading-relaxed">
-                Cet exercice sollicite principalement les fibres musculaires cibles avec un recrutement synergique des stabilisateurs profonds.
-              </p>
-              <span className="text-[10px] bg-orange-500/10 text-orange-400 px-3 py-1 rounded-full border border-orange-500/20 font-bold">
-                Ciblage haute précision 2D
-              </span>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL CAMÉRA */}
-      {isCameraActive && (
-        <div className="fixed inset-0 z-50 bg-black flex flex-col justify-between items-center p-4">
-          <div className="w-full flex items-center justify-between z-10 pt-2">
-            <span className="text-xs font-bold text-white bg-black/50 px-3 py-1.5 rounded-full border border-neutral-800">Caméra en direct</span>
-            <div className="flex items-center gap-2">
-              <button type="button" onClick={switchCameraFacing} className="p-2.5 bg-black/60 rounded-full text-white"><SwitchCamera className="w-5 h-5" /></button>
-              <button type="button" onClick={stopCameraStream} className="p-2.5 bg-black/60 rounded-full text-white"><X className="w-5 h-5" /></button>
-            </div>
-          </div>
-          <div className="relative w-full flex-1 max-w-sm my-auto rounded-3xl overflow-hidden bg-neutral-950 flex items-center justify-center border border-neutral-800">
-            <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover" />
-          </div>
-          <div className="w-full flex justify-center items-center pb-6 z-10">
-            <button type="button" onClick={capturePhoto} className="w-20 h-20 rounded-full border-4 border-white flex items-center justify-center p-1">
-              <div className="w-full h-full bg-orange-500 rounded-full shadow-lg" />
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* LECTEUR DE STORY */}
+      {/* MODAL LECTURE DE STORY */}
       {activeViewingStory && activeStoryIndex !== null && (
         <div className="fixed inset-0 z-50 bg-black flex flex-col justify-between p-4 select-none">
           <div className="w-full flex items-center gap-1.5 pt-2 z-20">
