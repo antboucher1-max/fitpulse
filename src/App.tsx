@@ -61,15 +61,19 @@ import {
 } from 'lucide-react';
 import { createClient, User as SupabaseUser } from '@supabase/supabase-js';
 
-// ==========================================
-// CONFIGURATION ET BASES DE DONNÉES
-// ==========================================
+// Configuration Supabase
 const supabaseUrl = 'https://obtahwmcoqrcauscpksv.supabase.co';
 const supabaseAnonKey = 'sb_publishable_O8CKhUtzgq9nO9lKavNE9A__fAdRWoB';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 interface ClubLocation {
-  name: string; address?: string; city: string; zip: string; lat: number; lng: number; distance?: number | null;
+  name: string;
+  address?: string;
+  city: string;
+  zip: string;
+  lat: number;
+  lng: number;
+  distance?: number | null;
 }
 
 const CLUBS_DATABASE: ClubLocation[] = [
@@ -87,16 +91,31 @@ const CLUBS_DATABASE: ClubLocation[] = [
   { name: 'Club Arlon (Hydrion)', address: "Parc Commercial de l'Hydrion 31b", city: 'Arlon', zip: '6700', lat: 49.6841, lng: 5.8173 }
 ];
 
-const TIME_SLOTS = ['🌅 Matin (6h - 9h)', '☀️ Midi (12h - 14h)', '🌆 Soir (17h - 20h)', '🌙 Nocturne (20h+)', '📅 Week-end flexible'];
+const TIME_SLOTS = [
+  '🌅 Matin (6h - 9h)',
+  '☀️ Midi (12h - 14h)',
+  '🌆 Soir (17h - 20h)',
+  '🌙 Nocturne (20h+)',
+  '📅 Week-end flexible'
+];
 
-interface ExerciseGuide { id: string; name: string; category: string; equipment: string; targetMuscles: string; settings: string; execution: string; tips: string; image_url: string; }
+interface ExerciseGuide {
+  id: string;
+  name: string;
+  category: 'Pectoraux' | 'Dos' | 'Jambes' | 'Épaules' | 'Bras' | 'Core';
+  equipment: string;
+  targetMuscles: string;
+  settings: string;
+  execution: string;
+  tips: string;
+  image_url: string;
+}
+
 const EXERCISES_DATABASE: ExerciseGuide[] = [
   { id: 'ex-1', name: 'Développé couché (Barre / Haltères)', category: 'Pectoraux', equipment: 'Banc & Barre', targetMuscles: 'Pectoraux, Triceps, Deltoïdes antérieurs', settings: 'Banc à plat. Pieds au sol.', execution: 'Descendre la barre au milieu de la poitrine, pousser en expirant.', tips: 'Garde les omoplates serrées.', image_url: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=800' },
-  { id: 'ex-2', name: 'Développé chest press (Machine)', category: 'Pectoraux', equipment: 'Machine Chest Press convergente', targetMuscles: 'Pectoraux, Triceps', settings: 'Régler la hauteur du siège pour que les poignées soient alignées au milieu de ta poitrine.', execution: 'Garde le dos bien collé au dossier. Pousse les poignées vers l’avant.', tips: 'Idéal pour l’isolation.', image_url: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=800' },
-  { id: 'ex-3', name: 'Tirage vertical / Lat Pulldown', category: 'Dos', equipment: 'Poulie haute', targetMuscles: 'Grand dorsal, Biceps', settings: 'Ajuste les boudins.', execution: 'Tire la barre vers la poitrine.', tips: 'Ne te penche pas trop en arrière.', image_url: 'https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?w=800' },
-  { id: 'ex-4', name: 'Rowing poulie basse / Seated Row', category: 'Dos', equipment: 'Poulie basse', targetMuscles: 'Trapèzes, Rhomboïdes, Grand dorsal, Biceps', settings: 'Place tes pieds sur les cale-pieds.', execution: 'Tire la poignée vers ton nombril.', tips: 'Ne arrondis surtout pas le bas du dos.', image_url: 'https://images.unsplash.com/photo-1584735935682-2f2b69dff9d2?w=800' },
-  { id: 'ex-5', name: 'Squat', category: 'Jambes', equipment: 'Barre libre ou Guidée', targetMuscles: 'Quadriceps, Fessiers', settings: 'Barre sur trapèzes.', execution: 'Descends comme pour t\'asseoir.', tips: 'Genoux dans l\'axe des pieds.', image_url: 'https://images.unsplash.com/photo-1574680096145-d05b474e2155?w=800' },
-  { id: 'ex-6', name: 'Leg Press', category: 'Jambes', equipment: 'Presse', targetMuscles: 'Quadriceps', settings: 'Pieds au centre.', execution: 'Fléchis puis pousse.', tips: 'Ne décolle pas le bas du dos.', image_url: 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?w=800' }
+  { id: 'ex-2', name: 'Tirage vertical / Lat Pulldown', category: 'Dos', equipment: 'Poulie haute', targetMuscles: 'Grand dorsal, Biceps', settings: 'Ajuste les boudins.', execution: 'Tire la barre vers la poitrine.', tips: 'Ne te penche pas trop en arrière.', image_url: 'https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?w=800' },
+  { id: 'ex-3', name: 'Squat', category: 'Jambes', equipment: 'Barre libre ou Guidée', targetMuscles: 'Quadriceps, Fessiers', settings: 'Barre sur trapèzes.', execution: 'Descends comme pour t\'asseoir.', tips: 'Genoux dans l\'axe des pieds.', image_url: 'https://images.unsplash.com/photo-1574680096145-d05b474e2155?w=800' },
+  { id: 'ex-4', name: 'Leg Press', category: 'Jambes', equipment: 'Presse', targetMuscles: 'Quadriceps', settings: 'Pieds au centre.', execution: 'Fléchis puis pousse.', tips: 'Ne décolle pas le bas du dos.', image_url: 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?w=800' }
 ];
 
 interface PersonalRecord { exercise: string; weight: number; reps: number; date: string; }
@@ -117,11 +136,17 @@ interface RealUser {
   id: string; username: string; email: string; gender?: 'M' | 'F'; birth_date?: string; age: number; goal?: string; home_club: string; preferred_time?: string; avatar_url: string;
 }
 
-interface FriendRequest { id: string; sender_id: string; receiver_id: string; status: 'pending' | 'accepted'; }
-interface DBMessage { id: string; sender_id: string; receiver_id: string; sender_name: string; text: string; created_at: string; }
+interface FriendRequest {
+  id: string; sender_id: string; receiver_id: string; status: 'pending' | 'accepted';
+}
+
+interface DBMessage {
+  id: string; sender_id: string; receiver_id: string; sender_name: string; text: string; created_at: string;
+}
 
 const WORKOUT_CHOICES = ['Push (Pectoraux, Épaules, Triceps)', 'Pull (Dos, Biceps)', 'Legs (Jambes, Fessiers)', 'Full Body (Corps entier)', 'Cardio & HIIT', 'Repos / Récupération'];
 const POPULAR_HASHTAGS = ['#legday', '#pushday', '#pullday', '#pr', '#gym', '#cardio', '#hiit', '#nopainnogain', '#musculation', '#fitness'];
+
 const DEFAULT_WEEKLY_PLAN: WeeklyPlan[] = [
   { day: 'Lundi', focus: 'Push (Pectoraux, Épaules, Triceps)', exercisesText: 'Développé couché, Chest Press, Élévations latérales' },
   { day: 'Mardi', focus: 'Pull (Dos, Biceps)', exercisesText: 'Tirage vertical, Rowing poulie basse, Curl Biceps' },
@@ -169,9 +194,6 @@ const compressImage = (file: File, maxWidth = 800, quality = 0.7): Promise<Blob>
 };
 
 export default function App() {
-  // ==========================================
-  // 1. DÉCLARATION DES ÉTATS (useState & useRef)
-  // ==========================================
   const [user, setUser] = useState<SupabaseUser | null>(null);
 
   // Auth States
@@ -202,10 +224,11 @@ export default function App() {
 
   const [userStreak, setUserStreak] = useState<number>(() => { try { return parseInt(localStorage.getItem('fitpulse_streak') || '2', 10); } catch { return 2; } });
   const [isPrivateMode, setIsPrivateMode] = useState<boolean>(() => { try { return localStorage.getItem('fitpulse_private') === 'true'; } catch { return false; } });
-  const [lastChatOpenTime, setLastChatOpenTime] = useState<number>(() => { try { return parseInt(localStorage.getItem('fitpulse_last_chat') || '0', 10); } catch { return 0; } });
-  const [lastNotifOpenTime, setLastNotifOpenTime] = useState<number>(() => { try { return parseInt(localStorage.getItem('fitpulse_last_notif') || '0', 10); } catch { return 0; } });
   
+  // Notifications
+  const [lastNotifOpenTime, setLastNotifOpenTime] = useState<number>(() => { try { return parseInt(localStorage.getItem('fitpulse_last_notif') || '0', 10); } catch { return 0; } });
   const [isNotifModalOpen, setIsNotifModalOpen] = useState(false);
+
   const [transformations, setTransformations] = useState<TransformationPhoto[]>([]);
   const [friendRequests, setFriendRequests] = useState<FriendRequest[]>([]);
   const [registeredUsers, setRegisteredUsers] = useState<RealUser[]>([]);
@@ -219,10 +242,11 @@ export default function App() {
   const [selectedGoalFilter, setSelectedGoalFilter] = useState<string>('all');
   const [selectedAgeGroupFilter, setSelectedAgeGroupFilter] = useState<string>('all');
   
-  // Modals & Active items
+  // Match & Modals
   const [isMatchModalOpen, setIsMatchModalOpen] = useState(false);
   const [matchGoal, setMatchGoal] = useState('Tous');
   const [matchTime, setMatchTime] = useState('Tous');
+  
   const [activeStoryIndex, setActiveStoryIndex] = useState<number | null>(null);
   const [storyProgress, setStoryProgress] = useState(0);
   const [isStoryPaused, setIsStoryPaused] = useState(false);
@@ -250,6 +274,7 @@ export default function App() {
   const streamRef = useRef<MediaStream | null>(null);
 
   // Chat & Invites
+  const [lastChatOpenTime, setLastChatOpenTime] = useState<number>(() => { try { return parseInt(localStorage.getItem('fitpulse_last_chat') || '0', 10); } catch { return 0; } });
   const [selectedBuddyChat, setSelectedBuddyChat] = useState<RealUser | null>(null);
   const [currentMessageInput, setCurrentMessageInput] = useState('');
   const [inviteModalTarget, setInviteModalTarget] = useState<RealUser | null>(null);
@@ -297,11 +322,97 @@ export default function App() {
   const [viewedStoryIds, setViewedStoryIds] = useState<string[]>(() => { try { return JSON.parse(localStorage.getItem('fitpulse_viewed_stories') || '[]'); } catch { return []; } });
 
 
-  // ==========================================
-  // 2. VARIABLES DÉRIVÉES ET CALCULÉES
-  // ==========================================
+  // --- SYNC PROFILES ---
+  const syncProfile = async (sessionUser: SupabaseUser) => {
+    try {
+      const profileData = {
+        id: sessionUser.id,
+        username: sessionUser.user_metadata?.username || sessionUser.email?.split('@')[0],
+        email: sessionUser.email,
+        gender: sessionUser.user_metadata?.gender || 'M',
+        birth_date: sessionUser.user_metadata?.birth_date || '1995-01-01',
+        age: calculateAge(sessionUser.user_metadata?.birth_date),
+        goal: sessionUser.user_metadata?.goal || 'Sportif',
+        home_club: sessionUser.user_metadata?.home_club || selectedClub,
+        preferred_time: sessionUser.user_metadata?.preferred_time || TIME_SLOTS[2],
+        avatar_url: sessionUser.user_metadata?.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'
+      };
+      await supabase.from('profiles').upsert(profileData);
+    } catch(e) {}
+  };
+
+
+  // --- FETCH FUNCTIONS ---
+  const fetchCloudPosts = async () => {
+    setFeedLoading(true);
+    const { data, error } = await supabase.from('posts').select('*').order('created_at', { ascending: false });
+    if (!error && data) setPosts(data as Post[]);
+    setFeedLoading(false);
+  };
+
+  const fetchCloudStories = async () => {
+    try {
+      const { data, error } = await supabase.from('stories').select('*').order('created_at', { ascending: false });
+      if (!error && data && data.length > 0) setCloudStories(data as Story[]);
+    } catch (err) {}
+  };
+
+  const fetchDirectMessages = async () => {
+    const { data, error } = await supabase.from('direct_messages').select('*').order('created_at', { ascending: true });
+    if (!error && data) setAllMessages(data as DBMessage[]);
+  };
+
+  const fetchRealUsers = async () => {
+    const { data: profilesData, error: profilesError } = await supabase.from('profiles').select('*');
+    let combinedUsers = new Map();
+
+    if (!profilesError && profilesData && profilesData.length > 0) {
+      profilesData.forEach((p) => {
+        combinedUsers.set(p.id, {
+          id: p.id, username: p.username, email: p.email || '', gender: p.gender || 'M', age: p.age || 25, goal: p.goal || 'Sportif', home_club: p.home_club || selectedClub, preferred_time: p.preferred_time || '🌆 Soir (17h - 20h)', avatar_url: p.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'
+        });
+      });
+    }
+
+    const { data: postsData } = await supabase.from('posts').select('user_id, username, club_name, avatar_url').limit(100);
+    if (postsData) {
+      postsData.forEach((p) => {
+        if (!combinedUsers.has(p.user_id)) {
+          combinedUsers.set(p.user_id, {
+            id: p.user_id, username: p.username, email: `${p.username}@fitpulse.be`, gender: 'M', age: 28, goal: 'Prise de masse & Force', home_club: p.club_name || selectedClub, preferred_time: '🌆 Soir (17h - 20h)', avatar_url: p.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'
+          });
+        }
+      });
+    }
+
+    if (user) {
+      combinedUsers.set(user.id, {
+        id: user.id, username: user.user_metadata?.username || user.email?.split('@')[0] || 'Moi', email: user.email || '', gender: user.user_metadata?.gender || 'M', age: calculateAge(user.user_metadata?.birth_date), goal: user.user_metadata?.goal || 'Sportif', home_club: user.user_metadata?.home_club || selectedClub, preferred_time: user.user_metadata?.preferred_time || '🌆 Soir (17h - 20h)', avatar_url: userAvatarUrl
+      });
+    }
+    setRegisteredUsers(Array.from(combinedUsers.values()));
+  };
+
+  const fetchTransformations = async (userId: string) => {
+    const { data, error } = await supabase.from('transformations').select('*').eq('user_id', userId).order('date', { ascending: false });
+    if (!error && data) setTransformations(data as TransformationPhoto[]);
+  };
+
+  const fetchFriendRequests = async (userId: string) => {
+    const { data, error } = await supabase.from('friend_requests').select('*').or(`sender_id.eq.${userId},receiver_id.eq.${userId}`);
+    if (!error && data) setFriendRequests(data as FriendRequest[]);
+  };
+
+  const sendSystemNotification = async (receiverId: string, message: string) => {
+    await supabase.from('direct_messages').insert([{
+      sender_id: 'system-notification', receiver_id: receiverId, sender_name: '📣 Notification', text: message
+    }]);
+  };
+
+
+  // --- VARIABLES DÉRIVÉES (Dépendantes des states) ---
   const acceptedFriendIds = friendRequests.filter(req => req.status === 'accepted').map(req => (req.sender_id === user?.id ? req.receiver_id : req.sender_id));
-  
+
   const botUser: RealUser = { id: 'system-bot', username: '⚠️ Modération Bot', email: 'bot@fitpulse', home_club: 'Système', age: 99, avatar_url: 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=150' };
   const hasBotMessages = allMessages.some(m => m.sender_id === 'system-bot' && m.receiver_id === user?.id);
   const activeChatUsers = registeredUsers.filter((u) => {
@@ -362,94 +473,7 @@ export default function App() {
   const unreadNotifsCount = notifications.filter(m => new Date(m.created_at).getTime() > lastNotifOpenTime).length;
 
 
-  // ==========================================
-  // 3. FONCTIONS (Fetch, Handlers, etc.)
-  // ==========================================
-
-  const syncProfile = async (sessionUser: SupabaseUser) => {
-    try {
-      const profileData = {
-        id: sessionUser.id,
-        username: sessionUser.user_metadata?.username || sessionUser.email?.split('@')[0],
-        email: sessionUser.email,
-        gender: sessionUser.user_metadata?.gender || 'M',
-        birth_date: sessionUser.user_metadata?.birth_date || '1995-01-01',
-        age: calculateAge(sessionUser.user_metadata?.birth_date),
-        goal: sessionUser.user_metadata?.goal || 'Sportif',
-        home_club: sessionUser.user_metadata?.home_club || selectedClub,
-        preferred_time: sessionUser.user_metadata?.preferred_time || TIME_SLOTS[2],
-        avatar_url: sessionUser.user_metadata?.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'
-      };
-      await supabase.from('profiles').upsert(profileData);
-    } catch(e) {}
-  };
-
-  const fetchCloudPosts = async () => {
-    setFeedLoading(true);
-    const { data, error } = await supabase.from('posts').select('*').order('created_at', { ascending: false });
-    if (!error && data) setPosts(data as Post[]);
-    setFeedLoading(false);
-  };
-
-  const fetchCloudStories = async () => {
-    try {
-      const { data, error } = await supabase.from('stories').select('*').order('created_at', { ascending: false });
-      if (!error && data) setCloudStories(data as Story[]);
-    } catch (err) {}
-  };
-
-  const fetchDirectMessages = async () => {
-    const { data, error } = await supabase.from('direct_messages').select('*').order('created_at', { ascending: true });
-    if (!error && data) setAllMessages(data as DBMessage[]);
-  };
-
-  const fetchRealUsers = async () => {
-    const { data: profilesData, error: profilesError } = await supabase.from('profiles').select('*');
-    let combinedUsers = new Map();
-
-    if (!profilesError && profilesData && profilesData.length > 0) {
-      profilesData.forEach((p) => {
-        combinedUsers.set(p.id, {
-          id: p.id, username: p.username, email: p.email || '', gender: p.gender || 'M', age: p.age || 25, goal: p.goal || 'Sportif', home_club: p.home_club || selectedClub, preferred_time: p.preferred_time || '🌆 Soir (17h - 20h)', avatar_url: p.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'
-        });
-      });
-    }
-
-    const { data: postsData } = await supabase.from('posts').select('user_id, username, club_name, avatar_url').limit(100);
-    if (postsData) {
-      postsData.forEach((p) => {
-        if (!combinedUsers.has(p.user_id)) {
-          combinedUsers.set(p.user_id, {
-            id: p.user_id, username: p.username, email: `${p.username}@fitpulse.be`, gender: 'M', age: 28, goal: 'Prise de masse & Force', home_club: p.club_name || selectedClub, preferred_time: '🌆 Soir (17h - 20h)', avatar_url: p.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'
-          });
-        }
-      });
-    }
-
-    if (user) {
-      combinedUsers.set(user.id, {
-        id: user.id, username: user.user_metadata?.username || user.email?.split('@')[0] || 'Moi', email: user.email || '', gender: user.user_metadata?.gender || 'M', age: calculateAge(user.user_metadata?.birth_date), goal: user.user_metadata?.goal || 'Sportif', home_club: user.user_metadata?.home_club || selectedClub, preferred_time: user.user_metadata?.preferred_time || '🌆 Soir (17h - 20h)', avatar_url: userAvatarUrl
-      });
-    }
-    setRegisteredUsers(Array.from(combinedUsers.values()));
-  };
-
-  const fetchTransformations = async (userId: string) => {
-    const { data, error } = await supabase.from('transformations').select('*').eq('user_id', userId).order('date', { ascending: false });
-    if (!error && data) setTransformations(data as TransformationPhoto[]);
-  };
-
-  const fetchFriendRequests = async (userId: string) => {
-    const { data, error } = await supabase.from('friend_requests').select('*').or(`sender_id.eq.${userId},receiver_id.eq.${userId}`);
-    if (!error && data) setFriendRequests(data as FriendRequest[]);
-  };
-
-  const sendSystemNotification = async (receiverId: string, message: string) => {
-    await supabase.from('direct_messages').insert([{
-      sender_id: 'system-notification', receiver_id: receiverId, sender_name: '📣 Notification', text: message
-    }]);
-  };
-
+  // --- HANDLERS ACTIONS ---
   const handleNextStory = () => {
     if (activeStoryIndex === null) return;
     if (activeStoryIndex < friendStoriesList.length - 1) { setActiveStoryIndex(activeStoryIndex + 1); setStoryProgress(0); setStoryCommentInput(''); } 
@@ -462,7 +486,33 @@ export default function App() {
     else setStoryProgress(0);
   };
 
-  // Drag & Crop Functions
+  const handleAddExerciseRow = () => setWorkoutExercises([...workoutExercises, { name: '', sets: 3, reps: 10, weight: 50 }]);
+  const handleRemoveExerciseRow = (index: number) => setWorkoutExercises(workoutExercises.filter((_, i) => i !== index));
+
+  const renderCaptionWithHashtags = (text: string) => {
+    if (!text) return null;
+    return text.split(' ').map((word, i) => word.startsWith('#') ? <span key={i} className="text-orange-500 font-bold">{word} </span> : word + ' ');
+  };
+
+  const startRestTimer = (seconds: number) => { setRestTimerSeconds(seconds); setRestTimeRemaining(seconds); setIsRestTimerActive(true); };
+
+  const handleAddPR = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newPrExercise.trim() || newPrWeight === '' || newPrReps === '') return;
+    setPersonalRecords([{ exercise: newPrExercise.trim(), weight: Number(newPrWeight), reps: Number(newPrReps), date: new Date().toISOString().split('T')[0] }, ...personalRecords]);
+    setNewPrExercise(''); setNewPrWeight(''); setNewPrReps('');
+    alert('🏆 Nouveau record enregistré avec succès !');
+  };
+
+  const handleSaveWeeklyPlanEdit = (index: number) => {
+    const updated = [...weeklyPlan];
+    updated[index] = { ...updated[index], focus: editFocus, exercisesText: editExercisesText };
+    setWeeklyPlan(updated); setEditingDayIndex(null);
+  };
+
+  const handleAddWorkoutHashtag = (tag: string) => { if (!workoutCaption.includes(tag)) setWorkoutCaption((prev) => (prev ? `${prev} ${tag}` : tag)); };
+  const handleAddStoryHashtag = (tag: string) => { if (!storyCaption.includes(tag)) setStoryCaption((prev) => (prev ? `${prev} ${tag}` : tag)); };
+
   const handleDragStart = (e: React.MouseEvent | React.TouchEvent) => {
     setIsDraggingImage(true);
     const clientX = 'touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
@@ -517,33 +567,6 @@ export default function App() {
     ctx.drawImage(img, finalX * scaleMultiplier, finalY * scaleMultiplier, finalWidth * scaleMultiplier, finalHeight * scaleMultiplier);
     return new Promise((resolve) => { canvas.toBlob((blob) => resolve(blob), 'image/jpeg', 0.85); });
   };
-
-  const handleAddExerciseRow = () => setWorkoutExercises([...workoutExercises, { name: '', sets: 3, reps: 10, weight: 50 }]);
-  const handleRemoveExerciseRow = (index: number) => setWorkoutExercises(workoutExercises.filter((_, i) => i !== index));
-
-  const renderCaptionWithHashtags = (text: string) => {
-    if (!text) return null;
-    return text.split(' ').map((word, i) => word.startsWith('#') ? <span key={i} className="text-orange-500 font-bold">{word} </span> : word + ' ');
-  };
-
-  const startRestTimer = (seconds: number) => { setRestTimerSeconds(seconds); setRestTimeRemaining(seconds); setIsRestTimerActive(true); };
-
-  const handleAddPR = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newPrExercise.trim() || newPrWeight === '' || newPrReps === '') return;
-    setPersonalRecords([{ exercise: newPrExercise.trim(), weight: Number(newPrWeight), reps: Number(newPrReps), date: new Date().toISOString().split('T')[0] }, ...personalRecords]);
-    setNewPrExercise(''); setNewPrWeight(''); setNewPrReps('');
-    alert('🏆 Nouveau record enregistré avec succès !');
-  };
-
-  const handleSaveWeeklyPlanEdit = (index: number) => {
-    const updated = [...weeklyPlan];
-    updated[index] = { ...updated[index], focus: editFocus, exercisesText: editExercisesText };
-    setWeeklyPlan(updated); setEditingDayIndex(null);
-  };
-
-  const handleAddWorkoutHashtag = (tag: string) => { if (!workoutCaption.includes(tag)) setWorkoutCaption((prev) => (prev ? `${prev} ${tag}` : tag)); };
-  const handleAddStoryHashtag = (tag: string) => { if (!storyCaption.includes(tag)) setStoryCaption((prev) => (prev ? `${prev} ${tag}` : tag)); };
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>, targetType?: string) => {
     if (e.target.files && e.target.files[0]) {
@@ -649,20 +672,6 @@ export default function App() {
     }, 'image/jpeg', 0.85);
   };
 
-  const handleAuth = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (isSignUp && !acceptCGU) { alert("Veuillez accepter les CGU pour continuer."); return; }
-    setAuthLoading(true);
-    if (isSignUp) {
-      const { error } = await supabase.auth.signUp({ email, password, options: { data: { first_name: firstName, last_name: lastName, username: username || `${firstName}_${lastName}`.toLowerCase(), birth_date: birthDate, gender, level, home_club: homeClub, preferred_time: preferredTime, avatar_url: userAvatarUrl } } });
-      if (error) alert("Erreur d'inscription : " + error.message); else setSignupSuccessEmail(email);
-    } else {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) alert("Erreur de connexion : " + error.message);
-    }
-    setAuthLoading(false);
-  };
-
   const handlePublishStory = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !storyImageFile) return;
@@ -675,7 +684,7 @@ export default function App() {
       if (uploadData) { const { data } = supabase.storage.from('posts').getPublicUrl(fileName); uploadedStoryUrl = data.publicUrl; }
     } catch (err) {}
 
-    const myName = user.user_metadata?.username || user.email?.split('@')[0] || 'Moi';
+    const myName = user.user_metadata?.first_name || user.user_metadata?.username || user.email?.split('@')[0] || 'Moi';
     const newStory: Story = { id: 'story-' + Date.now(), user_id: user.id, username: myName, avatar_url: userAvatarUrl, image_url: uploadedStoryUrl, caption: storyCaption, club_name: selectedClub, likes_count: 0, created_at: new Date().toISOString() };
     const { error } = await supabase.from('stories').insert([{ user_id: user.id, username: myName, avatar_url: userAvatarUrl, image_url: uploadedStoryUrl, caption: storyCaption, club_name: selectedClub }]);
     if (error) alert("Erreur publication story : " + error.message);
@@ -804,154 +813,9 @@ export default function App() {
     if (!error && user) fetchFriendRequests(user.id);
   };
 
-  const handleSendInvite = async () => {
-    if (!inviteModalTarget || !user) return;
-    await supabase.from('direct_messages').insert([{ sender_id: user.id, receiver_id: inviteModalTarget.id, sender_name: user.user_metadata?.username || 'Un ami', text: `🏋️ INVITATION PUSH UP : Salut ! Es-tu prêt(e) pour une grosse séance **${inviteType}** avec moi ?` }]);
-    alert(`Invitation envoyée à ${inviteModalTarget.username} !`); setInviteModalTarget(null);
-  };
-
 
   // ==========================================
-  // 4. EFFETS SECONDAIRES DE COMPOSANT (useEffect)
-  // ==========================================
-
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      const activeUser = session?.user ?? null;
-      setUser(activeUser);
-      if (activeUser) {
-        if (activeUser.user_metadata?.home_club) setSelectedClub(activeUser.user_metadata.home_club);
-        if (activeUser.user_metadata?.avatar_url) setUserAvatarUrl(activeUser.user_metadata.avatar_url);
-        syncProfile(activeUser);
-        fetchTransformations(activeUser.id);
-        fetchFriendRequests(activeUser.id);
-      }
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      const activeUser = session?.user ?? null;
-      setUser(activeUser);
-      if (activeUser) {
-        if (activeUser.user_metadata?.home_club) setSelectedClub(activeUser.user_metadata.home_club);
-        if (activeUser.user_metadata?.avatar_url) setUserAvatarUrl(activeUser.user_metadata.avatar_url);
-        syncProfile(activeUser);
-        fetchTransformations(activeUser.id);
-        fetchFriendRequests(activeUser.id);
-      }
-    });
-
-    fetchCloudPosts();
-    fetchDirectMessages();
-    fetchCloudStories();
-    fetchRealUsers();
-
-    const channel = supabase
-      .channel('schema-db-changes')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'direct_messages' }, (payload) => {
-        setAllMessages((prev) => [...prev, payload.new as DBMessage]);
-      })
-      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'direct_messages' }, (payload) => {
-        setAllMessages((prev) => prev.filter((m) => m.id !== payload.old.id));
-      })
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'stories' }, (payload) => {
-        setCloudStories((prev) => [payload.new as Story, ...prev]);
-      })
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'posts' }, (payload) => {
-        setPosts((prev) => prev.map(p => p.id === payload.new.id ? payload.new as Post : p));
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'friend_requests' }, () => {
-        if (user) fetchFriendRequests(user.id);
-      })
-      .subscribe();
-
-    return () => {
-      subscription.unsubscribe();
-      supabase.removeChannel(channel);
-      stopCameraStream();
-    };
-  }, [user?.id]);
-
-  useEffect(() => {
-    let currentStream: MediaStream | null = null;
-    if (isCameraActive) {
-      navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: cameraTarget === 'profile_avatar' ? 'user' : 'environment' } },
-        audio: false
-      }).then(stream => {
-        currentStream = stream;
-        streamRef.current = stream;
-        setTimeout(() => {
-          if (videoRef.current) {
-            videoRef.current.srcObject = stream;
-          }
-        }, 100);
-      }).catch(err => {
-        alert("Erreur caméra : " + err.message);
-        setIsCameraActive(false);
-      });
-    }
-    return () => {
-      if (currentStream) currentStream.getTracks().forEach(t => t.stop());
-    };
-  }, [isCameraActive, cameraTarget, facingMode]);
-
-  useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [allMessages, selectedBuddyChat]);
-  useEffect(() => { localStorage.setItem('fitpulse_streak', userStreak.toString()); }, [userStreak]);
-  useEffect(() => { localStorage.setItem('fitpulse_private', isPrivateMode.toString()); }, [isPrivateMode]);
-  useEffect(() => { localStorage.setItem('fitpulse_liked_stories', JSON.stringify(likedStories)); }, [likedStories]);
-  useEffect(() => { localStorage.setItem('fitpulse_viewed_stories', JSON.stringify(viewedStoryIds)); }, [viewedStoryIds]);
-
-  useEffect(() => {
-    if (currentTab === 'chat') {
-      const now = Date.now();
-      setLastChatOpenTime(now);
-      localStorage.setItem('fitpulse_last_chat', now.toString());
-    }
-  }, [allMessages, currentTab]);
-
-  useEffect(() => {
-    let timer: NodeJS.Timeout | null = null;
-    if (isRestTimerActive && restTimeRemaining > 0) {
-      timer = setInterval(() => setRestTimeRemaining((prev) => prev - 1), 1000);
-    } else if (restTimeRemaining === 0 && isRestTimerActive) {
-      setIsRestTimerActive(false);
-      alert('⏰ Temps de repos terminé ! Prépare ta prochaine série 💪');
-    }
-    return () => { if (timer) clearInterval(timer); };
-  }, [isRestTimerActive, restTimeRemaining]);
-
-  useEffect(() => {
-    if (activeStoryIndex === null || isStoryPaused) return;
-
-    const currentStory = friendStoriesList[activeStoryIndex];
-    if (currentStory && !viewedStoryIds.includes(currentStory.id)) {
-      setViewedStoryIds((prev) => [...prev, currentStory.id]);
-    }
-
-    const interval = 50;
-    const step = (interval / 5000) * 100;
-    const timer = setInterval(() => {
-      setStoryProgress((prev) => {
-        if (prev >= 100) {
-          if (activeStoryIndex < friendStoriesList.length - 1) {
-            setActiveStoryIndex(activeStoryIndex + 1);
-            setStoryProgress(0);
-            setStoryCommentInput('');
-          } else {
-            setActiveStoryIndex(null);
-          }
-          return 0;
-        }
-        return prev + step;
-      });
-    }, interval);
-
-    return () => clearInterval(timer);
-  }, [activeStoryIndex, isStoryPaused, friendStoriesList.length]);
-
-
-  // ==========================================
-  // 5. RENDU (JSX)
+  // 6. RENDU (JSX)
   // ==========================================
 
   if (!user) {
@@ -1013,7 +877,6 @@ export default function App() {
     );
   }
 
-  // --- RENDU APPLICATION ---
   return (
     <div className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col font-sans select-none">
       <header className="sticky top-0 z-40 bg-neutral-950/80 backdrop-blur-md border-b border-neutral-900 px-4 py-3 flex items-center justify-between">
@@ -1261,6 +1124,7 @@ export default function App() {
           </div>
         )}
 
+        {/* TAB BUDDY (ÉPURÉ : Miniature, Nom, Objectif) */}
         {currentTab === 'buddy' && (
           <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4">
             <div className="flex items-center justify-between">
@@ -1315,6 +1179,7 @@ export default function App() {
                   <input type="text" placeholder="Rechercher par pseudo..." value={userSearchQuery} onChange={(e) => setUserSearchQuery(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl pl-10 pr-3 py-3 text-xs text-white focus:border-orange-500" />
                 </div>
 
+                {/* LISTE ÉPURÉE : Miniature photo + Pseudo/Genre + Objectif */}
                 <div className="space-y-3 pt-1">
                   {filteredBuddies.length === 0 ? <div className="text-center py-8 text-neutral-500 text-xs">Aucun autre athlète trouvé.</div> : filteredBuddies.map((realUser) => {
                       const isFriend = acceptedFriendIds.includes(realUser.id);
@@ -1322,28 +1187,23 @@ export default function App() {
                       const isPending = existingReq && existingReq.status === 'pending';
 
                       return (
-                        <div key={realUser.id} className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 flex items-center justify-between">
+                        <div key={realUser.id} className="bg-neutral-950 p-3.5 rounded-2xl border border-neutral-800 flex items-center justify-between">
                           <div className="flex items-center gap-3">
-                            <img src={realUser.avatar_url} alt="" className="w-12 h-12 rounded-full object-cover border border-neutral-700" />
+                            <img src={realUser.avatar_url} alt="" className="w-11 h-11 rounded-full object-cover border border-neutral-700 flex-shrink-0" />
                             <div>
-                              <h3 className="font-bold text-sm text-white">{realUser.username} {realUser.gender === 'F' && '🚺'} <span className="text-xs font-normal text-neutral-400">({realUser.age} ans)</span></h3>
-                              <span className="text-[11px] text-orange-400 font-medium block">● {realUser.home_club}</span>
-                              <div className="flex items-center gap-2 mt-0.5">
-                                {realUser.preferred_time && <span className="text-[10px] text-amber-400/80 font-medium border border-amber-400/20 px-1.5 py-0.5 rounded bg-amber-400/10">🕒 {realUser.preferred_time.split(' ')[1]}</span>}
-                              </div>
+                              <h3 className="font-bold text-sm text-white">{realUser.username} {realUser.gender === 'F' && '🚺'}</h3>
+                              <span className="text-[10px] text-orange-400 font-medium block">🎯 {realUser.goal || 'Sportif'}</span>
                             </div>
                           </div>
-                          <div className="flex flex-col items-end gap-2">
-                            <div className="flex items-center gap-2">
-                              {isFriend ? (
-                                <button onClick={() => setInviteModalTarget(realUser)} className="px-2 py-1.5 bg-orange-600/20 border border-orange-500/50 hover:bg-orange-600 text-orange-400 hover:text-white rounded-xl text-[10px] font-bold flex items-center gap-1 transition"><Zap className="w-3.5 h-3.5" /> Push Up</button>
-                              ) : isPending ? (
-                                <button disabled className="px-3 py-1.5 bg-neutral-900 text-neutral-400 rounded-xl text-xs font-medium">En attente</button>
-                              ) : (
-                                <button onClick={() => handleSendFriendRequest(realUser.id)} className="px-3 py-1.5 bg-orange-600 hover:bg-orange-500 text-white rounded-xl text-xs font-bold transition flex items-center gap-1"><UserPlus className="w-3.5 h-3.5" /> Ajouter</button>
-                              )}
-                              <button onClick={() => { setSelectedBuddyChat(realUser); setCurrentTab('chat'); }} className="p-2 bg-neutral-900 border border-neutral-800 hover:border-orange-500 text-neutral-200 rounded-xl"><MessageCircle className="w-4 h-4" /></button>
-                            </div>
+                          <div className="flex items-center gap-2">
+                            {isFriend ? (
+                              <button onClick={() => setInviteModalTarget(realUser)} className="px-2 py-1.5 bg-orange-600/20 border border-orange-500/50 hover:bg-orange-600 text-orange-400 hover:text-white rounded-xl text-[10px] font-bold flex items-center gap-1 transition"><Zap className="w-3.5 h-3.5" /> Push Up</button>
+                            ) : isPending ? (
+                              <button disabled className="px-3 py-1.5 bg-neutral-900 text-neutral-400 rounded-xl text-xs font-medium">En attente</button>
+                            ) : (
+                              <button onClick={() => handleSendFriendRequest(realUser.id)} className="px-3 py-1.5 bg-orange-600 hover:bg-orange-500 text-white rounded-xl text-xs font-bold transition flex items-center gap-1"><UserPlus className="w-3.5 h-3.5" /> Ajouter</button>
+                            )}
+                            <button onClick={() => { setSelectedBuddyChat(realUser); setCurrentTab('chat'); }} className="p-2 bg-neutral-900 border border-neutral-800 hover:border-orange-500 text-neutral-200 rounded-xl"><MessageCircle className="w-4 h-4" /></button>
                           </div>
                         </div>
                       );
@@ -1513,6 +1373,61 @@ export default function App() {
           </div>
         )}
       </main>
+
+      {/* POP-UP MATCHMAKING PARTNER (AVEC HORAIRES) */}
+      {isMatchModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-md w-full p-5 space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between pb-2 border-b border-neutral-800">
+              <h3 className="text-sm font-black text-white flex items-center gap-2"><Sparkles className="w-4 h-4 text-orange-500" /> Trouver un partenaire (Match)</h3>
+              <button onClick={() => setIsMatchModalOpen(false)} className="p-1 text-neutral-400 hover:text-white"><X className="w-5 h-5" /></button>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="block text-[11px] font-semibold text-neutral-400 mb-1">Objectif :</label>
+                <select value={matchGoal} onChange={(e) => setMatchGoal(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white focus:border-orange-500">
+                  <option value="Tous">Tous les objectifs</option>
+                  <option value="masse">Prise de masse & Force</option>
+                  <option value="cardio">Cardio & HIIT</option>
+                  <option value="remise">Remise en forme</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-neutral-400 mb-1">Horaire recherché :</label>
+                <select value={matchTime} onChange={(e) => setMatchTime(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white focus:border-orange-500">
+                  <option value="Tous">Tous les horaires</option>
+                  {TIME_SLOTS.map((slot) => <option key={slot} value={slot.split(' ')[1]}>{slot}</option>)}
+                </select>
+              </div>
+            </div>
+
+            <div className="space-y-2 pt-2 border-t border-neutral-800 max-h-60 overflow-y-auto">
+              <span className="text-[11px] font-bold text-orange-400 block mb-1">Résultats ({matchedBuddiesList.length}) :</span>
+              {matchedBuddiesList.length === 0 ? (
+                <div className="text-center py-6 text-neutral-500 text-xs">Aucun athlète ne correspond à cet horaire/objectif.</div>
+              ) : (
+                matchedBuddiesList.map((buddy) => (
+                  <div key={buddy.id} className="bg-neutral-950 p-3 rounded-2xl border border-neutral-800 flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <img src={buddy.avatar_url} alt="" className="w-10 h-10 rounded-full object-cover border border-neutral-700" />
+                      <div>
+                        <h4 className="font-bold text-xs text-white">{buddy.username} {buddy.gender === 'F' && '🚺'}</h4>
+                        <span className="text-[10px] text-orange-400 block">🎯 {buddy.goal || 'Sportif'}</span>
+                        <span className="text-[9px] text-amber-400 font-semibold">🕒 {buddy.preferred_time || 'Flexible'}</span>
+                      </div>
+                    </div>
+                    <button onClick={() => { setIsMatchModalOpen(false); setSelectedBuddyChat(buddy); setCurrentTab('chat'); }} className="px-3 py-1.5 bg-orange-600 text-white rounded-xl text-xs font-bold flex items-center gap-1"><MessageCircle className="w-3.5 h-3.5" /> Contacter</button>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <button onClick={() => setIsMatchModalOpen(false)} className="w-full py-3 bg-neutral-950 text-white font-bold rounded-xl text-xs border border-neutral-800">Fermer</button>
+          </div>
+        </div>
+      )}
 
       {/* MODAL PUSH UP (INVITATION) */}
       {inviteModalTarget && (
