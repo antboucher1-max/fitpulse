@@ -215,7 +215,7 @@ export default function App() {
   const [signupSuccessEmail, setSignupSuccessEmail] = useState<string | null>(null);
   const [isCGUModalOpen, setIsCGUModalOpen] = useState(false);
 
-  // App States (Restauration intelligente de l'onglet via sessionStorage pour application mobile/PWA)
+  // App States
   const [currentTab, setCurrentTab] = useState<'feed' | 'buddy' | 'workout' | 'exercises' | 'chat' | 'leaderboard' | 'profile'>(() => {
     try {
       const savedTab = sessionStorage.getItem('fitpulse_current_tab');
@@ -232,10 +232,10 @@ export default function App() {
   const [userAvatarUrl, setUserAvatarUrl] = useState<string>('https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150');
   const profileAvatarInputRef = useRef<HTMLInputElement>(null);
 
-  const [userStreak, setUserStreak] = useState<number>(2);
-  const [isPrivateMode, setIsPrivateMode] = useState<boolean>(false);
+  const [userStreak, setUserStreak] = useState<number>(() => { try { return parseInt(localStorage.getItem('fitpulse_streak') || '2', 10); } catch { return 2; } });
+  const [isPrivateMode, setIsPrivateMode] = useState<boolean>(() => { try { return localStorage.getItem('fitpulse_private') === 'true'; } catch { return false; } });
   
-  // Notifications & Présence
+  // Notifications
   const [lastNotifOpenTime, setLastNotifOpenTime] = useState<number>(() => { try { return parseInt(localStorage.getItem('fitpulse_last_notif') || '0', 10); } catch { return 0; } });
   const [isNotifModalOpen, setIsNotifModalOpen] = useState(false);
 
@@ -285,7 +285,7 @@ export default function App() {
   const streamRef = useRef<MediaStream | null>(null);
 
   // Chat & Invites
-  const [lastChatOpenTime, setLastChatOpenTime] = useState<number>(0);
+  const [lastChatOpenTime, setLastChatOpenTime] = useState<number>(() => { try { return parseInt(localStorage.getItem('fitpulse_last_chat') || '0', 10); } catch { return 0; } });
   const [selectedBuddyChat, setSelectedBuddyChat] = useState<RealUser | null>(null);
   const [currentMessageInput, setCurrentMessageInput] = useState('');
   const [inviteModalTarget, setInviteModalTarget] = useState<RealUser | null>(null);
@@ -329,8 +329,8 @@ export default function App() {
   const [editExercisesText, setEditExercisesText] = useState('');
   const [activeAnatomyExercise, setActiveAnatomyExercise] = useState<string | null>(null);
   
-  const [likedStories, setLikedStories] = useState<Record<string, boolean>>({});
-  const [viewedStoryIds, setViewedStoryIds] = useState<string[]>([]);
+  const [likedStories, setLikedStories] = useState<Record<string, boolean>>(() => { try { return JSON.parse(localStorage.getItem('fitpulse_liked_stories') || '{}'); } catch { return {}; } });
+  const [viewedStoryIds, setViewedStoryIds] = useState<string[]>(() => { try { return JSON.parse(localStorage.getItem('fitpulse_viewed_stories') || '[]'); } catch { return []; } });
 
 
   // ==========================================
@@ -404,9 +404,7 @@ export default function App() {
 
   const handleTabChange = (tab: 'feed' | 'buddy' | 'workout' | 'exercises' | 'chat' | 'leaderboard' | 'profile') => {
     setCurrentTab(tab);
-    try {
-      sessionStorage.setItem('fitpulse_current_tab', tab);
-    } catch (e) {}
+    try { sessionStorage.setItem('fitpulse_current_tab', tab); } catch (e) {}
   };
 
   const handleAuth = async (e: React.FormEvent) => {
@@ -1689,7 +1687,7 @@ export default function App() {
         </div>
       )}
 
-      {/* BOTTOM NAV AVEC RETIEN DE L'ONGLET ACTUEL */}
+      {/* BOTTOM NAV AVEC RETENTION DE L'ONGLET ACTUEL */}
       <nav className="fixed bottom-0 left-0 right-0 z-40 bg-neutral-950/90 backdrop-blur-xl border-t border-neutral-800/80 px-2 py-2 flex justify-around items-center">
         <button onClick={() => handleTabChange('feed')} className={`flex flex-col items-center gap-1 ${currentTab === 'feed' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Home className="w-5 h-5" /><span className="text-[10px]">Accueil</span></button>
         <button onClick={() => handleTabChange('buddy')} className={`flex flex-col items-center gap-1 ${currentTab === 'buddy' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Users className="w-5 h-5" /><span className="text-[10px]">Buddy</span></button>
