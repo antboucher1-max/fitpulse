@@ -109,6 +109,8 @@ interface ExerciseGuide {
   execution: string;
   tips: string;
   image_url: string;
+  start_image_url: string;
+  end_image_url: string;
   detailedDescription: string;
 }
 
@@ -123,6 +125,8 @@ const EXERCISES_DATABASE: ExerciseGuide[] = [
     execution: 'Saisir la barre un peu plus large que les épaules. Descendre de manière contrôlée jusqu’au milieu de la poitrine, puis pousser en expirant.', 
     tips: 'Garde les omoplates serrées contre le banc et évite de cambrer excessivement le dos.', 
     image_url: 'https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?w=800',
+    start_image_url: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=800',
+    end_image_url: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=800',
     detailedDescription: 'Le développé couché est l’exercice roi pour bâtir de la masse musculaire sur la partie supérieure du corps. En engageant à la fois les pectoraux, les triceps et les deltoïdes avants, il permet de manipuler des charges lourdes en toute sécurité à condition de respecter un angle de coude d’environ 45 degrés par rapport au torse.'
   },
   { 
@@ -135,6 +139,8 @@ const EXERCISES_DATABASE: ExerciseGuide[] = [
     execution: 'Garde le dos bien collé au dossier. Pousse les poignées vers l’avant en tendant les bras sans verrouiller les coudes, puis reviens lentement.', 
     tips: 'Idéal pour l’isolation et la sécurité en fin de séance.', 
     image_url: 'https://images.unsplash.com/photo-1576678927484-cc907957088c?w=800',
+    start_image_url: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=800',
+    end_image_url: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=800',
     detailedDescription: 'La machine chest press guide parfaitement la trajectoire du mouvement, ce qui permet de se concentrer exclusivement sur la contraction des pectoraux sans se soucier de l’équilibre de la charge. Parfait pour aller à l’échec musculaire en fin de séance.'
   },
   { 
@@ -147,6 +153,8 @@ const EXERCISES_DATABASE: ExerciseGuide[] = [
     execution: 'Tire la barre vers le haut de ta poitrine en sortant la poitrine et en tirant les coudes vers le bas et l’arrière. Reviens en contrôlant la charge.', 
     tips: 'Évite de te pencher trop en arrière ; garde le buste légèrement incliné.', 
     image_url: 'https://images.unsplash.com/photo-1605296867304-46ad546c1339?w=800',
+    start_image_url: 'https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?w=800',
+    end_image_url: 'https://images.unsplash.com/photo-1584735935682-2f2b69dff9d2?w=800',
     detailedDescription: 'Le tirage vertical cible principalement le grand dorsal pour donner de la largeur au dos (en V). Pour maximiser l’efficacité, initiez le mouvement en abaissant vos omoplates avant de plier les bras.'
   },
   { 
@@ -159,6 +167,8 @@ const EXERCISES_DATABASE: ExerciseGuide[] = [
     execution: 'Tire la poignée vers ton nombril en gardant le dos droit. Resserre tes omoplates en fin de mouvement.', 
     tips: 'Ne arrondis surtout pas le bas du dos lors de la phase de relâchement.', 
     image_url: 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?w=800',
+    start_image_url: 'https://images.unsplash.com/photo-1584735935682-2f2b69dff9d2?w=800',
+    end_image_url: 'https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?w=800',
     detailedDescription: 'Le rowing assis développe l’épaisseur du haut et du milieu du dos. Gardez le buste fixe et l’aine légèrement sortie pour cibler précisément les rhomboïdes et les trapèzes moyens.'
   },
   { 
@@ -171,6 +181,8 @@ const EXERCISES_DATABASE: ExerciseGuide[] = [
     execution: 'Fléchis les genoux et descends les fesses vers l’arrière comme pour t’asseoir sur une chaise, le dos bien droit, puis remonte en poussant sur les talons.', 
     tips: 'Garde les genoux bien alignés dans l’axe des pointes de pieds.', 
     image_url: 'https://images.unsplash.com/photo-1574680096145-d05b474e2155?w=800',
+    start_image_url: 'https://images.unsplash.com/photo-1574680096145-d05b474e2155?w=800',
+    end_image_url: 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?w=800',
     detailedDescription: 'Le squat est l’exercice fondamental pour le bas du corps. Il sollicite l’ensemble de la chaîne inférieure et déclenche une forte réponse hormonale propice au développement de la force globale.'
   },
   { 
@@ -183,6 +195,8 @@ const EXERCISES_DATABASE: ExerciseGuide[] = [
     execution: 'Fléchis les jambes pour ramener le chariot vers toi (angle à 90° aux genoux) puis pousse puissamment sans tendre complètement les genoux.', 
     tips: 'Ne décolle jamais le bas du dos ou les talons du dossier pendant le mouvement.', 
     image_url: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=800',
+    start_image_url: 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?w=800',
+    end_image_url: 'https://images.unsplash.com/photo-1574680096145-d05b474e2155?w=800',
     detailedDescription: 'La presse à cuisses permet de charger lourdement les quadriceps et les fessiers en protégeant la colonne vertébrale grâce au maintien du dossier. Variez la hauteur des pieds sur la plateforme pour cibler plus l’avant ou l’arrière des cuisses.'
   }
 ];
@@ -1032,35 +1046,6 @@ export default function App() {
     return () => { if (timer) clearInterval(timer); };
   }, [isRestTimerActive, restTimeRemaining]);
 
-  useEffect(() => {
-    if (activeStoryIndex === null || isStoryPaused) return;
-
-    const currentStory = friendStoriesList[activeStoryIndex];
-    if (currentStory && !viewedStoryIds.includes(currentStory.id)) {
-      setViewedStoryIds((prev) => [...prev, currentStory.id]);
-    }
-
-    const interval = 50;
-    const step = (interval / 5000) * 100;
-    const timer = setInterval(() => {
-      setStoryProgress((prev) => {
-        if (prev >= 100) {
-          if (activeStoryIndex < friendStoriesList.length - 1) {
-            setActiveStoryIndex(activeStoryIndex + 1);
-            setStoryProgress(0);
-            setStoryCommentInput('');
-          } else {
-            setActiveStoryIndex(null);
-          }
-          return 0;
-        }
-        return prev + step;
-      });
-    }, interval);
-
-    return () => clearInterval(timer);
-  }, [activeStoryIndex, isStoryPaused, friendStoriesList.length]);
-
 
   // ==========================================
   // 8. RENDU (JSX)
@@ -1344,7 +1329,7 @@ export default function App() {
           <div className="space-y-4">
             <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4">
               <div className="flex items-center justify-between">
-                <h2 className="text-lg font-black tracking-tight flex items-center gap-2"><BookOpen className="w-6 h-6 text-orange-500" /> Guide des Exercices (Fiches Détaillées)</h2>
+                <h2 className="text-lg font-black tracking-tight flex items-center gap-2"><BookOpen className="w-6 h-6 text-orange-500" /> Guide des Exercices</h2>
               </div>
               <div className="relative">
                 <Search className="absolute left-3.5 top-3.5 w-5 h-5 text-orange-500" />
@@ -1357,17 +1342,13 @@ export default function App() {
               </div>
               <div className="space-y-3 pt-1">
                 {EXERCISES_DATABASE.filter((ex) => (selectedCategoryFilter === 'Tous' || ex.category === selectedCategoryFilter) && (ex.name.toLowerCase().includes(exerciseSearch.toLowerCase()) || ex.targetMuscles.toLowerCase().includes(exerciseSearch.toLowerCase()))).map((ex) => (
-                  <div key={ex.id} onClick={() => setSelectedExerciseDetail(ex)} className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 hover:border-orange-500/50 cursor-pointer space-y-3 transition">
-                    <div className="flex items-center justify-between">
+                  <div key={ex.id} onClick={() => setSelectedExerciseDetail(ex)} className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 hover:border-orange-500/50 cursor-pointer flex items-center justify-between transition">
+                    <div className="flex items-center gap-4">
+                      <img src={ex.image_url} alt="" className="w-16 h-16 rounded-xl object-cover border border-neutral-800 flex-shrink-0" />
                       <div>
-                        <h3 className="text-sm font-bold text-white">{ex.name}</h3>
-                        <span className="text-[10px] text-orange-400">🎯 {ex.targetMuscles}</span>
+                        <div className="flex items-center gap-2 mb-1"><span className="text-sm font-bold text-white">{ex.name}</span><span className="text-[10px] bg-orange-500/10 text-orange-400 px-2 py-0.5 rounded-md border border-orange-500/20">{ex.category}</span></div>
+                        <p className="text-[10px] text-neutral-400">🎯 {ex.targetMuscles}</p>
                       </div>
-                      <span className="text-[10px] bg-orange-500/10 text-orange-400 px-2 py-0.5 rounded-md border border-orange-500/20">{ex.category}</span>
-                    </div>
-                    {/* Une seule photo de référence correspondante */}
-                    <div className="relative rounded-xl overflow-hidden h-36 bg-neutral-900 border border-neutral-800">
-                      <img src={ex.image_url} alt={ex.name} className="w-full h-full object-cover" />
                     </div>
                   </div>
                 ))}
@@ -1727,15 +1708,8 @@ export default function App() {
               </div>
               <button onClick={() => setSelectedExerciseDetail(null)} className="p-1.5 bg-neutral-800 text-white rounded-full"><X className="w-5 h-5" /></button>
             </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div className="rounded-2xl overflow-hidden border border-neutral-800 bg-neutral-950 h-36 relative">
-                <img src={selectedExerciseDetail.start_image_url} alt="Départ" className="w-full h-full object-cover" />
-                <span className="absolute bottom-1 left-1 bg-black/70 text-[9px] text-white px-1.5 py-0.5 rounded">1. Départ</span>
-              </div>
-              <div className="rounded-2xl overflow-hidden border border-neutral-800 bg-neutral-950 h-36 relative">
-                <img src={selectedExerciseDetail.end_image_url} alt="Arrivée" className="w-full h-full object-cover" />
-                <span className="absolute bottom-1 left-1 bg-black/70 text-[9px] text-white px-1.5 py-0.5 rounded">2. Arrivée</span>
-              </div>
+            <div className="rounded-2xl overflow-hidden border border-neutral-800 bg-neutral-950 h-48 w-full relative">
+              <img src={selectedExerciseDetail.image_url} alt="" className="w-full h-full object-cover" />
             </div>
             <div className="space-y-3 text-xs leading-relaxed text-neutral-300">
               <div className="bg-neutral-950 p-3.5 rounded-2xl border border-neutral-800 space-y-1">
@@ -1826,7 +1800,7 @@ export default function App() {
               {(!activePostForComments.comments || activePostForComments.comments.length === 0) ? (
                 <div className="text-center text-neutral-500 text-xs py-8">Aucun commentaire. Sois le premier à réagir !</div>
               ) : (
-                activePostForComments.comments.map(c => (
+                activePostForComments.comments.post?.map ? null : activePostForComments.comments.map(c => (
                   <div key={c.id} className="flex gap-3">
                     <img src={c.avatar_url} className="w-8 h-8 rounded-full object-cover border border-neutral-700" />
                     <div className="flex-1 bg-neutral-950 p-3 rounded-2xl rounded-tl-none border border-neutral-800">
@@ -1854,7 +1828,7 @@ export default function App() {
           <div className="w-8 h-8 rounded-xl bg-orange-600 text-white flex items-center justify-center -mt-2.5 shadow-lg"><Plus className="w-5 h-5" /></div>
           <span className="text-[10px]">Séance</span>
         </button>
-        <button onClick={() => handleTabCommandChatOrMessage('chat')} className={`flex flex-col items-center gap-1 ${currentTab === 'chat' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`} onClick={() => handleTabChange('chat')}>
+        <button onClick={() => handleTabChange('chat')} className={`flex flex-col items-center gap-1 ${currentTab === 'chat' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}>
           <div className="relative">
             <MessageCircle className="w-5 h-5" />
             {unreadChatCount > 0 && <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 border border-neutral-950 rounded-full animate-pulse"></span>}
