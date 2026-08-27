@@ -402,6 +402,11 @@ export default function App() {
     try { return localStorage.getItem('fitpulse_private') === 'true'; } catch { return false; }
   });
 
+  // Gestion des badges et messages non lus
+  const [lastChatOpenTime, setLastChatOpenTime] = useState<number>(() => {
+    try { return parseInt(localStorage.getItem('fitpulse_last_chat') || '0', 10); } catch { return 0; }
+  });
+
   const [transformations, setTransformations] = useState<TransformationPhoto[]>([]);
   const [friendRequests, setFriendRequests] = useState<FriendRequest[]>([]);
 
@@ -506,6 +511,19 @@ export default function App() {
 
   const [activeCommentPostId, setActiveCommentPostId] = useState<string | null>(null);
   const [postCommentInput, setPostCommentInput] = useState('');
+
+  // Gestion pastille rouge (Messages non lus)
+  useEffect(() => {
+    if (currentTab === 'chat') {
+      const now = Date.now();
+      setLastChatOpenTime(now);
+      localStorage.setItem('fitpulse_last_chat', now.toString());
+    }
+  }, [allMessages, currentTab]);
+
+  const unreadChatCount = allMessages.filter(
+    (m) => m.receiver_id === user?.id && new Date(m.created_at).getTime() > lastChatOpenTime
+  ).length;
 
   const handleAddExerciseRow = () => {
     setWorkoutExercises([...workoutExercises, { name: '', sets: 3, reps: 10, weight: 50 }]);
@@ -631,10 +649,9 @@ export default function App() {
     if (!window.confirm("Signaler cette publication pour contenu inapproprié ou non conforme aux CGU ?")) return;
     
     if (user) {
-      // 1. Chercher "Antbou" dans la liste locale des utilisateurs
+      // 1. Chercher l'ID de l'admin (Antbou)
       let adminId = registeredUsers.find(u => u.username.toLowerCase() === 'antbou')?.id;
       
-      // 2. S'il n'est pas dans la liste locale, on cherche son ID dans la base de données
       if (!adminId) {
         const { data } = await supabase.from('posts').select('user_id').ilike('username', 'antbou').limit(1);
         if (data && data.length > 0) {
@@ -642,13 +659,13 @@ export default function App() {
         }
       }
       
-      // 3. Envoyer un message privé direct au modérateur
+      // 2. Envoyer le message d'alerte avec le profil système (system-bot)
       if (adminId) {
         const myName = user.user_metadata?.username || user.email?.split('@')[0] || 'Un utilisateur';
-        const alertText = `🚨 SIGNALEMENT : ${myName} a signalé un post de ${post.username}. Message du post : "${post.caption || 'Photo uniquement'}".`;
+        const alertText = `🚨 SIGNALEMENT : ${myName} a signalé le post de ${post.username}. Message du post : "${post.caption || 'Photo uniquement'}".`;
         
         await supabase.from('direct_messages').insert([{
-          sender_id: user.id,
+          sender_id: 'system-bot',
           receiver_id: adminId,
           sender_name: '⚠️ FitPulse Bot',
           text: alertText
@@ -1034,6 +1051,28 @@ export default function App() {
     .filter(req => req.status === 'accepted')
     .map(req => (req.sender_id === user?.id ? req.receiver_id : req.sender_id));
 
+  // Liste des conversations de chat (Amis + Utilisateurs avec qui on a échangé + Bot si alerte)
+  const botUser: RealUser = {
+    id: 'system-bot',
+    username: '⚠️ Modération Bot',
+    email: 'bot@fitpulse',
+    home_club: 'Système',
+    age: 99,
+    avatar_url: 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=150'
+  };
+
+  const hasBotMessages = allMessages.some(m => m.sender_id === 'system-bot' && m.receiver_id === user?.id);
+
+  const activeChatUsers = registeredUsers.filter((u) => {
+    if (u.id === user?.id) return false;
+    const hasExchanged = allMessages.some(m => (m.sender_id === user?.id && m.receiver_id === u.id) || (m.sender_id === u.id && m.receiver_id === user?.id));
+    return acceptedFriendIds.includes(u.id) || hasExchanged;
+  });
+
+  if (hasBotMessages) {
+    activeChatUsers.unshift(botUser);
+  }
+
   const myFriendsList = registeredUsers.filter((u) => acceptedFriendIds.includes(u.id));
   const incomingRequests = friendRequests.filter(req => req.receiver_id === user?.id && req.status === 'pending');
 
@@ -1216,149 +1255,6 @@ export default function App() {
     }
     setAuthLoading(false);
   };
-
-  const handlePublishStory = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!user || !storyImageFile) return;
-    setStoryUploading(true);
-    let uploadedStoryUrl = storyImagePreview || '';
-    try {
-      const compressedBlob = await compressImage(storyImageFile, 800, 0.7);
-      const fileName = `story-${Date.now()}-${Math.random().toString(36).substring(7)}.jpg`;
-      const { data: uploadData } = await supabase.storage.from('posts').upload(fileName, compressedBlob, { contentType: 'image/jpeg' });
-      if (uploadData) {
-        const { data: publicUrlData } = supabase.storage.from('posts').getPublicUrl(fileName);
-        uploadedStoryUrl = publicUrlData.publicUrl;
-      }
-    } catch (err) {}
-
-    const myName = user.user_metadata?.first_name || user.user_metadata?.username || user.email?.split('@')[0] || 'Moi';
-    const newStory: Story = {
-      id: 'story-' + Date.now(),
-      user_id: user.id,
-      username: myName,
-      avatar_url: userAvatarUrl,
-      image_url: uploadedStoryUrl,
-      caption: storyCaption,
-      club_name: selectedClub,
-      likes_count: 0,
-      created_at: new Date().toISOString()
-    };
-    const { error: storyError } = await supabase.from('stories').insert([{ user_id: user.id, username: myName, avatar_url: userAvatarUrl, image_url: uploadedStoryUrl, caption: storyCaption, club_name: selectedClub }]);
-    if (storyError) {
-      alert("Erreur publication story : " + storyError.message);
-    } else {
-      setCloudStories([newStory, ...cloudStories]);
-      setStoryImageFile(null);
-      setStoryImagePreview(null);
-      setStoryCaption('');
-      setIsCreatingStory(false);
-    }
-    setStoryUploading(false);
-  };
-
-  const handlePublishWorkout = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!user) {
-      alert("Erreur : Utilisateur non connecté.");
-      return;
-    }
-    setIsUploading(true);
-    let uploadedImageUrl = undefined;
-    if (postImageFile) {
-      try {
-        const compressedBlob = await compressImage(postImageFile, 800, 0.7);
-        const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.jpg`;
-        const { data: uploadData, error: uploadError } = await supabase.storage.from('posts').upload(fileName, compressedBlob, { contentType: 'image/jpeg' });
-        if (uploadError) {
-          alert("Erreur image : " + uploadError.message);
-        } else if (uploadData) {
-          const { data: publicUrlData } = supabase.storage.from('posts').getPublicUrl(fileName);
-          uploadedImageUrl = publicUrlData.publicUrl;
-        }
-      } catch (err: any) {
-        console.error(err);
-      }
-    }
-    const validExercises = workoutExercises.filter((ex) => ex.name.trim() !== '');
-    const newPostData = {
-      user_id: user.id,
-      username: user.user_metadata?.username || user.email?.split('@')[0] || 'Athlète',
-      avatar_url: userAvatarUrl,
-      image_url: uploadedImageUrl || null,
-      club_name: selectedClub,
-      session_type: workoutType,
-      caption: workoutCaption,
-      exercises: validExercises,
-      likes_count: 0,
-      liked_by: [],
-      comments_count: 0,
-      comments: [],
-      is_private: isPrivateMode
-    };
-    const { data, error } = await supabase.from('posts').insert([newPostData]).select('*');
-    if (error) {
-      alert("Erreur publication Supabase : " + error.message);
-    } else if (data && data.length > 0) {
-      setPosts([data[0] as Post, ...posts]);
-      setUserStreak(prev => prev + 1);
-      setWorkoutCaption('');
-      setPostImageFile(null);
-      setPostImagePreview(null);
-      setWorkoutExercises([]);
-      setCurrentTab('feed');
-      fetchCloudPosts();
-    }
-    setIsUploading(false);
-  };
-
-  const filteredBuddies = registeredUsers.filter((u) => {
-    if (u.id === user?.id) return false;
-    if (buddyTabSubMode === 'my_friends' && !acceptedFriendIds.includes(u.id)) return false;
-    if (filterWomenOnly && u.gender === 'M') return false;
-    
-    if (selectedGoalFilter !== 'all' && u.goal && !u.goal.toLowerCase().includes(selectedGoalFilter.toLowerCase())) {
-      return false;
-    }
-
-    if (selectedAgeGroupFilter !== 'all') {
-      const age = u.age;
-      if (selectedAgeGroupFilter === '18-25' && (age < 18 || age > 25)) return false;
-      if (selectedAgeGroupFilter === '26-35' && (age < 26 || age > 35)) return false;
-      if (selectedAgeGroupFilter === '36-45' && (age < 36 || age > 45)) return false;
-      if (selectedAgeGroupFilter === '46+' && age < 46) return false;
-    }
-
-    if (userSearchQuery.trim()) {
-      const q = userSearchQuery.toLowerCase();
-      return u.username.toLowerCase().includes(q) || u.home_club.toLowerCase().includes(q);
-    }
-
-    return true;
-  });
-
-  const matchedBuddiesList = registeredUsers.filter((u) => {
-    if (u.id === user?.id) return false;
-    if (filterWomenOnly && u.gender === 'M') return false;
-    const matchG = matchGoal === 'Tous' || (u.goal && u.goal.toLowerCase().includes(matchGoal.toLowerCase()));
-    const matchT = matchTime === 'Tous' || (u.preferred_time && u.preferred_time.includes(matchTime));
-    return matchG && matchT;
-  });
-
-  const displayedPosts = posts.filter((post) => {
-    if (post.is_private) {
-      if (post.user_id !== user?.id && !acceptedFriendIds.includes(post.user_id)) {
-        return false;
-      }
-    }
-    return isMatchingClub(post.club_name, selectedClub);
-  });
-
-  const currentChatMessages = allMessages.filter(
-    (m) => selectedBuddyChat && user && ((m.sender_id === user.id && m.receiver_id === selectedBuddyChat.id) || (m.sender_id === selectedBuddyChat.id && m.receiver_id === user.id))
-  );
-
-  const activeViewingStory = activeStoryIndex !== null ? friendStoriesList[activeStoryIndex] : null;
 
   if (!user) {
     if (signupSuccessEmail) {
@@ -2069,23 +1965,27 @@ export default function App() {
                   ))}
                   <div ref={messagesEndRef} />
                 </div>
-                <div className="p-3 bg-neutral-950 border-t border-neutral-800 flex items-center gap-2">
-                  <input type="text" placeholder="Écrire un message..." value={currentMessageInput} onChange={(e) => setCurrentMessageInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()} className="flex-1 bg-neutral-900 border border-neutral-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-orange-500" />
-                  <button onClick={() => handleSendMessage()} className="p-2.5 bg-orange-600 text-white rounded-xl"><SendHorizontal className="w-4 h-4" /></button>
-                </div>
+                
+                {/* On cache la barre d'envoi si on discute avec le Bot Système */}
+                {selectedBuddyChat.id !== 'system-bot' && (
+                  <div className="p-3 bg-neutral-950 border-t border-neutral-800 flex items-center gap-2">
+                    <input type="text" placeholder="Écrire un message..." value={currentMessageInput} onChange={(e) => setCurrentMessageInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()} className="flex-1 bg-neutral-900 border border-neutral-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-orange-500" />
+                    <button onClick={() => handleSendMessage()} className="p-2.5 bg-orange-600 text-white rounded-xl"><SendHorizontal className="w-4 h-4" /></button>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-3">
                 <div className="flex items-center justify-between">
                   <h2 className="text-base font-black tracking-tight">Messagerie</h2>
-                  <span className="text-[10px] text-neutral-500">Conversations avec tes amis 💬</span>
+                  <span className="text-[10px] text-neutral-500">Conversations & Alertes 💬</span>
                 </div>
-                {myFriendsList.length === 0 ? (
+                {activeChatUsers.length === 0 ? (
                   <div className="text-center py-8 text-neutral-500 text-xs">
                     Aucun ami dans ton réseau. Va dans l'onglet **Buddy** pour ajouter des athlètes !
                   </div>
                 ) : (
-                  myFriendsList.map((friend) => (
+                  activeChatUsers.map((friend) => (
                     <div
                       key={friend.id}
                       onClick={() => setSelectedBuddyChat(friend)}
@@ -2322,329 +2222,6 @@ export default function App() {
         )}
       </main>
 
-      {/* POP-UP MATCHMAKING PARTNER */}
-      {isMatchModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-md w-full p-5 space-y-4 shadow-2xl">
-            <div className="flex items-center justify-between pb-2 border-b border-neutral-800">
-              <h3 className="text-sm font-black text-white flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-orange-500" /> Trouver un partenaire (Match)
-              </h3>
-              <button onClick={() => setIsMatchModalOpen(false)} className="p-1 text-neutral-400 hover:text-white"><X className="w-5 h-5" /></button>
-            </div>
-
-            <div className="space-y-3">
-              <div>
-                <label className="block text-[11px] font-semibold text-neutral-400 mb-1">Objectif recherché :</label>
-                <select value={matchGoal} onChange={(e) => setMatchGoal(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-orange-500">
-                  <option value="Tous">Tous les objectifs</option>
-                  <option value="masse">Prise de masse & Force</option>
-                  <option value="cardio">Cardio & HIIT</option>
-                  <option value="remise">Remise en forme</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-semibold text-neutral-400 mb-1">Créneau horaire :</label>
-                <select value={matchTime} onChange={(e) => setMatchTime(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-orange-500">
-                  <option value="Tous">Tous les créneaux</option>
-                  {TIME_SLOTS.map((slot) => (
-                    <option key={slot} value={slot.split(' ')[1]}>{slot}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="flex items-center justify-between pt-1">
-                <span className="text-[11px] text-neutral-400">Filtrer uniquement entre femmes :</span>
-                <button
-                  onClick={() => setFilterWomenOnly(!filterWomenOnly)}
-                  className={`px-3 py-1 rounded-lg text-xs font-bold transition ${filterWomenOnly ? 'bg-pink-600 text-white' : 'bg-neutral-950 text-neutral-400 border border-neutral-800'}`}
-                >
-                  {filterWomenOnly ? 'Activé (🚺)' : 'Désactivé'}
-                </button>
-              </div>
-            </div>
-
-            <div className="space-y-2 pt-2 border-t border-neutral-800 max-h-60 overflow-y-auto">
-              <span className="text-[11px] font-bold text-orange-400 block mb-1">Résultats du match ({matchedBuddiesList.length}) :</span>
-              {matchedBuddiesList.length === 0 ? (
-                <div className="text-center py-6 text-neutral-500 text-xs">Aucun autre athlète ne correspond à ces critères.</div>
-              ) : (
-                matchedBuddiesList.map((buddy) => (
-                  <div key={buddy.id} className="bg-neutral-950 p-3 rounded-2xl border border-neutral-800 flex items-center justify-between">
-                    <div className="flex items-center gap-2.5">
-                      <img src={buddy.avatar_url} alt="" className="w-10 h-10 rounded-full object-cover border border-neutral-700" />
-                      <div>
-                        <h4 className="font-bold text-xs text-white">{buddy.username} {buddy.gender === 'F' && '🚺'}</h4>
-                        <span className="text-[10px] text-orange-400 block">{buddy.goal || 'Sportif'}</span>
-                        <span className="text-[9px] text-amber-400">🕒 {buddy.preferred_time || 'Créneau flexible'}</span>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => {
-                        setIsMatchModalOpen(false);
-                        setSelectedBuddyChat(buddy);
-                        setCurrentTab('chat');
-                      }}
-                      className="px-3 py-1.5 bg-orange-600 hover:bg-orange-500 text-white rounded-xl text-xs font-bold transition flex items-center gap-1"
-                    >
-                      <MessageCircle className="w-3.5 h-3.5" /> Contacter
-                    </button>
-                  </div>
-                ))
-              )}
-            </div>
-
-            <button onClick={() => setIsMatchModalOpen(false)} className="w-full py-3 bg-neutral-950 hover:bg-neutral-800 text-white font-bold rounded-xl text-xs transition border border-neutral-800">
-              Fermer
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL LECTURE DES COMMENTAIRES D'UN POST */}
-      {activeCommentPostId && activePostForComments && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex flex-col justify-end">
-          <div className="bg-neutral-900 border-t border-neutral-800 rounded-t-3xl h-[70vh] flex flex-col shadow-2xl">
-            <div className="flex items-center justify-between p-4 border-b border-neutral-800">
-              <h3 className="font-bold text-sm text-white flex items-center gap-2"><MessageSquare className="w-4 h-4 text-orange-500" /> Commentaires ({activePostForComments.comments_count || 0})</h3>
-              <button onClick={() => setActiveCommentPostId(null)} className="p-1.5 bg-neutral-800 text-white rounded-full"><X className="w-4 h-4" /></button>
-            </div>
-            
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
-              {(!activePostForComments.comments || activePostForComments.comments.length === 0) ? (
-                <div className="text-center text-neutral-500 text-xs py-8">Aucun commentaire pour le moment. Sois le premier à réagir !</div>
-              ) : (
-                activePostForComments.comments.map(c => (
-                  <div key={c.id} className="flex gap-3">
-                    <img src={c.avatar_url} className="w-8 h-8 rounded-full object-cover border border-neutral-700" />
-                    <div className="flex-1 bg-neutral-950 p-3 rounded-2xl rounded-tl-none border border-neutral-800">
-                      <span className="font-bold text-xs text-white block mb-1">{c.username}</span>
-                      <p className="text-xs text-neutral-300">{c.text}</p>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-
-            <form onSubmit={handleAddPostComment} className="p-4 bg-neutral-950 border-t border-neutral-800 flex items-center gap-2">
-              <input type="text" placeholder="Ajouter un commentaire..." value={postCommentInput} onChange={e => setPostCommentInput(e.target.value)} className="flex-1 bg-neutral-900 border border-neutral-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-orange-500" />
-              <button type="submit" disabled={!postCommentInput.trim()} className="p-2.5 bg-orange-600 disabled:bg-neutral-800 disabled:text-neutral-500 text-white rounded-xl transition"><SendHorizontal className="w-4 h-4" /></button>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL FICHE EXPLICATIVE EXERCICE / MACHINE */}
-      {selectedExerciseDetail && (
-        <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex flex-col justify-end sm:justify-center p-4">
-          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-lg w-full mx-auto p-5 space-y-4 max-h-[88vh] overflow-y-auto shadow-2xl">
-            <div className="flex items-center justify-between pb-3 border-b border-neutral-800">
-              <div className="flex items-center gap-2">
-                <span className="text-xs bg-orange-500/20 text-orange-400 px-2.5 py-1 rounded-lg font-bold">{selectedExerciseDetail.category}</span>
-                <h3 className="text-sm font-black text-white">{selectedExerciseDetail.name}</h3>
-              </div>
-              <button onClick={() => setSelectedExerciseDetail(null)} className="p-1.5 bg-neutral-800 text-white rounded-full"><X className="w-5 h-5" /></button>
-            </div>
-
-            <div className="rounded-2xl overflow-hidden border border-neutral-800 bg-neutral-950 h-48 w-full relative">
-              <img src={selectedExerciseDetail.image_url} alt="" className="w-full h-full object-cover" />
-            </div>
-
-            <div className="space-y-3 text-sm">
-              <div className="bg-neutral-950 p-3.5 rounded-2xl border border-neutral-800/80 space-y-1">
-                <span className="font-bold text-orange-400 uppercase text-[11px] tracking-wider block">Équipement & Matériel</span>
-                <p className="text-neutral-200">{selectedExerciseDetail.equipment}</p>
-              </div>
-
-              <div className="bg-neutral-950 p-3.5 rounded-2xl border border-neutral-800/80 space-y-1">
-                <span className="font-bold text-orange-400 uppercase text-[11px] tracking-wider block">Muscles Ciblés</span>
-                <p className="text-neutral-200">{selectedExerciseDetail.targetMuscles}</p>
-              </div>
-
-              <div className="bg-neutral-950 p-3.5 rounded-2xl border border-neutral-800/80 space-y-1">
-                <span className="font-bold text-orange-400 uppercase text-[11px] tracking-wider block">Réglages de la Machine</span>
-                <p className="text-neutral-200">{selectedExerciseDetail.settings}</p>
-              </div>
-
-              <div className="bg-neutral-950 p-3.5 rounded-2xl border border-neutral-800/80 space-y-1">
-                <span className="font-bold text-orange-400 uppercase text-[11px] tracking-wider block">Exécution du Mouvement</span>
-                <p className="text-neutral-200 leading-relaxed">{selectedExerciseDetail.execution}</p>
-              </div>
-
-              <div className="bg-orange-950/20 p-3.5 rounded-2xl border border-orange-500/20 space-y-1">
-                <span className="font-bold text-orange-400 uppercase text-[11px] tracking-wider block">Conseil Coach</span>
-                <p className="text-neutral-200 italic">{selectedExerciseDetail.tips}</p>
-              </div>
-            </div>
-
-            <button onClick={() => setSelectedExerciseDetail(null)} className="w-full py-3 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-xl text-sm transition">
-              Fermer la fiche
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL VISUALISEUR ANATOMIE 2D AMÉLIORÉ */}
-      {activeAnatomyExercise && (
-        <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex flex-col justify-between p-4">
-          <div className="flex items-center justify-between pt-2">
-            <div className="flex items-center gap-2 text-orange-400 font-bold text-sm">
-              <Dumbbell className="w-5 h-5" /> Anatomie : {activeAnatomyExercise}
-            </div>
-            <button onClick={() => setActiveAnatomyExercise(null)} className="p-2 bg-neutral-800 text-white rounded-full"><X className="w-5 h-5" /></button>
-          </div>
-          
-          <div className="flex-1 w-full flex flex-col items-center justify-center my-auto space-y-4">
-            <div className="relative w-full max-w-sm h-72 rounded-3xl bg-neutral-900 border border-neutral-800 flex flex-col items-center justify-center shadow-2xl overflow-hidden p-6 text-center space-y-3">
-              <div className="w-12 h-12 rounded-2xl bg-orange-500/20 border border-orange-500/40 flex items-center justify-center text-orange-500 mx-auto">
-                <Activity className="w-6 h-6 animate-pulse" />
-              </div>
-              <h3 className="text-base font-black text-white">{activeAnatomyExercise}</h3>
-              <p className="text-xs text-neutral-300 leading-relaxed">
-                Cet exercice sollicite principalement les fibres musculaires cibles avec un recrutement synergique des stabilisateurs profonds.
-              </p>
-              <span className="text-[10px] bg-orange-500/10 text-orange-400 px-3 py-1 rounded-full border border-orange-500/20 font-bold">
-                Ciblage haute précision 2D
-              </span>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL CAMÉRA */}
-      {isCameraActive && (
-        <div className="fixed inset-0 z-50 bg-black flex flex-col justify-between items-center p-4">
-          <div className="w-full flex items-center justify-between z-10 pt-2">
-            <span className="text-xs font-bold text-white bg-black/50 px-3 py-1.5 rounded-full border border-neutral-800">Caméra en direct</span>
-            <div className="flex items-center gap-2">
-              <button type="button" onClick={switchCameraFacing} className="p-2.5 bg-black/60 rounded-full text-white"><SwitchCamera className="w-5 h-5" /></button>
-              <button type="button" onClick={stopCameraStream} className="p-2.5 bg-black/60 rounded-full text-white"><X className="w-5 h-5" /></button>
-            </div>
-          </div>
-          <div className="relative w-full flex-1 max-w-sm my-auto rounded-3xl overflow-hidden bg-neutral-950 flex items-center justify-center border border-neutral-800">
-            <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover" />
-          </div>
-          <div className="w-full flex justify-center items-center pb-6 z-10">
-            <button type="button" onClick={capturePhoto} className="w-20 h-20 rounded-full border-4 border-white flex items-center justify-center p-1">
-              <div className="w-full h-full bg-orange-500 rounded-full shadow-lg" />
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* LECTEUR DE STORY */}
-      {activeViewingStory && activeStoryIndex !== null && (
-        <div className="fixed inset-0 z-50 bg-black flex flex-col justify-between p-4 select-none">
-          <div className="w-full flex items-center gap-1.5 pt-2 z-20">
-            {friendStoriesList.map((_, idx) => (
-              <div key={idx} className="h-1 bg-white/30 rounded-full flex-1 overflow-hidden">
-                <div className="h-full bg-white transition-all ease-linear" style={{ width: idx < activeStoryIndex ? '100%' : idx === activeStoryIndex ? `${storyProgress}%` : '0%' }} />
-              </div>
-            ))}
-          </div>
-
-          <div className="flex items-center justify-between pt-3 z-20">
-            <div className="flex items-center gap-2.5">
-              <img src={activeViewingStory.avatar_url} alt="" className="w-10 h-10 rounded-full object-cover border-2 border-orange-500" />
-              <div>
-                <h4 className="font-bold text-xs text-white">{activeViewingStory.username}</h4>
-                <span className="text-[10px] text-neutral-400">{activeViewingStory.club_name}</span>
-              </div>
-            </div>
-            <button onClick={() => { setActiveStoryIndex(null); setIsStoryPaused(false); }} className="p-2 bg-black/60 rounded-full text-white"><X className="w-6 h-6" /></button>
-          </div>
-
-          <div className="absolute inset-0 z-10 flex" style={{ bottom: '90px' }}>
-            <div className="w-1/3 h-full cursor-pointer" onClick={handlePrevStory} />
-            <div className="w-2/3 h-full cursor-pointer" onClick={handleNextStory} />
-          </div>
-
-          <div className="flex-1 flex items-center justify-center py-4 z-0 pointer-events-none">
-            <img src={activeViewingStory.image_url} alt="" className="max-h-[60vh] max-w-full rounded-2xl object-contain border border-neutral-800" />
-          </div>
-
-          {activeViewingStory.caption && (
-            <div className="bg-neutral-950/80 backdrop-blur-lg px-3.5 py-2 rounded-xl border border-neutral-800 text-center mb-2 z-20">
-              <p className="text-xs text-neutral-100 font-medium">{renderCaptionWithHashtags(activeViewingStory.caption)}</p>
-            </div>
-          )}
-
-          <div className="z-30 space-y-2">
-            <div className="flex justify-center gap-4 py-1">
-              {['🔥', '💪', '👏', '❤️'].map((emoji) => (
-                <button key={emoji} onClick={() => handleSendStoryComment(undefined, emoji)} className="text-xl bg-neutral-900/80 p-1.5 rounded-full border border-neutral-800">{emoji}</button>
-              ))}
-            </div>
-            <div className="flex items-center gap-2">
-              <form onSubmit={(e) => handleSendStoryComment(e)} className="flex-1 flex items-center bg-neutral-900 border border-neutral-800 rounded-2xl px-3 py-1.5">
-                <input type="text" placeholder="Répondre..." value={storyCommentInput} onFocus={() => setIsStoryPaused(true)} onBlur={() => !storyCommentInput && setIsStoryPaused(false)} onChange={(e) => setStoryCommentInput(e.target.value)} className="flex-1 bg-transparent text-xs text-white focus:outline-none" />
-                {storyCommentInput.trim() && <button type="submit" className="text-orange-400 p-1"><SendHorizontal className="w-4 h-4" /></button>}
-              </form>
-              <button onClick={() => handleToggleStoryLike(activeViewingStory.id)} className="p-3 bg-neutral-900 border border-neutral-800 rounded-2xl text-white">
-                <Heart className={`w-5 h-5 ${likedStories[activeViewingStory.id] ? 'fill-red-500 text-red-500' : ''}`} />
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL PUBLIER STORY */}
-      {isCreatingStory && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-md w-full p-5 space-y-4">
-            <div className="flex items-center justify-between pb-2 border-b border-neutral-800">
-              <h3 className="text-sm font-bold text-white flex items-center gap-2"><Sparkles className="w-4 h-4 text-orange-500" /> Ajouter à ma story (24h)</h3>
-              <button onClick={() => setIsCreatingStory(false)} className="p-1 text-neutral-400 hover:text-white"><X className="w-5 h-5" /></button>
-            </div>
-            <form onSubmit={handlePublishStory} className="space-y-3.5">
-              <input type="file" accept="image/*" ref={storyFileInputRef} onChange={handleImageSelect} className="hidden" />
-              {storyImagePreview ? (
-                <div className="relative rounded-2xl overflow-hidden border border-neutral-700 bg-neutral-950 h-56 flex items-center justify-center">
-                  <img src={storyImagePreview} alt="" className="max-h-full object-contain" />
-                  <button type="button" onClick={() => setStoryImagePreview(null)} className="absolute top-2 right-2 p-1 bg-black/80 text-white rounded-full"><X className="w-4 h-4" /></button>
-                </div>
-              ) : (
-                <div className="grid grid-cols-2 gap-2.5">
-                  <button type="button" onClick={() => startCamera('story')} className="py-8 border-2 border-dashed border-neutral-800 hover:border-orange-500 rounded-2xl flex flex-col items-center justify-center gap-2 text-neutral-400 bg-neutral-950 transition">
-                    <Camera className="w-6 h-6 text-orange-500" /><span className="text-xs font-semibold">Prendre photo</span>
-                  </button>
-                  <button type="button" onClick={() => storyFileInputRef.current?.click()} className="py-8 border-2 border-dashed border-neutral-800 hover:border-orange-500 rounded-2xl flex flex-col items-center justify-center gap-2 text-neutral-400 bg-neutral-950 transition">
-                    <FolderOpen className="w-6 h-6" /><span className="text-xs font-semibold">Galerie</span>
-                  </button>
-                </div>
-              )}
-              
-              <div className="space-y-2">
-                <input type="text" placeholder="Légende de la story..." value={storyCaption} onChange={(e) => setStoryCaption(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-orange-500" />
-                
-                <div className="pt-1.5 pb-2">
-                  <span className="text-[10px] text-neutral-400 font-medium flex items-center gap-1 mb-2">
-                    <Hash className="w-3 h-3 text-orange-500" /> Hashtags rapides :
-                  </span>
-                  <div className="flex flex-wrap gap-2">
-                    {POPULAR_HASHTAGS.slice(0, 6).map((tag) => (
-                      <button
-                        key={tag}
-                        type="button"
-                        onClick={() => handleAddStoryHashtag(tag)}
-                        className="px-2.5 py-1.5 bg-neutral-950 hover:bg-orange-600/20 border border-neutral-800 hover:border-orange-500 text-neutral-300 hover:text-orange-400 rounded-lg text-[10px] font-semibold transition"
-                      >
-                        {tag}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              <button type="submit" disabled={storyUploading || !storyImageFile} className="w-full bg-orange-600 hover:bg-orange-500 text-white font-bold py-3 rounded-xl shadow-lg transition flex items-center justify-center gap-2 text-xs">
-                {storyUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Partager ma story"}
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
-
       {/* BOTTOM NAV */}
       <nav className="fixed bottom-0 left-0 right-0 z-40 bg-neutral-950/90 backdrop-blur-xl border-t border-neutral-800/80 px-2 py-2 flex justify-around items-center">
         <button onClick={() => setCurrentTab('feed')} className={`flex flex-col items-center gap-1 ${currentTab === 'feed' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Home className="w-5 h-5" /><span className="text-[10px]">Accueil</span></button>
@@ -2654,7 +2231,13 @@ export default function App() {
           <div className="w-8 h-8 rounded-xl bg-orange-600 text-white flex items-center justify-center -mt-2.5 shadow-lg"><Plus className="w-5 h-5" /></div>
           <span className="text-[10px]">Séance</span>
         </button>
-        <button onClick={() => setCurrentTab('chat')} className={`flex flex-col items-center gap-1 ${currentTab === 'chat' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><MessageCircle className="w-5 h-5" /><span className="text-[10px]">Chat</span></button>
+        <button onClick={() => setCurrentTab('chat')} className={`flex flex-col items-center gap-1 ${currentTab === 'chat' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}>
+          <div className="relative">
+            <MessageCircle className="w-5 h-5" />
+            {unreadChatCount > 0 && <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 border border-neutral-950 rounded-full animate-pulse"></span>}
+          </div>
+          <span className="text-[10px]">Chat</span>
+        </button>
         <button onClick={() => setCurrentTab('leaderboard')} className={`flex flex-col items-center gap-1 ${currentTab === 'leaderboard' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Trophy className="w-5 h-5" /><span className="text-[10px]">Records</span></button>
         <button onClick={() => setCurrentTab('profile')} className={`flex flex-col items-center gap-1 ${currentTab === 'profile' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><User className="w-5 h-5" /><span className="text-[10px]">Profil</span></button>
       </nav>
