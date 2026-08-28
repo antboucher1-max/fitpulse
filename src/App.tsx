@@ -894,6 +894,8 @@ export default function App() {
     const { data, error } = await supabase.from('direct_messages').insert([{ sender_id: user.id, receiver_id: selectedBuddyChat.id, sender_name: myName, text }]);
     if (error) {
       alert("Erreur d'envoi du message.");
+    } else {
+      fetchDirectMessages();
     }
   };
 
@@ -1230,6 +1232,13 @@ export default function App() {
       if (user) syncProfile(user);
     }, 30000);
 
+    // POLLING AUTOMATIQUE DE SÉCURITÉ TOUTES LES 2 SECONDES POUR LE CHAT (TEMPS RÉEL GARANTI)
+    const chatPollingInterval = setInterval(() => {
+      if (selectedBuddyChat) {
+        fetchDirectMessages();
+      }
+    }, 2000);
+
     // ABONNEMENT EN TEMPS RÉEL CORRIGÉ ET FORCÉ POUR DIRECT_MESSAGES
     const channel = supabase
       .channel('public:direct_messages_realtime')
@@ -1265,9 +1274,10 @@ export default function App() {
       subscription.unsubscribe();
       supabase.removeChannel(channel);
       clearInterval(presenceInterval);
+      clearInterval(chatPollingInterval);
       stopCameraStream();
     };
-  }, [user?.id]);
+  }, [user?.id, selectedBuddyChat]);
 
   useEffect(() => {
     let storyTimer: NodeJS.Timeout | null = null;
