@@ -1248,7 +1248,6 @@ export default function App() {
       if (user) syncProfile(user);
     }, 30000);
 
-    // POLLING UNIVERSEL AUTOMATIQUE DE SÉCURITÉ (2 SECONDES) POUR LE CHAT ET LES NOTIFICATIONS EN DIRECT
     const universalPollingInterval = setInterval(() => {
       fetchDirectMessages();
     }, 2000);
