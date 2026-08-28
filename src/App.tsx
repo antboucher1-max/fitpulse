@@ -589,7 +589,6 @@ export default function App() {
       setIsResetPasswordMode(false);
       setPassword('');
       setConfirmPassword('');
-      // Nettoyer les paramètres de l'URL pour éviter de boucler
       window.history.replaceState({}, document.title, window.location.pathname);
     }
   };
@@ -1134,8 +1133,6 @@ export default function App() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       const activeUser = session?.user ?? null;
       if (event === 'PASSWORD_RECOVERY') {
-        // CORRECTION SÉCURITÉ : Si c'est une récupération, on déconnecte d'abord la session automatique
-        // et on force l'affichage de l'écran de saisie du nouveau mot de passe.
         setUser(null);
         setIsResetPasswordMode(true);
       } else {
@@ -1258,7 +1255,6 @@ export default function App() {
   // 8. RENDU (JSX)
   // ==========================================
 
-  // ÉCRAN DE RÉINITIALISATION SÉCURISÉ (Si on clique sur le lien e-mail de récupération)
   if (isResetPasswordMode) {
     return (
       <div className="min-h-screen bg-neutral-950 text-white flex flex-col justify-center items-center px-4 py-8">
@@ -1400,7 +1396,6 @@ export default function App() {
         </div>
       </header>
 
-      {/* NOTIFICATION MODAL */}
       {isNotifModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-start justify-center pt-20 p-4">
           <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-md w-full p-4 shadow-2xl max-h-[70vh] overflow-y-auto">
@@ -1644,7 +1639,6 @@ export default function App() {
           </div>
         )}
 
-        {/* TAB BUDDY */}
         {currentTab === 'buddy' && (
           <div className="space-y-4">
             <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4">
@@ -1759,7 +1753,6 @@ export default function App() {
               )}
             </div>
 
-            {/* SECTION SUGGESTIONS : "Personnes que vous connaissez peut-être" */}
             {suggestedBuddiesList.length > 0 && (
               <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-3">
                 <h3 className="text-xs font-black text-orange-400 uppercase tracking-wider flex items-center gap-1.5">
@@ -1838,19 +1831,37 @@ export default function App() {
                       const lastSeenTime = friend.last_seen ? new Date(friend.last_seen).getTime() : 0;
                       const isOnline = (Date.now() - lastSeenTime) / 60000 < 5;
 
+                      const friendMessages = allMessages.filter(
+                        m => (m.sender_id === user?.id && m.receiver_id === friend.id) || (m.sender_id === friend.id && m.receiver_id === user?.id)
+                      );
+                      const lastMsg = friendMessages[friendMessages.length - 1];
+                      
+                      const isUnread = lastMsg && lastMsg.sender_id !== user?.id && new Date(lastMsg.created_at).getTime() > lastChatOpenTime;
+
                       return (
-                        <div key={friend.id} onClick={() => setSelectedBuddyChat(friend)} className="p-4 bg-neutral-950 hover:bg-neutral-900/80 rounded-2xl border border-neutral-800 flex items-center justify-between cursor-pointer transition">
-                          <div className="flex items-center gap-3.5">
+                        <div 
+                          key={friend.id} 
+                          onClick={() => setSelectedBuddyChat(friend)} 
+                          className="p-4 bg-neutral-950 hover:bg-neutral-900/80 rounded-2xl border border-neutral-800 flex items-center justify-between cursor-pointer transition"
+                        >
+                          <div className="flex items-center gap-3.5 overflow-hidden">
                             <div className="relative flex-shrink-0">
                               <img src={friend.avatar_url} alt="" className="w-12 h-12 rounded-full object-cover border border-neutral-800" />
                               {isOnline && <span className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 border-2 border-neutral-950 rounded-full" />}
                             </div>
-                            <div>
-                              <h3 className="font-bold text-sm text-white flex items-center gap-1">
-                                {friend.username} {friend.is_verified && <ShieldCheck className="w-3.5 h-3.5 text-orange-500 fill-orange-500/20" />}
-                              </h3>
+                            <div className="overflow-hidden">
+                              <div className="flex items-center gap-1.5">
+                                <h3 className={`text-sm truncate ${isUnread ? 'font-black text-white' : 'font-bold text-neutral-300'}`}>
+                                  {friend.username}
+                                </h3>
+                                {friend.is_verified && <ShieldCheck className="w-3.5 h-3.5 text-orange-500 fill-orange-500/20 flex-shrink-0" />}
+                              </div>
+                              <p className={`text-xs truncate mt-0.5 ${isUnread ? 'font-bold text-orange-400' : 'text-neutral-500 font-normal'}`}>
+                                {lastMsg ? (lastMsg.sender_id === user?.id ? `Vous : ${lastMsg.text}` : lastMsg.text) : 'Aucun message'}
+                              </p>
                             </div>
                           </div>
+                          {isUnread && <span className="w-2.5 h-2.5 bg-orange-500 rounded-full flex-shrink-0 ml-2 animate-pulse" />}
                         </div>
                       );
                     })
@@ -1930,7 +1941,6 @@ export default function App() {
               </div>
             </div>
 
-            {/* Panneau de Gestion Admin (Certification des coachs) */}
             {isAdmin && (
               <div className="bg-neutral-900 border border-orange-500/40 rounded-3xl p-5 space-y-3 shadow-xl">
                 <h3 className="text-sm font-black text-orange-400 flex items-center gap-2">
@@ -2001,7 +2011,6 @@ export default function App() {
               </div>
             </div>
 
-            {/* Formulaire de modification de mot de passe */}
             <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4">
               <h3 className="font-bold text-sm text-white flex items-center gap-2"><Key className="w-4 h-4 text-orange-500" /> Sécurité & Mot de passe</h3>
               <form onSubmit={async (e) => {
@@ -2036,7 +2045,6 @@ export default function App() {
         )}
       </main>
 
-      {/* MODAL PROFIL TIERS */}
       {viewingProfileUser && (() => {
         const isFriend = acceptedFriendIds.includes(viewingProfileUser.id);
         const existingReq = friendRequests.find(r => (r.sender_id === user?.id && r.receiver_id === viewingProfileUser.id) || (r.sender_id === viewingProfileUser.id && r.receiver_id === user?.id));
@@ -2080,7 +2088,6 @@ export default function App() {
         );
       })()}
 
-      {/* LECTEUR DE STORY PLEIN ÉCRAN */}
       {activeViewingStory && (
         <div 
           className="fixed inset-0 z-50 bg-black flex flex-col justify-between p-4 select-none"
@@ -2137,7 +2144,6 @@ export default function App() {
         </div>
       )}
 
-      {/* POP-UP MATCHMAKING PARTNER */}
       {isMatchModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
           <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-md w-full p-5 space-y-4 shadow-2xl">
@@ -2197,7 +2203,6 @@ export default function App() {
         </div>
       )}
 
-      {/* MODAL PUSH UP (INVITATION) */}
       {inviteModalTarget && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-sm w-full p-5 space-y-4">
@@ -2222,7 +2227,6 @@ export default function App() {
         </div>
       )}
 
-      {/* MODAL FICHE EXPLICATIVE EXERCICE DÉTAILLÉE */}
       {selectedExerciseDetail && (
         <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex flex-col justify-end sm:justify-center p-4">
           <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-lg w-full mx-auto p-5 space-y-4 max-h-[88vh] overflow-y-auto shadow-2xl">
@@ -2258,7 +2262,6 @@ export default function App() {
         </div>
       )}
 
-      {/* MODAL CAMÉRA */}
       {isCameraActive && (
         <div className="fixed inset-0 z-50 bg-black flex flex-col justify-between items-center p-4">
           <div className="w-full flex items-center justify-between z-10 pt-2">
@@ -2277,7 +2280,6 @@ export default function App() {
         </div>
       )}
 
-      {/* MODAL PUBLIER STORY */}
       {isCreatingStory && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-md w-full p-5 space-y-4">
@@ -2313,7 +2315,6 @@ export default function App() {
         </div>
       )}
 
-      {/* MODAL LECTURE COMMENTAIRES */}
       {activeCommentPostId && activePostForComments && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex flex-col justify-end">
           <div className="bg-neutral-900 border-t border-neutral-800 rounded-t-3xl h-[70vh] flex flex-col shadow-2xl">
@@ -2344,7 +2345,6 @@ export default function App() {
         </div>
       )}
 
-      {/* BOTTOM NAV */}
       <nav className="fixed bottom-0 left-0 right-0 z-40 bg-neutral-950/90 backdrop-blur-xl border-t border-neutral-800/80 px-2 py-2 flex justify-around items-center">
         <button onClick={() => handleTabChange('feed')} className={`flex flex-col items-center gap-1 ${currentTab === 'feed' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Home className="w-5 h-5" /><span className="text-[10px]">Accueil</span></button>
         <button onClick={() => handleTabChange('buddy')} className={`flex flex-col items-center gap-1 ${currentTab === 'buddy' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Users className="w-5 h-5" /><span className="text-[10px]">Buddy</span></button>
