@@ -59,7 +59,8 @@ import {
   Flag,
   Bell,
   Key,
-  CheckCheck
+  CheckCheck,
+  Calculator
 } from 'lucide-react';
 import { createClient, User as SupabaseUser } from '@supabase/supabase-js';
 
@@ -298,7 +299,7 @@ export default function App() {
   const [isCGUModalOpen, setIsCGUModalOpen] = useState(false);
 
   // App States
-  const [currentTab, setCurrentTab] = useState<'feed' | 'buddy' | 'workout' | 'exercises' | 'chat' | 'leaderboard' | 'profile'>(() => {
+  const [currentTab, setCurrentTab] = useState<'feed' | 'buddy' | 'workout' | 'exercises' | 'chat' | 'leaderboard' | 'profile' | 'calculator'>(() => {
     try {
       const savedTab = sessionStorage.getItem('fitpulse_current_tab');
       return (savedTab as any) || 'feed';
@@ -317,7 +318,12 @@ export default function App() {
   const [userStreak, setUserStreak] = useState<number>(() => { try { return parseInt(localStorage.getItem('fitpulse_streak') || '2', 10); } catch { return 2; } });
   const [isPrivateMode, setIsPrivateMode] = useState<boolean>(() => { try { return localStorage.getItem('fitpulse_private') === 'true'; } catch { return false; } });
   
-  // Notifications & Suivi de lecture par conversation (Map: buddyId -> timestamp de dernière lecture)
+  // Plate Calculator States
+  const [targetWeight, setTargetWeight] = useState<number | ''>(100);
+  const [barbellWeight, setBarbellWeight] = useState<number>(20);
+  const availablePlates = [25, 20, 15, 10, 5, 2.5, 1.25];
+
+  // Notifications & Suivi de lecture par conversation
   const [lastReadTimestamps, setLastReadTimestamps] = useState<Record<string, number>>(() => {
     try { return JSON.parse(localStorage.getItem('fitpulse_last_read_map') || '{}'); } catch { return {}; }
   });
@@ -441,6 +447,28 @@ export default function App() {
 
 
   // ==========================================
+  // CALCULATEUR DE DISQUES PAR CÔTÉ
+  // ==========================================
+  const calculatePlates = (target: number, bar: number) => {
+    if (target === '' || target <= bar) return [];
+    let remaining = (target - bar) / 2;
+    const result: { weight: number; count: number }[] = [];
+
+    for (const plate of availablePlates) {
+      if (remaining <= 0) break;
+      const count = Math.floor(remaining / plate);
+      if (count > 0) {
+        result.push({ weight: plate, count });
+        remaining = Number((remaining - count * plate).toFixed(2));
+      }
+    }
+    return result;
+  };
+
+  const plateBreakdown = targetWeight !== '' ? calculatePlates(targetWeight, barbellWeight) : [];
+
+
+  // ==========================================
   // VARIABLES DÉRIVÉES ET CALCULÉES
   // ==========================================
   const acceptedFriendIds = friendRequests.filter(req => req.status === 'accepted').map(req => (req.sender_id === user?.id ? req.receiver_id : req.sender_id));
@@ -505,7 +533,6 @@ export default function App() {
   const activeViewingStory = activeStoryIndex !== null ? friendStoriesList[activeStoryIndex] : null;
   const activePostForComments = posts.find((p) => p.id === activeCommentPostId);
   
-  // Nombre total de conversations différentes ayant au moins un message non lu
   const unreadChatCount = activeChatUsers.filter(friend => {
     const lastRead = lastReadTimestamps[friend.id] || 0;
     const friendMsgs = allMessages.filter(m => m.sender_id === friend.id && m.receiver_id === user?.id);
@@ -523,7 +550,7 @@ export default function App() {
   // FONCTIONS ET HANDLERS
   // ==========================================
 
-  const handleTabChange = (tab: 'feed' | 'buddy' | 'workout' | 'exercises' | 'chat' | 'leaderboard' | 'profile') => {
+  const handleTabChange = (tab: 'feed' | 'buddy' | 'workout' | 'exercises' | 'chat' | 'leaderboard' | 'profile' | 'calculator') => {
     setCurrentTab(tab);
     try { sessionStorage.setItem('fitpulse_current_tab', tab); } catch (e) {}
   };
@@ -2050,6 +2077,57 @@ export default function App() {
           </div>
         )}
 
+        {currentTab === 'calculator' && (
+          <div className="space-y-4">
+            <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4">
+              <h2 className="text-base font-black tracking-tight flex items-center gap-2">
+                <Calculator className="w-5 h-5 text-orange-500" /> Calculateur de charge (disques par côté)
+              </h2>
+              <div className="space-y-3 bg-neutral-950 p-4 rounded-2xl border border-neutral-800">
+                <div>
+                  <label className="block text-xs font-semibold text-neutral-400 mb-1">Poids total cible (kg) :</label>
+                  <input 
+                    type="number" 
+                    value={targetWeight} 
+                    onChange={(e) => setTargetWeight(e.target.value === '' ? '' : Number(e.target.value))} 
+                    className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-3.5 py-3 text-sm text-white focus:border-orange-500" 
+                    placeholder="Ex: 100"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-neutral-400 mb-1">Poids de la barre (kg) :</label>
+                  <select 
+                    value={barbellWeight} 
+                    onChange={(e) => setBarbellWeight(Number(e.target.value))} 
+                    className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-3.5 py-3 text-sm text-white focus:border-orange-500"
+                  >
+                    <option value={20}>Barre olympique standard (20 kg)</option>
+                    <option value={15}>Barre féminine / technique (15 kg)</option>
+                    <option value={10}>Petite barre droite (10 kg)</option>
+                    <option value={0}>Sans barre (0 kg)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 space-y-3">
+                <h3 className="text-xs font-bold text-orange-400 uppercase tracking-wider">Disques à charger de chaque côté :</h3>
+                {plateBreakdown.length === 0 ? (
+                  <p className="text-xs text-neutral-500 text-center py-4">Entrez un poids cible supérieur à la barre.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {plateBreakdown.map((item, idx) => (
+                      <div key={idx} className="flex items-center justify-between bg-neutral-900 p-3 rounded-xl border border-neutral-800 text-sm">
+                        <span className="font-bold text-white">Disque de {item.weight} kg</span>
+                        <span className="font-mono font-black text-orange-400">× {item.count}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
         {currentTab === 'leaderboard' && (
           <div className="space-y-4">
             <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4">
@@ -2530,6 +2608,10 @@ export default function App() {
         <button onClick={() => handleTabChange('workout')} className={`flex flex-col items-center gap-1 ${currentTab === 'workout' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}>
           <div className="w-8 h-8 rounded-xl bg-orange-600 text-white flex items-center justify-center -mt-2.5 shadow-lg"><Plus className="w-5 h-5" /></div>
           <span className="text-[10px]">Séance</span>
+        </button>
+        <button onClick={() => handleTabChange('calculator')} className={`flex flex-col items-center gap-1 ${currentTab === 'calculator' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}>
+          <Calculator className="w-5 h-5" />
+          <span className="text-[10px]">Calculateur</span>
         </button>
         <button onClick={() => handleTabChange('chat')} className={`flex flex-col items-center gap-1 ${currentTab === 'chat' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}>
           <div className="relative">
