@@ -1232,14 +1232,12 @@ export default function App() {
       if (user) syncProfile(user);
     }, 30000);
 
-    // POLLING AUTOMATIQUE DE SÉCURITÉ TOUTES LES 2 SECONDES POUR LE CHAT (TEMPS RÉEL GARANTI)
     const chatPollingInterval = setInterval(() => {
       if (selectedBuddyChat) {
         fetchDirectMessages();
       }
     }, 2000);
 
-    // ABONNEMENT EN TEMPS RÉEL CORRIGÉ ET FORCÉ POUR DIRECT_MESSAGES
     const channel = supabase
       .channel('public:direct_messages_realtime')
       .on(
