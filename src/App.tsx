@@ -307,7 +307,6 @@ export default function App() {
   // ==========================================
   const [user, setUser] = useState<SupabaseUser | null>(null);
 
-  // Auth States
   const [isSignUp, setIsSignUp] = useState(false);
   const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [isResetPasswordMode, setIsResetPasswordMode] = useState(false);
@@ -328,7 +327,6 @@ export default function App() {
   const [forgotPasswordSent, setForgotPasswordSent] = useState(false);
   const [isCGUModalOpen, setIsCGUModalOpen] = useState(false);
 
-  // App States
   const [currentTab, setCurrentTab] = useState<'feed' | 'buddy' | 'workout' | 'exercises' | 'chat' | 'leaderboard' | 'profile' | 'calculator' | 'live_tracker' | 'fitbot'>(() => {
     try { return (sessionStorage.getItem('fitpulse_current_tab') as any) || 'feed'; } catch { return 'feed'; }
   });
@@ -343,7 +341,6 @@ export default function App() {
   const [userStreak, setUserStreak] = useState<number>(() => { try { return parseInt(localStorage.getItem('fitpulse_streak') || '2', 10); } catch { return 2; } });
   const [isPrivateMode, setIsPrivateMode] = useState<boolean>(() => { try { return localStorage.getItem('fitpulse_private') === 'true'; } catch { return false; } });
   
-  // Live Workout Tracker & Rest States
   const [isRestTimerActive, setIsRestTimerActive] = useState(false);
   const [restTimeRemaining, setRestTimeRemaining] = useState(90);
   const [restTimerSeconds, setRestTimerSeconds] = useState(90);
@@ -358,7 +355,6 @@ export default function App() {
     try { return parseInt(localStorage.getItem('fitpulse_live_timer') || '0', 10); } catch { return 0; }
   });
 
-  // FitBot IA States avec Reconnaissance Vocale
   const [aiChatMessages, setAiChatMessages] = useState<AIChatMessage[]>([
     { sender: 'bot', text: "Salut l'athlète ! Je suis **FitBot**, ton coach IA personnel. Comment puis-je t'aider aujourd'hui ? (Programme pour ton Basic-Fit, nutrition, conseils d'exécution...)" }
   ]);
@@ -366,7 +362,6 @@ export default function App() {
   const [isListening, setIsListening] = useState(false);
   const aiMessagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Notifications & Base de données
   const [lastReadTimestamps, setLastReadTimestamps] = useState<Record<string, number>>(() => {
     try { return JSON.parse(localStorage.getItem('fitpulse_last_read_map') || '{}'); } catch { return {}; }
   });
@@ -391,14 +386,12 @@ export default function App() {
   
   const [viewingProfileUser, setViewingProfileUser] = useState<RealUser | null>(null);
 
-  // Buddy Filters
   const [buddyTabSubMode, setBuddyTabSubMode] = useState<'discover' | 'my_friends' | 'requests'>('discover');
   const [userSearchQuery, setUserSearchQuery] = useState('');
   const [filterWomenOnly, setFilterWomenOnly] = useState(false);
   const [selectedGoalFilter, setSelectedGoalFilter] = useState<string>('all');
   const [selectedAgeGroupFilter, setSelectedAgeGroupFilter] = useState<string>('all');
   
-  // Modals & Active items
   const [isMatchModalOpen, setIsMatchModalOpen] = useState(false);
   const [matchGoal, setMatchGoal] = useState('Tous');
   const [matchTime, setMatchTime] = useState('Tous');
@@ -423,18 +416,15 @@ export default function App() {
   const [workoutExercises, setWorkoutExercises] = useState<ExerciseEntry[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Camera State
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [cameraTarget, setCameraTarget] = useState<'post' | 'story' | 'trans_before' | 'trans_after' | 'profile_avatar'>('post');
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('environment');
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
-  // Plate Calculator States
   const [targetWeight, setTargetWeight] = useState<number | ''>(100);
   const [barbellWeight, setBarbellWeight] = useState<number>(20);
 
-  // Chat & Invites
   const [selectedBuddyChat, setSelectedBuddyChat] = useState<RealUser | null>(null);
   const [currentMessageInput, setCurrentMessageInput] = useState('');
   const [isOtherUserTyping, setIsOtherUserTyping] = useState(false);
@@ -445,7 +435,6 @@ export default function App() {
   const [inviteType, setInviteType] = useState('Jambes (Leg Day)');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Transformations
   const [newTransNote, setNewTransNote] = useState('');
   const [newTransWeight, setNewTransWeight] = useState<number | ''>('');
   const [newTransBefore, setNewTransBefore] = useState<string | null>(null);
@@ -454,7 +443,6 @@ export default function App() {
   const beforeFileInputRef = useRef<HTMLInputElement>(null);
   const afterFileInputRef = useRef<HTMLInputElement>(null);
 
-  // Cropper
   const [postImageZoom, setPostImageZoom] = useState(1);
   const [postImageOffset, setPostImageOffset] = useState({ x: 0, y: 0 });
   const [isDraggingImage, setIsDraggingImage] = useState(false);
@@ -1320,6 +1308,27 @@ export default function App() {
     setInviteModalTarget(null);
   };
 
+  const handleToggleLike = async (postId: string) => {
+    if (!user) return;
+    const post = posts.find(p => p.id === postId);
+    if (!post) return;
+    const likedByList = post.liked_by || [];
+    const hasAlreadyLiked = likedByList.includes(user.id);
+    let updatedLikedBy = [...likedByList];
+    let newCount = post.likes_count;
+
+    if (hasAlreadyLiked) { updatedLikedBy = updatedLikedBy.filter(id => id !== user.id); newCount = Math.max(0, newCount - 1); } 
+    else { 
+      updatedLikedBy.push(user.id); newCount += 1; 
+      if (post.user_id !== user.id) {
+         const myName = user.user_metadata?.username || user.email?.split('@')[0] || 'Un athlète';
+         sendSystemNotification(post.user_id, `❤️ ${myName} a aimé votre séance "${post.session_type}".`);
+      }
+    }
+    setPosts(prev => prev.map(p => p.id === postId ? { ...p, likes_count: newCount, liked_by: updatedLikedBy } : p));
+    await supabase.from('posts').update({ likes_count: newCount, liked_by: updatedLikedBy }).eq('id', postId);
+  };
+
 
   // ==========================================
   // 4. EFFETS SECONDAIRES DE COMPOSANT (useEffect)
@@ -1452,17 +1461,6 @@ export default function App() {
   useEffect(() => { localStorage.setItem('fitpulse_private', isPrivateMode.toString()); }, [isPrivateMode]);
   useEffect(() => { localStorage.setItem('fitpulse_liked_stories', JSON.stringify(likedStories)); }, [likedStories]);
   useEffect(() => { localStorage.setItem('fitpulse_viewed_stories', JSON.stringify(viewedStoryIds)); }, [viewedStoryIds]);
-
-  useEffect(() => {
-    let timer: NodeJS.Timeout | null = null;
-    if (isRestTimerActive && restTimeRemaining > 0) {
-      timer = setInterval(() => setRestTimeRemaining((prev) => prev - 1), 1000);
-    } else if (restTimeRemaining === 0 && isRestTimerActive) {
-      setIsRestTimerActive(false);
-      alert('⏰ Temps de repos terminé ! Prépare ta prochaine série 💪');
-    }
-    return () => { if (timer) clearInterval(timer); };
-  }, [isRestTimerActive, restTimeRemaining]);
 
 
   // ==========================================
@@ -2545,6 +2543,306 @@ export default function App() {
           </div>
         )}
       </main>
+
+      {viewingProfileUser && (() => {
+        const isFriend = acceptedFriendIds.includes(viewingProfileUser.id);
+        const existingReq = friendRequests.find(r => (r.sender_id === user?.id && r.receiver_id === viewingProfileUser.id) || (r.sender_id === viewingProfileUser.id && r.receiver_id === user?.id));
+        const isPending = existingReq && existingReq.status === 'pending';
+        const ageRange = getAgeRangeLabel(viewingProfileUser.birth_date);
+
+        return (
+          <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
+            <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-sm w-full p-6 space-y-5 shadow-2xl relative max-h-[85vh] overflow-y-auto">
+              <button onClick={() => setViewingProfileUser(null)} className="absolute top-4 right-4 p-2 bg-neutral-800 text-white rounded-full"><X className="w-4 h-4" /></button>
+              
+              <div className="text-center space-y-3 pt-2">
+                <img src={viewingProfileUser.avatar_url} alt="" className="w-24 h-24 rounded-full object-cover border-2 border-orange-500 mx-auto shadow-xl" />
+                <div>
+                  <h3 className="text-lg font-black text-white flex items-center justify-center gap-1.5">
+                    {viewingProfileUser.username} {viewingProfileUser.gender === 'F' && '🚺'}
+                    {viewingProfileUser.is_verified && <ShieldCheck className="w-5 h-5 text-orange-500 fill-orange-500/20" />}
+                  </h3>
+                  <span className="text-xs text-orange-400 font-semibold block mt-0.5"><MapPin className="w-3.5 h-3.5 inline mr-1" />{viewingProfileUser.home_club}</span>
+                </div>
+              </div>
+
+              <div className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 space-y-2 text-xs text-neutral-300">
+                <div className="flex justify-between py-1 border-b border-neutral-900"><span className="text-neutral-400">Objectif :</span><strong className="text-white">{viewingProfileUser.goal || 'Sportif'}</strong></div>
+                <div className="flex justify-between py-1 border-b border-neutral-900"><span className="text-neutral-400">Créneau préféré :</span><strong className="text-white">{viewingProfileUser.preferred_time || 'Flexible'}</strong></div>
+                <div className="flex justify-between py-1"><span className="text-neutral-400">Tranche d'âge :</span><strong className="text-white">{ageRange}</strong></div>
+              </div>
+
+              <div className="flex gap-2.5 pt-2">
+                <button onClick={() => { const target = viewingProfileUser; setViewingProfileUser(null); handleSelectBuddyChat(target); setCurrentTab('chat'); }} className="flex-1 py-3.5 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 shadow-lg"><MessageCircle className="w-4 h-4" /> Message</button>
+                
+                {!isFriend && !isPending && viewingProfileUser.id !== user?.id && (
+                  <button onClick={() => handleSendFriendRequest(viewingProfileUser.id)} className="px-4 py-3 bg-neutral-800 hover:bg-neutral-700 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5"><UserPlus className="w-4 h-4 text-orange-400" /> Demander en ami</button>
+                )}
+                {isPending && (
+                  <button disabled className="px-4 py-3 bg-neutral-800 text-neutral-400 rounded-xl text-xs">Demande en attente</button>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {activeViewingStory && (
+        <div 
+          className="fixed inset-0 z-50 bg-black flex flex-col justify-between p-4 select-none"
+          onMouseDown={() => setIsStoryPaused(true)}
+          onMouseUp={() => setIsStoryPaused(false)}
+          onTouchStart={() => setIsStoryPaused(true)}
+          onTouchEnd={() => setIsStoryPaused(false)}
+        >
+          <div className="w-full flex gap-1.5 pt-2 z-10">
+            <div className="h-1 flex-1 bg-white/30 rounded-full overflow-hidden">
+              <div className="h-full bg-white transition-all duration-100 ease-linear" style={{ width: `${storyProgress}%` }} />
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between pt-3 z-10">
+            <div className="flex items-center gap-2.5">
+              <img src={activeViewingStory.avatar_url} alt="" className="w-9 h-9 rounded-full object-cover border border-white/20" />
+              <div>
+                <h4 className="font-bold text-xs text-white leading-none">{activeViewingStory.username}</h4>
+                <span className="text-[10px] text-white/70">{activeViewingStory.club_name}</span>
+              </div>
+            </div>
+            <button onClick={() => { setActiveStoryIndex(null); setIsStoryPaused(false); }} className="p-2 bg-black/40 text-white rounded-full"><X className="w-5 h-5" /></button>
+          </div>
+
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <img src={activeViewingStory.image_url} alt="" className="w-full h-full object-cover" />
+            {activeViewingStory.caption && (
+              <div className="absolute bottom-28 left-4 right-4 bg-black/60 backdrop-blur-md p-3.5 rounded-2xl text-center border border-white/10 pointer-events-auto">
+                <p className="text-sm text-white font-medium">{activeViewingStory.caption}</p>
+              </div>
+            )}
+          </div>
+
+          <div className="absolute inset-y-0 left-0 w-1/3 cursor-pointer z-0" onClick={(e) => { e.stopPropagation(); handlePrevStory(); }} />
+          <div className="absolute inset-y-0 right-0 w-1/3 cursor-pointer z-0" onClick={(e) => { e.stopPropagation(); handleNextStory(); }} />
+
+          <div className="space-y-2.5 z-10 pb-4">
+            <div className="flex justify-center gap-3 bg-black/50 backdrop-blur-md py-2 px-4 rounded-full border border-white/10 w-fit mx-auto">
+              {['❤️', '🔥', '👏', '😮', '💪', '🏆'].map((emoji) => (
+                <button key={emoji} onClick={(e) => { e.stopPropagation(); handleQuickEmojiReaction(emoji); }} className="text-xl hover:scale-125 transition transform">{emoji}</button>
+              ))}
+            </div>
+            <div className="flex items-center gap-3">
+              <form onSubmit={handleSendStoryComment} className="flex-1 flex items-center gap-2 bg-black/60 backdrop-blur-md border border-white/20 rounded-full px-4 py-2">
+                <input type="text" placeholder={`Répondre à ${activeViewingStory.username}...`} value={storyCommentInput} onChange={(e) => setStoryCommentInput(e.target.value)} className="flex-1 bg-transparent text-xs text-white focus:outline-none placeholder-white/60" />
+                <button type="submit" className="text-orange-400"><SendHorizontal className="w-4 h-4" /></button>
+              </form>
+              <button onClick={() => handleToggleStoryLike(activeViewingStory.id)} className="p-3 bg-black/60 backdrop-blur-md border border-white/20 rounded-full text-white transition">
+                <Heart className={`w-5 h-5 ${likedStories[activeViewingStory.id] ? 'fill-red-500 text-red-500' : ''}`} />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isMatchModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-md w-full p-5 space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between pb-2 border-b border-neutral-800">
+              <h3 className="text-sm font-black text-white flex items-center gap-2"><Sparkles className="w-4 h-4 text-orange-500" /> Trouver un partenaire (Match)</h3>
+              <button onClick={() => setIsMatchModalOpen(false)} className="p-1 text-neutral-400 hover:text-white"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-semibold text-neutral-400 mb-1">Objectif :</label>
+                <select value={matchGoal} onChange={(e) => setMatchGoal(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:border-orange-500">
+                  <option value="Tous">Tous les objectifs</option>
+                  <option value="masse">Prise de masse & Force</option>
+                  <option value="cardio">Cardio & HIIT</option>
+                  <option value="remise">Remise en forme</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-neutral-400 mb-1">Horaire recherché :</label>
+                <select value={matchTime} onChange={(e) => setMatchTime(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:border-orange-500">
+                  <option value="Tous">Tous les horaires</option>
+                  {TIME_SLOTS.map((slot) => <option key={slot} value={slot.split(' ')[1]}>{slot}</option>)}
+                </select>
+              </div>
+              <div className="flex items-center justify-between pt-1">
+                <span className="text-xs text-neutral-400">Filtrer uniquement entre femmes :</span>
+                <button
+                  onClick={() => setMatchWomenOnly(!matchWomenOnly)}
+                  className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition ${matchWomenOnly ? 'bg-pink-600 text-white' : 'bg-neutral-950 text-neutral-400 border border-neutral-800'}`}
+                >
+                  {matchWomenOnly ? 'Activé (🚺)' : 'Désactivé'}
+                </button>
+              </div>
+            </div>
+            <div className="space-y-2.5 pt-2 border-t border-neutral-800 max-h-60 overflow-y-auto">
+              <span className="text-xs font-bold text-orange-400 block mb-1">Résultats ({matchedBuddiesList.length}) :</span>
+              {matchedBuddiesList.length === 0 ? (
+                <div className="text-center py-6 text-neutral-500 text-sm">Aucun athlète ne correspond à cet horaire/objectif.</div>
+              ) : (
+                matchedBuddiesList.map((buddy) => (
+                  <div key={buddy.id} className="bg-neutral-950 p-3.5 rounded-2xl border border-neutral-800 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <img src={buddy.avatar_url} alt="" className="w-11 h-11 rounded-full object-cover border border-neutral-700" />
+                      <div>
+                        <h4 className="font-bold text-sm text-white">{buddy.username} {buddy.gender === 'F' && '🚺'}</h4>
+                        <span className="text-xs text-orange-400 block">🎯 {buddy.goal || 'Sportif'}</span>
+                        <span className="text-[11px] text-amber-400 font-semibold">🕒 {buddy.preferred_time || 'Flexible'}</span>
+                      </div>
+                    </div>
+                    <button onClick={() => { setIsMatchModalOpen(false); handleSelectBuddyChat(buddy); setCurrentTab('chat'); }} className="px-3.5 py-2 bg-orange-600 text-white rounded-xl text-xs font-bold flex items-center gap-1.5"><MessageCircle className="w-4 h-4" /> Contacter</button>
+                  </div>
+                ))
+              )}
+            </div>
+            <button onClick={() => setIsMatchModalOpen(false)} className="w-full py-3 bg-neutral-950 text-white font-bold rounded-xl text-sm border border-neutral-800">Fermer</button>
+          </div>
+        </div>
+      )}
+
+      {inviteModalTarget && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-sm w-full p-5 space-y-4">
+            <div className="flex items-center justify-between pb-2 border-b border-neutral-800">
+              <h3 className="text-sm font-black text-white flex items-center gap-2"><Zap className="w-4 h-4 text-orange-500" /> Lancer un Push Up !</h3>
+              <button onClick={() => setInviteModalTarget(null)} className="p-1 text-neutral-400 hover:text-white"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="space-y-3">
+              <p className="text-sm text-neutral-300">Invite <strong>{inviteModalTarget.username}</strong> à s'entraîner.</p>
+              <div>
+                <select value={inviteType} onChange={(e) => setInviteType(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3.5 py-3 text-sm text-white focus:border-orange-500">
+                  <option value="Jambes (Leg Day)">Jambes (Leg Day)</option>
+                  <option value="Push (Pecs, Épaules, Triceps)">Push (Pecs, Épaules)</option>
+                  <option value="Pull (Dos, Biceps)">Pull (Dos, Biceps)</option>
+                  <option value="Cardio & HIIT">Cardio & HIIT</option>
+                  <option value="Full Body">Full Body</option>
+                </select>
+              </div>
+            </div>
+            <button onClick={handleSendInvite} className="w-full py-3.5 bg-orange-600 text-white font-bold rounded-xl text-sm flex items-center justify-center gap-2"><Send className="w-4 h-4" /> Envoyer</button>
+          </div>
+        </div>
+      )}
+
+      {selectedExerciseDetail && (
+        <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex flex-col justify-end sm:justify-center p-4">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-lg w-full mx-auto p-5 space-y-4 max-h-[88vh] overflow-y-auto shadow-2xl">
+            <div className="flex items-center justify-between pb-3 border-b border-neutral-800">
+              <div className="flex items-center gap-2">
+                <span className="text-xs bg-orange-500/20 text-orange-400 px-3 py-1 rounded-lg font-bold">{selectedExerciseDetail.category}</span>
+                <h3 className="text-sm font-black text-white">{selectedExerciseDetail.name}</h3>
+              </div>
+              <button onClick={() => setSelectedExerciseDetail(null)} className="p-2 bg-neutral-800 text-white rounded-full"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="rounded-2xl overflow-hidden border border-neutral-800 bg-neutral-950 h-48 w-full relative">
+              <img src={selectedExerciseDetail.image_url} alt="" className="w-full h-full object-cover" />
+            </div>
+            <div className="space-y-3 text-sm leading-relaxed text-neutral-300">
+              <div className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 space-y-1.5">
+                <span className="font-bold text-orange-400 uppercase text-xs block">Description détaillée</span>
+                <p>{selectedExerciseDetail.detailedDescription}</p>
+              </div>
+              <div className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 space-y-1.5">
+                <span className="font-bold text-orange-400 uppercase text-xs block">Équipement requis</span>
+                <p className="text-neutral-200">{selectedExerciseDetail.equipment}</p>
+              </div>
+              <div className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 space-y-1.5">
+                <span className="font-bold text-orange-400 uppercase text-xs block">Exécution du mouvement</span>
+                <p className="text-neutral-200">{selectedExerciseDetail.execution}</p>
+              </div>
+              <div className="bg-orange-950/20 p-4 rounded-2xl border border-orange-500/20 space-y-1.5">
+                <span className="font-bold text-orange-400 uppercase text-xs block">Conseil du Coach</span>
+                <p className="text-neutral-200 italic">{selectedExerciseDetail.tips}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isCameraActive && (
+        <div className="fixed inset-0 z-50 bg-black flex flex-col justify-between items-center p-4">
+          <div className="w-full flex items-center justify-between z-10 pt-2">
+            <span className="text-xs font-bold text-white bg-black/50 px-3.5 py-1.5 rounded-full border border-neutral-800">Caméra</span>
+            <div className="flex items-center gap-2">
+              <button type="button" onClick={switchCameraFacing} className="p-3 bg-black/60 rounded-full text-white"><SwitchCamera className="w-5 h-5" /></button>
+              <button type="button" onClick={stopCameraStream} className="p-3 bg-black/60 rounded-full text-white"><X className="w-5 h-5" /></button>
+            </div>
+          </div>
+          <div className="relative w-full flex-1 max-w-sm my-auto rounded-3xl overflow-hidden bg-neutral-950 flex items-center justify-center border border-neutral-800">
+            <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover" />
+          </div>
+          <div className="w-full flex justify-center items-center pb-6 z-10">
+            <button type="button" onClick={capturePhoto} className="w-20 h-20 rounded-full border-4 border-white flex items-center justify-center p-1"><div className="w-full h-full bg-orange-500 rounded-full shadow-lg" /></button>
+          </div>
+        </div>
+      )}
+
+      {isCreatingStory && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-md w-full p-5 space-y-4">
+            <div className="flex items-center justify-between pb-2 border-b border-neutral-800">
+              <h3 className="text-sm font-bold text-white flex items-center gap-2"><Sparkles className="w-4 h-4 text-orange-500" /> Ajouter à ma story (24h)</h3>
+              <button onClick={() => setIsCreatingStory(false)} className="p-1 text-neutral-400 hover:text-white"><X className="w-5 h-5" /></button>
+            </div>
+            <form onSubmit={handlePublishStory} className="space-y-4">
+              <input type="file" accept="image/*" ref={storyFileInputRef} onChange={handleImageSelect} className="hidden" />
+              {storyImagePreview ? (
+                <div className="relative rounded-2xl overflow-hidden border border-neutral-700 bg-neutral-950 h-56 flex items-center justify-center">
+                  <img src={storyImagePreview} alt="" className="max-h-full object-contain" />
+                  <button type="button" onClick={() => setStoryImagePreview(null)} className="absolute top-2.5 right-2.5 p-1.5 bg-black/80 text-white rounded-full"><X className="w-4 h-4" /></button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-3">
+                  <button type="button" onClick={() => startCameraHandler('story')} className="py-8 border-2 border-dashed border-neutral-800 hover:border-orange-500 rounded-2xl flex flex-col items-center justify-center gap-2 text-neutral-400 bg-neutral-950 transition">
+                    <Camera className="w-6 h-6 text-orange-500" /><span className="text-xs font-semibold">Prendre photo</span>
+                  </button>
+                  <button type="button" onClick={() => storyFileInputRef.current?.click()} className="py-8 border-2 border-dashed border-neutral-800 hover:border-orange-500 rounded-2xl flex flex-col items-center justify-center gap-2 text-neutral-400 bg-neutral-950 transition">
+                    <FolderOpen className="w-6 h-6 text-neutral-400" /><span className="text-xs font-semibold">Album tel</span>
+                  </button>
+                </div>
+              )}
+              <div className="space-y-2">
+                <input type="text" placeholder="Légende de la story..." value={storyCaption} onChange={(e) => setStoryCaption(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3.5 py-3 text-sm text-white focus:outline-none focus:border-orange-500" />
+              </div>
+              <button type="submit" disabled={storyUploading || !storyImageFile} className="w-full bg-orange-600 hover:bg-orange-500 text-white font-bold py-3.5 rounded-xl shadow-lg transition flex items-center justify-center gap-2 text-sm">
+                {storyUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Partager ma story"}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {activeCommentPostId && activePostForComments && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex flex-col justify-end">
+          <div className="bg-neutral-900 border-t border-neutral-800 rounded-t-3xl h-[70vh] flex flex-col shadow-2xl">
+            <div className="flex items-center justify-between p-4 border-b border-neutral-800">
+              <h3 className="font-bold text-sm text-white flex items-center gap-2"><MessageSquare className="w-4 h-4 text-orange-500" /> Commentaires ({activePostForComments.comments_count || 0})</h3>
+              <button onClick={() => setActiveCommentPostId(null)} className="p-2 bg-neutral-800 text-white rounded-full"><X className="w-4 h-4" /></button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              {(!activePostForComments.comments || activePostForComments.comments.length === 0) ? (
+                <div className="text-center text-neutral-500 text-sm py-8">Aucun commentaire. Sois le premier à réagir !</div>
+              ) : (
+                activePostForComments.comments.map(c => (
+                  <div key={c.id} className="flex gap-3">
+                    <img src={c.avatar_url} className="w-9 h-9 rounded-full object-cover border border-neutral-700" />
+                    <div className="flex-1 bg-neutral-950 p-3.5 rounded-2xl rounded-tl-none border border-neutral-800">
+                      <span className="font-bold text-xs text-white block mb-1">{c.username}</span>
+                      <p className="text-sm text-neutral-300 leading-relaxed">{c.text}</p>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+            <form onSubmit={handleAddPostComment} className="p-3.5 bg-neutral-950 border-t border-neutral-800 flex items-center gap-2.5">
+              <input type="text" placeholder="Ajouter un commentaire..." value={postCommentInput} onChange={e => setPostCommentInput(e.target.value)} className="flex-1 bg-neutral-900 border border-neutral-800 rounded-xl px-4 py-3 text-sm text-white focus:border-orange-500" />
+              <button type="submit" disabled={!postCommentInput.trim()} className="p-3 bg-orange-600 disabled:bg-neutral-800 text-white rounded-xl"><SendHorizontal className="w-4 h-4" /></button>
+            </form>
+          </div>
+        </div>
+      )}
 
       <nav className="fixed bottom-0 left-0 right-0 z-40 bg-neutral-950/90 backdrop-blur-xl border-t border-neutral-800/80 px-2 py-2 flex justify-around items-center">
         <button onClick={() => handleTabChange('feed')} className={`flex flex-col items-center gap-1 ${currentTab === 'feed' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Home className="w-5 h-5" /><span className="text-[10px]">Accueil</span></button>
