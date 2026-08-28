@@ -316,7 +316,11 @@ export default function App() {
   const [userStreak, setUserStreak] = useState<number>(() => { try { return parseInt(localStorage.getItem('fitpulse_streak') || '2', 10); } catch { return 2; } });
   const [isPrivateMode, setIsPrivateMode] = useState<boolean>(() => { try { return localStorage.getItem('fitpulse_private') === 'true'; } catch { return false; } });
   
-  // Notifications
+  // Notifications & Suivi de lecture par conversation (Map: buddyId -> timestamp de dernière lecture)
+  const [lastReadTimestamps, setLastReadTimestamps] = useState<Record<string, number>>(() => {
+    try { return JSON.parse(localStorage.getItem('fitpulse_last_read_map') || '{}'); } catch { return {}; }
+  });
+
   const [lastNotifOpenTime, setLastNotifOpenTime] = useState<number>(() => { try { return parseInt(localStorage.getItem('fitpulse_last_notif') || '0', 10); } catch { return 0; } });
   const [isNotifModalOpen, setIsNotifModalOpen] = useState(false);
 
@@ -384,7 +388,6 @@ export default function App() {
   const streamRef = useRef<MediaStream | null>(null);
 
   // Chat & Invites
-  const [lastChatOpenTime, setLastChatOpenTime] = useState<number>(() => { try { return parseInt(localStorage.getItem('fitpulse_last_chat') || '0', 10); } catch { return 0; } });
   const [selectedBuddyChat, setSelectedBuddyChat] = useState<RealUser | null>(null);
   const [currentMessageInput, setCurrentMessageInput] = useState('');
   const [isOtherUserTyping, setIsOtherUserTyping] = useState(false);
@@ -500,7 +503,14 @@ export default function App() {
 
   const activeViewingStory = activeStoryIndex !== null ? friendStoriesList[activeStoryIndex] : null;
   const activePostForComments = posts.find((p) => p.id === activeCommentPostId);
-  const unreadChatCount = allMessages.filter((m) => m.receiver_id === user?.id && new Date(m.created_at).getTime() > lastChatOpenTime).length;
+  
+  // Nombre total de conversations ayant au moins un message non lu
+  const unreadChatCount = activeChatUsers.filter(friend => {
+    const lastRead = lastReadTimestamps[friend.id] || 0;
+    const friendMsgs = allMessages.filter(m => m.sender_id === friend.id && m.receiver_id === user?.id);
+    return friendMsgs.some(m => new Date(m.created_at).getTime() > lastRead);
+  }).length;
+
   const notifications = allMessages.filter(m => m.receiver_id === user?.id && m.sender_id === 'system-notification');
   const unreadNotifsCount = notifications.filter(m => new Date(m.created_at).getTime() > lastNotifOpenTime).length;
 
@@ -515,6 +525,16 @@ export default function App() {
   const handleTabChange = (tab: 'feed' | 'buddy' | 'workout' | 'exercises' | 'chat' | 'leaderboard' | 'profile') => {
     setCurrentTab(tab);
     try { sessionStorage.setItem('fitpulse_current_tab', tab); } catch (e) {}
+  };
+
+  const handleSelectBuddyChat = (friend: RealUser) => {
+    setSelectedBuddyChat(friend);
+    if (user) {
+      const now = Date.now();
+      const updated = { ...lastReadTimestamps, [friend.id]: now };
+      setLastReadTimestamps(updated);
+      try { localStorage.setItem('fitpulse_last_read_map', JSON.stringify(updated)); } catch(e) {}
+    }
   };
 
   const convertJJMMAAAAtoYYYYMMDD = (input: string): string => {
@@ -1340,14 +1360,6 @@ export default function App() {
   useEffect(() => { localStorage.setItem('fitpulse_viewed_stories', JSON.stringify(viewedStoryIds)); }, [viewedStoryIds]);
 
   useEffect(() => {
-    if (currentTab === 'chat') {
-      const now = Date.now();
-      setLastChatOpenTime(now);
-      localStorage.setItem('fitpulse_last_chat', now.toString());
-    }
-  }, [allMessages, currentTab]);
-
-  useEffect(() => {
     let timer: NodeJS.Timeout | null = null;
     if (isRestTimerActive && restTimeRemaining > 0) {
       timer = setInterval(() => setRestTimeRemaining((prev) => prev - 1), 1000);
@@ -1860,7 +1872,7 @@ export default function App() {
                               ) : (
                                 <button onClick={() => handleSendFriendRequest(realUser.id)} className="px-3.5 py-2 bg-orange-600 hover:bg-orange-500 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5"><UserPlus className="w-4 h-4" /> Ajouter</button>
                               )}
-                              <button onClick={() => { setSelectedBuddyChat(realUser); setCurrentTab('chat'); }} className="p-2.5 bg-neutral-900 border border-neutral-800 hover:border-orange-500 text-neutral-200 rounded-xl"><MessageCircle className="w-4 h-4" /></button>
+                              <button onClick={() => { handleSelectBuddyChat(realUser); setCurrentTab('chat'); }} className="p-2.5 bg-neutral-900 border border-neutral-800 hover:border-orange-500 text-neutral-200 rounded-xl"><MessageCircle className="w-4 h-4" /></button>
                             </div>
                           </div>
                         );
@@ -1978,13 +1990,14 @@ export default function App() {
                       );
                       const lastMsg = friendMessages[friendMessages.length - 1];
                       
-                      const unreadCountForFriend = friendMessages.filter(m => m.sender_id !== user?.id && new Date(m.created_at).getTime() > lastChatOpenTime).length;
+                      const lastRead = lastReadTimestamps[friend.id] || 0;
+                      const unreadCountForFriend = friendMessages.filter(m => m.sender_id !== user?.id && new Date(m.created_at).getTime() > lastRead).length;
                       const isUnread = unreadCountForFriend > 0;
 
                       return (
                         <div 
                           key={friend.id} 
-                          onClick={() => setSelectedBuddyChat(friend)} 
+                          onClick={() => handleSelectBuddyChat(friend)} 
                           className="p-4 bg-neutral-950 hover:bg-neutral-900/80 rounded-2xl border border-neutral-800 flex items-center justify-between cursor-pointer transition"
                         >
                           <div className="flex items-center gap-3.5 overflow-hidden">
@@ -1999,7 +2012,7 @@ export default function App() {
                                 </h3>
                                 {friend.is_verified && <ShieldCheck className="w-3.5 h-3.5 text-orange-500 fill-orange-500/20 flex-shrink-0" />}
                               </div>
-                              <p className={`text-xs truncate mt-0.5 ${isUnread ? 'font-bold text-orange-400' : 'text-neutral-500 font-normal'}`}>
+                              <p className={`text-xs truncate mt-0.5 ${isUnread ? 'font-bold text-blue-400' : 'text-neutral-500 font-normal'}`}>
                                 {lastMsg ? (lastMsg.sender_id === user?.id ? `Vous : ${lastMsg.text}` : lastMsg.text) : 'Aucun message'}
                               </p>
                             </div>
@@ -2340,7 +2353,7 @@ export default function App() {
                         <span className="text-[11px] text-amber-400 font-semibold">🕒 {buddy.preferred_time || 'Flexible'}</span>
                       </div>
                     </div>
-                    <button onClick={() => { setIsMatchModalOpen(false); setSelectedBuddyChat(buddy); setCurrentTab('chat'); }} className="px-3.5 py-2 bg-orange-600 text-white rounded-xl text-xs font-bold flex items-center gap-1.5"><MessageCircle className="w-4 h-4" /> Contacter</button>
+                    <button onClick={() => { setIsMatchModalOpen(false); handleSelectBuddyChat(buddy); setCurrentTab('chat'); }} className="px-3.5 py-2 bg-orange-600 text-white rounded-xl text-xs font-bold flex items-center gap-1.5"><MessageCircle className="w-4 h-4" /> Contacter</button>
                   </div>
                 ))
               )}
