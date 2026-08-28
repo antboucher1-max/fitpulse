@@ -352,7 +352,7 @@ export default function App() {
   const [liveElapsedSeconds, setLiveElapsedSeconds] = useState<number>(0);
 
   const [aiChatMessages, setAiChatMessages] = useState<AIChatMessage[]>([
-    { sender: 'bot', text: "Salut l'athlète ! Je suis **FitBot**, ton coach IA personnel. Comment puis-je t'aider aujourd'hui ? (Programme pour ton Basic-Fit, nutrition, conseils d'exécution...)" }
+    { sender: 'bot', text: "Salut l'athlète ! Je suis **FitBot**, ton coach IA personnel. Comment puis-je t'aider aujourd'hui ?" }
   ]);
   const [aiInputText, setAiInputText] = useState('');
   const [isListening, setIsListening] = useState(false);
@@ -457,7 +457,7 @@ export default function App() {
 
 
   // ==========================================
-  // 2. FONCTIONS UTILITAIRES DE BASE (DÉCLARÉES EN PREMIER)
+  // 2. FONCTIONS UTILITAIRES ET NAVIGATION (HISSÉES EN PREMIER)
   // ==========================================
 
   const convertJJMMAAAAtoYYYYMMDD = (input: string): string => {
@@ -475,6 +475,18 @@ export default function App() {
     setRestTimerSeconds(seconds); 
     setRestTimeRemaining(seconds); 
     setIsRestTimerActive(true); 
+  };
+
+  const handleNextStory = () => {
+    if (activeStoryIndex === null) return;
+    if (activeStoryIndex < friendStoriesList.length - 1) { setActiveStoryIndex(activeStoryIndex + 1); setStoryProgress(0); setStoryCommentInput(''); } 
+    else { setActiveStoryIndex(null); }
+  };
+
+  const handlePrevStory = () => {
+    if (activeStoryIndex === null) return;
+    if (activeStoryIndex > 0) { setActiveStoryIndex(activeStoryIndex - 1); setStoryProgress(0); setStoryCommentInput(''); } 
+    else { setStoryProgress(0); }
   };
 
 
@@ -619,28 +631,13 @@ export default function App() {
 
   const handleFinishLiveWorkout = async () => {
     if (!user) return;
-    if (liveExercises.length === 0) {
-      alert("Ajoute au moins un exercice avant de terminer !");
-      return;
-    }
+    if (liveExercises.length === 0) { alert("Ajoute au moins un exercice avant de terminer !"); return; }
     const formattedExercises: ExerciseEntry[] = liveExercises.map(ex => ({
       name: ex.name, sets: ex.sets.length, reps: ex.sets[0]?.reps || 10, weight: ex.sets[0]?.weight || 50
     }));
 
     const newPostData = {
-      user_id: user.id,
-      username: user.user_metadata?.username || 'Athlète',
-      avatar_url: userAvatarUrl,
-      image_url: null,
-      club_name: selectedClub,
-      session_type: liveWorkoutName,
-      caption: `Séance en direct terminée en ${Math.floor(liveElapsedSeconds / 60)} min ! 💪 #gym #nopainnogain`,
-      exercises: formattedExercises,
-      likes_count: 0,
-      liked_by: [],
-      comments_count: 0,
-      comments: [],
-      is_private: isPrivateMode
+      user_id: user.id, username: user.user_metadata?.username || 'Athlète', avatar_url: userAvatarUrl, image_url: null, club_name: selectedClub, session_type: liveWorkoutName, caption: `Séance en direct terminée en ${Math.floor(liveElapsedSeconds / 60)} min ! 💪 #gym #nopainnogain`, exercises: formattedExercises, likes_count: 0, liked_by: [], comments_count: 0, comments: [], is_private: isPrivateMode
     };
 
     const { data, error } = await supabase.from('posts').insert([newPostData]).select('*');
@@ -1627,7 +1624,7 @@ export default function App() {
                   type="text" 
                   placeholder={isListening ? "Parlez..." : "Pose ta question à FitBot..."} 
                   value={aiInputText} 
-                  onChange={(e) => setAiInputText(e.target.value)} 
+                  onChange={handleInputChange} 
                   className="flex-1 bg-neutral-900 border border-neutral-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-orange-500" 
                 />
                 <button type="submit" className="p-3 bg-orange-600 text-white rounded-xl shadow-lg"><SendHorizontal className="w-4 h-4" /></button>
