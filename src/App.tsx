@@ -335,7 +335,6 @@ export default function App() {
     }
   });
 
-  // FONCTION PLACEE ICI POUR EVITER L'ERREUR TS2552 (HOISTING)
   const handleTabChange = (tab: 'feed' | 'buddy' | 'workout' | 'exercises' | 'chat' | 'leaderboard' | 'profile' | 'calculator' | 'live_tracker' | 'fitbot') => {
     setCurrentTab(tab);
     try { sessionStorage.setItem('fitpulse_current_tab', tab); } catch (e) {}
@@ -366,16 +365,6 @@ export default function App() {
   const [liveElapsedSeconds, setLiveElapsedSeconds] = useState<number>(() => {
     try { return parseInt(localStorage.getItem('fitpulse_live_timer') || '0', 10); } catch { return 0; }
   });
-
-  const [isRestTimerActive, setIsRestTimerActive] = useState(false);
-  const [restTimeRemaining, setRestTimeRemaining] = useState(90);
-  const [restTimerSeconds, setRestTimerSeconds] = useState(90);
-
-  const startRestTimer = (seconds: number) => { 
-    setRestTimerSeconds(seconds); 
-    setRestTimeRemaining(seconds); 
-    setIsRestTimerActive(true); 
-  };
 
   // FitBot IA States avec Reconnaissance Vocale (Web Speech API)
   const [aiChatMessages, setAiChatMessages] = useState<AIChatMessage[]>([
@@ -533,7 +522,45 @@ export default function App() {
 
 
   // ==========================================
-  // LOGIQUE LIVE WORKOUT TRACKER & REPOS
+  // FONCTIONS COMMUNES HISSÉES (HOISTED)
+  // ==========================================
+  
+  const handleUpdateProfileAvatar = async (fileOrUrl: File | string) => {
+    if (!user) return;
+    let finalAvatarUrl = typeof fileOrUrl === 'string' ? fileOrUrl : '';
+    if (typeof fileOrUrl !== 'string') {
+      try {
+        const fileName = `avatar-${user.id}-${Date.now()}.jpg`;
+        const { data } = await supabase.storage.from('posts').upload(fileName, await compressImage(fileOrUrl, 400, 0.7), { contentType: 'image/jpeg', upsert: true });
+        if (data) finalAvatarUrl = supabase.storage.from('posts').getPublicUrl(fileName).data.publicUrl;
+      } catch (err) {}
+    }
+    if (finalAvatarUrl) { 
+      setUserAvatarUrl(finalAvatarUrl); 
+      await supabase.auth.updateUser({ data: { ...user.user_metadata, avatar_url: finalAvatarUrl } }); 
+      await supabase.from('profiles').update({ avatar_url: finalAvatarUrl }).eq('id', user.id);
+      setRegisteredUsers(prev => prev.map(u => u.id === user.id ? { ...u, avatar_url: finalAvatarUrl } : u));
+      alert('🌟 Photo de profil mise à jour !'); 
+    }
+  };
+
+  const stopCameraStream = () => {
+    if (streamRef.current) { streamRef.current.getTracks().forEach((t) => t.stop()); streamRef.current = null; }
+    setIsCameraActive(false);
+    if (cameraTarget === 'story') {
+      setIsCreatingStory(true);
+    }
+  };
+
+  const startRestTimer = (seconds: number) => { 
+    setRestTimerSeconds(seconds); 
+    setRestTimeRemaining(seconds); 
+    setIsRestTimerActive(true); 
+  };
+
+
+  // ==========================================
+  // LOGIQUE LIVE WORKOUT TRACKER
   // ==========================================
   useEffect(() => {
     let timer: NodeJS.Timeout | null = null;
@@ -654,19 +681,15 @@ export default function App() {
     const userText = textToSend.trim();
     if (!customText) setAiInputText('');
     
-    // Afficher le message de l'utilisateur
     const newHistory: AIChatMessage[] = [...aiChatMessages, { sender: 'user', text: userText }];
     setAiChatMessages(newHistory);
     
-    // Afficher un loader visuel (feedback)
     const loadingHistory: AIChatMessage[] = [...newHistory, { sender: 'bot', text: "Hmm, laisse-moi réfléchir... 🧠" }];
     setAiChatMessages(loadingHistory);
     setTimeout(() => aiMessagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
 
     try {
-      // Appel direct au modèle Gemini
       const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-      
       const prompt = `Tu es FitBot, le coach sportif IA expert en musculation de l'application FitPulse. Ton athlète s'appelle Antoine (il adore les séances Full Body). L'utilisateur te dit : "${userText}". Réponds de manière experte, super motivante, et tutoie-le. Formate ta réponse de manière très visuelle et claire. Ajoute des emojis sportifs !`;
 
       const result = await model.generateContent(prompt);
@@ -721,7 +744,6 @@ export default function App() {
 
     recognition.start();
   };
-
 
   // ==========================================
   // VARIABLES DÉRIVÉES ET CALCULÉES
@@ -876,46 +898,6 @@ export default function App() {
     } else {
       setForgotPasswordSent(true);
     }
-  };
-
-  const handleUpdatePassword = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!password || password !== confirmPassword) {
-      alert("Les mots de passe ne correspondent pas ou sont vides.");
-      return;
-    }
-    setAuthLoading(true);
-    const { error } = await supabase.auth.updateUser({ password });
-    setAuthLoading(false);
-    if (error) {
-      alert("Erreur de mise à jour : " + error.message);
-    } else {
-      alert("🔒 Mot de passe mis à jour avec succès !");
-      setIsResetPasswordMode(false);
-      setPassword('');
-      setConfirmPassword('');
-      window.history.replaceState({}, document.title, window.location.pathname);
-    }
-  };
-
-  const syncProfile = async (sessionUser: SupabaseUser) => {
-    try {
-      const bDate = sessionUser.user_metadata?.birth_date || '1995-01-01';
-      const profileData = {
-        id: sessionUser.id,
-        username: sessionUser.user_metadata?.username || sessionUser.email?.split('@')[0],
-        email: sessionUser.email,
-        gender: sessionUser.user_metadata?.gender || 'M',
-        birth_date: bDate,
-        age: calculateAge(bDate),
-        goal: sessionUser.user_metadata?.goal || 'Sportif',
-        home_club: sessionUser.user_metadata?.home_club || selectedClub,
-        preferred_time: sessionUser.user_metadata?.preferred_time || TIME_SLOTS[2],
-        avatar_url: sessionUser.user_metadata?.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
-        last_seen: new Date().toISOString()
-      };
-      await supabase.from('profiles').upsert(profileData);
-    } catch(e) {}
   };
 
   const fetchCloudPosts = async () => {
@@ -1102,32 +1084,12 @@ export default function App() {
     return new Promise((resolve) => { canvas.toBlob((blob) => resolve(blob), 'image/jpeg', 0.85); });
   };
 
-  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>, targetType?: string) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      const previewUrl = URL.createObjectURL(file);
-      if (targetType === 'trans_before') setNewTransBefore(previewUrl);
-      else if (targetType === 'trans_after') setNewTransAfter(previewUrl);
-      else if (targetType === 'profile_avatar' || cameraTarget === 'profile_avatar') handleUpdateProfileAvatar(file);
-      else if (cameraTarget === 'post') { setPostImageFile(file); setPostImagePreview(previewUrl); setPostImageZoom(1); setPostImageOffset({ x: 0, y: 0 }); } 
-      else { setStoryImageFile(file); setStoryImagePreview(previewUrl); setIsCreatingStory(true); }
-    }
-  };
-
   const startCameraHandler = (target: 'post' | 'story' | 'trans_before' | 'trans_after' | 'profile_avatar') => {
     if (target === 'story') {
       setIsCreatingStory(false);
     }
     setCameraTarget(target);
     setIsCameraActive(true);
-  };
-
-  const stopCameraStream = () => {
-    if (streamRef.current) { streamRef.current.getTracks().forEach((t) => t.stop()); streamRef.current = null; }
-    setIsCameraActive(false);
-    if (cameraTarget === 'story') {
-      setIsCreatingStory(true);
-    }
   };
 
   const switchCameraFacing = async () => {
@@ -1159,6 +1121,286 @@ export default function App() {
       else { setStoryImageFile(new File([blob], `photo-${Date.now()}.jpg`, { type: 'image/jpeg' })); setStoryImagePreview(previewUrl); setIsCreatingStory(true); }
       stopCameraStream();
     }, 'image/jpeg', 0.85);
+  };
+
+  // Canal de frappe temps réel (Typing Indicator)
+  useEffect(() => {
+    if (!selectedBuddyChat || !user) return;
+    setIsOtherUserTyping(false);
+
+    const channelName = `typing_${[user.id, selectedBuddyChat.id].sort().join('_')}`;
+    const channel = supabase.channel(channelName, {
+      config: { broadcast: { self: false } }
+    });
+
+    channel
+      .on('broadcast', { event: 'typing' }, (payload) => {
+        if (payload.payload.userId === selectedBuddyChat.id) {
+          setIsOtherUserTyping(payload.payload.isTyping);
+        }
+      })
+      .subscribe();
+
+    typingChannelRef.current = channel;
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [selectedBuddyChat, user]);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setCurrentMessageInput(val);
+
+    if (typingChannelRef.current && user && selectedBuddyChat) {
+      typingChannelRef.current.send({
+        type: 'broadcast',
+        event: 'typing',
+        payload: { userId: user.id, isTyping: true }
+      });
+
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+      typingTimeoutRef.current = setTimeout(() => {
+        typingChannelRef.current.send({
+          type: 'broadcast',
+          event: 'typing',
+          payload: { userId: user.id, isTyping: false }
+        });
+      }, 2000);
+    }
+  };
+
+  const handleSendMessage = async () => {
+    if (!currentMessageInput.trim() || !selectedBuddyChat || !user) return;
+    if (isMessageLimitReached) {
+      alert("Limite de 3 messages atteinte. Attendez que la personne accepte la conversation.");
+      return;
+    }
+    const text = currentMessageInput.trim();
+    
+    setCurrentMessageInput('');
+    if (typingChannelRef.current) {
+      typingChannelRef.current.send({
+        type: 'broadcast',
+        event: 'typing',
+        payload: { userId: user.id, isTyping: false }
+      });
+    }
+
+    const myName = user.user_metadata?.first_name || user.user_metadata?.username || user.email?.split('@')[0] || 'Moi';
+    const tempMsg: DBMessage = {
+      id: 'temp-' + Date.now(),
+      sender_id: user.id,
+      receiver_id: selectedBuddyChat.id,
+      sender_name: myName,
+      text,
+      created_at: new Date().toISOString()
+    };
+    
+    setAllMessages((prev) => [...prev, tempMsg]);
+
+    const { data, error } = await supabase.from('direct_messages').insert([{ sender_id: user.id, receiver_id: selectedBuddyChat.id, sender_name: myName, text }]);
+    if (error) {
+      alert("Erreur d'envoi du message.");
+    } else {
+      fetchDirectMessages();
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
+  const handlePublishStory = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user || !storyImageFile) return;
+    setStoryUploading(true);
+    let uploadedStoryUrl = storyImagePreview || '';
+    try {
+      const compressedBlob = await compressImage(storyImageFile, 800, 0.7);
+      const fileName = `story-${Date.now()}-${Math.random().toString(36).substring(7)}.jpg`;
+      const { data: uploadData } = await supabase.storage.from('posts').upload(fileName, compressedBlob, { contentType: 'image/jpeg' });
+      if (uploadData) { const { data } = supabase.storage.from('posts').getPublicUrl(fileName); uploadedStoryUrl = data.publicUrl; }
+    } catch (err) {}
+
+    const myName = user.user_metadata?.first_name || user.user_metadata?.username || user.email?.split('@')[0] || 'Moi';
+    const uniqueStoryId = 'story-' + Date.now() + '-' + Math.random().toString(36).substring(2, 7);
+    
+    const newStory: Story = { 
+      id: uniqueStoryId, 
+      user_id: user.id, 
+      username: myName, 
+      avatar_url: userAvatarUrl, 
+      image_url: uploadedStoryUrl, 
+      caption: storyCaption, 
+      club_name: selectedClub, 
+      likes_count: 0, 
+      created_at: new Date().toISOString() 
+    };
+
+    const { error } = await supabase.from('stories').insert([{ 
+      id: uniqueStoryId,
+      user_id: user.id, 
+      username: myName, 
+      avatar_url: userAvatarUrl, 
+      image_url: uploadedStoryUrl, 
+      caption: storyCaption, 
+      club_name: selectedClub 
+    }]);
+
+    if (error) {
+      alert("Erreur publication story : " + error.message);
+    } else {
+      setCloudStories([newStory, ...cloudStories]);
+      setStoryImageFile(null);
+      setStoryImagePreview(null);
+      setStoryCaption('');
+      setIsCreatingStory(false);
+    }
+    setStoryUploading(false);
+  };
+
+  const handlePublishWorkout = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) return;
+    setIsUploading(true);
+    let uploadedImageUrl = undefined;
+    if (postImageFile && postImagePreview) {
+      try {
+        const finalBlob = await getCroppedImageBlob() || await compressImage(postImageFile, 800, 0.7);
+        const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.jpg`;
+        const { data: uploadData, error } = await supabase.storage.from('posts').upload(fileName, finalBlob, { contentType: 'image/jpeg' });
+        if (!error && uploadData) { const { data } = supabase.storage.from('posts').getPublicUrl(fileName); uploadedImageUrl = data.publicUrl; }
+      } catch (err) {}
+    }
+    const validExercises = workoutExercises.filter((ex) => ex.name.trim() !== '');
+    const newPostData = { user_id: user.id, username: user.user_metadata?.username || 'Athlète', avatar_url: userAvatarUrl, image_url: uploadedImageUrl || null, club_name: selectedClub, session_type: workoutType, caption: workoutCaption, exercises: validExercises, likes_count: 0, liked_by: [], comments_count: 0, comments: [], is_private: isPrivateMode };
+    const { data, error } = await supabase.from('posts').insert([newPostData]).select('*');
+    if (error) alert("Erreur publication : " + error.message);
+    else if (data && data.length > 0) {
+      setPosts([data[0] as Post, ...posts]); setUserStreak(prev => prev + 1); setWorkoutCaption(''); setPostImageFile(null); setPostImagePreview(null); setPostImageZoom(1); setPostImageOffset({ x: 0, y: 0 }); setWorkoutExercises([]); handleTabChange('feed');
+    }
+    setIsUploading(false);
+  };
+
+  const handleAddPostComment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!postCommentInput.trim() || !activeCommentPostId || !user) return;
+    const myName = user.user_metadata?.username || 'Moi';
+    const newComment: Comment = { id: 'c-' + Date.now(), username: myName, avatar_url: userAvatarUrl, text: postCommentInput.trim(), created_at: new Date().toISOString() };
+    const targetPost = posts.find(p => p.id === activeCommentPostId);
+    if (!targetPost) return;
+    const updatedComments = [...(targetPost.comments || []), newComment];
+    const { error } = await supabase.from('posts').update({ comments: updatedComments, comments_count: updatedComments.length }).eq('id', activeCommentPostId);
+    if (!error) { setPosts(prev => prev.map(p => p.id === activeCommentPostId ? { ...p, comments: updatedComments, comments_count: updatedComments.length } : p)); setPostCommentInput(''); }
+  };
+
+  const handleDeletePost = async (postId: string) => {
+    if (!window.confirm("Supprimer cette publication ?")) return;
+    const { error } = await supabase.from('posts').delete().eq('id', postId);
+    if (!error) { setPosts((prev) => prev.filter((p) => p.id !== postId)); alert("Publication supprimée."); }
+  };
+
+  const handleReportPost = async (post: Post) => {
+    if (!window.confirm("Signaler cette publication ?")) return;
+    if (user) {
+      let adminId = registeredUsers.find(u => u.username.toLowerCase() === 'antbou')?.id;
+      if (!adminId) {
+        const { data } = await supabase.from('posts').select('user_id').ilike('username', 'antbou').limit(1);
+        if (data && data.length > 0) adminId = data[0].user_id;
+      }
+      if (adminId) {
+        const myName = user.user_metadata?.username || 'Un utilisateur';
+        await supabase.from('direct_messages').insert([{ sender_id: 'system-bot', receiver_id: adminId, sender_name: '⚠️ Bot', text: `🚨 SIGNALEMENT : ${myName} a signalé le post de ${post.username}.` }]);
+      }
+    }
+    alert("🚨 Publication signalée aux modérateurs.");
+  };
+
+  const handleDeleteConversationForBuddy = async (buddyId: string, buddyName: string) => {
+    if (!user) return;
+    if (!window.confirm(`Effacer toute la conversation avec ${buddyName} ?`)) return;
+    await supabase.from('direct_messages').delete().or(`and(sender_id.eq.${user.id},receiver_id.eq.${buddyId}),and(sender_id.eq.${buddyId},receiver_id.eq.${user.id})`);
+    setAllMessages((prev) => prev.filter((m) => !((m.sender_id === user.id && m.receiver_id === buddyId) || (m.sender_id === buddyId && m.receiver_id === user.id))));
+  };
+
+  const handleReportConversation = async (buddyName: string) => {
+    if (!window.confirm(`Voulez-vous vraiment signaler la conversation avec ${buddyName} pour comportement inapproprié ?`)) return;
+    if (user) {
+      let adminId = registeredUsers.find(u => u.username.toLowerCase() === 'antbou')?.id;
+      if (!adminId) {
+        const { data } = await supabase.from('posts').select('user_id').ilike('username', 'antbou').limit(1);
+        if (data && data.length > 0) adminId = data[0].user_id;
+      }
+      if (adminId) {
+        const myName = user.user_metadata?.username || 'Un utilisateur';
+        await supabase.from('direct_messages').insert([{ sender_id: 'system-bot', receiver_id: adminId, sender_name: '⚠️ Bot', text: `🚨 SIGNALEMENT CHAT : ${myName} a signalé la conversation avec ${buddyName}.` }]);
+      }
+    }
+    alert("🚨 Conversation signalée à la modération. Merci pour votre signalement.");
+  };
+
+  const handleAddTransformation = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user || !newTransBefore || !newTransAfter || newTransWeight === '') return;
+    let beforeUrl = newTransBefore; let afterUrl = newTransAfter;
+    try {
+      if (newTransBefore.startsWith('blob:')) {
+        const resB = await fetch(newTransBefore);
+        const { data } = await supabase.storage.from('posts').upload(`trans-b-${Date.now()}.jpg`, await compressImage(new File([await resB.blob()], 'b.jpg', { type: 'image/jpeg' }), 800, 0.7), { contentType: 'image/jpeg' });
+        if (data) beforeUrl = supabase.storage.from('posts').getPublicUrl(data.path).data.publicUrl;
+      }
+      if (newTransAfter.startsWith('blob:')) {
+        const resA = await fetch(newTransAfter);
+        const { data } = await supabase.storage.from('posts').upload(`trans-a-${Date.now()}.jpg`, await compressImage(new File([await resA.blob()], 'a.jpg', { type: 'image/jpeg' }), 800, 0.7), { contentType: 'image/jpeg' });
+        if (data) afterUrl = supabase.storage.from('posts').getPublicUrl(data.path).data.publicUrl;
+      }
+    } catch (err) {}
+    const newItem = { user_id: user.id, before_url: beforeUrl, after_url: afterUrl, date: new Date().toISOString().split('T')[0], weight: Number(newTransWeight), note: newTransNote || 'Évolution', is_private: newTransIsPrivate };
+    const { data, error } = await supabase.from('transformations').insert([newItem]).select('*');
+    if (!error && data) { setTransformations([data[0] as TransformationPhoto, ...transformations]); setNewTransBefore(null); setNewTransAfter(null); setNewTransNote(''); setNewTransWeight(''); alert('📸 Transformation enregistrée !'); }
+  };
+
+  const handleShareTransformationToFeed = async (item: TransformationPhoto) => {
+    if (!user) return;
+    const newPostData = { user_id: user.id, username: user.user_metadata?.username || 'Athlète', avatar_url: userAvatarUrl, image_url: item.after_url, club_name: selectedClub, session_type: 'Transformation #transformation', caption: `Bilan évolution (${item.weight} kg) : ${item.note} #pr #gym`, exercises: [], likes_count: 0, liked_by: [], comments_count: 0, comments: [], is_private: isPrivateMode };
+    const { data, error } = await supabase.from('posts').insert([newPostData]).select('*');
+    if (!error && data) { setPosts([data[0] as Post, ...posts]); alert('✨ Bilan partagé avec succès !'); }
+  };
+
+  const handleSendFriendRequest = async (targetUserId: string) => {
+    if (!user) return;
+    const { error } = await supabase.from('friend_requests').insert([{ sender_id: user.id, receiver_id: targetUserId, status: 'pending' }]);
+    if (!error) { alert("Demande envoyée !"); fetchFriendRequests(user.id); sendSystemNotification(targetUserId, `👋 ${user.user_metadata?.username || 'Quelqu\'un'} souhaite devenir votre Buddy !`); }
+  };
+
+  const handleAcceptFriendRequest = async (requestId: string) => {
+    const { error } = await supabase.from('friend_requests').update({ status: 'accepted' }).eq('id', requestId);
+    if (!error && user) { alert("Demande acceptée !"); fetchFriendRequests(user.id); const req = friendRequests.find(r => r.id === requestId); if (req) sendSystemNotification(req.sender_id, `✅ ${user.user_metadata?.username || 'Un utilisateur'} a accepté votre demande d'ami !`); }
+  };
+
+  const handleRejectFriendRequest = async (requestId: string) => {
+    const { error } = await supabase.from('friend_requests').delete().eq('id', requestId);
+    if (!error && user) fetchFriendRequests(user.id);
+  };
+
+  const handleSendInvite = async () => {
+    if (!inviteModalTarget || !user) return;
+    const myName = user.user_metadata?.first_name || user.user_metadata?.username || user.email?.split('@')[0] || 'Un ami';
+    
+    await supabase.from('direct_messages').insert([{ 
+      sender_id: user.id, 
+      receiver_id: inviteModalTarget.id, 
+      sender_name: myName, 
+      text: `🏋️ INVITATION PUSH UP : Salut ! Es-tu prêt(e) pour une grosse séance **${inviteType}** avec moi ?` 
+    }]);
+
+    await sendSystemNotification(inviteModalTarget.id, `⚡ ${myName} vous a envoyé une invitation Push Up (${inviteType}) !`);
+
+    const now = Date.now();
+    const updatedPushUps = { ...sentPushUps, [inviteModalTarget.id]: now };
+    setSentPushUps(updatedPushUps);
+    try { localStorage.setItem('fitpulse_sent_pushups_time', JSON.stringify(updatedPushUps)); } catch(e) {}
+
+    alert(`Invitation Push Up envoyée à ${inviteModalTarget.username} !`); 
+    setInviteModalTarget(null);
   };
 
   // ==========================================
@@ -1292,18 +1534,6 @@ export default function App() {
   useEffect(() => { localStorage.setItem('fitpulse_private', isPrivateMode.toString()); }, [isPrivateMode]);
   useEffect(() => { localStorage.setItem('fitpulse_liked_stories', JSON.stringify(likedStories)); }, [likedStories]);
   useEffect(() => { localStorage.setItem('fitpulse_viewed_stories', JSON.stringify(viewedStoryIds)); }, [viewedStoryIds]);
-
-  useEffect(() => {
-    let timer: NodeJS.Timeout | null = null;
-    if (isRestTimerActive && restTimeRemaining > 0) {
-      timer = setInterval(() => setRestTimeRemaining((prev) => prev - 1), 1000);
-    } else if (restTimeRemaining === 0 && isRestTimerActive) {
-      setIsRestTimerActive(false);
-      alert('⏰ Temps de repos terminé ! Prépare ta prochaine série 💪');
-    }
-    return () => { if (timer) clearInterval(timer); };
-  }, [isRestTimerActive, restTimeRemaining]);
-
 
   // ==========================================
   // 8. RENDU (JSX)
