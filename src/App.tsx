@@ -516,194 +516,6 @@ export default function App() {
 
 
   // ==========================================
-  // LOGIQUE LIVE WORKOUT TRACKER & REPOS
-  // ==========================================
-  const startRestTimer = (seconds: number) => { 
-    setRestTimerSeconds(seconds); 
-    setRestTimeRemaining(seconds); 
-    setIsRestTimerActive(true); 
-  };
-
-  useEffect(() => {
-    let timer: NodeJS.Timeout | null = null;
-    if (isLiveActive) {
-      timer = setInterval(() => {
-        setLiveElapsedSeconds(prev => {
-          const next = prev + 1;
-          localStorage.setItem('fitpulse_live_timer', next.toString());
-          return next;
-        });
-      }, 1000);
-    }
-    return () => { if (timer) clearInterval(timer); };
-  }, [isLiveActive]);
-
-  useEffect(() => {
-    localStorage.setItem('fitpulse_live_active', isLiveActive.toString());
-    localStorage.setItem('fitpulse_live_name', liveWorkoutName);
-    localStorage.setItem('fitpulse_live_exercises', JSON.stringify(liveExercises));
-  }, [isLiveActive, liveWorkoutName, liveExercises]);
-
-  const handleStartLiveWorkout = () => {
-    setIsLiveActive(true);
-    setLiveElapsedSeconds(0);
-    setLiveExercises([]);
-    handleTabChange('live_tracker');
-  };
-
-  const handleAddLiveExercise = () => {
-    const newEx: LiveWorkoutExercise = {
-      id: 'lex-' + Date.now(),
-      name: selectedExToAdd,
-      sets: [{ setNumber: 1, weight: 50, reps: 10, completed: false }]
-    };
-    setLiveExercises([...liveExercises, newEx]);
-  };
-
-  const handleAddLiveSet = (exId: string) => {
-    setLiveExercises(liveExercises.map(ex => {
-      if (ex.id === exId) {
-        const lastSet = ex.sets[ex.sets.length - 1];
-        const nextSetNum = ex.sets.length + 1;
-        return {
-          ...ex,
-          sets: [...ex.sets, { setNumber: nextSetNum, weight: lastSet ? lastSet.weight : 50, reps: lastSet ? lastSet.reps : 10, completed: false }]
-        };
-      }
-      return ex;
-    }));
-  };
-
-  const handleToggleLiveSet = (exId: string, setIndex: number) => {
-    setLiveExercises(liveExercises.map(ex => {
-      if (ex.id === exId) {
-        const newSets = [...ex.sets];
-        newSets[setIndex] = { ...newSets[setIndex], completed: !newSets[setIndex].completed };
-        if (newSets[setIndex].completed) {
-          startRestTimer(90);
-        }
-        return { ...ex, sets: newSets };
-      }
-      return ex;
-    }));
-  };
-
-  const handleFinishLiveWorkout = async () => {
-    if (!user) return;
-    if (liveExercises.length === 0) {
-      alert("Ajoute au moins un exercice avant de terminer !");
-      return;
-    }
-    const formattedExercises: ExerciseEntry[] = liveExercises.map(ex => ({
-      name: ex.name,
-      sets: ex.sets.length,
-      reps: ex.sets[0]?.reps || 10,
-      weight: ex.sets[0]?.weight || 50
-    }));
-
-    const newPostData = {
-      user_id: user.id,
-      username: user.user_metadata?.username || 'Athlète',
-      avatar_url: userAvatarUrl,
-      image_url: null,
-      club_name: selectedClub,
-      session_type: liveWorkoutName,
-      caption: `Séance en direct terminée en ${Math.floor(liveElapsedSeconds / 60)} min ! 💪 #gym #nopainnogain`,
-      exercises: formattedExercises,
-      likes_count: 0,
-      liked_by: [],
-      comments_count: 0,
-      comments: [],
-      is_private: isPrivateMode
-    };
-
-    const { data, error } = await supabase.from('posts').insert([newPostData]).select('*');
-    if (!error && data) {
-      setPosts([data[0] as Post, ...posts]);
-      setUserStreak(prev => prev + 1);
-      setIsLiveActive(false);
-      localStorage.removeItem('fitpulse_live_active');
-      localStorage.removeItem('fitpulse_live_timer');
-      localStorage.removeItem('fitpulse_live_exercises');
-      alert("🎉 Séance enregistrée et partagée sur le flux avec succès !");
-      handleTabChange('feed');
-    } else {
-      alert("Erreur lors de l'enregistrement de la séance.");
-    }
-  };
-
-
-  // ==========================================
-  // LOGIQUE COACH IA "FitBot" & RECONNAISSANCE VOCALE
-  // ==========================================
-  const handleSendAIChat = async (e?: React.FormEvent, customText?: string) => {
-    if (e) e.preventDefault();
-    const textToSend = customText || aiInputText;
-    if (!textToSend.trim()) return;
-    const userText = textToSend.trim();
-    if (!customText) setAiInputText('');
-    
-    const newHistory: AIChatMessage[] = [...aiChatMessages, { sender: 'user', text: userText }];
-    setAiChatMessages(newHistory);
-
-    setTimeout(() => {
-      let botReply = "C'est noté ! Pour progresser efficacement dans ton Basic-Fit, veille à bien t'hydrater, respecter 1'30 de repos entre tes séries lourdes et garder une surcharge progressive chaque semaine.";
-      const lower = userText.toLowerCase();
-
-      if (lower.includes('basic-fit') || lower.includes('materiel') || lower.includes('machine')) {
-        botReply = "🏋️ Pour ton Basic-Fit, je te conseille d'exploiter la zone TechnoGym : utilise les machines convergentes (Chest Press, Lat Pulldown, Leg Press) pour l'isolation et la sécurité, et les poulies pour un maximum de tension continue !";
-      } else if (lower.includes('nutrition') || lower.includes('manger')|| lower.includes('protéine') || lower.includes('diète')) {
-        botReply = "🥗 Côté nutrition pour la musculation : visez environ 1.8g à 2g de protéines par kilo de poids de corps par jour (poulet, œufs, skyr, tofu), des glucides complexes (riz, avoine, patate douce) et des bons Lipides (amandes, olive, avocat).";
-      } else if (lower.includes('programme') || lower.includes('prise de masse') || lower.includes('dos')|| lower.includes('pecs')) {
-        botReply = "📋 Voici un super format **Push / Pull / Legs** adapté :\n- **Push** : Développé couché, Dips, Élévations latérales\n- **Pull** : Tractions ou Tirage vertical, Rowing haltère, Curl biceps\n- **Legs** : Squat ou Leg Press, Extensions jambes, Mollets.";
-      }
-
-      setAiChatMessages([...newHistory, { sender: 'bot', text: botReply }]);
-      aiMessagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, 600);
-  };
-
-  const toggleVoiceDictation = () => {
-    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-      alert("La reconnaissance vocale n'est pas supportée par ton navigateur.");
-      return;
-    }
-
-    if (isListening) {
-      setIsListening(false);
-      return;
-    }
-
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    const recognition = new SpeechRecognition();
-    recognition.lang = 'fr-FR';
-    recognition.interimResults = false;
-    recognition.maxAlternatives = 1;
-
-    recognition.onstart = () => {
-      setIsListening(true);
-    };
-
-    recognition.onresult = (event: any) => {
-      const speechToText = event.results[0][0].transcript;
-      setAiInputText(speechToText);
-      setIsListening(false);
-      handleSendAIChat(undefined, speechToText);
-    };
-
-    recognition.onerror = () => {
-      setIsListening(false);
-    };
-
-    recognition.onend = () => {
-      setIsListening(false);
-    };
-
-    recognition.start();
-  };
-
-
-  // ==========================================
   // VARIABLES DÉRIVÉES ET CALCULÉES
   // ==========================================
   const acceptedFriendIds = friendRequests.filter(req => req.status === 'accepted').map(req => (req.sender_id === user?.id ? req.receiver_id : req.sender_id));
@@ -967,6 +779,442 @@ export default function App() {
     await supabase.from('direct_messages').insert([{
       sender_id: 'system-notification', receiver_id: receiverId, sender_name: '📣 Notification', text: message
     }]);
+  };
+
+  const handleNextStory = () => {
+    if (activeStoryIndex === null) return;
+    if (activeStoryIndex < friendStoriesList.length - 1) { 
+      setActiveStoryIndex(activeStoryIndex + 1); 
+      setStoryProgress(0); 
+      setStoryCommentInput(''); 
+    } else { 
+      setActiveStoryIndex(null); 
+    }
+  };
+
+  const handlePrevStory = () => {
+    if (activeStoryIndex === null) return;
+    if (activeStoryIndex > 0) { 
+      setActiveStoryIndex(activeStoryIndex - 1); 
+      setStoryProgress(0); 
+      setStoryCommentInput(''); 
+    } else { 
+      setStoryProgress(0); 
+    }
+  };
+
+  const handleQuickEmojiReaction = async (emoji: string) => {
+    if (activeStoryIndex === null || !user) return;
+    const story = friendStoriesList[activeStoryIndex];
+    if (!story) return;
+    const myName = user.user_metadata?.first_name || user.user_metadata?.username || user.email?.split('@')[0] || 'Moi';
+    
+    await supabase.from('direct_messages').insert([{
+      sender_id: user.id,
+      receiver_id: story.user_id,
+      sender_name: myName,
+      text: `⚡ Réaction à votre story : ${emoji}`
+    }]);
+    
+    await sendSystemNotification(story.user_id, `❤️ ${myName} a réagi à votre story avec ${emoji}`);
+    alert(`Réaction ${emoji} envoyée !`);
+  };
+
+  const handleAddExerciseRow = () => setWorkoutExercises([...workoutExercises, { name: '', sets: 3, reps: 10, weight: 50 }]);
+  const handleRemoveExerciseRow = (index: number) => setWorkoutExercises(workoutExercises.filter((_, i) => i !== index));
+
+  const renderCaptionWithHashtags = (text: string) => {
+    if (!text) return null;
+    return text.split(' ').map((word, i) => word.startsWith('#') ? <span key={i} className="text-orange-500 font-bold">{word} </span> : word + ' ');
+  };
+
+  const handleAddPR = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newPrExercise.trim() || newPrWeight === '' || newPrReps === '') return;
+    setPersonalRecords([{ exercise: newPrExercise.trim(), weight: Number(newPrWeight), reps: Number(newPrReps), date: new Date().toISOString().split('T')[0] }, ...personalRecords]);
+    setNewPrExercise(''); setNewPrWeight(''); setNewPrReps('');
+    alert('🏆 Nouveau record enregistré avec succès !');
+  };
+
+  const handleSaveWeeklyPlanEdit = (index: number) => {
+    const updated = [...weeklyPlan];
+    updated[index] = { ...updated[index], focus: editFocus, exercisesText: editExercisesText };
+    setWeeklyPlan(updated); setEditingDayIndex(null);
+  };
+
+  const handleAddWorkoutHashtag = (tag: string) => { if (!workoutCaption.includes(tag)) setWorkoutCaption((prev) => (prev ? `${prev} ${tag}` : tag)); };
+
+  const handleDragStart = (e: React.MouseEvent | React.TouchEvent) => {
+    setIsDraggingImage(true);
+    const clientX = 'touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
+    const clientY = 'touches' in e ? e.touches[0].clientY : (e as React.MouseEvent).clientY;
+    setDragStartPos({ x: clientX - postImageOffset.x, y: clientY - postImageOffset.y });
+  };
+  
+  const handleDragMove = (e: React.MouseEvent | React.TouchEvent) => {
+    if (!isDraggingImage) return;
+    const clientX = 'touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
+    const clientY = 'touches' in e ? e.touches[0].clientY : (e as React.MouseEvent).clientY;
+    setPostImageOffset({ x: clientX - dragStartPos.x, y: clientY - dragStartPos.y });
+  };
+  
+  const handleDragEnd = () => setIsDraggingImage(false);
+
+  const getPinchDistance = (touches: React.TouchList) => {
+    const dx = touches[0].clientX - touches[1].clientX; const dy = touches[0].clientY - touches[1].clientY;
+    return Math.sqrt(dx * dx + dy * dy);
+  };
+  
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length === 2) { setInitialPinchDistance(getPinchDistance(e.touches)); setInitialPinchZoom(postImageZoom); setIsDraggingImage(false); } 
+    else if (e.touches.length === 1) handleDragStart(e);
+  };
+  
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (e.touches.length === 2 && initialPinchDistance !== null) {
+      const scale = getPinchDistance(e.touches) / initialPinchDistance;
+      setPostImageZoom(Math.min(Math.max(1, initialPinchZoom * scale), 4));
+    } else if (e.touches.length === 1 && isDraggingImage) handleDragMove(e);
+  };
+  
+  const handleTouchEnd = () => { setIsDraggingImage(false); setInitialPinchDistance(null); };
+
+  const getCroppedImageBlob = async (): Promise<Blob | null> => {
+    if (!imgRef.current || !previewContainerRef.current) return null;
+    const img = imgRef.current; const container = previewContainerRef.current;
+    const canvas = document.createElement('canvas');
+    canvas.width = 800; canvas.height = 800;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+    ctx.fillStyle = '#0a0a0a'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+    const coverRatio = Math.max(container.clientWidth / img.naturalWidth, container.clientHeight / img.naturalHeight);
+    const baseWidth = img.naturalWidth * coverRatio; const baseHeight = img.naturalHeight * coverRatio;
+    const baseX = (container.clientWidth - baseWidth) / 2; const baseY = (container.clientHeight - baseHeight) / 2;
+    const centerX = container.clientWidth / 2; const centerY = container.clientHeight / 2;
+    const finalX = centerX + (baseX - centerX) * postImageZoom + postImageOffset.x;
+    const finalY = centerY + (baseY - centerY) * postImageZoom + postImageOffset.y;
+    const finalWidth = baseWidth * postImageZoom; const finalHeight = baseHeight * postImageZoom;
+    const scaleMultiplier = 800 / container.clientWidth;
+    ctx.drawImage(img, finalX * scaleMultiplier, finalY * scaleMultiplier, finalWidth * scaleMultiplier, finalHeight * scaleMultiplier);
+    return new Promise((resolve) => { canvas.toBlob((blob) => resolve(blob), 'image/jpeg', 0.85); });
+  };
+
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>, targetType?: string) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      const previewUrl = URL.createObjectURL(file);
+      if (targetType === 'trans_before') setNewTransBefore(previewUrl);
+      else if (targetType === 'trans_after') setNewTransAfter(previewUrl);
+      else if (targetType === 'profile_avatar' || cameraTarget === 'profile_avatar') handleUpdateProfileAvatar(file);
+      else if (cameraTarget === 'post') { setPostImageFile(file); setPostImagePreview(previewUrl); setPostImageZoom(1); setPostImageOffset({ x: 0, y: 0 }); } 
+      else { setStoryImageFile(file); setStoryImagePreview(previewUrl); setIsCreatingStory(true); }
+    }
+  };
+
+  const handleToggleLike = async (postId: string) => {
+    if (!user) return;
+    const post = posts.find(p => p.id === postId);
+    if (!post) return;
+    const likedByList = post.liked_by || [];
+    const hasAlreadyLiked = likedByList.includes(user.id);
+    let updatedLikedBy = [...likedByList];
+    let newCount = post.likes_count;
+
+    if (hasAlreadyLiked) { updatedLikedBy = updatedLikedBy.filter(id => id !== user.id); newCount = Math.max(0, newCount - 1); } 
+    else { 
+      updatedLikedBy.push(user.id); newCount += 1; 
+      if (post.user_id !== user.id) {
+         const myName = user.user_metadata?.username || user.email?.split('@')[0] || 'Un athlète';
+         sendSystemNotification(post.user_id, `❤️ ${myName} a aimé votre séance "${post.session_type}".`);
+      }
+    }
+    setPosts(prev => prev.map(p => p.id === postId ? { ...p, likes_count: newCount, liked_by: updatedLikedBy } : p));
+    await supabase.from('posts').update({ likes_count: newCount, liked_by: updatedLikedBy }).eq('id', postId);
+  };
+
+  const handleToggleStoryLike = async (storyId: string) => {
+    const isLiked = likedStories[storyId];
+    setLikedStories((prev) => ({ ...prev, [storyId]: !isLiked }));
+    const story = friendStoriesList.find((s) => s.id === storyId);
+    if (!story || !user) return;
+    if (!isLiked) {
+      const myName = user.user_metadata?.first_name || user.user_metadata?.username || user.email?.split('@')[0] || 'Moi';
+      await supabase.from('direct_messages').insert([{ sender_id: user.id, receiver_id: story.user_id, sender_name: myName, text: `❤️ A aimé ta story !` }]);
+    }
+  };
+
+  const handleSendStoryComment = async (e?: React.FormEvent, quickEmoji?: string) => {
+    if (e) e.preventDefault();
+    const textToSend = quickEmoji || storyCommentInput.trim();
+    if (!textToSend || activeStoryIndex === null || !user) return;
+    const story = friendStoriesList[activeStoryIndex];
+    if (!story) return;
+    const myName = user.user_metadata?.first_name || user.user_metadata?.username || user.email?.split('@')[0] || 'Moi';
+    await supabase.from('direct_messages').insert([{ sender_id: user.id, receiver_id: story.user_id, sender_name: myName, text: `📸 En réponse à ta story : "${textToSend}"` }]);
+    setStoryCommentInput(''); setIsStoryPaused(false); alert('Réponse envoyée en message direct !');
+  };
+
+  const startCameraHandler = (target: 'post' | 'story' | 'trans_before' | 'trans_after' | 'profile_avatar') => {
+    if (target === 'story') {
+      setIsCreatingStory(false);
+    }
+    setCameraTarget(target);
+    setIsCameraActive(true);
+  };
+
+  const stopCameraStream = () => {
+    if (streamRef.current) { streamRef.current.getTracks().forEach((t) => t.stop()); streamRef.current = null; }
+    setIsCameraActive(false);
+    if (cameraTarget === 'story') {
+      setIsCreatingStory(true);
+    }
+  };
+
+  const switchCameraFacing = async () => {
+    const newFacing = facingMode === 'environment' ? 'user' : 'environment';
+    setFacingMode(newFacing);
+    try {
+      if (streamRef.current) streamRef.current.getTracks().forEach((t) => t.stop());
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: newFacing }, audio: false });
+      streamRef.current = stream;
+      if (videoRef.current) videoRef.current.srcObject = stream;
+    } catch (err) {}
+  };
+
+  const capturePhoto = () => {
+    if (!videoRef.current) return;
+    const video = videoRef.current;
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth || 640; canvas.height = video.videoHeight || 480;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    canvas.toBlob((blob) => {
+      if (!blob) return;
+      const previewUrl = URL.createObjectURL(blob);
+      if (cameraTarget === 'trans_before') setNewTransBefore(previewUrl);
+      else if (cameraTarget === 'trans_after') setNewTransAfter(previewUrl);
+      else if (cameraTarget === 'profile_avatar') handleUpdateProfileAvatar(new File([blob], `avatar-${Date.now()}.jpg`, { type: 'image/jpeg' }));
+      else if (cameraTarget === 'post') { setPostImageFile(new File([blob], `photo-${Date.now()}.jpg`, { type: 'image/jpeg' })); setPostImagePreview(previewUrl); setPostImageZoom(1); setPostImageOffset({ x: 0, y: 0 }); } 
+      else { setStoryImageFile(new File([blob], `photo-${Date.now()}.jpg`, { type: 'image/jpeg' })); setStoryImagePreview(previewUrl); setIsCreatingStory(true); }
+      stopCameraStream();
+    }, 'image/jpeg', 0.85);
+  };
+
+  const handlePublishStory = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user || !storyImageFile) return;
+    setStoryUploading(true);
+    let uploadedStoryUrl = storyImagePreview || '';
+    try {
+      const compressedBlob = await compressImage(storyImageFile, 800, 0.7);
+      const fileName = `story-${Date.now()}-${Math.random().toString(36).substring(7)}.jpg`;
+      const { data: uploadData } = await supabase.storage.from('posts').upload(fileName, compressedBlob, { contentType: 'image/jpeg' });
+      if (uploadData) { const { data } = supabase.storage.from('posts').getPublicUrl(fileName); uploadedStoryUrl = data.publicUrl; }
+    } catch (err) {}
+
+    const myName = user.user_metadata?.first_name || user.user_metadata?.username || user.email?.split('@')[0] || 'Moi';
+    const uniqueStoryId = 'story-' + Date.now() + '-' + Math.random().toString(36).substring(2, 7);
+    
+    const newStory: Story = { 
+      id: uniqueStoryId, 
+      user_id: user.id, 
+      username: myName, 
+      avatar_url: userAvatarUrl, 
+      image_url: uploadedStoryUrl, 
+      caption: storyCaption, 
+      club_name: selectedClub, 
+      likes_count: 0, 
+      created_at: new Date().toISOString() 
+    };
+
+    const { error } = await supabase.from('stories').insert([{ 
+      id: uniqueStoryId,
+      user_id: user.id, 
+      username: myName, 
+      avatar_url: userAvatarUrl, 
+      image_url: uploadedStoryUrl, 
+      caption: storyCaption, 
+      club_name: selectedClub 
+    }]);
+
+    if (error) {
+      alert("Erreur publication story : " + error.message);
+    } else {
+      setCloudStories([newStory, ...cloudStories]);
+      setStoryImageFile(null);
+      setStoryImagePreview(null);
+      setStoryCaption('');
+      setIsCreatingStory(false);
+    }
+    setStoryUploading(false);
+  };
+
+  const handlePublishWorkout = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) return;
+    setIsUploading(true);
+    let uploadedImageUrl = undefined;
+    if (postImageFile && postImagePreview) {
+      try {
+        const finalBlob = await getCroppedImageBlob() || await compressImage(postImageFile, 800, 0.7);
+        const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.jpg`;
+        const { data: uploadData, error } = await supabase.storage.from('posts').upload(fileName, finalBlob, { contentType: 'image/jpeg' });
+        if (!error && uploadData) { const { data } = supabase.storage.from('posts').getPublicUrl(fileName); uploadedImageUrl = data.publicUrl; }
+      } catch (err) {}
+    }
+    const validExercises = workoutExercises.filter((ex) => ex.name.trim() !== '');
+    const newPostData = { user_id: user.id, username: user.user_metadata?.username || 'Athlète', avatar_url: userAvatarUrl, image_url: uploadedImageUrl || null, club_name: selectedClub, session_type: workoutType, caption: workoutCaption, exercises: validExercises, likes_count: 0, liked_by: [], comments_count: 0, comments: [], is_private: isPrivateMode };
+    const { data, error } = await supabase.from('posts').insert([newPostData]).select('*');
+    if (error) alert("Erreur publication : " + error.message);
+    else if (data && data.length > 0) {
+      setPosts([data[0] as Post, ...posts]); setUserStreak(prev => prev + 1); setWorkoutCaption(''); setPostImageFile(null); setPostImagePreview(null); setPostImageZoom(1); setPostImageOffset({ x: 0, y: 0 }); setWorkoutExercises([]); handleTabChange('feed');
+    }
+    setIsUploading(false);
+  };
+
+  const handleAddPostComment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!postCommentInput.trim() || !activeCommentPostId || !user) return;
+    const myName = user.user_metadata?.username || 'Moi';
+    const newComment: Comment = { id: 'c-' + Date.now(), username: myName, avatar_url: userAvatarUrl, text: postCommentInput.trim(), created_at: new Date().toISOString() };
+    const targetPost = posts.find(p => p.id === activeCommentPostId);
+    if (!targetPost) return;
+    const updatedComments = [...(targetPost.comments || []), newComment];
+    const { error } = await supabase.from('posts').update({ comments: updatedComments, comments_count: updatedComments.length }).eq('id', activeCommentPostId);
+    if (!error) { setPosts(prev => prev.map(p => p.id === activeCommentPostId ? { ...p, comments: updatedComments, comments_count: updatedComments.length } : p)); setPostCommentInput(''); }
+  };
+
+  const handleDeletePost = async (postId: string) => {
+    if (!window.confirm("Supprimer cette publication ?")) return;
+    const { error } = await supabase.from('posts').delete().eq('id', postId);
+    if (!error) { setPosts((prev) => prev.filter((p) => p.id !== postId)); alert("Publication supprimée."); }
+  };
+
+  const handleReportPost = async (post: Post) => {
+    if (!window.confirm("Signaler cette publication ?")) return;
+    if (user) {
+      let adminId = registeredUsers.find(u => u.username.toLowerCase() === 'antbou')?.id;
+      if (!adminId) {
+        const { data } = await supabase.from('posts').select('user_id').ilike('username', 'antbou').limit(1);
+        if (data && data.length > 0) adminId = data[0].user_id;
+      }
+      if (adminId) {
+        const myName = user.user_metadata?.username || 'Un utilisateur';
+        await supabase.from('direct_messages').insert([{ sender_id: 'system-bot', receiver_id: adminId, sender_name: '⚠️ Bot', text: `🚨 SIGNALEMENT : ${myName} a signalé le post de ${post.username}.` }]);
+      }
+    }
+    alert("🚨 Publication signalée aux modérateurs.");
+  };
+
+  const handleDeleteConversationForBuddy = async (buddyId: string, buddyName: string) => {
+    if (!user) return;
+    if (!window.confirm(`Effacer toute la conversation avec ${buddyName} ?`)) return;
+    await supabase.from('direct_messages').delete().or(`and(sender_id.eq.${user.id},receiver_id.eq.${buddyId}),and(sender_id.eq.${buddyId},receiver_id.eq.${user.id})`);
+    setAllMessages((prev) => prev.filter((m) => !((m.sender_id === user.id && m.receiver_id === buddyId) || (m.sender_id === buddyId && m.receiver_id === user.id))));
+  };
+
+  const handleReportConversation = async (buddyName: string) => {
+    if (!window.confirm(`Voulez-vous vraiment signaler la conversation avec ${buddyName} pour comportement inapproprié ?`)) return;
+    if (user) {
+      let adminId = registeredUsers.find(u => u.username.toLowerCase() === 'antbou')?.id;
+      if (!adminId) {
+        const { data } = await supabase.from('posts').select('user_id').ilike('username', 'antbou').limit(1);
+        if (data && data.length > 0) adminId = data[0].user_id;
+      }
+      if (adminId) {
+        const myName = user.user_metadata?.username || 'Un utilisateur';
+        await supabase.from('direct_messages').insert([{ sender_id: 'system-bot', receiver_id: adminId, sender_name: '⚠️ Bot', text: `🚨 SIGNALEMENT CHAT : ${myName} a signalé la conversation avec ${buddyName}.` }]);
+      }
+    }
+    alert("🚨 Conversation signalée à la modération. Merci pour votre signalement.");
+  };
+
+  const handleAddTransformation = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user || !newTransBefore || !newTransAfter || newTransWeight === '') return;
+    let beforeUrl = newTransBefore; let afterUrl = newTransAfter;
+    try {
+      if (newTransBefore.startsWith('blob:')) {
+        const resB = await fetch(newTransBefore);
+        const { data } = await supabase.storage.from('posts').upload(`trans-b-${Date.now()}.jpg`, await compressImage(new File([await resB.blob()], 'b.jpg', { type: 'image/jpeg' }), 800, 0.7), { contentType: 'image/jpeg' });
+        if (data) beforeUrl = supabase.storage.from('posts').getPublicUrl(data.path).data.publicUrl;
+      }
+      if (newTransAfter.startsWith('blob:')) {
+        const resA = await fetch(newTransAfter);
+        const { data } = await supabase.storage.from('posts').upload(`trans-a-${Date.now()}.jpg`, await compressImage(new File([await resA.blob()], 'a.jpg', { type: 'image/jpeg' }), 800, 0.7), { contentType: 'image/jpeg' });
+        if (data) afterUrl = supabase.storage.from('posts').getPublicUrl(data.path).data.publicUrl;
+      }
+    } catch (err) {}
+    const newItem = { user_id: user.id, before_url: beforeUrl, after_url: afterUrl, date: new Date().toISOString().split('T')[0], weight: Number(newTransWeight), note: newTransNote || 'Évolution', is_private: newTransIsPrivate };
+    const { data, error } = await supabase.from('transformations').insert([newItem]).select('*');
+    if (!error && data) { setTransformations([data[0] as TransformationPhoto, ...transformations]); setNewTransBefore(null); setNewTransAfter(null); setNewTransNote(''); setNewTransWeight(''); alert('📸 Transformation enregistrée !'); }
+  };
+
+  const handleShareTransformationToFeed = async (item: TransformationPhoto) => {
+    if (!user) return;
+    const newPostData = { user_id: user.id, username: user.user_metadata?.username || 'Athlète', avatar_url: userAvatarUrl, image_url: item.after_url, club_name: selectedClub, session_type: 'Transformation #transformation', caption: `Bilan évolution (${item.weight} kg) : ${item.note} #pr #gym`, exercises: [], likes_count: 0, liked_by: [], comments_count: 0, comments: [], is_private: isPrivateMode };
+    const { data, error } = await supabase.from('posts').insert([newPostData]).select('*');
+    if (!error && data) { setPosts([data[0] as Post, ...posts]); alert('✨ Bilan partagé avec succès !'); }
+  };
+
+  const handleUpdateProfileAvatar = async (fileOrUrl: File | string) => {
+    if (!user) return;
+    let finalAvatarUrl = typeof fileOrUrl === 'string' ? fileOrUrl : '';
+    if (typeof fileOrUrl !== 'string') {
+      try {
+        const fileName = `avatar-${user.id}-${Date.now()}.jpg`;
+        const { data } = await supabase.storage.from('posts').upload(fileName, await compressImage(fileOrUrl, 400, 0.7), { contentType: 'image/jpeg', upsert: true });
+        if (data) finalAvatarUrl = supabase.storage.from('posts').getPublicUrl(fileName).data.publicUrl;
+      } catch (err) {}
+    }
+    if (finalAvatarUrl) { 
+      setUserAvatarUrl(finalAvatarUrl); 
+      await supabase.auth.updateUser({ data: { ...user.user_metadata, avatar_url: finalAvatarUrl } }); 
+      await supabase.from('profiles').update({ avatar_url: finalAvatarUrl }).eq('id', user.id);
+      
+      setRegisteredUsers(prev => prev.map(u => u.id === user.id ? { ...u, avatar_url: finalAvatarUrl } : u));
+      
+      alert('🌟 Photo de profil mise à jour !'); 
+    }
+  };
+
+  const handleSendFriendRequest = async (targetUserId: string) => {
+    if (!user) return;
+    const { error } = await supabase.from('friend_requests').insert([{ sender_id: user.id, receiver_id: targetUserId, status: 'pending' }]);
+    if (!error) { alert("Demande envoyée !"); fetchFriendRequests(user.id); sendSystemNotification(targetUserId, `👋 ${user.user_metadata?.username || 'Quelqu\'un'} souhaite devenir votre Buddy !`); }
+  };
+
+  const handleAcceptFriendRequest = async (requestId: string) => {
+    const { error } = await supabase.from('friend_requests').update({ status: 'accepted' }).eq('id', requestId);
+    if (!error && user) { alert("Demande acceptée !"); fetchFriendRequests(user.id); const req = friendRequests.find(r => r.id === requestId); if (req) sendSystemNotification(req.sender_id, `✅ ${user.user_metadata?.username || 'Un utilisateur'} a accepté votre demande d'ami !`); }
+  };
+
+  const handleRejectFriendRequest = async (requestId: string) => {
+    const { error } = await supabase.from('friend_requests').delete().eq('id', requestId);
+    if (!error && user) fetchFriendRequests(user.id);
+  };
+
+  const handleSendInvite = async () => {
+    if (!inviteModalTarget || !user) return;
+    const myName = user.user_metadata?.first_name || user.user_metadata?.username || user.email?.split('@')[0] || 'Un ami';
+    
+    await supabase.from('direct_messages').insert([{ 
+      sender_id: user.id, 
+      receiver_id: inviteModalTarget.id, 
+      sender_name: myName, 
+      text: `🏋️ INVITATION PUSH UP : Salut ! Es-tu prêt(e) pour une grosse séance **${inviteType}** avec moi ?` 
+    }]);
+
+    await sendSystemNotification(inviteModalTarget.id, `⚡ ${myName} vous a envoyé une invitation Push Up (${inviteType}) !`);
+
+    const now = Date.now();
+    const updatedPushUps = { ...sentPushUps, [inviteModalTarget.id]: now };
+    setSentPushUps(updatedPushUps);
+    try { localStorage.setItem('fitpulse_sent_pushups_time', JSON.stringify(updatedPushUps)); } catch(e) {}
+
+    alert(`Invitation Push Up envoyée à ${inviteModalTarget.username} !`); 
+    setInviteModalTarget(null);
   };
 
 
@@ -2507,7 +2755,7 @@ export default function App() {
         <button onClick={() => handleTabChange('chat')} className={`flex flex-col items-center gap-1 ${currentTab === 'chat' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}>
           <div className="relative">
             <MessageCircle className="w-5 h-5" />
-            {unreadChatCount > 0 && <span className="absolute top-1 right-1 bg-red-600 text-white font-bold text-[10px] w-4 h-4 rounded-full flex items-center justify-center border-2 border-neutral-950 shadow-md animate-pulse">{unreadChatCount}</span>}
+            {unreadChatCount > 0 && <span className="absolute -top-1 -right-1 bg-red-600 text-white font-bold text-[10px] w-4 h-4 rounded-full flex items-center justify-center border border-neutral-950 shadow-md animate-pulse">{unreadChatCount}</span>}
           </div>
           <span className="text-[10px]">Chat</span>
         </button>
