@@ -944,6 +944,7 @@ export default function App() {
       alert("Erreur d'envoi du message.");
     } else {
       fetchDirectMessages();
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
   };
 
@@ -1296,6 +1297,7 @@ export default function App() {
       if (user) syncProfile(user);
     }, 30000);
 
+    // POLLING UNIVERSEL AUTOMATIQUE DE SÉCURITÉ (2 SECONDES) POUR LE CHAT EN DIRECT SANS BLOQUER LE SCROLL
     const universalPollingInterval = setInterval(() => {
       fetchDirectMessages();
     }, 2000);
@@ -1381,7 +1383,6 @@ export default function App() {
     };
   }, [isCameraActive, cameraTarget, facingMode]);
 
-  useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [allMessages, selectedBuddyChat]);
   useEffect(() => { localStorage.setItem('fitpulse_streak', userStreak.toString()); }, [userStreak]);
   useEffect(() => { localStorage.setItem('fitpulse_private', isPrivateMode.toString()); }, [isPrivateMode]);
   useEffect(() => { localStorage.setItem('fitpulse_liked_stories', JSON.stringify(likedStories)); }, [likedStories]);
@@ -2621,9 +2622,9 @@ export default function App() {
             <MessageCircle className="w-5 h-5" />
             {unreadChatCount > 0 && <span className="absolute -top-1 -right-1 bg-red-600 text-white font-bold text-[10px] w-4 h-4 rounded-full flex items-center justify-center border border-neutral-950 shadow-md animate-pulse">{unreadChatCount}</span>}
           </div>
-          <span className="text-[10px]">Chat</span>
+          <span className="text-[10px]">Chat</th>
         </button>
-        <button onClick={() => handleTabChange('profile')} className={`flex flex-col items-center gap-1 ${currentTab === 'profile' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><User className="w-5 h-5" /><span className="text-[10px]">Profil</span></button>
+        <button onClick={() => handleTabchange('profile')} className={`flex flex-col items-center gap-1 ${currentTab === 'profile' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><User className="w-5 h-5" /><span className="text-[10px]">Profil</span></button>
       </nav>
     </div>
   );
