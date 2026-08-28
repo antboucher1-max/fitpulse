@@ -1102,6 +1102,22 @@ export default function App() {
     setAllMessages((prev) => prev.filter((m) => !((m.sender_id === user.id && m.receiver_id === buddyId) || (m.sender_id === buddyId && m.receiver_id === user.id))));
   };
 
+  const handleReportConversation = async (buddyName: string) => {
+    if (!window.confirm(`Voulez-vous vraiment signaler la conversation avec ${buddyName} pour comportement inapproprié ?`)) return;
+    if (user) {
+      let adminId = registeredUsers.find(u => u.username.toLowerCase() === 'antbou')?.id;
+      if (!adminId) {
+        const { data } = await supabase.from('posts').select('user_id').ilike('username', 'antbou').limit(1);
+        if (data && data.length > 0) adminId = data[0].user_id;
+      }
+      if (adminId) {
+        const myName = user.user_metadata?.username || 'Un utilisateur';
+        await supabase.from('direct_messages').insert([{ sender_id: 'system-bot', receiver_id: adminId, sender_name: '⚠️ Bot', text: `🚨 SIGNALEMENT CHAT : ${myName} a signalé la conversation avec ${buddyName}.` }]);
+      }
+    }
+    alert("🚨 Conversation signalée à la modération. Merci pour votre signalement.");
+  };
+
   const handleAddTransformation = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !newTransBefore || !newTransAfter || newTransWeight === '') return;
@@ -1232,10 +1248,9 @@ export default function App() {
       if (user) syncProfile(user);
     }, 30000);
 
-    const chatPollingInterval = setInterval(() => {
-      if (selectedBuddyChat) {
-        fetchDirectMessages();
-      }
+    // POLLING UNIVERSEL AUTOMATIQUE DE SÉCURITÉ (2 SECONDES) POUR LE CHAT ET LES NOTIFICATIONS EN DIRECT
+    const universalPollingInterval = setInterval(() => {
+      fetchDirectMessages();
     }, 2000);
 
     const channel = supabase
@@ -1272,10 +1287,10 @@ export default function App() {
       subscription.unsubscribe();
       supabase.removeChannel(channel);
       clearInterval(presenceInterval);
-      clearInterval(chatPollingInterval);
+      clearInterval(universalPollingInterval);
       stopCameraStream();
     };
-  }, [user?.id, selectedBuddyChat]);
+  }, [user?.id]);
 
   useEffect(() => {
     let storyTimer: NodeJS.Timeout | null = null;
@@ -1461,10 +1476,15 @@ export default function App() {
         </div>
         {isCGUModalOpen && (
           <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4">
-            <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-lg w-full p-6 space-y-4">
-              <h3 className="text-base font-black text-white">CGU & Tolérance Zéro</h3>
-              <p className="text-sm text-neutral-300 leading-relaxed">Il est strictement interdit de publier des contenus inappropriés. Tout manquement entraînera le bannissement définitif.</p>
-              <button onClick={() => { setAcceptCGU(true); setIsCGUModalOpen(false); }} className="w-full py-3 bg-orange-600 text-white font-bold rounded-xl text-sm">Accepter</button>
+            <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-lg w-full p-6 space-y-4 max-h-[80vh] overflow-y-auto">
+              <h3 className="text-base font-black text-white">Conditions Générales d'Utilisation (CGU) - FitPulse</h3>
+              <div className="space-y-3 text-xs text-neutral-300 leading-relaxed">
+                <p><strong>1. Objet :</strong> FitPulse est une application de réseau social sportif permettant aux membres de partager leurs entraînements, de se connecter avec des partenaires (Buddies) et d'échanger via messagerie.</p>
+                <p><strong>2. Tolérance Zéro & Modération :</strong> Nous appliquons une politique de tolérance zéro stricte concernant les contenus inappropriés (nudité, harcèlement, propos haineux, insultes ou discriminations). Toute publication ou message contraires à ces principes entraînera un bannissement immédiat et définitif de la plateforme.</p>
+                <p><strong>3. Respect d'autrui :</strong> Les utilisateurs s'engagent à respecter l'ensemble de la communauté. Tout comportement suspect ou abusif doit être immédiatement signalé via les boutons de signalement dédiés.</p>
+                <p><strong>4. Données personnelles :</strong> Vos données de profil et vos photos d'évolution sont gérées de manière sécurisée. Les publications de séances peuvent être configurées en mode privé.</p>
+              </div>
+              <button onClick={() => { setAcceptCGU(true); setIsCGUModalOpen(false); }} className="w-full py-3 bg-orange-600 text-white font-bold rounded-xl text-sm">J'ai lu et j'accepte</button>
             </div>
           </div>
         )}
@@ -1482,7 +1502,7 @@ export default function App() {
         <div className="flex items-center gap-3">
           <button onClick={() => { setIsNotifModalOpen(true); setLastNotifOpenTime(Date.now()); localStorage.setItem('fitpulse_last_notif', Date.now().toString()); }} className="relative p-1.5 text-neutral-400 hover:text-white transition">
             <Bell className="w-5 h-5" />
-            {unreadNotifsCount > 0 && <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 border-2 border-neutral-950 rounded-full animate-pulse"></span>}
+            {unreadNotifsCount > 0 && <span className="absolute top-1 right-1 bg-red-600 text-white font-bold text-[10px] w-4 h-4 rounded-full flex items-center justify-center border-2 border-neutral-950 shadow-md animate-pulse">{unreadNotifsCount}</span>}
           </button>
           <div className="flex items-center gap-1.5 bg-orange-500/10 px-3 py-1.5 rounded-full border border-orange-500/20">
             <Flame className="w-4 h-4 text-orange-500" /><span className="text-sm font-black text-orange-500">{userStreak}</span>
@@ -1501,9 +1521,14 @@ export default function App() {
               <div className="text-center py-8 text-neutral-500 text-sm">Aucune notification pour le moment.</div>
             ) : (
               <div className="space-y-2">
-                {notifications.slice().reverse().map(n => (
-                  <div key={n.id} className="p-3.5 bg-neutral-950 rounded-xl border border-neutral-800 text-sm text-neutral-200">{n.text}</div>
-                ))}
+                {notifications.slice().reverse().map(n => {
+                  const isUnreadNotif = new Date(n.created_at).getTime() > lastNotifOpenTime;
+                  return (
+                    <div key={n.id} className={`p-3.5 rounded-xl border text-sm ${isUnreadNotif ? 'bg-neutral-900 border-orange-500/40 text-white font-bold' : 'bg-neutral-950 border-neutral-800 text-neutral-300 font-normal'}`}>
+                      {n.text}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -1880,11 +1905,16 @@ export default function App() {
             {selectedBuddyChat ? (
               <div className="bg-neutral-900 border border-neutral-800 rounded-3xl overflow-hidden flex flex-col h-[74vh]">
                 <div className="p-4 bg-neutral-950 border-b border-neutral-800 flex items-center justify-between">
-                  <button onClick={() => setSelectedBuddyChat(null)} className="p-1.5 text-neutral-400 hover:text-white"><ArrowLeft className="w-5 h-5" /></button>
-                  <h3 className="font-bold text-sm text-white cursor-pointer hover:text-orange-400 flex items-center gap-1.5" onClick={() => setViewingProfileUser(selectedBuddyChat)}>
-                    {selectedBuddyChat.username} {selectedBuddyChat.is_verified && <ShieldCheck className="w-4 h-4 text-orange-500 fill-orange-500/20" />}
-                  </h3>
-                  <button onClick={() => handleDeleteConversationForBuddy(selectedBuddyChat.id, selectedBuddyChat.username)} className="p-2 text-neutral-500 hover:text-red-400"><Trash2 className="w-4 h-4" /></button>
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => setSelectedBuddyChat(null)} className="p-1.5 text-neutral-400 hover:text-white"><ArrowLeft className="w-5 h-5" /></button>
+                    <h3 className="font-bold text-sm text-white cursor-pointer hover:text-orange-400 flex items-center gap-1.5" onClick={() => setViewingProfileUser(selectedBuddyChat)}>
+                      {selectedBuddyChat.username} {selectedBuddyChat.is_verified && <ShieldCheck className="w-4 h-4 text-orange-500 fill-orange-500/20" />}
+                    </h3>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button onClick={() => handleReportConversation(selectedBuddyChat.username)} title="Signaler la conversation" className="p-2 text-amber-500 hover:text-amber-400 bg-amber-500/10 rounded-xl transition"><Flag className="w-4 h-4" /></button>
+                    <button onClick={() => handleDeleteConversationForBuddy(selectedBuddyChat.id, selectedBuddyChat.username)} title="Supprimer" className="p-2 text-neutral-500 hover:text-red-400 rounded-xl transition"><Trash2 className="w-4 h-4" /></button>
+                  </div>
                 </div>
                 <div className="flex-1 p-4 overflow-y-auto space-y-3">
                   {currentChatMessages.map((msg) => (
@@ -1949,7 +1979,8 @@ export default function App() {
                       );
                       const lastMsg = friendMessages[friendMessages.length - 1];
                       
-                      const isUnread = lastMsg && lastMsg.sender_id !== user?.id && new Date(lastMsg.created_at).getTime() > lastChatOpenTime;
+                      const unreadCountForFriend = friendMessages.filter(m => m.sender_id !== user?.id && new Date(m.created_at).getTime() > lastChatOpenTime).length;
+                      const isUnread = unreadCountForFriend > 0;
 
                       return (
                         <div 
@@ -1974,7 +2005,11 @@ export default function App() {
                               </p>
                             </div>
                           </div>
-                          {isUnread && <span className="w-2.5 h-2.5 bg-orange-500 rounded-full flex-shrink-0 ml-2 animate-pulse" />}
+                          {isUnread && (
+                            <span className="bg-red-600 text-white font-bold text-[10px] px-2 py-0.5 rounded-full flex-shrink-0 ml-2 shadow-md animate-pulse">
+                              {unreadCountForFriend}
+                            </span>
+                          )}
                         </div>
                       );
                     })
@@ -2469,7 +2504,7 @@ export default function App() {
         <button onClick={() => handleTabChange('chat')} className={`flex flex-col items-center gap-1 ${currentTab === 'chat' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}>
           <div className="relative">
             <MessageCircle className="w-5 h-5" />
-            {unreadChatCount > 0 && <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 border border-neutral-950 rounded-full animate-pulse"></span>}
+            {unreadChatCount > 0 && <span className="absolute -top-1 -right-1 bg-red-600 text-white font-bold text-[10px] w-4 h-4 rounded-full flex items-center justify-center border border-neutral-950 shadow-md animate-pulse">{unreadChatCount}</span>}
           </div>
           <span className="text-[10px]">Chat</span>
         </button>
