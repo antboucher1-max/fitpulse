@@ -2458,7 +2458,7 @@ export default function App() {
           <div className="w-8 h-8 rounded-xl bg-orange-600 text-white flex items-center justify-center -mt-2.5 shadow-lg"><Plus className="w-5 h-5" /></div>
           <span className="text-[10px]">Séance</span>
         </button>
-        <button onClick={() => handlerTabChangeChatSafely('chat')} className={`flex flex-col items-center gap-1 ${currentTab === 'chat' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`} onClick={() => handleTabChange('chat')}>
+        <button onClick={() => handleTabChange('chat')} className={`flex flex-col items-center gap-1 ${currentTab === 'chat' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}>
           <div className="relative">
             <MessageCircle className="w-5 h-5" />
             {unreadChatCount > 0 && <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 border border-neutral-950 rounded-full animate-pulse"></span>}
