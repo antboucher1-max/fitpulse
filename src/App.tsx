@@ -302,6 +302,9 @@ const compressImage = (file: File, maxWidth = 800, quality = 0.7): Promise<Blob>
 };
 
 export default function App() {
+  // ==========================================
+  // 1. ALL DÉCLARATIONS D'ÉTAT (USESTATE & USEREF)
+  // ==========================================
   const [user, setUser] = useState<SupabaseUser | null>(null);
 
   // Auth States
@@ -327,18 +330,8 @@ export default function App() {
 
   // App States
   const [currentTab, setCurrentTab] = useState<'feed' | 'buddy' | 'workout' | 'exercises' | 'chat' | 'leaderboard' | 'profile' | 'calculator' | 'live_tracker' | 'fitbot'>(() => {
-    try {
-      const savedTab = sessionStorage.getItem('fitpulse_current_tab');
-      return (savedTab as any) || 'feed';
-    } catch {
-      return 'feed';
-    }
+    try { return (sessionStorage.getItem('fitpulse_current_tab') as any) || 'feed'; } catch { return 'feed'; }
   });
-
-  const handleTabChange = (tab: 'feed' | 'buddy' | 'workout' | 'exercises' | 'chat' | 'leaderboard' | 'profile' | 'calculator' | 'live_tracker' | 'fitbot') => {
-    setCurrentTab(tab);
-    try { sessionStorage.setItem('fitpulse_current_tab', tab); } catch (e) {}
-  };
 
   const [selectedClub, setSelectedClub] = useState<string>('Club Tournai (Bastion)');
   const [posts, setPosts] = useState<Post[]>([]);
@@ -350,35 +343,33 @@ export default function App() {
   const [userStreak, setUserStreak] = useState<number>(() => { try { return parseInt(localStorage.getItem('fitpulse_streak') || '2', 10); } catch { return 2; } });
   const [isPrivateMode, setIsPrivateMode] = useState<boolean>(() => { try { return localStorage.getItem('fitpulse_private') === 'true'; } catch { return false; } });
   
-  // Live Workout Tracker States
+  // Live Workout Tracker & Rest States
+  const [isRestTimerActive, setIsRestTimerActive] = useState(false);
+  const [restTimeRemaining, setRestTimeRemaining] = useState(90);
+  const [restTimerSeconds, setRestTimerSeconds] = useState(90);
+
   const [isLiveActive, setIsLiveActive] = useState<boolean>(() => { try { return localStorage.getItem('fitpulse_live_active') === 'true'; } catch { return false; } });
   const [liveWorkoutName, setLiveWorkoutName] = useState<string>(() => { try { return localStorage.getItem('fitpulse_live_name') || 'Séance Full Body'; } catch { return 'Séance Full Body'; } });
   const [liveExercises, setLiveExercises] = useState<LiveWorkoutExercise[]>(() => {
-    try {
-      const saved = localStorage.getItem('fitpulse_live_exercises');
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
+    try { const saved = localStorage.getItem('fitpulse_live_exercises'); return saved ? JSON.parse(saved) : []; } catch { return []; }
   });
   const [selectedExToAdd, setSelectedExToAdd] = useState(EXERCISES_DATABASE[0].name);
   const [liveElapsedSeconds, setLiveElapsedSeconds] = useState<number>(() => {
     try { return parseInt(localStorage.getItem('fitpulse_live_timer') || '0', 10); } catch { return 0; }
   });
 
-  // FitBot IA States avec Reconnaissance Vocale (Web Speech API)
+  // FitBot IA States avec Reconnaissance Vocale
   const [aiChatMessages, setAiChatMessages] = useState<AIChatMessage[]>([
-    { sender: 'bot', text: "Salut l'athlète ! Je suis **FitBot**, ton coach IA personnel intelligent. Comment puis-je t'aider aujourd'hui ? (Programme pour ton Basic-Fit, nutrition, conseils d'exécution...)" }
+    { sender: 'bot', text: "Salut l'athlète ! Je suis **FitBot**, ton coach IA personnel. Comment puis-je t'aider aujourd'hui ? (Programme pour ton Basic-Fit, nutrition, conseils d'exécution...)" }
   ]);
   const [aiInputText, setAiInputText] = useState('');
   const [isListening, setIsListening] = useState(false);
   const aiMessagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Notifications & Suivi de lecture par conversation
+  // Notifications & Base de données
   const [lastReadTimestamps, setLastReadTimestamps] = useState<Record<string, number>>(() => {
     try { return JSON.parse(localStorage.getItem('fitpulse_last_read_map') || '{}'); } catch { return {}; }
   });
-
   const [lastNotifOpenTime, setLastNotifOpenTime] = useState<number>(() => { try { return parseInt(localStorage.getItem('fitpulse_last_notif') || '0', 10); } catch { return 0; } });
   const [isNotifModalOpen, setIsNotifModalOpen] = useState(false);
 
@@ -393,15 +384,9 @@ export default function App() {
       const saved = JSON.parse(localStorage.getItem('fitpulse_sent_pushups_time') || '{}');
       const now = Date.now();
       const cleaned: Record<string, number> = {};
-      Object.keys(saved).forEach((id) => {
-        if (now - saved[id] < 24 * 3600 * 1000) {
-          cleaned[id] = saved[id];
-        }
-      });
+      Object.keys(saved).forEach((id) => { if (now - saved[id] < 24 * 3600 * 1000) cleaned[id] = saved[id]; });
       return cleaned;
-    } catch {
-      return {};
-    }
+    } catch { return {}; }
   });
   
   const [viewingProfileUser, setViewingProfileUser] = useState<RealUser | null>(null);
@@ -448,7 +433,6 @@ export default function App() {
   // Plate Calculator States
   const [targetWeight, setTargetWeight] = useState<number | ''>(100);
   const [barbellWeight, setBarbellWeight] = useState<number>(20);
-  const availablePlates = [25, 20, 15, 10, 5, 2.5, 1.25];
 
   // Chat & Invites
   const [selectedBuddyChat, setSelectedBuddyChat] = useState<RealUser | null>(null);
@@ -500,13 +484,13 @@ export default function App() {
 
 
   // ==========================================
-  // CALCULATEUR DE DISQUES PAR CÔTÉ
+  // 2. VARIABLES DÉRIVÉES ET CALCULÉES
   // ==========================================
+  const availablePlates = [25, 20, 15, 10, 5, 2.5, 1.25];
   const calculatePlates = (target: number | '', bar: number) => {
     if (target === '' || target <= bar) return [];
     let remaining = (target - bar) / 2;
     const result: { weight: number; count: number }[] = [];
-
     for (const plate of availablePlates) {
       if (remaining <= 0) break;
       const count = Math.floor(remaining / plate);
@@ -517,39 +501,88 @@ export default function App() {
     }
     return result;
   };
-
   const plateBreakdown = targetWeight !== '' ? calculatePlates(targetWeight, barbellWeight) : [];
 
+  const acceptedFriendIds = friendRequests.filter(req => req.status === 'accepted').map(req => (req.sender_id === user?.id ? req.receiver_id : req.sender_id));
 
-  // ==========================================
-  // FONCTIONS COMMUNES HISSÉES (HOISTED)
-  // ==========================================
+  const botUser: RealUser = { id: 'system-bot', username: '⚠️ Modération Bot', email: 'bot@fitpulse', home_club: 'Système', age: 99, avatar_url: 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=150' };
+  const hasBotMessages = allMessages.some(m => m.sender_id === 'system-bot' && m.receiver_id === user?.id);
+  const activeChatUsers = registeredUsers.filter((u) => {
+    if (u.id === user?.id) return false;
+    const hasExchanged = allMessages.some(m => (m.sender_id === user?.id && m.receiver_id === u.id) || (m.sender_id === u.id && m.receiver_id === user?.id));
+    return acceptedFriendIds.includes(u.id) || hasExchanged;
+  });
+  if (hasBotMessages) activeChatUsers.unshift(botUser);
+
+  const myFriendsList = registeredUsers.filter((u) => acceptedFriendIds.includes(u.id));
+  const suggestedBuddiesList = registeredUsers.filter((u) => u.id !== user?.id && !acceptedFriendIds.includes(u.id));
+  const incomingRequests = friendRequests.filter(req => req.receiver_id === user?.id && req.status === 'pending');
+
+  const filteredBuddies = registeredUsers.filter((u) => {
+    if (u.id === user?.id) return false;
+    if (buddyTabSubMode === 'my_friends' && !acceptedFriendIds.includes(u.id)) return false;
+    if (filterWomenOnly && u.gender === 'M') return false;
+    if (selectedGoalFilter !== 'all' && u.goal && !u.goal.toLowerCase().includes(selectedGoalFilter.toLowerCase())) return false;
+    if (selectedAgeGroupFilter !== 'all') {
+      const ageLabel = getAgeRangeLabel(u.birth_date);
+      if (ageLabel !== selectedAgeGroupFilter) return false;
+    }
+    if (userSearchQuery.trim()) {
+      const q = userSearchQuery.toLowerCase();
+      return u.username.toLowerCase().includes(q) || u.home_club.toLowerCase().includes(q);
+    }
+    return true;
+  });
+
+  const matchedBuddiesList = registeredUsers.filter((u) => {
+    if (u.id === user?.id) return false;
+    if (matchWomenOnly && u.gender === 'M') return false;
+    const matchG = matchGoal === 'Tous' || (u.goal && u.goal.toLowerCase().includes(matchGoal.toLowerCase()));
+    const matchT = matchTime === 'Tous' || (u.preferred_time && u.preferred_time.includes(matchTime));
+    return matchG && matchT;
+  });
+
+  const displayedPosts = posts.filter((post) => {
+    if (post.is_private && post.user_id !== user?.id && !acceptedFriendIds.includes(post.user_id)) return false;
+    return isMatchingClub(post.club_name, selectedClub);
+  });
+
+  const currentChatMessages = allMessages.filter(
+    (m) => selectedBuddyChat && user && ((m.sender_id === user.id && m.receiver_id === selectedBuddyChat.id) || (m.sender_id === selectedBuddyChat.id && m.receiver_id === user.id))
+  );
+
+  const isSelectedChatFriend = selectedBuddyChat ? acceptedFriendIds.includes(selectedBuddyChat.id) || selectedBuddyChat.id === 'system-bot' : true;
+  const mySentMessagesCount = selectedBuddyChat && user ? allMessages.filter(m => m.sender_id === user.id && m.receiver_id === selectedBuddyChat.id).length : 0;
+  const isMessageLimitReached = !isSelectedChatFriend && mySentMessagesCount >= 3;
+
+  const friendStoriesList = cloudStories.filter((s) => {
+    const storyDate = new Date(s.created_at).getTime();
+    return !isNaN(storyDate) ? storyDate >= Date.now() - 24 * 3600 * 1000 : true;
+  });
+
+  const activeViewingStory = activeStoryIndex !== null ? friendStoriesList[activeStoryIndex] : null;
+  const activePostForComments = posts.find((p) => p.id === activeCommentPostId);
   
-  const handleUpdateProfileAvatar = async (fileOrUrl: File | string) => {
-    if (!user) return;
-    let finalAvatarUrl = typeof fileOrUrl === 'string' ? fileOrUrl : '';
-    if (typeof fileOrUrl !== 'string') {
-      try {
-        const fileName = `avatar-${user.id}-${Date.now()}.jpg`;
-        const { data } = await supabase.storage.from('posts').upload(fileName, await compressImage(fileOrUrl, 400, 0.7), { contentType: 'image/jpeg', upsert: true });
-        if (data) finalAvatarUrl = supabase.storage.from('posts').getPublicUrl(fileName).data.publicUrl;
-      } catch (err) {}
-    }
-    if (finalAvatarUrl) { 
-      setUserAvatarUrl(finalAvatarUrl); 
-      await supabase.auth.updateUser({ data: { ...user.user_metadata, avatar_url: finalAvatarUrl } }); 
-      await supabase.from('profiles').update({ avatar_url: finalAvatarUrl }).eq('id', user.id);
-      setRegisteredUsers(prev => prev.map(u => u.id === user.id ? { ...u, avatar_url: finalAvatarUrl } : u));
-      alert('🌟 Photo de profil mise à jour !'); 
-    }
-  };
+  const unreadChatCount = activeChatUsers.filter(friend => {
+    const lastRead = lastReadTimestamps[friend.id] || 0;
+    const friendMsgs = allMessages.filter(m => m.sender_id === friend.id && m.receiver_id === user?.id);
+    return friendMsgs.some(m => new Date(m.created_at).getTime() > lastRead);
+  }).length;
 
-  const stopCameraStream = () => {
-    if (streamRef.current) { streamRef.current.getTracks().forEach((t) => t.stop()); streamRef.current = null; }
-    setIsCameraActive(false);
-    if (cameraTarget === 'story') {
-      setIsCreatingStory(true);
-    }
+  const notifications = allMessages.filter(m => m.receiver_id === user?.id && m.sender_id === 'system-notification');
+  const unreadNotifsCount = notifications.filter(m => new Date(m.created_at).getTime() > lastNotifOpenTime).length;
+
+  const currentUserProfile = registeredUsers.find(u => u.id === user?.id);
+  const isAdmin = currentUserProfile?.is_admin || user?.email === 'antbou@fitpulse.be';
+
+
+  // ==========================================
+  // 3. FONCTIONS ET HANDLERS
+  // ==========================================
+
+  const handleTabChange = (tab: 'feed' | 'buddy' | 'workout' | 'exercises' | 'chat' | 'leaderboard' | 'profile' | 'calculator' | 'live_tracker' | 'fitbot') => {
+    setCurrentTab(tab);
+    try { sessionStorage.setItem('fitpulse_current_tab', tab); } catch (e) {}
   };
 
   const startRestTimer = (seconds: number) => { 
@@ -557,30 +590,6 @@ export default function App() {
     setRestTimeRemaining(seconds); 
     setIsRestTimerActive(true); 
   };
-
-
-  // ==========================================
-  // LOGIQUE LIVE WORKOUT TRACKER
-  // ==========================================
-  useEffect(() => {
-    let timer: NodeJS.Timeout | null = null;
-    if (isLiveActive) {
-      timer = setInterval(() => {
-        setLiveElapsedSeconds(prev => {
-          const next = prev + 1;
-          localStorage.setItem('fitpulse_live_timer', next.toString());
-          return next;
-        });
-      }, 1000);
-    }
-    return () => { if (timer) clearInterval(timer); };
-  }, [isLiveActive]);
-
-  useEffect(() => {
-    localStorage.setItem('fitpulse_live_active', isLiveActive.toString());
-    localStorage.setItem('fitpulse_live_name', liveWorkoutName);
-    localStorage.setItem('fitpulse_live_exercises', JSON.stringify(liveExercises));
-  }, [isLiveActive, liveWorkoutName, liveExercises]);
 
   const handleStartLiveWorkout = () => {
     setIsLiveActive(true);
@@ -670,10 +679,6 @@ export default function App() {
     }
   };
 
-
-  // ==========================================
-  // LOGIQUE COACH IA "GEMINI" & VOCAL
-  // ==========================================
   const handleSendAIChat = async (e?: React.FormEvent, customText?: string) => {
     if (e) e.preventDefault();
     const textToSend = customText || aiInputText;
@@ -745,87 +750,32 @@ export default function App() {
     recognition.start();
   };
 
-  // ==========================================
-  // VARIABLES DÉRIVÉES ET CALCULÉES
-  // ==========================================
-  const acceptedFriendIds = friendRequests.filter(req => req.status === 'accepted').map(req => (req.sender_id === user?.id ? req.receiver_id : req.sender_id));
-
-  const botUser: RealUser = { id: 'system-bot', username: '⚠️ Modération Bot', email: 'bot@fitpulse', home_club: 'Système', age: 99, avatar_url: 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=150' };
-  const hasBotMessages = allMessages.some(m => m.sender_id === 'system-bot' && m.receiver_id === user?.id);
-  const activeChatUsers = registeredUsers.filter((u) => {
-    if (u.id === user?.id) return false;
-    const hasExchanged = allMessages.some(m => (m.sender_id === user?.id && m.receiver_id === u.id) || (m.sender_id === u.id && m.receiver_id === user?.id));
-    return acceptedFriendIds.includes(u.id) || hasExchanged;
-  });
-  if (hasBotMessages) activeChatUsers.unshift(botUser);
-
-  const myFriendsList = registeredUsers.filter((u) => acceptedFriendIds.includes(u.id));
-  const suggestedBuddiesList = registeredUsers.filter((u) => u.id !== user?.id && !acceptedFriendIds.includes(u.id));
-  const incomingRequests = friendRequests.filter(req => req.receiver_id === user?.id && req.status === 'pending');
-
-  const filteredBuddies = registeredUsers.filter((u) => {
-    if (u.id === user?.id) return false;
-    if (buddyTabSubMode === 'my_friends' && !acceptedFriendIds.includes(u.id)) return false;
-    if (filterWomenOnly && u.gender === 'M') return false;
-    if (selectedGoalFilter !== 'all' && u.goal && !u.goal.toLowerCase().includes(selectedGoalFilter.toLowerCase())) return false;
-    if (selectedAgeGroupFilter !== 'all') {
-      const ageLabel = getAgeRangeLabel(u.birth_date);
-      if (ageLabel !== selectedAgeGroupFilter) return false;
+  const handleUpdateProfileAvatar = async (fileOrUrl: File | string) => {
+    if (!user) return;
+    let finalAvatarUrl = typeof fileOrUrl === 'string' ? fileOrUrl : '';
+    if (typeof fileOrUrl !== 'string') {
+      try {
+        const fileName = `avatar-${user.id}-${Date.now()}.jpg`;
+        const { data } = await supabase.storage.from('posts').upload(fileName, await compressImage(fileOrUrl, 400, 0.7), { contentType: 'image/jpeg', upsert: true });
+        if (data) finalAvatarUrl = supabase.storage.from('posts').getPublicUrl(fileName).data.publicUrl;
+      } catch (err) {}
     }
-    if (userSearchQuery.trim()) {
-      const q = userSearchQuery.toLowerCase();
-      return u.username.toLowerCase().includes(q) || u.home_club.toLowerCase().includes(q);
+    if (finalAvatarUrl) { 
+      setUserAvatarUrl(finalAvatarUrl); 
+      await supabase.auth.updateUser({ data: { ...user.user_metadata, avatar_url: finalAvatarUrl } }); 
+      await supabase.from('profiles').update({ avatar_url: finalAvatarUrl }).eq('id', user.id);
+      setRegisteredUsers(prev => prev.map(u => u.id === user.id ? { ...u, avatar_url: finalAvatarUrl } : u));
+      alert('🌟 Photo de profil mise à jour !'); 
     }
-    return true;
-  });
+  };
 
-  const matchedBuddiesList = registeredUsers.filter((u) => {
-    if (u.id === user?.id) return false;
-    if (matchWomenOnly && u.gender === 'M') return false;
-    const matchG = matchGoal === 'Tous' || (u.goal && u.goal.toLowerCase().includes(matchGoal.toLowerCase()));
-    const matchT = matchTime === 'Tous' || (u.preferred_time && u.preferred_time.includes(matchTime));
-    return matchG && matchT;
-  });
-
-  const displayedPosts = posts.filter((post) => {
-    if (post.is_private && post.user_id !== user?.id && !acceptedFriendIds.includes(post.user_id)) return false;
-    return isMatchingClub(post.club_name, selectedClub);
-  });
-
-  const currentChatMessages = allMessages.filter(
-    (m) => selectedBuddyChat && user && ((m.sender_id === user.id && m.receiver_id === selectedBuddyChat.id) || (m.sender_id === selectedBuddyChat.id && m.receiver_id === user.id))
-  );
-
-  const isSelectedChatFriend = selectedBuddyChat ? acceptedFriendIds.includes(selectedBuddyChat.id) || selectedBuddyChat.id === 'system-bot' : true;
-  const mySentMessagesCount = selectedBuddyChat && user 
-    ? allMessages.filter(m => m.sender_id === user.id && m.receiver_id === selectedBuddyChat.id).length 
-    : 0;
-  const isMessageLimitReached = !isSelectedChatFriend && mySentMessagesCount >= 3;
-
-  const friendStoriesList = cloudStories.filter((s) => {
-    const storyDate = new Date(s.created_at).getTime();
-    return !isNaN(storyDate) ? storyDate >= Date.now() - 24 * 3600 * 1000 : true;
-  });
-
-  const activeViewingStory = activeStoryIndex !== null ? friendStoriesList[activeStoryIndex] : null;
-  const activePostForComments = posts.find((p) => p.id === activeCommentPostId);
-  
-  const unreadChatCount = activeChatUsers.filter(friend => {
-    const lastRead = lastReadTimestamps[friend.id] || 0;
-    const friendMsgs = allMessages.filter(m => m.sender_id === friend.id && m.receiver_id === user?.id);
-    return friendMsgs.some(m => new Date(m.created_at).getTime() > lastRead);
-  }).length;
-
-  const notifications = allMessages.filter(m => m.receiver_id === user?.id && m.sender_id === 'system-notification');
-  const unreadNotifsCount = notifications.filter(m => new Date(m.created_at).getTime() > lastNotifOpenTime).length;
-
-  const currentUserProfile = registeredUsers.find(u => u.id === user?.id);
-  const isAdmin = currentUserProfile?.is_admin || user?.email === 'antbou@fitpulse.be';
-
-
-  // ==========================================
-  // FONCTIONS ET HANDLERS SUITE
-  // ==========================================
+  const stopCameraStream = () => {
+    if (streamRef.current) { streamRef.current.getTracks().forEach((t) => t.stop()); streamRef.current = null; }
+    setIsCameraActive(false);
+    if (cameraTarget === 'story') {
+      setIsCreatingStory(true);
+    }
+  };
 
   const handleSelectBuddyChat = (friend: RealUser) => {
     setSelectedBuddyChat(friend);
@@ -898,6 +848,46 @@ export default function App() {
     } else {
       setForgotPasswordSent(true);
     }
+  };
+
+  const handleUpdatePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!password || password !== confirmPassword) {
+      alert("Les mots de passe ne correspondent pas ou sont vides.");
+      return;
+    }
+    setAuthLoading(true);
+    const { error } = await supabase.auth.updateUser({ password });
+    setAuthLoading(false);
+    if (error) {
+      alert("Erreur de mise à jour : " + error.message);
+    } else {
+      alert("🔒 Mot de passe mis à jour avec succès !");
+      setIsResetPasswordMode(false);
+      setPassword('');
+      setConfirmPassword('');
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  };
+
+  const syncProfile = async (sessionUser: SupabaseUser) => {
+    try {
+      const bDate = sessionUser.user_metadata?.birth_date || '1995-01-01';
+      const profileData = {
+        id: sessionUser.id,
+        username: sessionUser.user_metadata?.username || sessionUser.email?.split('@')[0],
+        email: sessionUser.email,
+        gender: sessionUser.user_metadata?.gender || 'M',
+        birth_date: bDate,
+        age: calculateAge(bDate),
+        goal: sessionUser.user_metadata?.goal || 'Sportif',
+        home_club: sessionUser.user_metadata?.home_club || selectedClub,
+        preferred_time: sessionUser.user_metadata?.preferred_time || TIME_SLOTS[2],
+        avatar_url: sessionUser.user_metadata?.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+        last_seen: new Date().toISOString()
+      };
+      await supabase.from('profiles').upsert(profileData);
+    } catch(e) {}
   };
 
   const fetchCloudPosts = async () => {
@@ -1084,6 +1074,18 @@ export default function App() {
     return new Promise((resolve) => { canvas.toBlob((blob) => resolve(blob), 'image/jpeg', 0.85); });
   };
 
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>, targetType?: string) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      const previewUrl = URL.createObjectURL(file);
+      if (targetType === 'trans_before') setNewTransBefore(previewUrl);
+      else if (targetType === 'trans_after') setNewTransAfter(previewUrl);
+      else if (targetType === 'profile_avatar' || cameraTarget === 'profile_avatar') handleUpdateProfileAvatar(file);
+      else if (cameraTarget === 'post') { setPostImageFile(file); setPostImagePreview(previewUrl); setPostImageZoom(1); setPostImageOffset({ x: 0, y: 0 }); } 
+      else { setStoryImageFile(file); setStoryImagePreview(previewUrl); setIsCreatingStory(true); }
+    }
+  };
+
   const startCameraHandler = (target: 'post' | 'story' | 'trans_before' | 'trans_after' | 'profile_avatar') => {
     if (target === 'story') {
       setIsCreatingStory(false);
@@ -1121,91 +1123,6 @@ export default function App() {
       else { setStoryImageFile(new File([blob], `photo-${Date.now()}.jpg`, { type: 'image/jpeg' })); setStoryImagePreview(previewUrl); setIsCreatingStory(true); }
       stopCameraStream();
     }, 'image/jpeg', 0.85);
-  };
-
-  // Canal de frappe temps réel (Typing Indicator)
-  useEffect(() => {
-    if (!selectedBuddyChat || !user) return;
-    setIsOtherUserTyping(false);
-
-    const channelName = `typing_${[user.id, selectedBuddyChat.id].sort().join('_')}`;
-    const channel = supabase.channel(channelName, {
-      config: { broadcast: { self: false } }
-    });
-
-    channel
-      .on('broadcast', { event: 'typing' }, (payload) => {
-        if (payload.payload.userId === selectedBuddyChat.id) {
-          setIsOtherUserTyping(payload.payload.isTyping);
-        }
-      })
-      .subscribe();
-
-    typingChannelRef.current = channel;
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [selectedBuddyChat, user]);
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value;
-    setCurrentMessageInput(val);
-
-    if (typingChannelRef.current && user && selectedBuddyChat) {
-      typingChannelRef.current.send({
-        type: 'broadcast',
-        event: 'typing',
-        payload: { userId: user.id, isTyping: true }
-      });
-
-      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-      typingTimeoutRef.current = setTimeout(() => {
-        typingChannelRef.current.send({
-          type: 'broadcast',
-          event: 'typing',
-          payload: { userId: user.id, isTyping: false }
-        });
-      }, 2000);
-    }
-  };
-
-  const handleSendMessage = async () => {
-    if (!currentMessageInput.trim() || !selectedBuddyChat || !user) return;
-    if (isMessageLimitReached) {
-      alert("Limite de 3 messages atteinte. Attendez que la personne accepte la conversation.");
-      return;
-    }
-    const text = currentMessageInput.trim();
-    
-    setCurrentMessageInput('');
-    if (typingChannelRef.current) {
-      typingChannelRef.current.send({
-        type: 'broadcast',
-        event: 'typing',
-        payload: { userId: user.id, isTyping: false }
-      });
-    }
-
-    const myName = user.user_metadata?.first_name || user.user_metadata?.username || user.email?.split('@')[0] || 'Moi';
-    const tempMsg: DBMessage = {
-      id: 'temp-' + Date.now(),
-      sender_id: user.id,
-      receiver_id: selectedBuddyChat.id,
-      sender_name: myName,
-      text,
-      created_at: new Date().toISOString()
-    };
-    
-    setAllMessages((prev) => [...prev, tempMsg]);
-
-    const { data, error } = await supabase.from('direct_messages').insert([{ sender_id: user.id, receiver_id: selectedBuddyChat.id, sender_name: myName, text }]);
-    if (error) {
-      alert("Erreur d'envoi du message.");
-    } else {
-      fetchDirectMessages();
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }
   };
 
   const handlePublishStory = async (e: React.FormEvent) => {
@@ -1403,8 +1320,9 @@ export default function App() {
     setInviteModalTarget(null);
   };
 
+
   // ==========================================
-  // 7. EFFETS SECONDAIRES DE COMPOSANT (useEffect)
+  // 4. EFFETS SECONDAIRES DE COMPOSANT (useEffect)
   // ==========================================
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -1535,8 +1453,20 @@ export default function App() {
   useEffect(() => { localStorage.setItem('fitpulse_liked_stories', JSON.stringify(likedStories)); }, [likedStories]);
   useEffect(() => { localStorage.setItem('fitpulse_viewed_stories', JSON.stringify(viewedStoryIds)); }, [viewedStoryIds]);
 
+  useEffect(() => {
+    let timer: NodeJS.Timeout | null = null;
+    if (isRestTimerActive && restTimeRemaining > 0) {
+      timer = setInterval(() => setRestTimeRemaining((prev) => prev - 1), 1000);
+    } else if (restTimeRemaining === 0 && isRestTimerActive) {
+      setIsRestTimerActive(false);
+      alert('⏰ Temps de repos terminé ! Prépare ta prochaine série 💪');
+    }
+    return () => { if (timer) clearInterval(timer); };
+  }, [isRestTimerActive, restTimeRemaining]);
+
+
   // ==========================================
-  // 8. RENDU (JSX)
+  // 5. RENDU (JSX)
   // ==========================================
 
   if (isResetPasswordMode) {
@@ -2615,306 +2545,6 @@ export default function App() {
           </div>
         )}
       </main>
-
-      {viewingProfileUser && (() => {
-        const isFriend = acceptedFriendIds.includes(viewingProfileUser.id);
-        const existingReq = friendRequests.find(r => (r.sender_id === user?.id && r.receiver_id === viewingProfileUser.id) || (r.sender_id === viewingProfileUser.id && r.receiver_id === user?.id));
-        const isPending = existingReq && existingReq.status === 'pending';
-        const ageRange = getAgeRangeLabel(viewingProfileUser.birth_date);
-
-        return (
-          <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
-            <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-sm w-full p-6 space-y-5 shadow-2xl relative max-h-[85vh] overflow-y-auto">
-              <button onClick={() => setViewingProfileUser(null)} className="absolute top-4 right-4 p-2 bg-neutral-800 text-white rounded-full"><X className="w-4 h-4" /></button>
-              
-              <div className="text-center space-y-3 pt-2">
-                <img src={viewingProfileUser.avatar_url} alt="" className="w-24 h-24 rounded-full object-cover border-2 border-orange-500 mx-auto shadow-xl" />
-                <div>
-                  <h3 className="text-lg font-black text-white flex items-center justify-center gap-1.5">
-                    {viewingProfileUser.username} {viewingProfileUser.gender === 'F' && '🚺'}
-                    {viewingProfileUser.is_verified && <ShieldCheck className="w-5 h-5 text-orange-500 fill-orange-500/20" />}
-                  </h3>
-                  <span className="text-xs text-orange-400 font-semibold block mt-0.5"><MapPin className="w-3.5 h-3.5 inline mr-1" />{viewingProfileUser.home_club}</span>
-                </div>
-              </div>
-
-              <div className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 space-y-2 text-xs text-neutral-300">
-                <div className="flex justify-between py-1 border-b border-neutral-900"><span className="text-neutral-400">Objectif :</span><strong className="text-white">{viewingProfileUser.goal || 'Sportif'}</strong></div>
-                <div className="flex justify-between py-1 border-b border-neutral-900"><span className="text-neutral-400">Créneau préféré :</span><strong className="text-white">{viewingProfileUser.preferred_time || 'Flexible'}</strong></div>
-                <div className="flex justify-between py-1"><span className="text-neutral-400">Tranche d'âge :</span><strong className="text-white">{ageRange}</strong></div>
-              </div>
-
-              <div className="flex gap-2.5 pt-2">
-                <button onClick={() => { const target = viewingProfileUser; setViewingProfileUser(null); handleSelectBuddyChat(target); setCurrentTab('chat'); }} className="flex-1 py-3.5 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 shadow-lg"><MessageCircle className="w-4 h-4" /> Message</button>
-                
-                {!isFriend && !isPending && viewingProfileUser.id !== user?.id && (
-                  <button onClick={() => handleSendFriendRequest(viewingProfileUser.id)} className="px-4 py-3 bg-neutral-800 hover:bg-neutral-700 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5"><UserPlus className="w-4 h-4 text-orange-400" /> Demander en ami</button>
-                )}
-                {isPending && (
-                  <button disabled className="px-4 py-3 bg-neutral-800 text-neutral-400 rounded-xl text-xs">Demande en attente</button>
-                )}
-              </div>
-            </div>
-          </div>
-        );
-      })()}
-
-      {activeViewingStory && (
-        <div 
-          className="fixed inset-0 z-50 bg-black flex flex-col justify-between p-4 select-none"
-          onMouseDown={() => setIsStoryPaused(true)}
-          onMouseUp={() => setIsStoryPaused(false)}
-          onTouchStart={() => setIsStoryPaused(true)}
-          onTouchEnd={() => setIsStoryPaused(false)}
-        >
-          <div className="w-full flex gap-1.5 pt-2 z-10">
-            <div className="h-1 flex-1 bg-white/30 rounded-full overflow-hidden">
-              <div className="h-full bg-white transition-all duration-100 ease-linear" style={{ width: `${storyProgress}%` }} />
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between pt-3 z-10">
-            <div className="flex items-center gap-2.5">
-              <img src={activeViewingStory.avatar_url} alt="" className="w-9 h-9 rounded-full object-cover border border-white/20" />
-              <div>
-                <h4 className="font-bold text-xs text-white leading-none">{activeViewingStory.username}</h4>
-                <span className="text-[10px] text-white/70">{activeViewingStory.club_name}</span>
-              </div>
-            </div>
-            <button onClick={() => { setActiveStoryIndex(null); setIsStoryPaused(false); }} className="p-2 bg-black/40 text-white rounded-full"><X className="w-5 h-5" /></button>
-          </div>
-
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <img src={activeViewingStory.image_url} alt="" className="w-full h-full object-cover" />
-            {activeViewingStory.caption && (
-              <div className="absolute bottom-28 left-4 right-4 bg-black/60 backdrop-blur-md p-3.5 rounded-2xl text-center border border-white/10 pointer-events-auto">
-                <p className="text-sm text-white font-medium">{activeViewingStory.caption}</p>
-              </div>
-            )}
-          </div>
-
-          <div className="absolute inset-y-0 left-0 w-1/3 cursor-pointer z-0" onClick={(e) => { e.stopPropagation(); handlePrevStory(); }} />
-          <div className="absolute inset-y-0 right-0 w-1/3 cursor-pointer z-0" onClick={(e) => { e.stopPropagation(); handleNextStory(); }} />
-
-          <div className="space-y-2.5 z-10 pb-4">
-            <div className="flex justify-center gap-3 bg-black/50 backdrop-blur-md py-2 px-4 rounded-full border border-white/10 w-fit mx-auto">
-              {['❤️', '🔥', '👏', '😮', '💪', '🏆'].map((emoji) => (
-                <button key={emoji} onClick={(e) => { e.stopPropagation(); handleQuickEmojiReaction(emoji); }} className="text-xl hover:scale-125 transition transform">{emoji}</button>
-              ))}
-            </div>
-            <div className="flex items-center gap-3">
-              <form onSubmit={handleSendStoryComment} className="flex-1 flex items-center gap-2 bg-black/60 backdrop-blur-md border border-white/20 rounded-full px-4 py-2">
-                <input type="text" placeholder={`Répondre à ${activeViewingStory.username}...`} value={storyCommentInput} onChange={(e) => setStoryCommentInput(e.target.value)} className="flex-1 bg-transparent text-xs text-white focus:outline-none placeholder-white/60" />
-                <button type="submit" className="text-orange-400"><SendHorizontal className="w-4 h-4" /></button>
-              </form>
-              <button onClick={() => handleToggleStoryLike(activeViewingStory.id)} className="p-3 bg-black/60 backdrop-blur-md border border-white/20 rounded-full text-white transition">
-                <Heart className={`w-5 h-5 ${likedStories[activeViewingStory.id] ? 'fill-red-500 text-red-500' : ''}`} />
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {isMatchModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-md w-full p-5 space-y-4 shadow-2xl">
-            <div className="flex items-center justify-between pb-2 border-b border-neutral-800">
-              <h3 className="text-sm font-black text-white flex items-center gap-2"><Sparkles className="w-4 h-4 text-orange-500" /> Trouver un partenaire (Match)</h3>
-              <button onClick={() => setIsMatchModalOpen(false)} className="p-1 text-neutral-400 hover:text-white"><X className="w-5 h-5" /></button>
-            </div>
-            <div className="space-y-3">
-              <div>
-                <label className="block text-xs font-semibold text-neutral-400 mb-1">Objectif :</label>
-                <select value={matchGoal} onChange={(e) => setMatchGoal(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:border-orange-500">
-                  <option value="Tous">Tous les objectifs</option>
-                  <option value="masse">Prise de masse & Force</option>
-                  <option value="cardio">Cardio & HIIT</option>
-                  <option value="remise">Remise en forme</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-neutral-400 mb-1">Horaire recherché :</label>
-                <select value={matchTime} onChange={(e) => setMatchTime(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:border-orange-500">
-                  <option value="Tous">Tous les horaires</option>
-                  {TIME_SLOTS.map((slot) => <option key={slot} value={slot.split(' ')[1]}>{slot}</option>)}
-                </select>
-              </div>
-              <div className="flex items-center justify-between pt-1">
-                <span className="text-xs text-neutral-400">Filtrer uniquement entre femmes :</span>
-                <button
-                  onClick={() => setMatchWomenOnly(!matchWomenOnly)}
-                  className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition ${matchWomenOnly ? 'bg-pink-600 text-white' : 'bg-neutral-950 text-neutral-400 border border-neutral-800'}`}
-                >
-                  {matchWomenOnly ? 'Activé (🚺)' : 'Désactivé'}
-                </button>
-              </div>
-            </div>
-            <div className="space-y-2.5 pt-2 border-t border-neutral-800 max-h-60 overflow-y-auto">
-              <span className="text-xs font-bold text-orange-400 block mb-1">Résultats ({matchedBuddiesList.length}) :</span>
-              {matchedBuddiesList.length === 0 ? (
-                <div className="text-center py-6 text-neutral-500 text-sm">Aucun athlète ne correspond à cet horaire/objectif.</div>
-              ) : (
-                matchedBuddiesList.map((buddy) => (
-                  <div key={buddy.id} className="bg-neutral-950 p-3.5 rounded-2xl border border-neutral-800 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <img src={buddy.avatar_url} alt="" className="w-11 h-11 rounded-full object-cover border border-neutral-700" />
-                      <div>
-                        <h4 className="font-bold text-sm text-white">{buddy.username} {buddy.gender === 'F' && '🚺'}</h4>
-                        <span className="text-xs text-orange-400 block">🎯 {buddy.goal || 'Sportif'}</span>
-                        <span className="text-[11px] text-amber-400 font-semibold">🕒 {buddy.preferred_time || 'Flexible'}</span>
-                      </div>
-                    </div>
-                    <button onClick={() => { setIsMatchModalOpen(false); handleSelectBuddyChat(buddy); setCurrentTab('chat'); }} className="px-3.5 py-2 bg-orange-600 text-white rounded-xl text-xs font-bold flex items-center gap-1.5"><MessageCircle className="w-4 h-4" /> Contacter</button>
-                  </div>
-                ))
-              )}
-            </div>
-            <button onClick={() => setIsMatchModalOpen(false)} className="w-full py-3 bg-neutral-950 text-white font-bold rounded-xl text-sm border border-neutral-800">Fermer</button>
-          </div>
-        </div>
-      )}
-
-      {inviteModalTarget && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-sm w-full p-5 space-y-4">
-            <div className="flex items-center justify-between pb-2 border-b border-neutral-800">
-              <h3 className="text-sm font-black text-white flex items-center gap-2"><Zap className="w-4 h-4 text-orange-500" /> Lancer un Push Up !</h3>
-              <button onClick={() => setInviteModalTarget(null)} className="p-1 text-neutral-400 hover:text-white"><X className="w-5 h-5" /></button>
-            </div>
-            <div className="space-y-3">
-              <p className="text-sm text-neutral-300">Invite <strong>{inviteModalTarget.username}</strong> à s'entraîner.</p>
-              <div>
-                <select value={inviteType} onChange={(e) => setInviteType(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3.5 py-3 text-sm text-white focus:border-orange-500">
-                  <option value="Jambes (Leg Day)">Jambes (Leg Day)</option>
-                  <option value="Push (Pecs, Épaules, Triceps)">Push (Pecs, Épaules)</option>
-                  <option value="Pull (Dos, Biceps)">Pull (Dos, Biceps)</option>
-                  <option value="Cardio & HIIT">Cardio & HIIT</option>
-                  <option value="Full Body">Full Body</option>
-                </select>
-              </div>
-            </div>
-            <button onClick={handleSendInvite} className="w-full py-3.5 bg-orange-600 text-white font-bold rounded-xl text-sm flex items-center justify-center gap-2"><Send className="w-4 h-4" /> Envoyer</button>
-          </div>
-        </div>
-      )}
-
-      {selectedExerciseDetail && (
-        <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex flex-col justify-end sm:justify-center p-4">
-          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-lg w-full mx-auto p-5 space-y-4 max-h-[88vh] overflow-y-auto shadow-2xl">
-            <div className="flex items-center justify-between pb-3 border-b border-neutral-800">
-              <div className="flex items-center gap-2">
-                <span className="text-xs bg-orange-500/20 text-orange-400 px-3 py-1 rounded-lg font-bold">{selectedExerciseDetail.category}</span>
-                <h3 className="text-sm font-black text-white">{selectedExerciseDetail.name}</h3>
-              </div>
-              <button onClick={() => setSelectedExerciseDetail(null)} className="p-2 bg-neutral-800 text-white rounded-full"><X className="w-5 h-5" /></button>
-            </div>
-            <div className="rounded-2xl overflow-hidden border border-neutral-800 bg-neutral-950 h-48 w-full relative">
-              <img src={selectedExerciseDetail.image_url} alt="" className="w-full h-full object-cover" />
-            </div>
-            <div className="space-y-3 text-sm leading-relaxed text-neutral-300">
-              <div className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 space-y-1.5">
-                <span className="font-bold text-orange-400 uppercase text-xs block">Description détaillée</span>
-                <p>{selectedExerciseDetail.detailedDescription}</p>
-              </div>
-              <div className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 space-y-1.5">
-                <span className="font-bold text-orange-400 uppercase text-xs block">Équipement requis</span>
-                <p className="text-neutral-200">{selectedExerciseDetail.equipment}</p>
-              </div>
-              <div className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 space-y-1.5">
-                <span className="font-bold text-orange-400 uppercase text-xs block">Exécution du mouvement</span>
-                <p className="text-neutral-200">{selectedExerciseDetail.execution}</p>
-              </div>
-              <div className="bg-orange-950/20 p-4 rounded-2xl border border-orange-500/20 space-y-1.5">
-                <span className="font-bold text-orange-400 uppercase text-xs block">Conseil du Coach</span>
-                <p className="text-neutral-200 italic">{selectedExerciseDetail.tips}</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {isCameraActive && (
-        <div className="fixed inset-0 z-50 bg-black flex flex-col justify-between items-center p-4">
-          <div className="w-full flex items-center justify-between z-10 pt-2">
-            <span className="text-xs font-bold text-white bg-black/50 px-3.5 py-1.5 rounded-full border border-neutral-800">Caméra</span>
-            <div className="flex items-center gap-2">
-              <button type="button" onClick={switchCameraFacing} className="p-3 bg-black/60 rounded-full text-white"><SwitchCamera className="w-5 h-5" /></button>
-              <button type="button" onClick={stopCameraStream} className="p-3 bg-black/60 rounded-full text-white"><X className="w-5 h-5" /></button>
-            </div>
-          </div>
-          <div className="relative w-full flex-1 max-w-sm my-auto rounded-3xl overflow-hidden bg-neutral-950 flex items-center justify-center border border-neutral-800">
-            <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover" />
-          </div>
-          <div className="w-full flex justify-center items-center pb-6 z-10">
-            <button type="button" onClick={capturePhoto} className="w-20 h-20 rounded-full border-4 border-white flex items-center justify-center p-1"><div className="w-full h-full bg-orange-500 rounded-full shadow-lg" /></button>
-          </div>
-        </div>
-      )}
-
-      {isCreatingStory && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-md w-full p-5 space-y-4">
-            <div className="flex items-center justify-between pb-2 border-b border-neutral-800">
-              <h3 className="text-sm font-bold text-white flex items-center gap-2"><Sparkles className="w-4 h-4 text-orange-500" /> Ajouter à ma story (24h)</h3>
-              <button onClick={() => setIsCreatingStory(false)} className="p-1 text-neutral-400 hover:text-white"><X className="w-5 h-5" /></button>
-            </div>
-            <form onSubmit={handlePublishStory} className="space-y-4">
-              <input type="file" accept="image/*" ref={storyFileInputRef} onChange={handleImageSelect} className="hidden" />
-              {storyImagePreview ? (
-                <div className="relative rounded-2xl overflow-hidden border border-neutral-700 bg-neutral-950 h-56 flex items-center justify-center">
-                  <img src={storyImagePreview} alt="" className="max-h-full object-contain" />
-                  <button type="button" onClick={() => setStoryImagePreview(null)} className="absolute top-2.5 right-2.5 p-1.5 bg-black/80 text-white rounded-full"><X className="w-4 h-4" /></button>
-                </div>
-              ) : (
-                <div className="grid grid-cols-2 gap-3">
-                  <button type="button" onClick={() => startCameraHandler('story')} className="py-8 border-2 border-dashed border-neutral-800 hover:border-orange-500 rounded-2xl flex flex-col items-center justify-center gap-2 text-neutral-400 bg-neutral-950 transition">
-                    <Camera className="w-6 h-6 text-orange-500" /><span className="text-xs font-semibold">Prendre photo</span>
-                  </button>
-                  <button type="button" onClick={() => storyFileInputRef.current?.click()} className="py-8 border-2 border-dashed border-neutral-800 hover:border-orange-500 rounded-2xl flex flex-col items-center justify-center gap-2 text-neutral-400 bg-neutral-950 transition">
-                    <FolderOpen className="w-6 h-6 text-neutral-400" /><span className="text-xs font-semibold">Album tel</span>
-                  </button>
-                </div>
-              )}
-              <div className="space-y-2">
-                <input type="text" placeholder="Légende de la story..." value={storyCaption} onChange={(e) => setStoryCaption(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3.5 py-3 text-sm text-white focus:outline-none focus:border-orange-500" />
-              </div>
-              <button type="submit" disabled={storyUploading || !storyImageFile} className="w-full bg-orange-600 hover:bg-orange-500 text-white font-bold py-3.5 rounded-xl shadow-lg transition flex items-center justify-center gap-2 text-sm">
-                {storyUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Partager ma story"}
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {activeCommentPostId && activePostForComments && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex flex-col justify-end">
-          <div className="bg-neutral-900 border-t border-neutral-800 rounded-t-3xl h-[70vh] flex flex-col shadow-2xl">
-            <div className="flex items-center justify-between p-4 border-b border-neutral-800">
-              <h3 className="font-bold text-sm text-white flex items-center gap-2"><MessageSquare className="w-4 h-4 text-orange-500" /> Commentaires ({activePostForComments.comments_count || 0})</h3>
-              <button onClick={() => setActiveCommentPostId(null)} className="p-2 bg-neutral-800 text-white rounded-full"><X className="w-4 h-4" /></button>
-            </div>
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
-              {(!activePostForComments.comments || activePostForComments.comments.length === 0) ? (
-                <div className="text-center text-neutral-500 text-sm py-8">Aucun commentaire. Sois le premier à réagir !</div>
-              ) : (
-                activePostForComments.comments.map(c => (
-                  <div key={c.id} className="flex gap-3">
-                    <img src={c.avatar_url} className="w-9 h-9 rounded-full object-cover border border-neutral-700" />
-                    <div className="flex-1 bg-neutral-950 p-3.5 rounded-2xl rounded-tl-none border border-neutral-800">
-                      <span className="font-bold text-xs text-white block mb-1">{c.username}</span>
-                      <p className="text-sm text-neutral-300 leading-relaxed">{c.text}</p>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-            <form onSubmit={handleAddPostComment} className="p-3.5 bg-neutral-950 border-t border-neutral-800 flex items-center gap-2.5">
-              <input type="text" placeholder="Ajouter un commentaire..." value={postCommentInput} onChange={e => setPostCommentInput(e.target.value)} className="flex-1 bg-neutral-900 border border-neutral-800 rounded-xl px-4 py-3 text-sm text-white focus:border-orange-500" />
-              <button type="submit" disabled={!postCommentInput.trim()} className="p-3 bg-orange-600 disabled:bg-neutral-800 text-white rounded-xl"><SendHorizontal className="w-4 h-4" /></button>
-            </form>
-          </div>
-        </div>
-      )}
 
       <nav className="fixed bottom-0 left-0 right-0 z-40 bg-neutral-950/90 backdrop-blur-xl border-t border-neutral-800/80 px-2 py-2 flex justify-around items-center">
         <button onClick={() => handleTabChange('feed')} className={`flex flex-col items-center gap-1 ${currentTab === 'feed' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Home className="w-5 h-5" /><span className="text-[10px]">Accueil</span></button>
