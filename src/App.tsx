@@ -563,6 +563,10 @@ export default function App() {
       setLastReadTimestamps(updated);
       try { localStorage.setItem('fitpulse_last_read_map', JSON.stringify(updated)); } catch(e) {}
     }
+    // Fait défiler tout en bas uniquement à l'ouverture de la conversation
+    setTimeout(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
+    }, 50);
   };
 
   const convertJJMMAAAAtoYYYYMMDD = (input: string): string => {
@@ -1297,7 +1301,6 @@ export default function App() {
       if (user) syncProfile(user);
     }, 30000);
 
-    // POLLING UNIVERSEL AUTOMATIQUE DE SÉCURITÉ (2 SECONDES) POUR LE CHAT EN DIRECT SANS BLOQUER LE SCROLL
     const universalPollingInterval = setInterval(() => {
       fetchDirectMessages();
     }, 2000);
