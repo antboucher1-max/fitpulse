@@ -870,7 +870,6 @@ export default function App() {
     }
     const text = currentMessageInput.trim();
     
-    // Vider instantanément le champ pour une réactivité maximale
     setCurrentMessageInput('');
     if (typingChannelRef.current) {
       typingChannelRef.current.send({
@@ -890,7 +889,6 @@ export default function App() {
       created_at: new Date().toISOString()
     };
     
-    // Affichage optimiste immédiat
     setAllMessages((prev) => [...prev, tempMsg]);
 
     const { data, error } = await supabase.from('direct_messages').insert([{ sender_id: user.id, receiver_id: selectedBuddyChat.id, sender_name: myName, text }]);
@@ -1232,14 +1230,26 @@ export default function App() {
       if (user) syncProfile(user);
     }, 30000);
 
+    // ABONNEMENT EN TEMPS RÉEL CORRIGÉ ET FORCÉ POUR DIRECT_MESSAGES
     const channel = supabase
-      .channel('schema-db-changes')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'direct_messages' }, (payload) => {
-        setAllMessages((prev) => [...prev, payload.new as DBMessage]);
-      })
-      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'direct_messages' }, (payload) => {
-        setAllMessages((prev) => prev.filter((m) => m.id !== payload.old.id));
-      })
+      .channel('public:direct_messages_realtime')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'direct_messages' },
+        (payload) => {
+          setAllMessages((prev) => {
+            if (prev.some(m => m.id === payload.new.id)) return prev;
+            return [...prev, payload.new as DBMessage];
+          });
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'DELETE', schema: 'public', table: 'direct_messages' },
+        (payload) => {
+          setAllMessages((prev) => prev.filter((m) => m.id !== payload.old.id));
+        }
+      )
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'stories' }, (payload) => {
         setCloudStories((prev) => [payload.new as Story, ...prev]);
       })
@@ -2448,7 +2458,7 @@ export default function App() {
           <div className="w-8 h-8 rounded-xl bg-orange-600 text-white flex items-center justify-center -mt-2.5 shadow-lg"><Plus className="w-5 h-5" /></div>
           <span className="text-[10px]">Séance</span>
         </button>
-        <button onClick={() => handleTabChange('chat')} className={`flex flex-col items-center gap-1 ${currentTab === 'chat' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}>
+        <button onClick={() => handlerTabChangeChatSafely('chat')} className={`flex flex-col items-center gap-1 ${currentTab === 'chat' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`} onClick={() => handleTabChange('chat')}>
           <div className="relative">
             <MessageCircle className="w-5 h-5" />
             {unreadChatCount > 0 && <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 border border-neutral-950 rounded-full animate-pulse"></span>}
