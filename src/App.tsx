@@ -1961,7 +1961,6 @@ export default function App() {
                     const isMine = msg.sender_id === user?.id;
                     const friendLastRead = lastReadTimestamps[selectedBuddyChat.id] || 0;
                     
-                    // N'affiche le statut "lu" qu'uniquement sur le DERNIER message de la conversation envoyé par moi
                     const isLastMyMessage = isMine && arr.slice(index + 1).every(m => m.sender_id === user?.id);
                     const isReadByFriend = isLastMyMessage && new Date(msg.created_at).getTime() <= friendLastRead;
 
@@ -2622,9 +2621,9 @@ export default function App() {
             <MessageCircle className="w-5 h-5" />
             {unreadChatCount > 0 && <span className="absolute -top-1 -right-1 bg-red-600 text-white font-bold text-[10px] w-4 h-4 rounded-full flex items-center justify-center border border-neutral-950 shadow-md animate-pulse">{unreadChatCount}</span>}
           </div>
-          <span className="text-[10px]">Chat</th>
+          <span className="text-[10px]">Chat</span>
         </button>
-        <button onClick={() => handleTabchange('profile')} className={`flex flex-col items-center gap-1 ${currentTab === 'profile' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><User className="w-5 h-5" /><span className="text-[10px]">Profil</span></button>
+        <button onClick={() => handleTabChange('profile')} className={`flex flex-col items-center gap-1 ${currentTab === 'profile' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><User className="w-5 h-5" /><span className="text-[10px]">Profil</span></button>
       </nav>
     </div>
   );
