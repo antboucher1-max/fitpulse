@@ -318,11 +318,6 @@ export default function App() {
   const [userStreak, setUserStreak] = useState<number>(() => { try { return parseInt(localStorage.getItem('fitpulse_streak') || '2', 10); } catch { return 2; } });
   const [isPrivateMode, setIsPrivateMode] = useState<boolean>(() => { try { return localStorage.getItem('fitpulse_private') === 'true'; } catch { return false; } });
   
-  // Plate Calculator States
-  const [targetWeight, setTargetWeight] = useState<number | ''>(100);
-  const [barbellWeight, setBarbellWeight] = useState<number>(20);
-  const availablePlates = [25, 20, 15, 10, 5, 2.5, 1.25];
-
   // Notifications & Suivi de lecture par conversation
   const [lastReadTimestamps, setLastReadTimestamps] = useState<Record<string, number>>(() => {
     try { return JSON.parse(localStorage.getItem('fitpulse_last_read_map') || '{}'); } catch { return {}; }
@@ -393,6 +388,11 @@ export default function App() {
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('environment');
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+
+  // Plate Calculator States
+  const [targetWeight, setTargetWeight] = useState<number | ''>(100);
+  const [barbellWeight, setBarbellWeight] = useState<number>(20);
+  const availablePlates = [25, 20, 15, 10, 5, 2.5, 1.25];
 
   // Chat & Invites
   const [selectedBuddyChat, setSelectedBuddyChat] = useState<RealUser | null>(null);
@@ -1296,6 +1296,7 @@ export default function App() {
       if (user) syncProfile(user);
     }, 30000);
 
+    // POLLING UNIVERSEL AUTOMATIQUE DE SÉCURITÉ (2 SECONDES) POUR LE CHAT EN DIRECT MÊME QUAND ON Y EST
     const universalPollingInterval = setInterval(() => {
       fetchDirectMessages();
     }, 2000);
@@ -1956,17 +1957,20 @@ export default function App() {
                   </div>
                 </div>
                 <div className="flex-1 p-4 overflow-y-auto space-y-3">
-                  {currentChatMessages.map((msg) => {
+                  {currentChatMessages.map((msg, index, arr) => {
                     const isMine = msg.sender_id === user?.id;
                     const friendLastRead = lastReadTimestamps[selectedBuddyChat.id] || 0;
-                    const isReadByFriend = isMine && new Date(msg.created_at).getTime() <= friendLastRead;
+                    
+                    // N'affiche le statut "lu" qu'uniquement sur le DERNIER message de la conversation envoyé par moi
+                    const isLastMyMessage = isMine && arr.slice(index + 1).every(m => m.sender_id === user?.id);
+                    const isReadByFriend = isLastMyMessage && new Date(msg.created_at).getTime() <= friendLastRead;
 
                     return (
                       <div key={msg.id} className={`flex flex-col ${isMine ? 'items-end' : 'items-start'}`}>
                         <div className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${isMine ? 'bg-orange-600 text-white' : 'bg-neutral-800 text-neutral-200'}`}>
                           {msg.text}
                         </div>
-                        {isMine && (
+                        {isLastMyMessage && (
                           <span className="text-[10px] text-neutral-400 mt-0.5 flex items-center gap-1">
                             {isReadByFriend ? (
                               <span className="text-blue-400 font-semibold flex items-center gap-0.5">
