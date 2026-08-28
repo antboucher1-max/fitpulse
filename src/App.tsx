@@ -449,7 +449,7 @@ export default function App() {
   // ==========================================
   // CALCULATEUR DE DISQUES PAR CÔTÉ
   // ==========================================
-  const calculatePlates = (target: number, bar: number) => {
+  const calculatePlates = (target: number | '', bar: number) => {
     if (target === '' || target <= bar) return [];
     let remaining = (target - bar) / 2;
     const result: { weight: number; count: number }[] = [];
@@ -1296,7 +1296,6 @@ export default function App() {
       if (user) syncProfile(user);
     }, 30000);
 
-    // POLLING UNIVERSEL AUTOMATIQUE DE SÉCURITÉ (2 SECONDES) POUR LE CHAT EN DIRECT MÊME QUAND ON Y EST
     const universalPollingInterval = setInterval(() => {
       fetchDirectMessages();
     }, 2000);
