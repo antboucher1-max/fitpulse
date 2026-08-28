@@ -68,11 +68,15 @@ import {
   MicOff
 } from 'lucide-react';
 import { createClient, User as SupabaseUser } from '@supabase/supabase-js';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 // Configuration Supabase
 const supabaseUrl = 'https://obtahwmcoqrcauscpksv.supabase.co';
 const supabaseAnonKey = 'sb_publishable_O8CKhUtzgq9nO9lKavNE9A__fAdRWoB';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+// Configuration Gemini IA
+const genAI = new GoogleGenerativeAI("AQ.Ab8RN6L5GPKu3cqeAOO-coXkHJQMtUAEAKStoOsmAlURUqizfw");
 
 interface ClubLocation {
   name: string;
@@ -341,19 +345,7 @@ export default function App() {
   const [userStreak, setUserStreak] = useState<number>(() => { try { return parseInt(localStorage.getItem('fitpulse_streak') || '2', 10); } catch { return 2; } });
   const [isPrivateMode, setIsPrivateMode] = useState<boolean>(() => { try { return localStorage.getItem('fitpulse_private') === 'true'; } catch { return false; } });
   
-  // ==========================================
-  // LOGIQUE LIVE WORKOUT TRACKER & REPOS
-  // ==========================================
-  const [isRestTimerActive, setIsRestTimerActive] = useState(false);
-  const [restTimeRemaining, setRestTimeRemaining] = useState(90);
-  const [restTimerSeconds, setRestTimerSeconds] = useState(90);
-
-  const startRestTimer = (seconds: number) => { 
-    setRestTimerSeconds(seconds); 
-    setRestTimeRemaining(seconds); 
-    setIsRestTimerActive(true); 
-  };
-
+  // Live Workout Tracker States
   const [isLiveActive, setIsLiveActive] = useState<boolean>(() => { try { return localStorage.getItem('fitpulse_live_active') === 'true'; } catch { return false; } });
   const [liveWorkoutName, setLiveWorkoutName] = useState<string>(() => { try { return localStorage.getItem('fitpulse_live_name') || 'Séance Full Body'; } catch { return 'Séance Full Body'; } });
   const [liveExercises, setLiveExercises] = useState<LiveWorkoutExercise[]>(() => {
@@ -523,13 +515,18 @@ export default function App() {
 
   const plateBreakdown = targetWeight !== '' ? calculatePlates(targetWeight, barbellWeight) : [];
 
-  // ==========================================
-  // LOGIQUE ACTIONS ET HANDLERS
-  // ==========================================
 
-  const handleTabChange = (tab: 'feed' | 'buddy' | 'workout' | 'exercises' | 'chat' | 'leaderboard' | 'profile' | 'calculator' | 'live_tracker' | 'fitbot') => {
-    setCurrentTab(tab);
-    try { sessionStorage.setItem('fitpulse_current_tab', tab); } catch (e) {}
+  // ==========================================
+  // LOGIQUE LIVE WORKOUT TRACKER & REPOS
+  // ==========================================
+  const [isRestTimerActive, setIsRestTimerActive] = useState(false);
+  const [restTimeRemaining, setRestTimeRemaining] = useState(90);
+  const [restTimerSeconds, setRestTimerSeconds] = useState(90);
+
+  const startRestTimer = (seconds: number) => { 
+    setRestTimerSeconds(seconds); 
+    setRestTimeRemaining(seconds); 
+    setIsRestTimerActive(true); 
   };
 
   useEffect(() => {
@@ -642,7 +639,7 @@ export default function App() {
 
 
   // ==========================================
-  // LOGIQUE COACH IA "FitBot" & RECONNAISSANCE VOCALE
+  // LOGIQUE COACH IA "GEMINI" & VOCAL
   // ==========================================
   const handleSendAIChat = async (e?: React.FormEvent, customText?: string) => {
     if (e) e.preventDefault();
@@ -651,24 +648,33 @@ export default function App() {
     const userText = textToSend.trim();
     if (!customText) setAiInputText('');
     
+    // Afficher le message de l'utilisateur
     const newHistory: AIChatMessage[] = [...aiChatMessages, { sender: 'user', text: userText }];
     setAiChatMessages(newHistory);
+    
+    // Afficher un loader visuel (feedback)
+    const loadingHistory: AIChatMessage[] = [...newHistory, { sender: 'bot', text: "Hmm, laisse-moi réfléchir... 🧠" }];
+    setAiChatMessages(loadingHistory);
+    setTimeout(() => aiMessagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
 
-    setTimeout(() => {
-      let botReply = "C'est noté ! Pour progresser efficacement dans ton Basic-Fit, veille à bien t'hydrater, respecter 1'30 de repos entre tes séries lourdes et garder une surcharge progressive chaque semaine.";
-      const lower = userText.toLowerCase();
+    try {
+      // Appel direct au modèle Gemini
+      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+      
+      const prompt = `Tu es FitBot, le coach sportif IA expert en musculation de l'application FitPulse. Ton athlète s'appelle Antoine (il adore les séances Full Body). L'utilisateur te dit : "${userText}". Réponds de manière experte, super motivante, et tutoie-le. Formate ta réponse de manière très visuelle et claire. Ajoute des emojis sportifs !`;
 
-      if (lower.includes('basic-fit') || lower.includes('materiel') || lower.includes('machine')) {
-        botReply = "🏋️ Pour ton Basic-Fit, je te conseille d'exploiter la zone TechnoGym : utilise les machines convergentes (Chest Press, Lat Pulldown, Leg Press) pour l'isolation et la sécurité, et les poulies pour un maximum de tension continue !";
-      } else if (lower.includes('nutrition') || lower.includes('manger')|| lower.includes('protéine') || lower.includes('diète')) {
-        botReply = "🥗 Côté nutrition pour la musculation : visez environ 1.8g à 2g de protéines par kilo de poids de corps par jour (poulet, œufs, skyr, tofu), des glucides complexes (riz, avoine, patate douce) et des bons Lipides (amandes, olive, avocat).";
-      } else if (lower.includes('programme') || lower.includes('prise de masse') || lower.includes('dos')|| lower.includes('pecs')) {
-        botReply = "📋 Voici un super format **Push / Pull / Legs** adapté :\n- **Push** : Développé couché, Dips, Élévations latérales\n- **Pull** : Tractions ou Tirage vertical, Rowing haltère, Curl biceps\n- **Legs** : Squat ou Leg Press, Extensions jambes, Mollets.";
-      }
+      const result = await model.generateContent(prompt);
+      const response = await result.response;
+      const botReply = response.text();
 
       setAiChatMessages([...newHistory, { sender: 'bot', text: botReply }]);
-      aiMessagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, 600);
+      setTimeout(() => aiMessagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
+
+    } catch (error) {
+      console.error("Erreur Gemini:", error);
+      setAiChatMessages([...newHistory, { sender: 'bot', text: "Oups, j'ai eu un coup de barre 🍫. Mon cerveau IA est temporairement indisponible, vérifie que ta clé API est bonne ou réessaie dans un instant !" }]);
+      setTimeout(() => aiMessagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
+    }
   };
 
   const toggleVoiceDictation = () => {
