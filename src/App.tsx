@@ -58,7 +58,8 @@ import {
   AlertTriangle,
   Flag,
   Bell,
-  Key
+  Key,
+  CheckCheck
 } from 'lucide-react';
 import { createClient, User as SupabaseUser } from '@supabase/supabase-js';
 
@@ -504,7 +505,7 @@ export default function App() {
   const activeViewingStory = activeStoryIndex !== null ? friendStoriesList[activeStoryIndex] : null;
   const activePostForComments = posts.find((p) => p.id === activeCommentPostId);
   
-  // Nombre total de conversations ayant au moins un message non lu
+  // Nombre total de conversations différentes ayant au moins un message non lu
   const unreadChatCount = activeChatUsers.filter(friend => {
     const lastRead = lastReadTimestamps[friend.id] || 0;
     const friendMsgs = allMessages.filter(m => m.sender_id === friend.id && m.receiver_id === user?.id);
@@ -1928,13 +1929,30 @@ export default function App() {
                   </div>
                 </div>
                 <div className="flex-1 p-4 overflow-y-auto space-y-3">
-                  {currentChatMessages.map((msg) => (
-                    <div key={msg.id} className={`flex flex-col ${msg.sender_id === user?.id ? 'items-end' : 'items-start'}`}>
-                      <div className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${msg.sender_id === user?.id ? 'bg-orange-600 text-white' : 'bg-neutral-800 text-neutral-200'}`}>
-                        {msg.text}
+                  {currentChatMessages.map((msg) => {
+                    const isMine = msg.sender_id === user?.id;
+                    const friendLastRead = lastReadTimestamps[selectedBuddyChat.id] || 0;
+                    const isReadByFriend = isMine && new Date(msg.created_at).getTime() <= friendLastRead;
+
+                    return (
+                      <div key={msg.id} className={`flex flex-col ${isMine ? 'items-end' : 'items-start'}`}>
+                        <div className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${isMine ? 'bg-orange-600 text-white' : 'bg-neutral-800 text-neutral-200'}`}>
+                          {msg.text}
+                        </div>
+                        {isMine && (
+                          <span className="text-[10px] text-neutral-400 mt-0.5 flex items-center gap-1">
+                            {isReadByFriend ? (
+                              <span className="text-blue-400 font-semibold flex items-center gap-0.5">
+                                <CheckCheck className="w-3.5 h-3.5 text-blue-400" /> lu
+                              </span>
+                            ) : (
+                              <span>envoyé</span>
+                            )}
+                          </span>
+                        )}
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
 
                   {/* Animation des trois petits points si le correspondant écrit */}
                   {isOtherUserTyping && (
@@ -2234,7 +2252,7 @@ export default function App() {
               </div>
 
               <div className="flex gap-2.5 pt-2">
-                <button onClick={() => { const target = viewingProfileUser; setViewingProfileUser(null); setSelectedBuddyChat(target); setCurrentTab('chat'); }} className="flex-1 py-3.5 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 shadow-lg"><MessageCircle className="w-4 h-4" /> Message</button>
+                <button onClick={() => { const target = viewingProfileUser; setViewingProfileUser(null); handleSelectBuddyChat(target); setCurrentTab('chat'); }} className="flex-1 py-3.5 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 shadow-lg"><MessageCircle className="w-4 h-4" /> Message</button>
                 
                 {!isFriend && !isPending && viewingProfileUser.id !== user?.id && (
                   <button onClick={() => handleSendFriendRequest(viewingProfileUser.id)} className="px-4 py-3 bg-neutral-800 hover:bg-neutral-700 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5"><UserPlus className="w-4 h-4 text-orange-400" /> Demander en ami</button>
