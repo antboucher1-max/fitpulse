@@ -743,11 +743,6 @@ export default function App() {
   // FONCTIONS ET HANDLERS
   // ==========================================
 
-  const handleTabChange = (tab: 'feed' | 'buddy' | 'workout' | 'exercises' | 'chat' | 'leaderboard' | 'profile' | 'calculator' | 'live_tracker' | 'fitbot') => {
-    setCurrentTab(tab);
-    try { sessionStorage.setItem('fitpulse_current_tab', tab); } catch (e) {}
-  };
-
   const handleSelectBuddyChat = (friend: RealUser) => {
     setSelectedBuddyChat(friend);
     if (user) {
