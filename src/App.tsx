@@ -60,7 +60,8 @@ import {
   Bell,
   Key,
   CheckCheck,
-  Calculator
+  Calculator,
+  Bot
 } from 'lucide-react';
 import { createClient, User as SupabaseUser } from '@supabase/supabase-js';
 
@@ -183,7 +184,7 @@ const EXERCISES_DATABASE: ExerciseGuide[] = [
     equipment: 'Machine Leg Press inclinée', 
     targetMuscles: 'Quadriceps, Fessiers', 
     settings: 'Assieds-toi, place tes pieds au milieu de la plateforme largeur d’épaules.', 
-    execution: 'Fléchis les jambes pour ramener le chariot vers toi puis pousse puissamment.', 
+    execution: 'Fléchis les jambes pour ramener le chariot vers toi puis pousse puissantly.', 
     tips: 'Ne décolle jamais le bas du dos ou les talons du dossier.', 
     image_url: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=800',
     detailedDescription: 'La presse à cuisses permet de charger lourdement les quadriceps en protégeant la colonne.'
@@ -214,6 +215,23 @@ interface FriendRequest {
 
 interface DBMessage {
   id: string; sender_id: string; receiver_id: string; sender_name: string; text: string; created_at: string;
+}
+
+interface LiveWorkoutSet {
+  setNumber: number;
+  weight: number;
+  reps: number;
+  completed: boolean;
+}
+
+interface LiveWorkoutExercise {
+  exerciseName: string;
+  sets: LiveWorkoutSet[];
+}
+
+interface AIChatMessage {
+  sender: 'user' | 'bot';
+  text: string;
 }
 
 const WORKOUT_CHOICES = ['Push (Pectoraux, Épaules, Triceps)', 'Pull (Dos, Biceps)', 'Legs (Jambes, Fessiers)', 'Full Body (Corps entier)', 'Cardio & HIIT', 'Repos / Récupération'];
@@ -299,7 +317,7 @@ export default function App() {
   const [isCGUModalOpen, setIsCGUModalOpen] = useState(false);
 
   // App States
-  const [currentTab, setCurrentTab] = useState<'feed' | 'buddy' | 'workout' | 'exercises' | 'chat' | 'leaderboard' | 'profile' | 'calculator'>(() => {
+  const [currentTab, setCurrentTab] = useState<'feed' | 'buddy' | 'workout' | 'exercises' | 'chat' | 'leaderboard' | 'profile' | 'calculator' | 'live_tracker' | 'fitbot'>(() => {
     try {
       const savedTab = sessionStorage.getItem('fitpulse_current_tab');
       return (savedTab as any) || 'feed';
@@ -318,6 +336,20 @@ export default function App() {
   const [userStreak, setUserStreak] = useState<number>(() => { try { return parseInt(localStorage.getItem('fitpulse_streak') || '2', 10); } catch { return 2; } });
   const [isPrivateMode, setIsPrivateMode] = useState<boolean>(() => { try { return localStorage.getItem('fitpulse_private') === 'true'; } catch { return false; } });
   
+  // Live Workout Tracker States
+  const [isLiveActive, setIsLiveActive] = useState(false);
+  const [liveWorkoutName, setLiveWorkoutName] = useState('Séance Full Body');
+  const [liveExercises, setLiveExercises] = useState<LiveWorkoutExercise[]>([]);
+  const [selectedExToAdd, setSelectedExToAdd] = useState(EXERCISES_DATABASE[0].name);
+  const [liveElapsedSeconds, setLiveElapsedSeconds] = useState(0);
+
+  // FitBot IA States
+  const [aiChatMessages, setAiChatMessages] = useState<AIChatMessage[]>([
+    { sender: 'bot', text: "Salut l'athlète ! Je suis **FitBot**, ton coach IA personnel. En quoi puis-je t'aider aujourd'hui ? (Programme Basic-Fit, nutrition, conseils d'entraînement...)" }
+  ]);
+  const [aiInputText, setAiInputText] = useState('');
+  const aiMessagesEndRef = useRef<HTMLDivElement>(null);
+
   // Notifications & Suivi de lecture par conversation
   const [lastReadTimestamps, setLastReadTimestamps] = useState<Record<string, number>>(() => {
     try { return JSON.parse(localStorage.getItem('fitpulse_last_read_map') || '{}'); } catch { return {}; }
@@ -550,7 +582,7 @@ export default function App() {
   // FONCTIONS ET HANDLERS
   // ==========================================
 
-  const handleTabChange = (tab: 'feed' | 'buddy' | 'workout' | 'exercises' | 'chat' | 'leaderboard' | 'profile' | 'calculator') => {
+  const handleTabChange = (tab: 'feed' | 'buddy' | 'workout' | 'exercises' | 'chat' | 'leaderboard' | 'profile' | 'calculator' | 'live_tracker' | 'fitbot') => {
     setCurrentTab(tab);
     try { sessionStorage.setItem('fitpulse_current_tab', tab); } catch (e) {}
   };
@@ -563,7 +595,6 @@ export default function App() {
       setLastReadTimestamps(updated);
       try { localStorage.setItem('fitpulse_last_read_map', JSON.stringify(updated)); } catch(e) {}
     }
-    // Fait défiler tout en bas uniquement à l'ouverture de la conversation
     setTimeout(() => {
       messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
     }, 50);
