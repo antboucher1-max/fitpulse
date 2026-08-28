@@ -457,7 +457,7 @@ export default function App() {
 
 
   // ==========================================
-  // 2. FONCTIONS UTILITAIRES DE BASE (HISSÉES EN PREMIER)
+  // 2. FONCTIONS HISSÉES (TOUTES DÉCLARÉES EN PREMIER)
   // ==========================================
 
   const convertJJMMAAAAtoYYYYMMDD = (input: string): string => {
@@ -499,6 +499,22 @@ export default function App() {
     if (target === 'story') { setIsCreatingStory(false); }
     setCameraTarget(target);
     setIsCameraActive(true);
+  };
+
+  const handleReportPost = async (post: Post) => {
+    if (!window.confirm("Signaler cette publication ?")) return;
+    if (user) {
+      let adminId = registeredUsers.find(u => u.username.toLowerCase() === 'antbou')?.id;
+      if (!adminId) {
+        const { data } = await supabase.from('posts').select('user_id').ilike('username', 'antbou').limit(1);
+        if (data && data.length > 0) adminId = data[0].user_id;
+      }
+      if (adminId) {
+        const myName = user.user_metadata?.username || 'Un utilisateur';
+        await supabase.from('direct_messages').insert([{ sender_id: 'system-bot', receiver_id: adminId, sender_name: '⚠️ Bot', text: `🚨 SIGNALEMENT : ${myName} a signalé le post de ${post.username}.` }]);
+      }
+    }
+    alert("🚨 Publication signalée aux modérateurs.");
   };
 
 
@@ -743,17 +759,6 @@ export default function App() {
     }
   };
 
-  const handleSelectBuddyChat = (friend: RealUser) => {
-    setSelectedBuddyChat(friend);
-    if (user) {
-      const now = Date.now();
-      const updated = { ...lastReadTimestamps, [friend.id]: now };
-      setLastReadTimestamps(updated);
-      try { localStorage.setItem('fitpulse_last_read_map', JSON.stringify(updated)); } catch(e) {}
-    }
-    setTimeout(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'auto' }); }, 50);
-  };
-
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isSignUp && !acceptCGU) { alert("Veuillez accepter les CGU pour continuer."); return; }
@@ -881,6 +886,37 @@ export default function App() {
 
   const sendSystemNotification = async (receiverId: string, message: string) => {
     await supabase.from('direct_messages').insert([{ sender_id: 'system-notification', receiver_id: receiverId, sender_name: '📣 Notification', text: message }]);
+  };
+
+  const switchCameraFacing = async () => {
+    const newFacing = facingMode === 'environment' ? 'user' : 'environment';
+    setFacingMode(newFacing);
+    try {
+      if (streamRef.current) streamRef.current.getTracks().forEach((t) => t.stop());
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: newFacing }, audio: false });
+      streamRef.current = stream;
+      if (videoRef.current) videoRef.current.srcObject = stream;
+    } catch (err) {}
+  };
+
+  const capturePhoto = () => {
+    if (!videoRef.current) return;
+    const video = videoRef.current;
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth || 640; canvas.height = video.videoHeight || 480;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    canvas.toBlob((blob) => {
+      if (!blob) return;
+      const previewUrl = URL.createObjectURL(blob);
+      if (cameraTarget === 'trans_before') setNewTransBefore(previewUrl);
+      else if (cameraTarget === 'trans_after') setNewTransAfter(previewUrl);
+      else if (cameraTarget === 'profile_avatar') handleUpdateProfileAvatar(new File([blob], `avatar-${Date.now()}.jpg`, { type: 'image/jpeg' }));
+      else if (cameraTarget === 'post') { setPostImageFile(new File([blob], `photo-${Date.now()}.jpg`, { type: 'image/jpeg' })); setPostImagePreview(previewUrl); setPostImageZoom(1); setPostImageOffset({ x: 0, y: 0 }); } 
+      else { setStoryImageFile(new File([blob], `photo-${Date.now()}.jpg`, { type: 'image/jpeg' })); setStoryImagePreview(previewUrl); setIsCreatingStory(true); }
+      stopCameraStream();
+    }, 'image/jpeg', 0.85);
   };
 
   const handleAddExerciseRow = () => setWorkoutExercises([...workoutExercises, { name: '', sets: 3, reps: 10, weight: 50 }]);
