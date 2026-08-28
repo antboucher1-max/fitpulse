@@ -352,7 +352,7 @@ export default function App() {
   const [liveElapsedSeconds, setLiveElapsedSeconds] = useState<number>(0);
 
   const [aiChatMessages, setAiChatMessages] = useState<AIChatMessage[]>([
-    { sender: 'bot', text: "Salut l'athlète ! Je suis **FitBot**, ton coach IA personnel. Comment puis-je t'aider aujourd'hui ?" }
+    { sender: 'bot', text: "Salut l'athlète ! Je suis **FitBot**, ton coach IA personnel. Comment puis-je t'aider aujourd'hui ? (Programme pour ton Basic-Fit, nutrition, conseils d'exécution...)" }
   ]);
   const [aiInputText, setAiInputText] = useState('');
   const [isListening, setIsListening] = useState(false);
@@ -457,7 +457,7 @@ export default function App() {
 
 
   // ==========================================
-  // 2. FONCTIONS UTILITAIRES ET NAVIGATION (HISSÉES EN PREMIER)
+  // 2. FONCTIONS UTILITAIRES DE BASE (HISSÉES EN PREMIER)
   // ==========================================
 
   const convertJJMMAAAAtoYYYYMMDD = (input: string): string => {
@@ -487,6 +487,18 @@ export default function App() {
     if (activeStoryIndex === null) return;
     if (activeStoryIndex > 0) { setActiveStoryIndex(activeStoryIndex - 1); setStoryProgress(0); setStoryCommentInput(''); } 
     else { setStoryProgress(0); }
+  };
+
+  const stopCameraStream = () => {
+    if (streamRef.current) { streamRef.current.getTracks().forEach((t) => t.stop()); streamRef.current = null; }
+    setIsCameraActive(false);
+    if (cameraTarget === 'story') { setIsCreatingStory(true); }
+  };
+
+  const startCameraHandler = (target: 'post' | 'story' | 'trans_before' | 'trans_after' | 'profile_avatar') => {
+    if (target === 'story') { setIsCreatingStory(false); }
+    setCameraTarget(target);
+    setIsCameraActive(true);
   };
 
 
@@ -729,12 +741,6 @@ export default function App() {
       setRegisteredUsers(prev => prev.map(u => u.id === user.id ? { ...u, avatar_url: finalAvatarUrl } : u));
       alert('🌟 Photo de profil mise à jour !'); 
     }
-  };
-
-  const stopCameraStream = () => {
-    if (streamRef.current) { streamRef.current.getTracks().forEach((t) => t.stop()); streamRef.current = null; }
-    setIsCameraActive(false);
-    if (cameraTarget === 'story') { setIsCreatingStory(true); }
   };
 
   const handleSelectBuddyChat = (friend: RealUser) => {
