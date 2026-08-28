@@ -810,28 +810,6 @@ export default function App() {
     }]);
   };
 
-  const handleNextStory = () => {
-    if (activeStoryIndex === null) return;
-    if (activeStoryIndex < friendStoriesList.length - 1) { setActiveStoryIndex(activeStoryIndex + 1); setStoryProgress(0); setStoryCommentInput(''); } 
-    else { setActiveStoryIndex(null); }
-  };
-
-  const handlePrevStory = () => {
-    if (activeStoryIndex === null) return;
-    if (activeStoryIndex > 0) { setActiveStoryIndex(activeStoryIndex - 1); setStoryProgress(0); setStoryCommentInput(''); } 
-    else { setStoryProgress(0); }
-  };
-
-  const handleQuickEmojiReaction = async (emoji: string) => {
-    if (activeStoryIndex === null || !user) return;
-    const story = friendStoriesList[activeStoryIndex];
-    if (!story) return;
-    const myName = user.user_metadata?.first_name || user.user_metadata?.username || user.email?.split('@')[0] || 'Moi';
-    await supabase.from('direct_messages').insert([{ sender_id: user.id, receiver_id: story.user_id, sender_name: myName, text: `⚡ Réaction à votre story : ${emoji}` }]);
-    await sendSystemNotification(story.user_id, `❤️ ${myName} a réagi à votre story avec ${emoji}`);
-    alert(`Réaction ${emoji} envoyée !`);
-  };
-
   const handleAddExerciseRow = () => setWorkoutExercises([...workoutExercises, { name: '', sets: 3, reps: 10, weight: 50 }]);
   const handleRemoveExerciseRow = (index: number) => setWorkoutExercises(workoutExercises.filter((_, i) => i !== index));
 
@@ -855,61 +833,6 @@ export default function App() {
   };
 
   const handleAddWorkoutHashtag = (tag: string) => { if (!workoutCaption.includes(tag)) setWorkoutCaption((prev) => (prev ? `${prev} ${tag}` : tag)); };
-
-  const handleDragStart = (e: React.MouseEvent | React.TouchEvent) => {
-    setIsDraggingImage(true);
-    const clientX = 'touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
-    const clientY = 'touches' in e ? e.touches[0].clientY : (e as React.MouseEvent).clientY;
-    setDragStartPos({ x: clientX - postImageOffset.x, y: clientY - postImageOffset.y });
-  };
-  
-  const handleDragMove = (e: React.MouseEvent | React.TouchEvent) => {
-    if (!isDraggingImage) return;
-    const clientX = 'touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
-    const clientY = 'touches' in e ? e.touches[0].clientY : (e as React.MouseEvent).clientY;
-    setPostImageOffset({ x: clientX - dragStartPos.x, y: clientY - dragStartPos.y });
-  };
-  
-  const handleDragEnd = () => setIsDraggingImage(false);
-
-  const getPinchDistance = (touches: React.TouchList) => {
-    const dx = touches[0].clientX - touches[1].clientX; const dy = touches[0].clientY - touches[1].clientY;
-    return Math.sqrt(dx * dx + dy * dy);
-  };
-  
-  const handleTouchStart = (e: React.TouchEvent) => {
-    if (e.touches.length === 2) { setInitialPinchDistance(getPinchDistance(e.touches)); setInitialPinchZoom(postImageZoom); setIsDraggingImage(false); } 
-    else if (e.touches.length === 1) handleDragStart(e);
-  };
-  
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (e.touches.length === 2 && initialPinchDistance !== null) {
-      const scale = getPinchDistance(e.touches) / initialPinchDistance;
-      setPostImageZoom(Math.min(Math.max(1, initialPinchZoom * scale), 4));
-    } else if (e.touches.length === 1 && isDraggingImage) handleDragMove(e);
-  };
-  
-  const handleTouchEnd = () => { setIsDraggingImage(false); setInitialPinchDistance(null); };
-
-  const getCroppedImageBlob = async (): Promise<Blob | null> => {
-    if (!imgRef.current || !previewContainerRef.current) return null;
-    const img = imgRef.current; const container = previewContainerRef.current;
-    const canvas = document.createElement('canvas');
-    canvas.width = 800; canvas.height = 800;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return null;
-    ctx.fillStyle = '#0a0a0a'; ctx.fillRect(0, 0, canvas.width, canvas.height);
-    const coverRatio = Math.max(container.clientWidth / img.naturalWidth, container.clientHeight / img.naturalHeight);
-    const baseWidth = img.naturalWidth * coverRatio; const baseHeight = img.naturalHeight * coverRatio;
-    const baseX = (container.clientWidth - baseWidth) / 2; const baseY = (container.clientHeight - baseHeight) / 2;
-    const centerX = container.clientWidth / 2; const centerY = container.clientHeight / 2;
-    const finalX = centerX + (baseX - centerX) * postImageZoom + postImageOffset.x;
-    const finalY = centerY + (baseY - centerY) * postImageZoom + postImageOffset.y;
-    const finalWidth = baseWidth * postImageZoom; const finalHeight = baseHeight * postImageZoom;
-    const scaleMultiplier = 800 / container.clientWidth;
-    ctx.drawImage(img, finalX * scaleMultiplier, finalY * scaleMultiplier, finalWidth * scaleMultiplier, finalHeight * scaleMultiplier);
-    return new Promise((resolve) => { canvas.toBlob((blob) => resolve(blob), 'image/jpeg', 0.85); });
-  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
@@ -981,7 +904,7 @@ export default function App() {
 
 
   // ==========================================
-  // 6. EFFETS SECONDAIRES DE COMPOSANT (useEffect)
+  // 3. EFFETS SECONDAIRES DE COMPOSANT (useEffect)
   // ==========================================
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -1101,7 +1024,7 @@ export default function App() {
 
 
   // ==========================================
-  // 7. RENDU FINAL (JSX)
+  // 4. RENDU FINAL (JSX)
   // ==========================================
 
   if (isResetPasswordMode) {
@@ -1634,7 +1557,7 @@ export default function App() {
                   type="text" 
                   placeholder={isListening ? "Parlez..." : "Pose ta question à FitBot..."} 
                   value={aiInputText} 
-                  onChange={(e) => setAiInputText(e.target.value)} 
+                  onChange={handleInputChange} 
                   className="flex-1 bg-neutral-900 border border-neutral-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-orange-500" 
                 />
                 <button type="submit" className="p-3 bg-orange-600 text-white rounded-xl shadow-lg"><SendHorizontal className="w-4 h-4" /></button>
@@ -2485,7 +2408,7 @@ export default function App() {
         <button onClick={() => handleTabChange('chat')} className={`flex flex-col items-center gap-1 ${currentTab === 'chat' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}>
           <div className="relative">
             <MessageCircle className="w-5 h-5" />
-            {unreadChatCount > 0 && <span className="absolute -top-1 -right-1 bg-red-600 text-white font-bold text-[10px] w-4 h-4 rounded-full flex items-center justify-center border border-neutral-950 shadow-md animate-pulse">{unreadChatCount}</span>}
+            {unreadChatCount > 0 && <span className="absolute top-1 right-1 bg-red-600 text-white font-bold text-[10px] w-4 h-4 rounded-full flex items-center justify-center border border-neutral-950 shadow-md animate-pulse">{unreadChatCount}</span>}
           </div>
           <span className="text-[10px]">Chat</span>
         </button>
