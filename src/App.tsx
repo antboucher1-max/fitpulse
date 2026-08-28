@@ -341,7 +341,19 @@ export default function App() {
   const [userStreak, setUserStreak] = useState<number>(() => { try { return parseInt(localStorage.getItem('fitpulse_streak') || '2', 10); } catch { return 2; } });
   const [isPrivateMode, setIsPrivateMode] = useState<boolean>(() => { try { return localStorage.getItem('fitpulse_private') === 'true'; } catch { return false; } });
   
-  // Live Workout Tracker States
+  // ==========================================
+  // LOGIQUE LIVE WORKOUT TRACKER & REPOS
+  // ==========================================
+  const [isRestTimerActive, setIsRestTimerActive] = useState(false);
+  const [restTimeRemaining, setRestTimeRemaining] = useState(90);
+  const [restTimerSeconds, setRestTimerSeconds] = useState(90);
+
+  const startRestTimer = (seconds: number) => { 
+    setRestTimerSeconds(seconds); 
+    setRestTimeRemaining(seconds); 
+    setIsRestTimerActive(true); 
+  };
+
   const [isLiveActive, setIsLiveActive] = useState<boolean>(() => { try { return localStorage.getItem('fitpulse_live_active') === 'true'; } catch { return false; } });
   const [liveWorkoutName, setLiveWorkoutName] = useState<string>(() => { try { return localStorage.getItem('fitpulse_live_name') || 'Séance Full Body'; } catch { return 'Séance Full Body'; } });
   const [liveExercises, setLiveExercises] = useState<LiveWorkoutExercise[]>(() => {
@@ -476,9 +488,6 @@ export default function App() {
   const [exerciseSearch, setExerciseSearch] = useState('');
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>('Tous');
   const [selectedExerciseDetail, setSelectedExerciseDetail] = useState<ExerciseGuide | null>(null);
-  const [isRestTimerActive, setIsRestTimerActive] = useState(false);
-  const [restTimeRemaining, setRestTimeRemaining] = useState(90);
-  const [restTimerSeconds, setRestTimerSeconds] = useState(90);
   const [personalRecords, setPersonalRecords] = useState<PersonalRecord[]>([{ exercise: 'Développé couché', weight: 100, reps: 5, date: '2026-08-10' }]);
   const [newPrExercise, setNewPrExercise] = useState('');
   const [newPrWeight, setNewPrWeight] = useState<number | ''>('');
@@ -513,6 +522,193 @@ export default function App() {
   };
 
   const plateBreakdown = targetWeight !== '' ? calculatePlates(targetWeight, barbellWeight) : [];
+
+  // ==========================================
+  // LOGIQUE ACTIONS ET HANDLERS
+  // ==========================================
+
+  const handleTabChange = (tab: 'feed' | 'buddy' | 'workout' | 'exercises' | 'chat' | 'leaderboard' | 'profile' | 'calculator' | 'live_tracker' | 'fitbot') => {
+    setCurrentTab(tab);
+    try { sessionStorage.setItem('fitpulse_current_tab', tab); } catch (e) {}
+  };
+
+  useEffect(() => {
+    let timer: NodeJS.Timeout | null = null;
+    if (isLiveActive) {
+      timer = setInterval(() => {
+        setLiveElapsedSeconds(prev => {
+          const next = prev + 1;
+          localStorage.setItem('fitpulse_live_timer', next.toString());
+          return next;
+        });
+      }, 1000);
+    }
+    return () => { if (timer) clearInterval(timer); };
+  }, [isLiveActive]);
+
+  useEffect(() => {
+    localStorage.setItem('fitpulse_live_active', isLiveActive.toString());
+    localStorage.setItem('fitpulse_live_name', liveWorkoutName);
+    localStorage.setItem('fitpulse_live_exercises', JSON.stringify(liveExercises));
+  }, [isLiveActive, liveWorkoutName, liveExercises]);
+
+  const handleStartLiveWorkout = () => {
+    setIsLiveActive(true);
+    setLiveElapsedSeconds(0);
+    setLiveExercises([]);
+    handleTabChange('live_tracker');
+  };
+
+  const handleAddLiveExercise = () => {
+    const newEx: LiveWorkoutExercise = {
+      id: 'lex-' + Date.now(),
+      name: selectedExToAdd,
+      sets: [{ setNumber: 1, weight: 50, reps: 10, completed: false }]
+    };
+    setLiveExercises([...liveExercises, newEx]);
+  };
+
+  const handleAddLiveSet = (exId: string) => {
+    setLiveExercises(liveExercises.map(ex => {
+      if (ex.id === exId) {
+        const lastSet = ex.sets[ex.sets.length - 1];
+        const nextSetNum = ex.sets.length + 1;
+        return {
+          ...ex,
+          sets: [...ex.sets, { setNumber: nextSetNum, weight: lastSet ? lastSet.weight : 50, reps: lastSet ? lastSet.reps : 10, completed: false }]
+        };
+      }
+      return ex;
+    }));
+  };
+
+  const handleToggleLiveSet = (exId: string, setIndex: number) => {
+    setLiveExercises(liveExercises.map(ex => {
+      if (ex.id === exId) {
+        const newSets = [...ex.sets];
+        newSets[setIndex] = { ...newSets[setIndex], completed: !newSets[setIndex].completed };
+        if (newSets[setIndex].completed) {
+          startRestTimer(90);
+        }
+        return { ...ex, sets: newSets };
+      }
+      return ex;
+    }));
+  };
+
+  const handleFinishLiveWorkout = async () => {
+    if (!user) return;
+    if (liveExercises.length === 0) {
+      alert("Ajoute au moins un exercice avant de terminer !");
+      return;
+    }
+    const formattedExercises: ExerciseEntry[] = liveExercises.map(ex => ({
+      name: ex.name,
+      sets: ex.sets.length,
+      reps: ex.sets[0]?.reps || 10,
+      weight: ex.sets[0]?.weight || 50
+    }));
+
+    const newPostData = {
+      user_id: user.id,
+      username: user.user_metadata?.username || 'Athlète',
+      avatar_url: userAvatarUrl,
+      image_url: null,
+      club_name: selectedClub,
+      session_type: liveWorkoutName,
+      caption: `Séance en direct terminée en ${Math.floor(liveElapsedSeconds / 60)} min ! 💪 #gym #nopainnogain`,
+      exercises: formattedExercises,
+      likes_count: 0,
+      liked_by: [],
+      comments_count: 0,
+      comments: [],
+      is_private: isPrivateMode
+    };
+
+    const { data, error } = await supabase.from('posts').insert([newPostData]).select('*');
+    if (!error && data) {
+      setPosts([data[0] as Post, ...posts]);
+      setUserStreak(prev => prev + 1);
+      setIsLiveActive(false);
+      localStorage.removeItem('fitpulse_live_active');
+      localStorage.removeItem('fitpulse_live_timer');
+      localStorage.removeItem('fitpulse_live_exercises');
+      alert("🎉 Séance enregistrée et partagée sur le flux avec succès !");
+      handleTabChange('feed');
+    } else {
+      alert("Erreur lors de l'enregistrement de la séance.");
+    }
+  };
+
+
+  // ==========================================
+  // LOGIQUE COACH IA "FitBot" & RECONNAISSANCE VOCALE
+  // ==========================================
+  const handleSendAIChat = async (e?: React.FormEvent, customText?: string) => {
+    if (e) e.preventDefault();
+    const textToSend = customText || aiInputText;
+    if (!textToSend.trim()) return;
+    const userText = textToSend.trim();
+    if (!customText) setAiInputText('');
+    
+    const newHistory: AIChatMessage[] = [...aiChatMessages, { sender: 'user', text: userText }];
+    setAiChatMessages(newHistory);
+
+    setTimeout(() => {
+      let botReply = "C'est noté ! Pour progresser efficacement dans ton Basic-Fit, veille à bien t'hydrater, respecter 1'30 de repos entre tes séries lourdes et garder une surcharge progressive chaque semaine.";
+      const lower = userText.toLowerCase();
+
+      if (lower.includes('basic-fit') || lower.includes('materiel') || lower.includes('machine')) {
+        botReply = "🏋️ Pour ton Basic-Fit, je te conseille d'exploiter la zone TechnoGym : utilise les machines convergentes (Chest Press, Lat Pulldown, Leg Press) pour l'isolation et la sécurité, et les poulies pour un maximum de tension continue !";
+      } else if (lower.includes('nutrition') || lower.includes('manger')|| lower.includes('protéine') || lower.includes('diète')) {
+        botReply = "🥗 Côté nutrition pour la musculation : visez environ 1.8g à 2g de protéines par kilo de poids de corps par jour (poulet, œufs, skyr, tofu), des glucides complexes (riz, avoine, patate douce) et des bons Lipides (amandes, olive, avocat).";
+      } else if (lower.includes('programme') || lower.includes('prise de masse') || lower.includes('dos')|| lower.includes('pecs')) {
+        botReply = "📋 Voici un super format **Push / Pull / Legs** adapté :\n- **Push** : Développé couché, Dips, Élévations latérales\n- **Pull** : Tractions ou Tirage vertical, Rowing haltère, Curl biceps\n- **Legs** : Squat ou Leg Press, Extensions jambes, Mollets.";
+      }
+
+      setAiChatMessages([...newHistory, { sender: 'bot', text: botReply }]);
+      aiMessagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, 600);
+  };
+
+  const toggleVoiceDictation = () => {
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+      alert("La reconnaissance vocale n'est pas supportée par ton navigateur.");
+      return;
+    }
+
+    if (isListening) {
+      setIsListening(false);
+      return;
+    }
+
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'fr-FR';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    recognition.onstart = () => {
+      setIsListening(true);
+    };
+
+    recognition.onresult = (event: any) => {
+      const speechToText = event.results[0][0].transcript;
+      setAiInputText(speechToText);
+      setIsListening(false);
+      handleSendAIChat(undefined, speechToText);
+    };
+
+    recognition.onerror = () => {
+      setIsListening(false);
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+    };
+
+    recognition.start();
+  };
 
 
   // ==========================================
@@ -594,13 +790,8 @@ export default function App() {
 
 
   // ==========================================
-  // FONCTIONS ET HANDLERS
+  // FONCTIONS ET HANDLERS SUITE
   // ==========================================
-
-  const handleTabChange = (tab: 'feed' | 'buddy' | 'workout' | 'exercises' | 'chat' | 'leaderboard' | 'profile' | 'calculator' | 'live_tracker' | 'fitbot') => {
-    setCurrentTab(tab);
-    try { sessionStorage.setItem('fitpulse_current_tab', tab); } catch (e) {}
-  };
 
   const handleSelectBuddyChat = (friend: RealUser) => {
     setSelectedBuddyChat(friend);
@@ -908,6 +1099,91 @@ export default function App() {
       else if (targetType === 'profile_avatar' || cameraTarget === 'profile_avatar') handleUpdateProfileAvatar(file);
       else if (cameraTarget === 'post') { setPostImageFile(file); setPostImagePreview(previewUrl); setPostImageZoom(1); setPostImageOffset({ x: 0, y: 0 }); } 
       else { setStoryImageFile(file); setStoryImagePreview(previewUrl); setIsCreatingStory(true); }
+    }
+  };
+
+  // Canal de frappe temps réel (Typing Indicator)
+  useEffect(() => {
+    if (!selectedBuddyChat || !user) return;
+    setIsOtherUserTyping(false);
+
+    const channelName = `typing_${[user.id, selectedBuddyChat.id].sort().join('_')}`;
+    const channel = supabase.channel(channelName, {
+      config: { broadcast: { self: false } }
+    });
+
+    channel
+      .on('broadcast', { event: 'typing' }, (payload) => {
+        if (payload.payload.userId === selectedBuddyChat.id) {
+          setIsOtherUserTyping(payload.payload.isTyping);
+        }
+      })
+      .subscribe();
+
+    typingChannelRef.current = channel;
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [selectedBuddyChat, user]);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setCurrentMessageInput(val);
+
+    if (typingChannelRef.current && user && selectedBuddyChat) {
+      typingChannelRef.current.send({
+        type: 'broadcast',
+        event: 'typing',
+        payload: { userId: user.id, isTyping: true }
+      });
+
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+      typingTimeoutRef.current = setTimeout(() => {
+        typingChannelRef.current.send({
+          type: 'broadcast',
+          event: 'typing',
+          payload: { userId: user.id, isTyping: false }
+        });
+      }, 2000);
+    }
+  };
+
+  const handleSendMessage = async () => {
+    if (!currentMessageInput.trim() || !selectedBuddyChat || !user) return;
+    if (isMessageLimitReached) {
+      alert("Limite de 3 messages atteinte. Attendez que la personne accepte la conversation.");
+      return;
+    }
+    const text = currentMessageInput.trim();
+    
+    setCurrentMessageInput('');
+    if (typingChannelRef.current) {
+      typingChannelRef.current.send({
+        type: 'broadcast',
+        event: 'typing',
+        payload: { userId: user.id, isTyping: false }
+      });
+    }
+
+    const myName = user.user_metadata?.first_name || user.user_metadata?.username || user.email?.split('@')[0] || 'Moi';
+    const tempMsg: DBMessage = {
+      id: 'temp-' + Date.now(),
+      sender_id: user.id,
+      receiver_id: selectedBuddyChat.id,
+      sender_name: myName,
+      text,
+      created_at: new Date().toISOString()
+    };
+    
+    setAllMessages((prev) => [...prev, tempMsg]);
+
+    const { data, error } = await supabase.from('direct_messages').insert([{ sender_id: user.id, receiver_id: selectedBuddyChat.id, sender_name: myName, text }]);
+    if (error) {
+      alert("Erreur d'envoi du message.");
+    } else {
+      fetchDirectMessages();
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
   };
 
