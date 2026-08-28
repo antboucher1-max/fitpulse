@@ -387,6 +387,10 @@ export default function App() {
   const [lastChatOpenTime, setLastChatOpenTime] = useState<number>(() => { try { return parseInt(localStorage.getItem('fitpulse_last_chat') || '0', 10); } catch { return 0; } });
   const [selectedBuddyChat, setSelectedBuddyChat] = useState<RealUser | null>(null);
   const [currentMessageInput, setCurrentMessageInput] = useState('');
+  const [isOtherUserTyping, setIsOtherUserTyping] = useState(false);
+  const typingTimeoutRef = useRef<any>(null);
+  const typingChannelRef = useRef<any>(null);
+
   const [inviteModalTarget, setInviteModalTarget] = useState<RealUser | null>(null);
   const [inviteType, setInviteType] = useState('Jambes (Leg Day)');
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -811,6 +815,53 @@ export default function App() {
     }
   };
 
+  // Canal de frappe temps réel (Typing Indicator)
+  useEffect(() => {
+    if (!selectedBuddyChat || !user) return;
+    setIsOtherUserTyping(false);
+
+    const channelName = `typing_${[user.id, selectedBuddyChat.id].sort().join('_')}`;
+    const channel = supabase.channel(channelName, {
+      config: { broadcast: { self: false } }
+    });
+
+    channel
+      .on('broadcast', { event: 'typing' }, (payload) => {
+        if (payload.payload.userId === selectedBuddyChat.id) {
+          setIsOtherUserTyping(payload.payload.isTyping);
+        }
+      })
+      .subscribe();
+
+    typingChannelRef.current = channel;
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [selectedBuddyChat, user]);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setCurrentMessageInput(val);
+
+    if (typingChannelRef.current && user && selectedBuddyChat) {
+      typingChannelRef.current.send({
+        type: 'broadcast',
+        event: 'typing',
+        payload: { userId: user.id, isTyping: true }
+      });
+
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+      typingTimeoutRef.current = setTimeout(() => {
+        typingChannelRef.current.send({
+          type: 'broadcast',
+          event: 'typing',
+          payload: { userId: user.id, isTyping: false }
+        });
+      }, 2000);
+    }
+  };
+
   const handleSendMessage = async () => {
     if (!currentMessageInput.trim() || !selectedBuddyChat || !user) return;
     if (isMessageLimitReached) {
@@ -818,9 +869,34 @@ export default function App() {
       return;
     }
     const text = currentMessageInput.trim();
+    
+    // Vider instantanément le champ pour une réactivité maximale
+    setCurrentMessageInput('');
+    if (typingChannelRef.current) {
+      typingChannelRef.current.send({
+        type: 'broadcast',
+        event: 'typing',
+        payload: { userId: user.id, isTyping: false }
+      });
+    }
+
     const myName = user.user_metadata?.first_name || user.user_metadata?.username || user.email?.split('@')[0] || 'Moi';
+    const tempMsg: DBMessage = {
+      id: 'temp-' + Date.now(),
+      sender_id: user.id,
+      receiver_id: selectedBuddyChat.id,
+      sender_name: myName,
+      text,
+      created_at: new Date().toISOString()
+    };
+    
+    // Affichage optimiste immédiat
+    setAllMessages((prev) => [...prev, tempMsg]);
+
     const { data, error } = await supabase.from('direct_messages').insert([{ sender_id: user.id, receiver_id: selectedBuddyChat.id, sender_name: myName, text }]);
-    if (!error && data) { setAllMessages((prev) => [...prev, data[0] as DBMessage]); setCurrentMessageInput(''); }
+    if (error) {
+      alert("Erreur d'envoi du message.");
+    }
   };
 
   const handleToggleLike = async (postId: string) => {
@@ -1800,6 +1876,18 @@ export default function App() {
                       </div>
                     </div>
                   ))}
+
+                  {/* Animation des trois petits points si le correspondant écrit */}
+                  {isOtherUserTyping && (
+                    <div className="flex items-start">
+                      <div className="bg-neutral-800 px-4 py-3 rounded-2xl flex items-center gap-1.5 w-16">
+                        <span className="w-2 h-2 bg-neutral-400 rounded-full animate-bounce [animation-delay:-0.3s]"></span>
+                        <span className="w-2 h-2 bg-neutral-400 rounded-full animate-bounce [animation-delay:-0.15s]"></span>
+                        <span className="w-2 h-2 bg-neutral-400 rounded-full animate-bounce"></span>
+                      </div>
+                    </div>
+                  )}
+
                   <div ref={messagesEndRef} />
                 </div>
                 {selectedBuddyChat.id !== 'system-bot' && (
@@ -1810,7 +1898,14 @@ export default function App() {
                       </div>
                     ) : (
                       <div className="flex items-center gap-2.5">
-                        <input type="text" placeholder="Écrire un message..." value={currentMessageInput} onChange={(e) => setCurrentMessageInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()} className="flex-1 bg-neutral-900 border border-neutral-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-orange-500" />
+                        <input 
+                          type="text" 
+                          placeholder="Écrire un message..." 
+                          value={currentMessageInput} 
+                          onChange={handleInputChange} 
+                          onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()} 
+                          className="flex-1 bg-neutral-900 border border-neutral-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-orange-500" 
+                        />
                         <button onClick={() => handleSendMessage()} className="p-3 bg-orange-600 text-white rounded-xl"><SendHorizontal className="w-4 h-4" /></button>
                       </div>
                     )}
