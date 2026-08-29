@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Heart, MessageCircle, ShieldCheck, MapPin, Send, Plus, X, Camera, Image as ImageIcon } from 'lucide-react';
+import { Heart, MessageCircle, ShieldCheck, MapPin, Send, Plus, X, Camera, Image as ImageIcon, Hash } from 'lucide-react';
 import { Post, Story, RealUser } from '../types';
 
 interface FeedTabProps {
@@ -20,6 +20,9 @@ interface FeedTabProps {
 }
 
 const STORY_REACTIONS = ['👍', '❤️', '👏', '😲', '😂', '🔥'];
+
+// Liste de hashtags suggérés cliquables en un clic
+const PRESET_HASHTAGS = ['#fitpulse', '#workout', '#musculation', '#cardio', '#tournai', '#teamshape', '#fitness', '#nopainnogain'];
 
 export default function FeedTab({
   stories,
@@ -43,9 +46,13 @@ export default function FeedTab({
   const [currentViewingStoryIndex, setCurrentViewingStoryIndex] = useState<number | null>(null);
   const [storyReactionAnim, setStoryReactionAnim] = useState<string | null>(null);
 
-  // États pour la création de Story avec caméra directe ou fichier
+  // États pour la création de Story avec texte et hashtags cliquables
   const [isStoryModalOpen, setIsStoryModalOpen] = useState(false);
   const [storyImagePreview, setStoryImagePreview] = useState<string | null>(null);
+  const [storyCaption, setStoryCaption] = useState('');
+  const [selectedHashtags, setSelectedHashtags] = useState<string[]>(['#fitpulse']);
+  const [customTagInput, setCustomTagInput] = useState('');
+
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
 
@@ -59,7 +66,6 @@ export default function FeedTab({
     setTimeout(() => setStoryReactionAnim(null), 1200);
   };
 
-  // Gestion de la photo capturée par la caméra ou la galerie
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -72,47 +78,72 @@ export default function FeedTab({
     }
   };
 
+  // Gestion du clic sur un hashtag prédéfini
+  const togglePresetTag = (tag: string) => {
+    if (selectedHashtags.includes(tag)) {
+      setSelectedHashtags(selectedHashtags.filter(t => t !== tag));
+    } else {
+      setSelectedHashtags([...selectedHashtags, tag]);
+    }
+  };
+
+  // Ajout manuel d'un hashtag personnalisé
+  const handleAddCustomTag = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && customTagInput.trim()) {
+      e.preventDefault();
+      let formatted = customTagInput.trim();
+      if (!formatted.startsWith('#')) formatted = '#' + formatted;
+      if (!selectedHashtags.includes(formatted)) {
+        setSelectedHashtags([...selectedHashtags, formatted]);
+      }
+      setCustomTagInput('');
+    }
+  };
+
   const handlePublishStory = () => {
     if (!storyImagePreview) return;
-    // Logique d'envoi de la story
+    const finalCaption = `${storyCaption} ${selectedHashtags.join(' ')}`.trim();
+    // Logique d'envoi final de la story avec texte et hashtags
     setIsStoryModalOpen(false);
     setStoryImagePreview(null);
+    setStoryCaption('');
+    setSelectedHashtags(['#fitpulse']);
     alert("✨ Story publiée avec succès !");
   };
 
   return (
     <div className="space-y-4 pb-12">
-      {/* INPUTS CACHÉS POUR LA CAMÉRA ET LA GALERIE */}
-      {/* capture="environment" force l'ouverture directe de la caméra arrière du téléphone */}
-      <input 
-        type="file" 
-        accept="image/*" 
-        capture="environment" 
-        ref={cameraInputRef} 
-        onChange={handleFileChange} 
-        className="hidden" 
-      />
-      <input 
-        type="file" 
-        accept="image/*" 
-        ref={galleryInputRef} 
-        onChange={handleFileChange} 
-        className="hidden" 
-      />
+      {/* INPUTS CACHÉS */}
+      <input type="file" accept="image/*" capture="environment" ref={cameraInputRef} onChange={handleFileChange} className="hidden" />
+      <input type="file" accept="image/*" ref={galleryInputRef} onChange={handleFileChange} className="hidden" />
 
       {/* SECTION DES STORIES */}
       <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-4 shadow-xl">
         <div className="flex items-center gap-3 overflow-x-auto no-scrollbar pb-1">
-          {/* Bouton "Ma Story" : Ouvre directement la caméra prête */}
-          <div 
-            onClick={() => cameraInputRef.current?.click()} 
-            className="flex flex-col items-center gap-1.5 flex-shrink-0 cursor-pointer group"
-          >
-            <div className="w-16 h-16 rounded-full bg-neutral-950 border-2 border-dashed border-orange-500/60 flex items-center justify-center text-orange-500 group-hover:bg-orange-500/10 transition shadow-lg">
-              <Camera className="w-6 h-6" />
+          {/* Bouton pour ouvrir le choix : Caméra ou Galerie */}
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <div 
+              onClick={() => cameraInputRef.current?.click()} 
+              className="flex flex-col items-center gap-1.5 cursor-pointer group"
+            >
+              <div className="w-16 h-16 rounded-full bg-neutral-950 border-2 border-dashed border-orange-500/60 flex items-center justify-center text-orange-500 group-hover:bg-orange-500/10 transition shadow-lg">
+                <Camera className="w-6 h-6" />
+              </div>
+              <span className="text-[11px] font-bold text-neutral-300">Caméra</span>
             </div>
-            <span className="text-[11px] font-bold text-neutral-300">Ma Story 📸</span>
+
+            <div 
+              onClick={() => galleryInputRef.current?.click()} 
+              className="flex flex-col items-center gap-1.5 cursor-pointer group"
+            >
+              <div className="w-16 h-16 rounded-full bg-neutral-950 border-2 border-dashed border-neutral-700 flex items-center justify-center text-neutral-300 group-hover:bg-neutral-800 transition shadow-lg">
+                <ImageIcon className="w-6 h-6" />
+              </div>
+              <span className="text-[11px] font-bold text-neutral-300">Galerie</span>
+            </div>
           </div>
+
+          <div className="w-[1px] h-12 bg-neutral-800 mx-1 flex-shrink-0" />
 
           {/* Liste des stories des autres athlètes */}
           {stories.map((story, index) => {
@@ -135,41 +166,84 @@ export default function FeedTab({
         </div>
       </div>
 
-      {/* MODALE DE PRÉVISUALISATION DE LA STORY */}
+      {/* MODALE DE CRÉATION DE STORY (Texte + Hashtags cliquables + Galerie/Caméra) */}
       {isStoryModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex flex-col justify-between p-5 animate-fadeIn">
-          <div className="flex items-center justify-between">
-            <h3 className="font-black text-sm text-white flex items-center gap-2">
-              <Camera className="w-5 h-5 text-orange-500" /> Aperçu de ta Story
+        <div className="fixed inset-0 z-50 bg-black/95 backdrop-blur-md flex flex-col justify-between p-4 overflow-y-auto animate-fadeIn">
+          <div className="flex items-center justify-between pb-2">
+            <h3 className="font-extrabold text-sm text-white flex items-center gap-2">
+              <Camera className="w-5 h-5 text-orange-500" /> Personnaliser ta Story
             </h3>
             <button onClick={() => { setIsStoryModalOpen(false); setStoryImagePreview(null); }} className="p-2 text-white bg-neutral-900 rounded-full">
               <X className="w-5 h-5" />
             </button>
           </div>
 
-          <div className="flex-1 my-4 relative rounded-3xl overflow-hidden bg-neutral-950 border border-neutral-800 flex items-center justify-center">
-            {storyImagePreview && <img src={storyImagePreview} alt="Aperçu" className="w-full h-full object-contain" />}
+          <div className="space-y-4 my-2">
+            {/* Aperçu de la photo */}
+            <div className="relative rounded-3xl overflow-hidden h-64 bg-neutral-950 border border-neutral-800 flex items-center justify-center">
+              {storyImagePreview && <img src={storyImagePreview} alt="Aperçu" className="w-full h-full object-cover" />}
+            </div>
+
+            {/* Légende / Texte */}
+            <div>
+              <label className="block text-xs font-bold text-neutral-300 mb-1">Texte / Commentaire :</label>
+              <input 
+                type="text" 
+                placeholder="Ex: Grosse séance jambes validée ! 🔥" 
+                value={storyCaption} 
+                onChange={(e) => setStoryCaption(e.target.value)} 
+                className="w-full bg-neutral-900 border border-neutral-800 rounded-2xl px-4 py-3 text-sm text-white focus:border-orange-500" 
+              />
+            </div>
+
+            {/* Hashtags cliquables + Ajout manuel */}
+            <div className="space-y-2">
+              <label className="block text-xs font-bold text-neutral-300 flex items-center gap-1.5">
+                <Hash className="w-4 h-4 text-orange-500" /> Choisir tes hashtags :
+              </label>
+              
+              {/* Liste des hashtags pré-enregistrés cliquables */}
+              <div className="flex flex-wrap gap-1.5">
+                {PRESET_HASHTAGS.map((tag) => {
+                  const isSelected = selectedHashtags.includes(tag);
+                  return (
+                    <button
+                      key={tag}
+                      type="button"
+                      onClick={() => togglePresetTag(tag)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition border ${isSelected ? 'bg-orange-600 text-white border-orange-500 shadow-md' : 'bg-neutral-900 text-neutral-400 border-neutral-800 hover:text-white'}`}
+                    >
+                      {tag} {isSelected ? '✓' : ''}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Input pour ajouter un hashtag manuellement */}
+              <input 
+                type="text" 
+                placeholder="Ajouter un hashtag perso (Appuyez sur Entrée)..." 
+                value={customTagInput} 
+                onChange={(e) => setCustomTagInput(e.target.value)}
+                onKeyDown={handleAddCustomTag}
+                className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:border-orange-500 mt-2" 
+              />
+            </div>
           </div>
 
-          <div className="space-y-3">
+          <div className="space-y-3 pt-2">
             <button 
               onClick={handlePublishStory} 
-              className="w-full py-4 bg-orange-600 hover:bg-orange-500 text-white font-extrabold rounded-2xl text-sm shadow-xl transition flex items-center justify-center gap-2"
+              className="w-full py-4 bg-orange-600 hover:bg-orange-500 text-white font-extrabold rounded-2xl text-sm shadow-xl transition"
             >
               Publier ma Story 🚀
             </button>
             <div className="flex gap-2">
-              <button 
-                onClick={() => cameraInputRef.current?.click()} 
-                className="flex-1 py-3 bg-neutral-900 border border-neutral-800 text-xs font-bold text-neutral-300 rounded-xl flex items-center justify-center gap-2"
-              >
-                <Camera className="w-4 h-4 text-orange-500" /> Reprendre une photo
+              <button onClick={() => cameraInputRef.current?.click()} className="flex-1 py-3 bg-neutral-900 border border-neutral-800 text-xs font-bold text-neutral-300 rounded-xl flex items-center justify-center gap-2">
+                <Camera className="w-4 h-4 text-orange-500" /> Caméra
               </button>
-              <button 
-                onClick={() => galleryInputRef.current?.click()} 
-                className="flex-1 py-3 bg-neutral-900 border border-neutral-800 text-xs font-bold text-neutral-300 rounded-xl flex items-center justify-center gap-2"
-              >
-                <ImageIcon className="w-4 h-4 text-orange-500" /> Choisir de la galerie
+              <button onClick={() => galleryInputRef.current?.click()} className="flex-1 py-3 bg-neutral-900 border border-neutral-800 text-xs font-bold text-neutral-300 rounded-xl flex items-center justify-center gap-2">
+                <ImageIcon className="w-4 h-4 text-orange-500" /> Galerie
               </button>
             </div>
           </div>
