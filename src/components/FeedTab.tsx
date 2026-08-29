@@ -1,11 +1,12 @@
 import React, { useState, useRef } from 'react';
 import { Heart, MessageCircle, ShieldCheck, MapPin, Send, Plus, X, Camera, Image as ImageIcon, Hash } from 'lucide-react';
-import { Post, Story, RealUser } from '../types';
+import { Post, Story, RealUser, FriendRequest } from '../types';
 
 interface FeedTabProps {
   stories: Story[];
   posts: Post[];
   registeredUsers: RealUser[];
+  friendRequests: FriendRequest[]; // Ajouté pour filtrer par amis
   currentUserId?: string;
   feedLoading: boolean;
   viewedStoryIds: string[];
@@ -20,14 +21,13 @@ interface FeedTabProps {
 }
 
 const STORY_REACTIONS = ['👍', '❤️', '👏', '😲', '😂', '🔥'];
-
-// Liste de hashtags suggérés cliquables en un clic
 const PRESET_HASHTAGS = ['#fitpulse', '#workout', '#musculation', '#cardio', '#tournai', '#teamshape', '#fitness', '#nopainnogain'];
 
 export default function FeedTab({
   stories,
   posts,
   registeredUsers,
+  friendRequests,
   currentUserId,
   feedLoading,
   viewedStoryIds,
@@ -46,7 +46,6 @@ export default function FeedTab({
   const [currentViewingStoryIndex, setCurrentViewingStoryIndex] = useState<number | null>(null);
   const [storyReactionAnim, setStoryReactionAnim] = useState<string | null>(null);
 
-  // États pour la création de Story avec texte et hashtags cliquables
   const [isStoryModalOpen, setIsStoryModalOpen] = useState(false);
   const [storyImagePreview, setStoryImagePreview] = useState<string | null>(null);
   const [storyCaption, setStoryCaption] = useState('');
@@ -78,7 +77,6 @@ export default function FeedTab({
     }
   };
 
-  // Gestion du clic sur un hashtag prédéfini
   const togglePresetTag = (tag: string) => {
     if (selectedHashtags.includes(tag)) {
       setSelectedHashtags(selectedHashtags.filter(t => t !== tag));
@@ -87,7 +85,6 @@ export default function FeedTab({
     }
   };
 
-  // Ajout manuel d'un hashtag personnalisé
   const handleAddCustomTag = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && customTagInput.trim()) {
       e.preventDefault();
@@ -102,8 +99,6 @@ export default function FeedTab({
 
   const handlePublishStory = () => {
     if (!storyImagePreview) return;
-    const finalCaption = `${storyCaption} ${selectedHashtags.join(' ')}`.trim();
-    // Logique d'envoi final de la story avec texte et hashtags
     setIsStoryModalOpen(false);
     setStoryImagePreview(null);
     setStoryCaption('');
@@ -111,16 +106,23 @@ export default function FeedTab({
     alert("✨ Story publiée avec succès !");
   };
 
+  // Filtrer uniquement les stories des amis (ou de soi-même) comme sur Insta/FB
+  const acceptedFriendIds = friendRequests
+    .filter(req => req.status === 'accepted')
+    .map(req => (req.sender_id === currentUserId ? req.receiver_id : req.sender_id));
+
+  const filteredStories = stories.filter(story => 
+    story.user_id === currentUserId || acceptedFriendIds.includes(story.user_id)
+  );
+
   return (
     <div className="space-y-4 pb-12">
-      {/* INPUTS CACHÉS */}
       <input type="file" accept="image/*" capture="environment" ref={cameraInputRef} onChange={handleFileChange} className="hidden" />
       <input type="file" accept="image/*" ref={galleryInputRef} onChange={handleFileChange} className="hidden" />
 
-      {/* SECTION DES STORIES */}
+      {/* SECTION DES STORIES (Amis uniquement + Toi) */}
       <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-4 shadow-xl">
         <div className="flex items-center gap-3 overflow-x-auto no-scrollbar pb-1">
-          {/* Bouton pour ouvrir le choix : Caméra ou Galerie */}
           <div className="flex items-center gap-2 flex-shrink-0">
             <div 
               onClick={() => cameraInputRef.current?.click()} 
@@ -145,8 +147,8 @@ export default function FeedTab({
 
           <div className="w-[1px] h-12 bg-neutral-800 mx-1 flex-shrink-0" />
 
-          {/* Liste des stories des autres athlètes */}
-          {stories.map((story, index) => {
+          {/* Affichage des stories filtrées des amis */}
+          {filteredStories.map((story, index) => {
             const author = registeredUsers.find(u => u.id === story.user_id);
             const isViewed = viewedStoryIds.includes(story.id);
 
@@ -159,14 +161,16 @@ export default function FeedTab({
                 <div className={`w-16 h-16 rounded-full p-0.5 ${isViewed ? 'border-2 border-neutral-700' : 'bg-gradient-to-tr from-orange-500 to-amber-400 p-[2.5px]'}`}>
                   <img src={story.image_url || author?.avatar_url} alt="" className="w-full h-full rounded-full object-cover border-2 border-neutral-950" />
                 </div>
-                <span className="text-[11px] font-bold text-neutral-300 truncate w-16 text-center">{author?.username || 'Athlète'}</span>
+                <span className="text-[11px] font-bold text-neutral-300 truncate w-16 text-center">
+                  {story.user_id === currentUserId ? 'Moi' : (author?.username || 'Athlète')}
+                </span>
               </div>
             );
           })}
         </div>
       </div>
 
-      {/* MODALE DE CRÉATION DE STORY (Texte + Hashtags cliquables + Galerie/Caméra) */}
+      {/* MODALE DE CRÉATION DE STORY */}
       {isStoryModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/95 backdrop-blur-md flex flex-col justify-between p-4 overflow-y-auto animate-fadeIn">
           <div className="flex items-center justify-between pb-2">
@@ -179,12 +183,10 @@ export default function FeedTab({
           </div>
 
           <div className="space-y-4 my-2">
-            {/* Aperçu de la photo */}
             <div className="relative rounded-3xl overflow-hidden h-64 bg-neutral-950 border border-neutral-800 flex items-center justify-center">
               {storyImagePreview && <img src={storyImagePreview} alt="Aperçu" className="w-full h-full object-cover" />}
             </div>
 
-            {/* Légende / Texte */}
             <div>
               <label className="block text-xs font-bold text-neutral-300 mb-1">Texte / Commentaire :</label>
               <input 
@@ -196,13 +198,11 @@ export default function FeedTab({
               />
             </div>
 
-            {/* Hashtags cliquables + Ajout manuel */}
             <div className="space-y-2">
               <label className="block text-xs font-bold text-neutral-300 flex items-center gap-1.5">
                 <Hash className="w-4 h-4 text-orange-500" /> Choisir tes hashtags :
               </label>
               
-              {/* Liste des hashtags pré-enregistrés cliquables */}
               <div className="flex flex-wrap gap-1.5">
                 {PRESET_HASHTAGS.map((tag) => {
                   const isSelected = selectedHashtags.includes(tag);
@@ -219,10 +219,9 @@ export default function FeedTab({
                 })}
               </div>
 
-              {/* Input pour ajouter un hashtag manuellement */}
               <input 
                 type="text" 
-                placeholder="Ajouter un hashtag perso (Appuyez sur Entrée)..." 
+                placeholder="Ajouter un hashtag perso (Entrée)..." 
                 value={customTagInput} 
                 onChange={(e) => setCustomTagInput(e.target.value)}
                 onKeyDown={handleAddCustomTag}
@@ -341,25 +340,25 @@ export default function FeedTab({
       </div>
 
       {/* VISIONNEUSE DE STORY PLEIN ÉCRAN */}
-      {currentViewingStoryIndex !== null && stories[currentViewingStoryIndex] && (
+      {currentViewingStoryIndex !== null && filteredStories[currentViewingStoryIndex] && (
         <div className="fixed inset-0 z-50 bg-black flex flex-col justify-between p-4 select-none animate-fadeIn">
           <div className="space-y-2 pt-2">
             <div className="flex gap-1">
-              {stories.map((_, idx) => (
+              {filteredStories.map((_, idx) => (
                 <div key={idx} className={`flex-1 h-1 rounded-full ${idx === currentViewingStoryIndex ? 'bg-orange-500' : 'bg-neutral-700'}`} />
               ))}
             </div>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">
-                <img src={registeredUsers.find(u => u.id === stories[currentViewingStoryIndex].user_id)?.avatar_url} alt="" className="w-9 h-9 rounded-full object-cover border border-neutral-700" />
-                <span className="font-bold text-sm text-white">{registeredUsers.find(u => u.id === stories[currentViewingStoryIndex].user_id)?.username || 'Athlète'}</span>
+                <img src={registeredUsers.find(u => u.id === filteredStories[currentViewingStoryIndex].user_id)?.avatar_url} alt="" className="w-9 h-9 rounded-full object-cover border border-neutral-700" />
+                <span className="font-bold text-sm text-white">{registeredUsers.find(u => u.id === filteredStories[currentViewingStoryIndex].user_id)?.username || 'Athlète'}</span>
               </div>
               <button onClick={() => setCurrentViewingStoryIndex(null)} className="p-2 text-white bg-neutral-900/80 rounded-full"><X className="w-5 h-5" /></button>
             </div>
           </div>
 
           <div className="flex-1 relative flex items-center justify-center my-4 overflow-hidden rounded-3xl bg-neutral-950">
-            <img src={stories[currentViewingStoryIndex].image_url} alt="Story" className="w-full h-full object-contain" />
+            <img src={filteredStories[currentViewingStoryIndex].image_url} alt="Story" className="w-full h-full object-contain" />
             
             {storyReactionAnim && (
               <div className="absolute inset-0 flex items-center justify-center bg-black/30 backdrop-blur-xs animate-bounce">
