@@ -1,6 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, MessageCircle, ArrowLeft, Trash2, Flag, Check, CheckCheck } from 'lucide-react';
+import { Send, MessageCircle, ArrowLeft, Trash2, Flag, Check } from 'lucide-react';
 import { RealUser, DBMessage } from '../types';
+import { createClient } from '@supabase/supabase-js';
+
+const supabaseUrl = 'https://obtahwmcoqrcauscpksv.supabase.co';
+const supabaseAnonKey = 'sb_publishable_O8CKhUtzgq9nO9lKavNE9A__fAdRWoB';
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 interface ChatTabProps {
   currentUserId?: string;
@@ -52,19 +57,65 @@ export default function ChatTab({
   onSelectBuddy,
   onDeleteConversation,
   onReportConversation,
-  isOtherUserTyping,
   messagesEndRef,
   allMessages = []
 }: ChatTabProps) {
   const [showMenu, setShowMenu] = useState(false);
+  const [remoteTyping, setRemoteTyping] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const typingTimeoutRef = useRef<any>(null);
 
-  // Scroll automatique vers le bas uniquement à l'ouverture de la discussion ou lors d'un nouveau message
+  // Canal Realtime pour propager l'état de frappe "..." entre les 2 utilisateurs
+  useEffect(() => {
+    if (!selectedBuddyChat || !currentUserId) return;
+
+    // Nom de canal unique basé sur les IDs des deux utilisateurs triés alphabétiquement
+    const channelId = `room_${[currentUserId, selectedBuddyChat.id].sort().join('_')}`;
+    const channel = supabase.channel(channelId);
+
+    channel
+      .on('broadcast', { event: 'typing' }, (payload) => {
+        if (payload.payload.sender_id === selectedBuddyChat.id) {
+          setRemoteTyping(payload.payload.isTyping);
+        }
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [selectedBuddyChat, currentUserId]);
+
+  // Fonction appelée quand l'utilisateur tape dans l'input
+  const handleInputWithTyping = (e: React.ChangeEvent<HTMLInputElement>) => {
+    onInputChange(e);
+
+    if (!selectedBuddyChat || !currentUserId) return;
+    const channelId = `room_${[currentUserId, selectedBuddyChat.id].sort().join('_')}`;
+    
+    // Envoyer l'événement "en train d'écrire"
+    supabase.channel(channelId).send({
+      type: 'broadcast',
+      event: 'typing',
+      payload: { sender_id: currentUserId, isTyping: true }
+    });
+
+    // Arrêter l'indicateur après 2 secondes d'inactivité
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    typingTimeoutRef.current = setTimeout(() => {
+      supabase.channel(channelId).send({
+        type: 'broadcast',
+        event: 'typing',
+        payload: { sender_id: currentUserId, isTyping: false }
+      });
+    }, 2000);
+  };
+
   useEffect(() => {
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [selectedBuddyChat, currentChatMessages.length, isOtherUserTyping]);
+  }, [currentChatMessages, remoteTyping]);
 
   if (!selectedBuddyChat) {
     return (
@@ -133,8 +184,12 @@ export default function ChatTab({
   }
 
   const buddyStatus = getUserStatus((selectedBuddyChat as any).last_seen);
+  
+  // Le "Vu" ne s'affiche que si le dernier message vient de TOI et que le destinataire a posté un message après ou qu'il est en ligne dans la conversation
   const myMessages = currentChatMessages.filter(m => m.sender_id === currentUserId);
   const lastMyMessage = myMessages[myMessages.length - 1];
+  const lastMessageOverall = currentChatMessages[currentChatMessages.length - 1];
+  const isReadByOther = lastMyMessage && lastMessageOverall && lastMessageOverall.sender_id !== currentUserId;
 
   return (
     <div className="flex flex-col h-[calc(100vh-130px)] bg-neutral-900 border border-neutral-800 rounded-3xl overflow-hidden shadow-2xl">
@@ -170,7 +225,6 @@ export default function ChatTab({
         </div>
       </div>
 
-      {/* Zone des messages avec défilement manuel libre vers le haut */}
       <div ref={containerRef} className="flex-1 overflow-y-auto p-4 space-y-3 bg-neutral-950/50">
         {currentChatMessages.length === 0 ? (
           <div className="text-center py-16 text-neutral-500 text-xs">
@@ -187,8 +241,8 @@ export default function ChatTab({
                   {msg.text}
                 </div>
 
-                {/* Indicateur "Vu" sous le dernier message envoyé */}
-                {isLastMyMsg && (
+                {/* Le "Vu" s'affiche uniquement si l'autre personne a répondu ou lu */}
+                {isLastMyMsg && isReadByOther && (
                   <span className="text-[10px] text-neutral-400 mt-1 px-1 font-medium flex items-center gap-1">
                     <Check className="w-3 h-3 text-green-500" /> Vu
                   </span>
@@ -198,9 +252,10 @@ export default function ChatTab({
           })
         )}
 
-        {isOtherUserTyping && (
+        {/* Indicateur 3 petits points en direct (...) */}
+        {remoteTyping && (
           <div className="flex items-start">
-            <div className="bg-neutral-900 border border-neutral-800 px-4 py-2.5 rounded-2xl rounded-bl-xs text-xs text-neutral-400 flex items-center gap-1.5">
+            <div className="bg-neutral-900 border border-neutral-800 px-4 py-2.5 rounded-2xl rounded-bl-xs text-xs text-neutral-400 flex items-center gap-1.5 shadow-md">
               <span className="w-1.5 h-1.5 bg-orange-500 rounded-full animate-bounce" />
               <span className="w-1.5 h-1.5 bg-orange-500 rounded-full animate-bounce [animation-delay:0.2s]" />
               <span className="w-1.5 h-1.5 bg-orange-500 rounded-full animate-bounce [animation-delay:0.4s]" />
@@ -215,7 +270,7 @@ export default function ChatTab({
           type="text" 
           placeholder={`Écrire à ${selectedBuddyChat.username}...`} 
           value={currentMessageInput} 
-          onChange={onInputChange}
+          onChange={handleInputWithTyping}
           onKeyDown={(e) => { if (e.key === 'Enter') onSendMessage(); }}
           className="flex-1 bg-neutral-900 border border-neutral-800 rounded-2xl px-4 py-3 text-xs text-white focus:border-orange-500" 
         />
