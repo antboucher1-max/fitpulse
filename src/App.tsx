@@ -45,12 +45,16 @@ export default function App() {
   const [feedLoading, setFeedLoading] = useState(false);
   const [userAvatarUrl, setUserAvatarUrl] = useState<string>('https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150');
   
+  // Références d'input fichiers
+  const profileAvatarInputRef = useRef<HTMLInputElement>(null);
+  const beforeFileInputRef = useRef<HTMLInputElement>(null);
+  const afterFileInputRef = useRef<HTMLInputElement>(null);
+
   // États pour la création de post avec photo
   const [isPostModalOpen, setIsPostModalOpen] = useState(false);
   const [postSessionType, setPostSessionType] = useState('Musculation Full Body');
   const [postCaption, setPostCaption] = useState('');
   const [postImageUrl, setPostImageUrl] = useState<string | null>(null);
-  const postFileInputRef = useRef<HTMLInputElement>(null);
 
   const [isPrivateMode, setIsPrivateMode] = useState<boolean>(false);
   const [isLiveActive, setIsLiveActive] = useState<boolean>(false);
@@ -82,8 +86,6 @@ export default function App() {
   const [newTransBefore, setNewTransBefore] = useState<string | null>(null);
   const [newTransAfter, setNewTransAfter] = useState<string | null>(null);
   const [newTransIsPrivate, setNewTransIsPrivate] = useState<boolean>(true);
-  const beforeFileInputRef = useRef<HTMLInputElement>(null);
-  const afterFileInputRef = useRef<HTMLInputElement>(null);
 
   const [activeCommentPostId, setActiveCommentPostId] = useState<string | null>(null);
   const [exerciseSearch, setExerciseSearch] = useState('');
@@ -310,13 +312,9 @@ export default function App() {
         <button onClick={() => handleTabChange('fitbot')} className={`flex flex-col items-center gap-1 ${currentTab === 'fitbot' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Bot className="w-5 h-5" /><span className="text-[10px]">FitBot IA</span></button>
         <button onClick={() => handleTabChange('live_tracker')} className={`flex flex-col items-center gap-1 ${currentTab === 'live_tracker' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><PlusSquare className="w-5 h-5" /><span className="text-[10px]">Séance</span></button>
         <button onClick={() => handleTabChange('calculator')} className={`flex flex-col items-center gap-1 ${currentTab === 'calculator' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Calculator className="w-5 h-5" /><span className="text-[10px]">Calculateur</span></button>
-        <button onClick={() => handleTabNameAndChatTab('chat')} className={`flex flex-col items-center gap-1 ${currentTab === 'chat' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><MessageCircle className="w-5 h-5" /><span className="text-[10px]">Chat</span></button>
+        <button onClick={() => handleTabChange('chat')} className={`flex flex-col items-center gap-1 ${currentTab === 'chat' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><MessageCircle className="w-5 h-5" /><span className="text-[10px]">Chat</span></button>
         <button onClick={() => handleTabChange('profile')} className={`flex flex-col items-center gap-1 ${currentTab === 'profile' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><User className="w-5 h-5" /><span className="text-[10px]">Profil</span></button>
       </nav>
     </div>
   );
-}
-
-function handleTabNameAndChatTab(tab: string) {
-  // Petite fonction utilitaire interne si besoin
 }
