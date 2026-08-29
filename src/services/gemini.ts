@@ -1,44 +1,35 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
+// src/services/gemini.ts
+const DEEPSEEK_API_KEY = 'sk-5e94d753da7a4ac88120383297f590eb';
 
-const apiKey = process.env.REACT_APP_GEMINI_API_KEY || '';
-
-export async function askFitBotAI(prompt: string): Promise<string> {
-  const text = prompt.toLowerCase();
-
+export async function askFitBotAI(userPrompt: string): Promise<string> {
   try {
-    if (!apiKey) {
-      throw new Error("Clé API manquante");
+    const response = await fetch('https://api.deepseek.com/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${DEEPSEEK_API_KEY}`
+      },
+      body: JSON.stringify({
+        model: "deepseek-chat",
+        messages: [
+          { 
+            role: "system", 
+            content: "Tu es FitBot, un coach sportif expert en musculation, fitness et nutrition, motivant, direct et chaleureux. Tu réponds toujours en français avec des emojis dynamiques." 
+          },
+          { role: "user", content: userPrompt }
+        ],
+        stream: false
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error("Erreur de connexion avec l'API DeepSeek");
     }
 
-    const genAI = new GoogleGenerativeAI(apiKey);
-    // Utilisation du modèle gemini-pro qui est universellement supporté par l'API v1beta
-    const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
-    
-    const result = await model.generateContent(
-      "Tu es FitBot, un coach sportif expert en musculation et nutrition. Réponds de façon motivante, concise et structurée avec des emojis à : " + prompt
-    );
-    const response = await result.response;
-    return response.text() || "Prêt pour l'entraînement ! 💪";
-  } catch (error: any) {
-    console.warn("Basculement sur le mode local FitBot :", error?.message);
-    
-    // Réponses de secours intelligentes basées sur les mots-clés de ta question
-    if (text.includes('bonjour') || text.includes('salut')) {
-      return "Salut l'athlète ! 👋 Comment se passe ta séance aujourd'hui ? Prêt à tout casser ?";
-    }
-    if (text.includes('pec') || text.includes('pectoraux')) {
-      return "Pour des pecs massifs : Développé couché lourd, Dips lestés et Écartés poulie vis-à-vis pour la congestion ! 🔥";
-    }
-    if (text.includes('dos')) {
-      return "Pour un dos en V : Tractions prononation, Rowing barre et Tirage vertical. Garde les omoplates serrées ! 🦾";
-    }
-    if (text.includes('jambe') || text.includes('cuisse')) {
-      return "Jour de jambes ! Squat lourd, Presse à cuisses et Leg Extension pour finir les quads ! 🦵";
-    }
-    if (text.includes('protéine') || text.includes('diète') || text.includes('manger')) {
-      return "Côté nutrition : vise 1.6g à 2g de protéines par kilo de poids de corps, reste bien hydraté et surveille ton surplus/déficit calorique ! 🥗💪";
-    }
-
-    return "En tant que coach FitBot, je te conseille de maintenir une surcharge progressive sur tes exercices, de bien t'échauffer et de ne rien lâcher ! 🚀🔥";
+    const data = await response.json();
+    return data.choices[0]?.message?.content || "Désolé l'athlète, je n'ai pas pu analyser ta requête. 💪";
+  } catch (error) {
+    console.error("Erreur FitBot DeepSeek :", error);
+    return "Oups, une erreur est survenue avec le coach virtuel. Vérifie ta connexion ! 🤖";
   }
 }
