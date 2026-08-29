@@ -10,7 +10,7 @@ export async function askFitBotAI(userPrompt: string): Promise<string> {
         'Authorization': `Bearer ${DEEPSEEK_API_KEY}`
       },
       body: JSON.stringify({
-        model: "deepseek-v4-flash", // Modèle mis à jour
+        model: "deepseek-v4-flash", // Utilisation du modèle actuel
         messages: [
           { 
             role: "system", 
@@ -23,15 +23,15 @@ export async function askFitBotAI(userPrompt: string): Promise<string> {
     });
 
     if (!response.ok) {
-      const errData = await response.json().catch(() => ({}));
-      console.error("Détail erreur API DeepSeek :", response.status, errData);
-      throw new Error(`Erreur HTTP ${response.status}`);
+      const errorData = await response.json().catch(() => ({}));
+      console.error("Erreur DeepSeek détaillée :", response.status, errorData);
+      return "Oups, l'API DeepSeek a rejeté la requête. Vérifie ta console F12 pour voir le détail ! 🤖";
     }
 
     const data = await response.json();
     return data.choices[0]?.message?.content || "Désolé l'athlète, je n'ai pas pu analyser ta requête. 💪";
   } catch (error) {
-    console.error("Erreur FitBot DeepSeek :", error);
-    return "Oups, le coach est injoignable (Vérifie ton crédit API sur platform.deepseek.com ou ta console F12). 🤖";
+    console.error("Erreur réseau FitBot :", error);
+    return "Erreur de connexion au serveur DeepSeek. Vérifie ta configuration ! 🔌";
   }
 }
