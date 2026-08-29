@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Send, MessageCircle, ArrowLeft, Trash2, Flag, Check, CheckCheck } from 'lucide-react';
 import { RealUser, DBMessage } from '../types';
 
@@ -18,7 +18,7 @@ interface ChatTabProps {
   isMessageLimitReached: boolean;
   lastReadTimestamps: Record<string, number>;
   messagesEndRef: React.RefObject<HTMLDivElement>;
-  allMessages?: DBMessage[]; // Pour calculer les non-lus globaux et par contact
+  allMessages?: DBMessage[];
 }
 
 const getUserStatus = (lastSeenString?: string) => {
@@ -57,10 +57,14 @@ export default function ChatTab({
   allMessages = []
 }: ChatTabProps) {
   const [showMenu, setShowMenu] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
 
+  // Scroll automatique vers le bas uniquement à l'ouverture de la discussion ou lors d'un nouveau message
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [currentChatMessages, isOtherUserTyping]);
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [selectedBuddyChat, currentChatMessages.length, isOtherUserTyping]);
 
   if (!selectedBuddyChat) {
     return (
@@ -79,15 +83,12 @@ export default function ChatTab({
             ) : (
               activeChatUsers.map((buddy: any) => {
                 const status = getUserStatus(buddy.last_seen || buddy.created_at);
-                
-                // Récupérer les messages avec ce contact pour l'aperçu et le compteur non-lu
                 const conversationMessages = allMessages.filter(
                   m => (m.sender_id === currentUserId && m.receiver_id === buddy.id) ||
                        (m.sender_id === buddy.id && m.receiver_id === currentUserId)
                 );
                 
                 const lastMsg = conversationMessages[conversationMessages.length - 1];
-                // On considère non-lu si le dernier message vient de l'autre personne et n'a pas été ouvert récemment
                 const isUnread = lastMsg && lastMsg.sender_id !== currentUserId;
 
                 return (
@@ -116,7 +117,6 @@ export default function ChatTab({
                             </span>
                           )}
                         </div>
-                        {/* Aperçu du dernier message */}
                         <p className={`text-xs truncate mt-0.5 font-medium ${isUnread ? 'text-white font-semibold' : 'text-neutral-400'}`}>
                           {lastMsg ? (lastMsg.sender_id === currentUserId ? `Moi : ${lastMsg.text}` : lastMsg.text) : status.text}
                         </p>
@@ -170,7 +170,8 @@ export default function ChatTab({
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-neutral-950/50">
+      {/* Zone des messages avec défilement manuel libre vers le haut */}
+      <div ref={containerRef} className="flex-1 overflow-y-auto p-4 space-y-3 bg-neutral-950/50">
         {currentChatMessages.length === 0 ? (
           <div className="text-center py-16 text-neutral-500 text-xs">
             Aucun message avec {selectedBuddyChat.username}. Envoie le premier ! 🚀
@@ -185,13 +186,10 @@ export default function ChatTab({
                 <div className={`max-w-[75%] px-4 py-2.5 rounded-2xl text-xs leading-relaxed ${isMe ? 'bg-orange-600 text-white rounded-br-xs shadow-md' : 'bg-neutral-900 text-neutral-100 border border-neutral-800 rounded-bl-xs'}`}>
                   {msg.text}
                 </div>
-                <div className="flex items-center gap-1 mt-1 text-[9px] text-neutral-500 px-1">
-                  <span>{new Date(msg.created_at || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                  {isMe && <CheckCheck className="w-3 h-3 text-orange-500" />}
-                </div>
 
+                {/* Indicateur "Vu" sous le dernier message envoyé */}
                 {isLastMyMsg && (
-                  <span className="text-[10px] text-neutral-400 mt-0.5 px-1 font-medium flex items-center gap-1">
+                  <span className="text-[10px] text-neutral-400 mt-1 px-1 font-medium flex items-center gap-1">
                     <Check className="w-3 h-3 text-green-500" /> Vu
                   </span>
                 )}
