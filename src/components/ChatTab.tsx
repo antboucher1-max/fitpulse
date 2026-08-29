@@ -62,6 +62,7 @@ export default function ChatTab({
   onSelectBuddy,
   onDeleteConversation,
   onReportConversation,
+  lastReadTimestamps = {},
   allMessages = []
 }: ChatTabProps) {
   const [showMenu, setShowMenu] = useState(false);
@@ -138,8 +139,12 @@ export default function ChatTab({
                   m => (m.sender_id === currentUserId && m.receiver_id === buddy.id) ||
                        (m.sender_id === buddy.id && m.receiver_id === currentUserId)
                 );
+                
                 const lastMsg = conversationMessages[conversationMessages.length - 1];
-                const isUnread = lastMsg && lastMsg.sender_id !== currentUserId;
+                const lastRead = lastReadTimestamps[buddy.id] || 0;
+                
+                // Le message est non-lu STRICTEMENT si le dernier message vient de l'autre personne ET qu'il est arrivé après le dernier moment où on a ouvert le chat
+                const isUnread = lastMsg && lastMsg.sender_id !== currentUserId && new Date(lastMsg.created_at || Date.now()).getTime() > lastRead;
 
                 return (
                   <div 
@@ -223,7 +228,7 @@ export default function ChatTab({
           {showMenu && (
             <div className="absolute right-0 mt-2 w-48 bg-neutral-950 border border-neutral-800 rounded-2xl shadow-xl z-50 py-1.5">
               <button onClick={() => { onDeleteConversation(); setShowMenu(false); }} className="w-full px-4 py-2 text-left text-xs text-red-400 hover:bg-neutral-900 flex items-center gap-2"><Trash2 className="w-3.5 h-3.5" /> Supprimer</button>
-              <button onClick={() => { onReportConversation(); setShowMenu(false); }} className="w-full px-4 py-2 text-left text-xs text-neutral-300 hover:bg-neutral-900 flex items-center gap-2"><Flag className="w-3.5 h-3.5" /> Signaler</button>
+              <button onClick={() => { onReportConversation(); setShowMenu(false); alert("🚨 Conversation signalée aux administrateurs."); }} className="w-full px-4 py-2 text-left text-xs text-amber-400 hover:bg-neutral-900 flex items-center gap-2"><Flag className="w-3.5 h-3.5" /> Signaler la conversation</button>
             </div>
           )}
         </div>
