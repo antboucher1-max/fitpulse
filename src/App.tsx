@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  Zap, Bell, Bot, PlusSquare, Calculator, User, MessageCircle, Home, Users, Key, Mail
+  Zap, Bell, Bot, PlusSquare, Calculator, User, MessageCircle, Home, Users, Key, Mail, Plus, X, Image as ImageIcon, Camera, Flame
 } from 'lucide-react';
 import { createClient, User as SupabaseUser } from '@supabase/supabase-js';
 
@@ -39,26 +39,18 @@ const isMatchingClub = (postClubName?: string, selectedClubName?: string): boole
 
 export default function App() {
   const [user, setUser] = useState<SupabaseUser | null>(null);
-  const [isSignUp, setIsSignUp] = useState(false);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
-  const [username, setUsername] = useState('');
-  const [gender, setGender] = useState<'M' | 'F'>('M');
-  const [level, setLevel] = useState<'Débutant' | 'Intermédiaire' | 'Avancé'>('Intermédiaire');
-  const [homeClub, setHomeClub] = useState<string>('Club Tournai (Bastion)');
-  const [preferredTime, setPreferredTime] = useState<string>(TIME_SLOTS[2]);
-  const [acceptCGU, setAcceptCGU] = useState(false);
-  const [authLoading, setAuthLoading] = useState(false);
-
   const [currentTab, setCurrentTab] = useState<'feed' | 'buddy' | 'workout' | 'exercises' | 'chat' | 'profile' | 'calculator' | 'live_tracker' | 'fitbot'>('feed');
   const [selectedClub, setSelectedClub] = useState<string>('Club Tournai (Bastion)');
   const [posts, setPosts] = useState<Post[]>([]);
   const [feedLoading, setFeedLoading] = useState(false);
   const [userAvatarUrl, setUserAvatarUrl] = useState<string>('https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150');
-  const profileAvatarInputRef = useRef<HTMLInputElement>(null);
+  
+  // États pour la création de post avec photo
+  const [isPostModalOpen, setIsPostModalOpen] = useState(false);
+  const [postSessionType, setPostSessionType] = useState('Musculation Full Body');
+  const [postCaption, setPostCaption] = useState('');
+  const [postImageUrl, setPostImageUrl] = useState<string | null>(null);
+  const postFileInputRef = useRef<HTMLInputElement>(null);
 
   const [isPrivateMode, setIsPrivateMode] = useState<boolean>(false);
   const [isLiveActive, setIsLiveActive] = useState<boolean>(false);
@@ -72,7 +64,6 @@ export default function App() {
   const [isListening, setIsListening] = useState(false);
   const aiMessagesEndRef = useRef<HTMLDivElement>(null);
 
-  const [lastReadTimestamps, setLastReadTimestamps] = useState<Record<string, number>>({});
   const [transformations, setTransformations] = useState<TransformationPhoto[]>([]);
   const [friendRequests, setFriendRequests] = useState<FriendRequest[]>([]);
   const [registeredUsers, setRegisteredUsers] = useState<RealUser[]>([]);
@@ -83,7 +74,6 @@ export default function App() {
   const [activeStoryIndex, setActiveStoryIndex] = useState<number | null>(null);
   const [selectedBuddyChat, setSelectedBuddyChat] = useState<RealUser | null>(null);
   const [currentMessageInput, setCurrentMessageInput] = useState('');
-  const [isOtherUserTyping, setIsOtherUserTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const [newTransNote, setNewTransNote] = useState('');
@@ -102,7 +92,6 @@ export default function App() {
   const [barbellWeight, setBarbellWeight] = useState<number>(20);
   const [viewedStoryIds, setViewedStoryIds] = useState<string[]>([]);
 
-  // Chargement des données Supabase
   const fetchCloudPosts = async () => {
     setFeedLoading(true);
     const { data, error } = await supabase.from('posts').select('*').order('created_at', { ascending: false });
@@ -110,18 +99,9 @@ export default function App() {
     setFeedLoading(false);
   };
 
-  const fetchCloudStories = async () => {
-    try {
-      const { data, error } = await supabase.from('stories').select('*').order('created_at', { ascending: false });
-      if (!error && data) setCloudStories(data as Story[]);
-    } catch (err) {}
-  };
-
   const fetchRealUsers = async () => {
     const { data } = await supabase.from('profiles').select('*');
-    if (data) {
-      setRegisteredUsers(data as RealUser[]);
-    }
+    if (data) setRegisteredUsers(data as RealUser[]);
   };
 
   const fetchTransformations = async (userId: string) => {
@@ -145,7 +125,6 @@ export default function App() {
       }
     });
     fetchCloudPosts();
-    fetchCloudStories();
     fetchRealUsers();
   }, []);
 
@@ -192,11 +171,41 @@ export default function App() {
     await supabase.from('posts').update({ likes_count: newCount, liked_by: updatedLikedBy }).eq('id', postId);
   };
 
+  // Publication d'un nouveau post avec photo optionnelle
+  const handlePublishPost = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) return;
+    const { data, error } = await supabase.from('posts').insert([{
+      user_id: user.id,
+      username: user.user_metadata?.username || 'Athlète',
+      avatar_url: userAvatarUrl,
+      club_name: selectedClub,
+      session_type: postSessionType,
+      caption: postCaption,
+      image_url: postImageUrl,
+      exercises: [],
+      likes_count: 0,
+      liked_by: [],
+      comments_count: 0,
+      comments: [],
+      is_private: false
+    }]).select('*');
+
+    if (!error && data) {
+      setPosts([data[0] as Post, ...posts]);
+      setIsPostModalOpen(false);
+      setPostCaption('');
+      setPostImageUrl(null);
+    } else {
+      alert("Erreur lors de la publication : " + error?.message);
+    }
+  };
+
   const handleFinishLiveWorkout = async () => {
     if (!user) return;
     if (liveExercises.length === 0) { alert("Ajoute au moins un exercice !"); return; }
     const formattedExercises: ExerciseEntry[] = liveExercises.map(ex => ({ name: ex.name, sets: ex.sets.length, reps: ex.sets[0]?.reps || 10, weight: ex.sets[0]?.weight || 50 }));
-    const { data } = await supabase.from('posts').insert([{ user_id: user.id, username: user.user_metadata?.username || 'Athlète', avatar_url: userAvatarUrl, club_name: selectedClub, session_type: liveWorkoutName, caption: "Séance terminée ! 💪", exercises: formattedExercises, likes_count: 0, liked_by: [], comments_count: 0, comments: [], is_private: false }]).select('*');
+    const { data } = await supabase.from('posts').insert([{ user_id: user.id, username: user.user_metadata?.username || 'Athlète', avatar_url: userAvatarUrl, club_name: selectedClub, session_type: liveWorkoutName, caption: "Séance terminée en direct ! 💪", exercises: formattedExercises, likes_count: 0, liked_by: [], comments_count: 0, comments: [], is_private: false }]).select('*');
     if (data) { setPosts([data[0] as Post, ...posts]); setIsLiveActive(false); handleTabChange('feed'); }
   };
 
@@ -228,18 +237,72 @@ export default function App() {
           <div className="w-8 h-8 rounded-xl bg-orange-500/20 flex items-center justify-center text-orange-500"><Zap className="w-5 h-5" /></div>
           <div><h1 className="text-base font-black tracking-tight leading-none">FitPulse</h1><span className="text-xs text-orange-400 font-semibold">{selectedClub}</span></div>
         </div>
+        <button onClick={() => setIsPostModalOpen(true)} className="px-3.5 py-2 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-lg transition">
+          <Plus className="w-4 h-4 stroke-[3]" /> Poster
+        </button>
       </header>
 
       <main className="flex-1 max-w-lg w-full mx-auto px-4 py-3 pb-24">
-        {currentTab === 'feed' && <FeedTab stories={cloudStories} posts={displayedPosts} registeredUsers={registeredUsers} currentUserId={user?.id} feedLoading={feedLoading} viewedStoryIds={viewedStoryIds} onOpenStory={(idx) => setActiveStoryIndex(idx)} onCreateStoryClick={() => {}} onToggleLike={handleToggleLike} onOpenComments={(id) => setActiveCommentPostId(id)} onReportPost={() => {}} onDeletePost={() => {}} onSelectProfile={(u) => setViewingProfileUser(u)} onStartRestTimer={() => {}} />}
+        {currentTab === 'feed' && <FeedTab stories={cloudStories} posts={displayedPosts} registeredUsers={registeredUsers} currentUserId={user?.id} feedLoading={feedLoading} viewedStoryIds={viewedStoryIds} onOpenStory={(idx) => setActiveStoryIndex(idx)} onCreateStoryClick={() => setIsPostModalOpen(true)} onToggleLike={handleToggleLike} onOpenComments={(id) => setActiveCommentPostId(id)} onReportPost={() => {}} onDeletePost={() => {}} onSelectProfile={(u) => setViewingProfileUser(u)} onStartRestTimer={() => {}} />}
         {currentTab === 'buddy' && <BuddyTab currentUserId={user?.id} registeredUsers={registeredUsers} friendRequests={friendRequests} onSendFriendRequest={async (rId) => { if (!user) return; await supabase.from('friend_requests').insert([{ sender_id: user.id, receiver_id: rId, status: 'pending' }]); fetchFriendRequests(user.id); }} onAcceptFriendRequest={async (reqId) => { await supabase.from('friend_requests').update({ status: 'accepted' }).eq('id', reqId); if (user) fetchFriendRequests(user.id); }} onSelectBuddyProfile={(u) => setViewingProfileUser(u)} />}
         {currentTab === 'fitbot' && <FitBotTab messages={aiChatMessages} inputText={aiInputText} setInputText={setAiInputText} isListening={isListening} toggleVoice={toggleVoiceDictation} onSend={(e) => handleSendAIChat(e)} messagesEndRef={aiMessagesEndRef} />}
         {currentTab === 'exercises' && <ExercisesTab exercises={EXERCISES_DATABASE} exerciseSearch={exerciseSearch} setExerciseSearch={setExerciseSearch} selectedCategoryFilter={selectedCategoryFilter} setSelectedCategoryFilter={setSelectedCategoryFilter} onSelectExercise={(ex) => setSelectedExerciseDetail(ex)} />}
         {currentTab === 'calculator' && <CalculatorTab targetWeight={targetWeight} setTargetWeight={setTargetWeight} barbellWeight={barbellWeight} setBarbellWeight={setBarbellWeight} plateBreakdown={plateBreakdown} />}
         {currentTab === 'live_tracker' && <LiveTrackerTab liveWorkoutName={liveWorkoutName} setLiveWorkoutName={setLiveWorkoutName} liveElapsedSeconds={liveElapsedSeconds} liveExercises={liveExercises} selectedExToAdd={selectedExToAdd} setSelectedExToAdd={setSelectedExToAdd} exercisesDatabase={EXERCISES_DATABASE} onAddExercise={() => setLiveExercises([...liveExercises, { id: 'lex-' + Date.now(), name: selectedExToAdd, sets: [{ setNumber: 1, weight: 50, reps: 10, completed: false }] }])} onAddSet={(exId) => setLiveExercises(liveExercises.map(ex => ex.id === exId ? { ...ex, sets: [...ex.sets, { setNumber: ex.sets.length + 1, weight: 50, reps: 10, completed: false }] } : ex))} onToggleSet={(exId, sIdx) => setLiveExercises(liveExercises.map(ex => ex.id === exId ? { ...ex, sets: ex.sets.map((s, i) => i === sIdx ? { ...s, completed: !s.completed } : s) } : ex))} onUpdateWeight={(exId, sIdx, val) => setLiveExercises(liveExercises.map(item => item.id === exId ? { ...item, sets: item.sets.map((s, i) => i === sIdx ? { ...s, weight: val } : s) } : item))} onUpdateReps={(exId, sIdx, val) => setLiveExercises(liveExercises.map(item => item.id === exId ? { ...item, sets: item.sets.map((s, i) => i === sIdx ? { ...s, reps: val } : s) } : item))} onFinishWorkout={handleFinishLiveWorkout} onQuitLive={() => setIsLiveActive(false)} />}
         {currentTab === 'chat' && <ChatTab currentUserId={user?.id} selectedBuddyChat={selectedBuddyChat} setSelectedBuddyChat={setSelectedBuddyChat} activeChatUsers={activeChatUsers} currentChatMessages={currentChatMessages} currentMessageInput={currentMessageInput} onInputChange={(e) => setCurrentMessageInput(e.target.value)} onSendMessage={handleSendMessage} onSelectBuddy={(f) => setSelectedBuddyChat(f)} onDeleteConversation={() => {}} onReportConversation={() => {}} isOtherUserTyping={isOtherUserTyping} isMessageLimitReached={false} lastReadTimestamps={lastReadTimestamps} messagesEndRef={messagesEndRef} />}
-        {currentTab === 'profile' && <ProfileTab user={user} currentUserProfile={currentUserProfile} userAvatarUrl={userAvatarUrl} isAdmin={isAdmin} registeredUsers={registeredUsers} transformations={transformations} newTransBefore={newTransBefore} newTransAfter={newTransAfter} newTransWeight={newTransWeight} newTransNote={newTransNote} newTransIsPrivate={newTransIsPrivate} setNewTransWeight={setNewTransWeight} setNewTransNote={setNewTransNote} setNewTransIsPrivate={setNewTransIsPrivate} onAvatarClick={() => profileAvatarInputRef.current?.click()} onCameraStart={() => {}} onBeforeFileSelect={() => {}} onAfterFileSelect={() => {}} onAddTransformation={async (e) => { e.preventDefault(); if (!user || newTransWeight === '') return; await supabase.from('transformations').insert([{ user_id: user.id, before_url: 'https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?w=400', after_url: 'https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?w=400', date: new Date().toISOString().split('T')[0], weight: Number(newTransWeight), note: newTransNote || 'Évolution', is_private: newTransIsPrivate }]); fetchTransformations(user.id); setNewTransWeight(''); setNewTransNote(''); alert('📸 Transformation enregistrée !'); }} onShareTransformation={() => {}} onUpdatePasswordSubmit={async (e) => { e.preventDefault(); if (!password || password !== confirmPassword) { alert("Mots de passe non concordants."); return; } await supabase.auth.updateUser({ password }); alert("🔒 Mot de passe mis à jour !"); setPassword(''); setConfirmPassword(''); }} password={password} setPassword={setPassword} confirmPassword={confirmPassword} setConfirmPassword={setConfirmPassword} isPrivateMode={isPrivateMode} setIsPrivateMode={setIsPrivateMode} onSignOut={() => supabase.auth.signOut()} onToggleVerifyAdmin={async (uId, status) => { await supabase.from('profiles').update({ is_verified: !status }).eq('id', uId); fetchRealUsers(); }} beforeFileInputRef={beforeFileInputRef} afterFileInputRef={afterFileInputRef} />}
+        {currentTab === 'profile' && <ProfileTab user={user} currentUserProfile={currentUserProfile} userAvatarUrl={userAvatarUrl} isAdmin={isAdmin} registeredUsers={registeredUsers} transformations={transformations} newTransBefore={newTransBefore} newTransAfter={newTransAfter} newTransWeight={newTransWeight} newTransNote={newTransNote} newTransIsPrivate={newTransIsPrivate} setNewTransWeight={setNewTransWeight} setNewTransNote={setNewTransNote} setNewTransIsPrivate={setNewTransIsPrivate} onAvatarClick={() => profileAvatarInputRef.current?.click()} onCameraStart={() => {}} onBeforeFileSelect={() => {}} onAfterFileSelect={() => {}} onAddTransformation={async (e) => { e.preventDefault(); if (!user || newTransWeight === '') return; await supabase.from('transformations').insert([{ user_id: user.id, before_url: 'https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?w=400', after_url: 'https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?w=400', date: new Date().toISOString().split('T')[0], weight: Number(newTransWeight), note: newTransNote || 'Évolution', is_private: newTransIsPrivate }]); fetchTransformations(user.id); setNewTransWeight(''); setNewTransNote(''); alert('📸 Transformation enregistrée !'); }} onShareTransformation={() => {}} onUpdatePasswordSubmit={async (e) => { e.preventDefault(); if (!password || password !== confirmPassword) { alert("Mots de passe non concordants."); return; } await supabase.auth.updateUser({ password }); alert("🔒 Mot de passe mis à jour !"); setPassword(''); setConfirmPassword(''); }} password={''} setPassword={() => {}} confirmPassword={''} setConfirmPassword={() => {}} isPrivateMode={isPrivateMode} setIsPrivateMode={setIsPrivateMode} onSignOut={() => supabase.auth.signOut()} onToggleVerifyAdmin={async (uId, status) => { await supabase.from('profiles').update({ is_verified: !status }).eq('id', uId); fetchRealUsers(); }} beforeFileInputRef={beforeFileInputRef} afterFileInputRef={afterFileInputRef} />}
       </main>
+
+      {/* Modale de création de publication avec photo */}
+      {isPostModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl animate-fadeIn">
+            <div className="flex items-center justify-between">
+              <h3 className="font-extrabold text-base text-white flex items-center gap-2">
+                <Flame className="w-5 h-5 text-orange-500" /> Partager une séance
+              </h3>
+              <button onClick={() => setIsPostModalOpen(false)} className="p-2 text-neutral-400 hover:text-white rounded-xl"><X className="w-5 h-5" /></button>
+            </div>
+
+            <form onSubmit={handlePublishPost} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-neutral-400 mb-1">Type de séance :</label>
+                <select value={postSessionType} onChange={(e) => setPostSessionType(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3.5 py-3 text-sm text-white">
+                  <option value="Musculation Full Body">Musculation Full Body</option>
+                  <option value="Pectoraux / Triceps">Pectoraux / Triceps</option>
+                  <option value="Dos / Biceps">Dos / Biceps</option>
+                  <option value="Jambes / Abdos">Jambes / Abdos</option>
+                  <option value="Cardio / HIIT">Cardio / HIIT</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-neutral-400 mb-1">Légende :</label>
+                <textarea rows={3} placeholder="Comment s'est passée ta séance ? #fitpulse" value={postCaption} onChange={(e) => setPostCaption(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-sm text-white focus:border-orange-500" />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-neutral-400 mb-1">Photo de séance (URL ou image) :</label>
+                <div className="flex gap-2">
+                  <input type="text" placeholder="https://images.unsplash.com/..." value={postImageUrl || ''} onChange={(e) => setPostImageUrl(e.target.value)} className="flex-1 bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2.5 text-xs text-white" />
+                  <button type="button" onClick={() => setPostImageUrl('https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=800')} className="px-3 bg-neutral-800 hover:bg-neutral-700 text-xs font-bold rounded-xl text-neutral-200">Exemple</button>
+                </div>
+              </div>
+
+              {postImageUrl && (
+                <div className="relative rounded-2xl overflow-hidden h-40 border border-neutral-800">
+                  <img src={postImageUrl} alt="Aperçu" className="w-full h-full object-cover" />
+                  <button type="button" onClick={() => setPostImageUrl(null)} className="absolute top-2 right-2 p-1.5 bg-black/70 rounded-full text-white"><X className="w-4 h-4" /></button>
+                </div>
+              )}
+
+              <button type="submit" className="w-full py-3.5 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-2xl text-sm shadow-xl transition">
+                Publier sur le fil 🚀
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
 
       <nav className="fixed bottom-0 left-0 right-0 z-40 bg-neutral-950/90 backdrop-blur-xl border-t border-neutral-800 px-2 py-2 flex justify-around items-center">
         <button onClick={() => handleTabChange('feed')} className={`flex flex-col items-center gap-1 ${currentTab === 'feed' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Home className="w-5 h-5" /><span className="text-[10px]">Accueil</span></button>
