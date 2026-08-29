@@ -28,12 +28,36 @@ interface ChatTabProps {
 
 const calculateStreak = (messages: DBMessage[], currentUserId?: string, buddyId?: string) => {
   if (!currentUserId || !buddyId) return 0;
+  
   const convo = messages.filter(
     m => (m.sender_id === currentUserId && m.receiver_id === buddyId) ||
          (m.sender_id === buddyId && m.receiver_id === currentUserId)
   );
   if (convo.length === 0) return 0;
-  return convo.length > 3 ? Math.floor(convo.length / 2) : 1;
+
+  const activeDays = new Set<string>();
+  convo.forEach(m => {
+    if (m.created_at) {
+      activeDays.add(m.created_at.split('T')[0]);
+    }
+  });
+
+  let streak = 0;
+  const today = new Date();
+
+  for (let i = 0; i < 365; i++) {
+    const checkDate = new Date(today);
+    checkDate.setDate(today.getDate() - i);
+    const dateString = checkDate.toISOString().split('T')[0];
+
+    if (activeDays.has(dateString)) {
+      streak++;
+    } else if (i > 0) {
+      break;
+    }
+  }
+
+  return streak > 0 ? streak : 1;
 };
 
 const getUserStatus = (lastSeenString?: string) => {
@@ -142,8 +166,6 @@ export default function ChatTab({
                 
                 const lastMsg = conversationMessages[conversationMessages.length - 1];
                 const lastRead = lastReadTimestamps[buddy.id] || 0;
-                
-                // Le message est non-lu STRICTEMENT si le dernier message vient de l'autre personne ET qu'il est arrivé après le dernier moment où on a ouvert le chat
                 const isUnread = lastMsg && lastMsg.sender_id !== currentUserId && new Date(lastMsg.created_at || Date.now()).getTime() > lastRead;
 
                 return (
