@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  Zap, Bot, PlusSquare, Calculator, User, MessageCircle, Home, Users, Plus, X, Camera, Flame, MapPin, Hash
+  Zap, Bot, PlusSquare, Calculator, User, MessageCircle, Home, Users, Plus, X, Camera, Flame, MapPin, Hash, Bell
 } from 'lucide-react';
 import { createClient, User as SupabaseUser } from '@supabase/supabase-js';
 
@@ -53,7 +53,7 @@ const isMatchingClub = (postClubName?: string, selectedClubName?: string): boole
 
 export default function App() {
   const [user, setUser] = useState<SupabaseUser | null>(null);
-  const [currentTab, setCurrentTab] = useState<'feed' | 'buddy' | 'workout' | 'exercises' | 'chat' | 'profile' | 'calculator' | 'live_tracker' | 'fitbot'>('feed');
+  const [currentTab, setCurrentTab] = useState<'feed' | 'buddy' | 'workout' | 'exercises' | 'chat' | 'profile' | 'calculator' | 'live_tracker' | 'fitbot' | 'notifications'>('feed');
   const [selectedClub, setSelectedClub] = useState<string>('Club Tournai (Bastion)');
   const [posts, setPosts] = useState<Post[]>([]);
   const [feedLoading, setFeedLoading] = useState(false);
@@ -91,6 +91,7 @@ export default function App() {
   const [registeredUsers, setRegisteredUsers] = useState<RealUser[]>([]);
   const [cloudStories, setCloudStories] = useState<Story[]>([]);
   const [allMessages, setAllMessages] = useState<DBMessage[]>([]);
+  const [notifications, setNotifications] = useState<any[]>([]);
   
   const [viewingProfileUser, setViewingProfileUser] = useState<RealUser | null>(null);
   const [activeStoryIndex, setActiveStoryIndex] = useState<number | null>(null);
@@ -299,7 +300,9 @@ export default function App() {
   };
   const plateBreakdown = targetWeight !== '' ? calculatePlates(targetWeight, barbellWeight) : [];
   const currentUserProfile = registeredUsers.find(u => u.id === user?.id);
-  const isAdmin = currentUserProfile?.is_admin || user?.email === 'antbou@fitpulse.be';
+  
+  // Vérification de l'administrateur basée sur antboucher@hotmail.fr
+  const isAdmin = currentUserProfile?.is_admin || user?.email === 'antboucher@hotmail.fr';
 
   return (
     <div className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col font-sans select-none">
@@ -400,7 +403,7 @@ export default function App() {
         </div>
       )}
 
-      {/* Barre de navigation du bas avec badge dynamique sur le chat */}
+      {/* Barre de navigation du bas */}
       <nav className="fixed bottom-0 left-0 right-0 z-40 bg-neutral-950/90 backdrop-blur-xl border-t border-neutral-800 px-2 py-2 flex justify-around items-center">
         <button onClick={() => handleTabChange('feed')} className={`flex flex-col items-center gap-1 ${currentTab === 'feed' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Home className="w-5 h-5" /><span className="text-[10px]">Accueil</span></button>
         <button onClick={() => handleTabChange('buddy')} className={`flex flex-col items-center gap-1 ${currentTab === 'buddy' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Users className="w-5 h-5" /><span className="text-[10px]">Buddies</span></button>
@@ -412,7 +415,7 @@ export default function App() {
 
         <button onClick={() => handleTabChange('fitbot')} className={`flex flex-col items-center gap-1 ${currentTab === 'fitbot' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Bot className="w-5 h-5" /><span className="text-[10px]">FitBot IA</span></button>
         
-        {/* Bouton Chat avec badge rouge numéroté tenant compte des lectures */}
+        {/* Bouton Chat avec badge rouge numéroté */}
         {(() => {
           const unreadCount = activeChatUsers.filter(buddy => {
             const lastRead = lastReadTimestamps[buddy.id] || 0;
