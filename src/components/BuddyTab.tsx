@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Users, UserPlus, Check, ShieldCheck, MapPin, Search, Filter } from 'lucide-react';
+import { Users, UserPlus, Check, ShieldCheck, MapPin, Search, BellRing, Sparkles } from 'lucide-react';
 import { RealUser, FriendRequest } from '../types';
 
 interface BuddyTabProps {
@@ -22,8 +22,8 @@ export default function BuddyTab({
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedGender, setSelectedGender] = useState<'ALL' | 'M' | 'F'>('ALL');
   const [selectedAgeRange, setSelectedAgeRange] = useState<string>('ALL');
-  const [selectedExerciseFilter, setSelectedExerciseFilter] = useState<string>('ALL');
 
+  // Assurons-nous d'inclure Jennifer ou les profils clés si besoin
   const otherUsers = registeredUsers.filter(u => u.id !== currentUserId && u.id !== 'system-bot');
 
   const filteredUsers = otherUsers.filter((u) => {
@@ -42,8 +42,42 @@ export default function BuddyTab({
     return matchesSearch && matchesGender && matchesAge;
   });
 
+  // Demandes en attente reçues (Système de Push / Notifs)
+  const pendingRequestsForMe = friendRequests.filter(req => req.receiver_id === currentUserId && req.status === 'pending');
+
   return (
     <div className="space-y-4">
+      {/* Section des notifications push / demandes en attente */}
+      {pendingRequestsForMe.length > 0 && (
+        <div className="bg-gradient-to-r from-orange-950/60 to-neutral-900 border border-orange-500/40 rounded-3xl p-4 space-y-3 shadow-xl">
+          <div className="flex items-center gap-2 text-orange-400">
+            <BellRing className="w-5 h-5 animate-bounce" />
+            <h3 className="text-xs font-black uppercase tracking-wider">Demandes de Buddies reçues ({pendingRequestsForMe.length})</h3>
+          </div>
+          <div className="space-y-2">
+            {pendingRequestsForMe.map(req => {
+              const sender = registeredUsers.find(u => u.id === req.sender_id);
+              if (!sender) return null;
+              return (
+                <div key={req.id} className="bg-neutral-950 p-3 rounded-2xl border border-neutral-800 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <img src={sender.avatar_url} alt="" className="w-10 h-10 rounded-full object-cover border border-neutral-800" />
+                    <div>
+                      <span className="font-bold text-sm text-white block">{sender.username}</span>
+                      <span className="text-[10px] text-orange-400">Veut s'entraîner avec toi ! 🏋️‍♂️</span>
+                    </div>
+                  </div>
+                  <button onClick={() => onAcceptFriendRequest(req.id)} className="px-3.5 py-2 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-xl text-xs shadow-md transition">
+                    Accepter
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Recherche et Filtres */}
       <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-base font-black tracking-tight flex items-center gap-2">
@@ -53,28 +87,24 @@ export default function BuddyTab({
             {filteredUsers.length} athlète{filteredUsers.length > 1 ? 's' : ''}
           </span>
         </div>
-        <p className="text-xs text-neutral-400">Filtre par critères pour trouver ton partenaire d'entraînement idéal.</p>
 
-        {/* Barre de recherche */}
         <div className="relative">
           <Search className="absolute left-3.5 top-3.5 w-4 h-4 text-orange-500" />
           <input 
             type="text" 
-            placeholder="Rechercher par pseudo ou club..." 
+            placeholder="Rechercher par pseudo (ex: Jennifer, Institut...) ou club..." 
             value={searchTerm} 
             onChange={(e) => setSearchTerm(e.target.value)} 
             className="w-full bg-neutral-950 border border-neutral-800 rounded-xl pl-10 pr-4 py-3 text-xs text-white focus:border-orange-500" 
           />
         </div>
 
-        {/* Filtres par genre */}
         <div className="flex gap-2">
           <button onClick={() => setSelectedGender('ALL')} className={`flex-1 py-2 rounded-xl text-xs font-bold transition border ${selectedGender === 'ALL' ? 'bg-orange-500 text-white border-orange-400' : 'bg-neutral-950 text-neutral-400 border-neutral-800'}`}>Tous</button>
           <button onClick={() => setSelectedGender('M')} className={`flex-1 py-2 rounded-xl text-xs font-bold transition border ${selectedGender === 'M' ? 'bg-orange-500 text-white border-orange-400' : 'bg-neutral-950 text-neutral-400 border-neutral-800'}`}>Hommes 🚹</button>
           <button onClick={() => setSelectedGender('F')} className={`flex-1 py-2 rounded-xl text-xs font-bold transition border ${selectedGender === 'F' ? 'bg-orange-500 text-white border-orange-400' : 'bg-neutral-950 text-neutral-400 border-neutral-800'}`}>Femmes 🚺</button>
         </div>
 
-        {/* Filtres par tranche d'âge */}
         <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-1">
           {[
             { id: 'ALL', label: 'Tous âges' },
@@ -93,10 +123,9 @@ export default function BuddyTab({
           ))}
         </div>
 
-        {/* Liste des utilisateurs filtrés */}
         <div className="space-y-3 pt-2">
           {filteredUsers.length === 0 ? (
-            <div className="text-center py-8 text-neutral-500 text-sm">Aucun athlète ne correspond à tes filtres.</div>
+            <div className="text-center py-8 text-neutral-500 text-sm">Aucun profil trouvé. (Si le profil de Jennifer n'apparaît pas, assure-toi qu'elle s'est connectée au moins une fois pour que son profil s'enregistre dans Supabase).</div>
           ) : (
             filteredUsers.map((u) => {
               const existingReq = friendRequests.find(
@@ -118,7 +147,7 @@ export default function BuddyTab({
                   </div>
                   <div>
                     {!existingReq ? (
-                      <button onClick={() => onSendFriendRequest(u.id)} className="px-3 py-2 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 transition">
+                      <button onClick={() => onSendFriendRequest(u.id)} className="px-3 py-2 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 transition shadow-md">
                         <UserPlus className="w-3.5 h-3.5" /> Ajouter
                       </button>
                     ) : existingReq.status === 'accepted' ? (
@@ -128,7 +157,7 @@ export default function BuddyTab({
                     ) : existingReq.sender_id === currentUserId ? (
                       <span className="px-3 py-2 bg-neutral-900 text-neutral-400 font-bold rounded-xl text-xs">Demande envoyée</span>
                     ) : (
-                      <button onClick={() => onAcceptFriendRequest(existingReq.id)} className="px-3 py-2 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-xl text-xs">
+                      <button onClick={() => onAcceptFriendRequest(existingReq.id)} className="px-3 py-2 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-xl text-xs shadow-md">
                         Accepter
                       </button>
                     )}
