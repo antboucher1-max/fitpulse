@@ -404,6 +404,16 @@ export default function App() {
   const fetchFriendRequests = async (userId: string) => { const { data, error } = await supabase.from('friend_requests').select('*').or(`sender_id.eq.${userId},receiver_id.eq.${userId}`); if (!error && data) setFriendRequests(data as FriendRequest[]); };
   const sendSystemNotification = async (receiverId: string, message: string) => { await supabase.from('direct_messages').insert([{ sender_id: 'system-notification', receiver_id: receiverId, sender_name: '📣 Notification', text: message }]); };
 
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email) { alert("Veuillez entrer votre adresse e-mail."); return; }
+    setAuthLoading(true);
+    const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin });
+    setAuthLoading(false);
+    if (error) alert("Erreur : " + error.message);
+    else setForgotPasswordSent(true);
+  };
+
   const handleUpdatePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!password || password !== confirmPassword) {
