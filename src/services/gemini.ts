@@ -1,20 +1,14 @@
-import { GoogleGenAI } from '@google/genai';
-
-const apiKey = process.env.REACT_APP_GEMINI_API_KEY || '';
-const ai = new GoogleGenAI({ apiKey });
-
 export async function askFitBotAI(prompt: string): Promise<string> {
   try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: prompt,
-      config: {
-        systemInstruction: "Tu es FitBot, un coach sportif virtuel ultra motivant, bienveillant, expert en musculation, nutrition et fitness. Tu réponds de manière concise, percutante et dynamique avec des emojis.",
-      },
-    });
-    return response.text || "Je suis en pleine forme et prêt à t'aider à tout casser à l'entraînement ! 💪 Dis-moi, quel est ton programme aujourd'hui ?";
+    const text = prompt.toLowerCase();
+    if (text.includes('bonjour') || text.includes('salut')) {
+      return "Salut l'athlète ! Comment se passe ta séance aujourd'hui ? 💪";
+    }
+    if (text.includes('pec') || text.includes('pectoraux')) {
+      return "Pour les pecs, je te conseille le développé couché, les dips et les écartés à la poulie pour un max de congestion ! 🔥";
+    }
+    return "En tant que coach FitBot IA, je te conseille de bien t'hydrater, de t'échauffer et de maintenir une surcharge progressive sur tes exercices ! 🚀";
   } catch (error) {
-    console.error("Erreur Gemini:", error);
-    return "Oups, j'ai eu un petit coup de fatigue 🔋. Réessaie dans un instant !";
+    return "Désolé, une petite erreur est survenue avec le coach IA.";
   }
 }
