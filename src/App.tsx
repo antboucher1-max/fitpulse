@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  Zap, Bell, Bot, PlusSquare, Calculator, User, MessageCircle, Home, Users, Key, Mail, Plus, X, Image as ImageIcon, Camera, Flame
+  Zap, Bell, Bot, PlusSquare, Calculator, User, MessageCircle, Home, Users, Key, Mail, Plus, X, Image as ImageIcon, Camera, Flame, MapPin
 } from 'lucide-react';
 import { createClient, User as SupabaseUser } from '@supabase/supabase-js';
 
@@ -24,6 +24,21 @@ const supabaseAnonKey = 'sb_publishable_O8CKhUtzgq9nO9lKavNE9A__fAdRWoB';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 const TIME_SLOTS = ['🌅 Matin (6h - 9h)', '☀️ Midi (12h - 14h)', '🌆 Soir (17h - 20h)', '🌙 Nocturne (20h+)', '📅 Week-end flexible'];
+
+// Liste complète de tes clubs
+const CLUBS_LIST = [
+  'Club Tournai (Bastion)',
+  'Club Tournai (les jeunesses)',
+  'Club Antoing',
+  'Club Péruwelz',
+  'Club Leuze',
+  'Club Ath',
+  'Club Mouscron',
+  'Club Ronse',
+  'Club St-Ghislain',
+  'Club Mons',
+  'Club Jurbise'
+];
 
 const EXERCISES_DATABASE: ExerciseGuide[] = [
   { id: 'ex-1', name: 'Développé couché (Barre / Haltères)', category: 'Pectoraux', equipment: 'Banc & Barre', targetMuscles: 'Pectoraux, Triceps', settings: 'Banc à plat', execution: 'Descendre la barre puis pousser', tips: 'Omoplates serrées', image_url: 'https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?w=800', detailedDescription: 'Exercice roi pour les pecs.' },
@@ -234,14 +249,33 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col font-sans select-none">
+      {/* Header avec logo à gauche et sélecteur de club à droite */}
       <header className="sticky top-0 z-40 bg-neutral-950/80 backdrop-blur-md border-b border-neutral-900 px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-xl bg-orange-500/20 flex items-center justify-center text-orange-500"><Zap className="w-5 h-5" /></div>
-          <div><h1 className="text-base font-black tracking-tight leading-none">FitPulse</h1><span className="text-xs text-orange-400 font-semibold">{selectedClub}</span></div>
+          <h1 className="text-base font-black tracking-tight leading-none text-white">FitPulse</h1>
         </div>
-        <button onClick={() => setIsPostModalOpen(true)} className="px-3.5 py-2 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-lg transition">
-          <Plus className="w-4 h-4 stroke-[3]" /> Poster
-        </button>
+
+        {/* Sélecteur de club en haut à droite */}
+        <div className="flex items-center gap-2">
+          <div className="relative flex items-center bg-neutral-900 border border-neutral-800 rounded-xl px-2.5 py-1.5">
+            <MapPin className="w-3.5 h-3.5 text-orange-500 mr-1.5 flex-shrink-0" />
+            <select 
+              value={selectedClub} 
+              onChange={(e) => setSelectedClub(e.target.value)} 
+              className="bg-transparent text-xs font-bold text-orange-400 focus:outline-none cursor-pointer pr-1"
+            >
+              {CLUBS_LIST.map((club) => (
+                <option key={club} value={club} className="bg-neutral-900 text-white">
+                  {club}
+                </option>
+              ))}
+            </select>
+          </div>
+          <button onClick={() => setIsPostModalOpen(true)} className="p-2 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-xl shadow-lg transition" title="Poster une séance">
+            <Plus className="w-4 h-4 stroke-[3]" />
+          </button>
+        </div>
       </header>
 
       <main className="flex-1 max-w-lg w-full mx-auto px-4 py-3 pb-24">
