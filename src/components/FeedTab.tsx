@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Heart, MessageCircle, Share2, ShieldCheck, MapPin, MoreHorizontal, Send, Trash2, Flag, Eye, Plus } from 'lucide-react';
+import { Heart, MessageCircle, Share2, ShieldCheck, MapPin, MoreHorizontal, Send, Trash2, Flag, Eye, Plus, X } from 'lucide-react';
 import { Post, Story, RealUser } from '../types';
 
 interface FeedTabProps {
@@ -40,13 +40,11 @@ export default function FeedTab({
   const [activeCommentsPostId, setActiveCommentsPostId] = useState<string | null>(null);
   const [commentInput, setCommentInput] = useState('');
   
-  // État pour la visionneuse de story en plein écran avec les 6 émojis Instagram
   const [currentViewingStoryIndex, setCurrentViewingStoryIndex] = useState<number | null>(null);
   const [storyReactionAnim, setStoryReactionAnim] = useState<string | null>(null);
 
   const handleSendComment = (postId: string) => {
     if (!commentInput.trim()) return;
-    // Logique d'ajout de commentaire (peut être reliée à Supabase si besoin)
     setCommentInput('');
   };
 
@@ -60,7 +58,6 @@ export default function FeedTab({
       {/* SECTION DES STORIES */}
       <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-4 shadow-xl">
         <div className="flex items-center gap-3 overflow-x-auto no-scrollbar pb-1">
-          {/* Bouton pour ajouter sa story */}
           <div onClick={onCreateStoryClick} className="flex flex-col items-center gap-1.5 flex-shrink-0 cursor-pointer group">
             <div className="w-16 h-16 rounded-full bg-neutral-950 border-2 border-dashed border-orange-500/60 flex items-center justify-center text-orange-500 group-hover:bg-orange-500/10 transition">
               <Plus className="w-6 h-6 stroke-[3]" />
@@ -68,7 +65,6 @@ export default function FeedTab({
             <span className="text-[11px] font-bold text-neutral-300">Ma Story</span>
           </div>
 
-          {/* Liste des stories des autres athlètes */}
           {stories.map((story, index) => {
             const author = registeredUsers.find(u => u.id === story.user_id);
             const isViewed = viewedStoryIds.includes(story.id);
@@ -89,7 +85,7 @@ export default function FeedTab({
         </div>
       </div>
 
-      {/* FIL D'ACTUALITÉ DES PUBLICATIONS */}
+      {/* FIL D'ACTUALITÉ */}
       <div className="space-y-4">
         {feedLoading ? (
           <div className="text-center py-12 text-neutral-500 text-xs">Chargement du fil d'actualité...</div>
@@ -105,7 +101,6 @@ export default function FeedTab({
 
             return (
               <div key={post.id} className="bg-neutral-900 border border-neutral-800 rounded-3xl overflow-hidden shadow-xl space-y-3">
-                {/* En-tête du post */}
                 <div className="px-5 pt-4 flex items-center justify-between">
                   <div className="flex items-center gap-3 cursor-pointer" onClick={() => author && onSelectProfile(author)}>
                     <img src={post.avatar_url || author?.avatar_url} alt="" className="w-11 h-11 rounded-full object-cover border border-neutral-800" />
@@ -120,7 +115,6 @@ export default function FeedTab({
                   </div>
                 </div>
 
-                {/* Type de séance & Légende */}
                 <div className="px-5 space-y-1.5">
                   <span className="inline-block bg-orange-500/10 text-orange-400 font-bold text-xs px-2.5 py-1 rounded-xl border border-orange-500/20">
                     🏋️‍♂️ {post.session_type}
@@ -128,14 +122,12 @@ export default function FeedTab({
                   <p className="text-xs text-neutral-200 leading-relaxed">{post.caption}</p>
                 </div>
 
-                {/* Photo de la publication */}
                 {post.image_url && (
                   <div className="w-full bg-neutral-950 h-72 overflow-hidden border-y border-neutral-800">
                     <img src={post.image_url} alt="Séance" className="w-full h-full object-cover" />
                   </div>
                 )}
 
-                {/* Boutons d'interaction (Like, Commentaires) */}
                 <div className="px-5 pb-4 flex items-center justify-between border-b border-neutral-800/60 pb-3">
                   <div className="flex items-center gap-5">
                     <button onClick={() => onToggleLike(post.id)} className={`flex items-center gap-1.5 text-xs font-bold transition ${isLiked ? 'text-red-500' : 'text-neutral-400 hover:text-white'}`}>
@@ -147,7 +139,6 @@ export default function FeedTab({
                   </div>
                 </div>
 
-                {/* Section des commentaires déroulante */}
                 {isShowingComments && (
                   <div className="bg-neutral-950 px-5 py-4 space-y-3 border-t border-neutral-800">
                     <div className="space-y-2.5 max-h-48 overflow-y-auto pr-1">
@@ -163,7 +154,6 @@ export default function FeedTab({
                       )}
                     </div>
 
-                    {/* Input pour écrire un commentaire */}
                     <div className="flex gap-2 pt-2">
                       <input 
                         type="text" 
@@ -185,10 +175,9 @@ export default function FeedTab({
         )}
       </div>
 
-      {/* VISIONNEUSE DE STORY PLEIN ÉCRAN AVEC LES 6 ÉMOJIS INSTAGRAM */}
+      {/* VISIONNEUSE DE STORY PLEIN ÉCRAN */}
       {currentViewingStoryIndex !== null && stories[currentViewingStoryIndex] && (
         <div className="fixed inset-0 z-50 bg-black flex flex-col justify-between p-4 select-none animate-fadeIn">
-          {/* Barre de progression en haut */}
           <div className="space-y-2 pt-2">
             <div className="flex gap-1">
               {stories.map((_, idx) => (
@@ -204,11 +193,9 @@ export default function FeedTab({
             </div>
           </div>
 
-          {/* Image de la story */}
           <div className="flex-1 relative flex items-center justify-center my-4 overflow-hidden rounded-3xl bg-neutral-950">
             <img src={stories[currentViewingStoryIndex].image_url} alt="Story" className="w-full h-full object-contain" />
             
-            {/* Animation de l'émoji réaction s'il est cliqué */}
             {storyReactionAnim && (
               <div className="absolute inset-0 flex items-center justify-center bg-black/30 backdrop-blur-xs animate-bounce">
                 <span className="text-8xl drop-shadow-2xl">{storyReactionAnim}</span>
@@ -216,7 +203,6 @@ export default function FeedTab({
             )}
           </div>
 
-          {/* Barre de réaction style Instagram avec les 6 émojis prêts */}
           <div className="pb-6 px-2 space-y-3">
             <div className="flex items-center justify-around bg-neutral-900/90 backdrop-blur-md border border-neutral-800 rounded-full px-4 py-3 shadow-2xl">
               {STORY_REACTIONS.map((emoji) => (
