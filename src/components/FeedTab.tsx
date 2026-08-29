@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Heart, MessageCircle, ShieldCheck, MapPin, Send, Plus, X, Camera, Image as ImageIcon, Hash, Flag } from 'lucide-react';
+import { Heart, MessageCircle, ShieldCheck, MapPin, Send, Plus, X, Camera, Image as ImageIcon, Hash, Flag, Flame } from 'lucide-react';
 import { Post, Story, RealUser, FriendRequest } from '../types';
 
 interface FeedTabProps {
@@ -10,6 +10,7 @@ interface FeedTabProps {
   currentUserId?: string;
   feedLoading: boolean;
   viewedStoryIds: string[];
+  calculateStreak: (userId: string) => number;
   onOpenStory: (index: number) => void;
   onCreateStoryClick: () => void;
   onToggleLike: (postId: string) => void;
@@ -32,8 +33,8 @@ export default function FeedTab({
   currentUserId,
   feedLoading,
   viewedStoryIds,
+  calculateStreak,
   onToggleLike,
-  onOpenComments,
   onSelectProfile,
   onMarkStoryAsViewed
 }: FeedTabProps) {
@@ -125,7 +126,6 @@ export default function FeedTab({
       <input type="file" accept="image/*" capture="environment" ref={cameraInputRef} onChange={handleFileChange} className="hidden" />
       <input type="file" accept="image/*" ref={galleryInputRef} onChange={handleFileChange} className="hidden" />
 
-      {/* SECTION DES STORIES */}
       <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-4 shadow-xl">
         <div className="flex items-center gap-3 overflow-x-auto no-scrollbar pb-1">
           <div 
@@ -178,7 +178,6 @@ export default function FeedTab({
         </div>
       </div>
 
-      {/* MODALE DE CRÉATION DE STORY */}
       {isStoryModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/95 backdrop-blur-md flex flex-col justify-between p-4 overflow-y-auto animate-fadeIn">
           <div className="flex items-center justify-between pb-2">
@@ -257,7 +256,6 @@ export default function FeedTab({
         </div>
       )}
 
-      {/* FIL D'ACTUALITÉ */}
       <div className="space-y-4">
         {feedLoading ? (
           <div className="text-center py-12 text-neutral-500 text-xs">Chargement du fil d'actualité...</div>
@@ -271,16 +269,22 @@ export default function FeedTab({
             const isLiked = post.liked_by?.includes(currentUserId || '');
             const isShowingComments = activeCommentsPostId === post.id;
             const isShowingReportMenu = reportMenuPostId === post.id;
+            const streak = author ? calculateStreak(author.id) : 0;
 
             return (
               <div key={post.id} className="bg-neutral-900 border border-neutral-800 rounded-3xl overflow-hidden shadow-xl space-y-3 relative">
                 <div className="px-5 pt-4 flex items-center justify-between">
-                  {/* Profil cliquable (Avatar + Pseudo) */}
                   <div className="flex items-center gap-3 cursor-pointer group" onClick={() => author && onSelectProfile(author)}>
                     <img src={post.avatar_url || author?.avatar_url} alt="" className="w-11 h-11 rounded-full object-cover border border-neutral-800 group-hover:border-orange-500 transition" />
                     <div>
                       <h3 className="font-extrabold text-sm text-white flex items-center gap-1.5 group-hover:text-orange-400 transition">
-                        {post.username} {author?.is_verified && <ShieldCheck className="w-4 h-4 text-orange-500 fill-orange-500/20" />}
+                        {post.username} 
+                        {author?.is_verified && <ShieldCheck className="w-4 h-4 text-orange-500 fill-orange-500/20" />}
+                        {streak > 0 && (
+                          <span className="bg-orange-500/20 text-orange-400 text-[10px] px-2 py-0.5 rounded-full border border-orange-500/30 flex items-center gap-0.5 font-black">
+                            <Flame className="w-3 h-3 fill-orange-500" /> {streak}
+                          </span>
+                        )}
                       </h3>
                       <p className="text-[11px] text-orange-400 font-semibold flex items-center gap-1 mt-0.5">
                         <MapPin className="w-3 h-3" /> {post.club_name} • <span className="text-neutral-400">{new Date(post.created_at || Date.now()).toLocaleDateString()}</span>
@@ -288,11 +292,8 @@ export default function FeedTab({
                     </div>
                   </div>
 
-                  {/* Menu options / Signaler */}
                   <div className="relative">
-                    <button onClick={() => setReportMenuPostId(isShowingReportMenu ? null : post.id)} className="p-2 text-neutral-400 hover:text-white font-bold">
-                      ⋮
-                    </button>
+                    <button onClick={() => setReportMenuPostId(isShowingReportMenu ? null : post.id)} className="p-2 text-neutral-400 hover:text-white font-bold">⋮</button>
                     {isShowingReportMenu && (
                       <div className="absolute right-0 mt-1 w-40 bg-neutral-950 border border-neutral-800 rounded-2xl shadow-xl z-30 py-1">
                         <button 
@@ -366,7 +367,6 @@ export default function FeedTab({
         )}
       </div>
 
-      {/* VISIONNEUSE DE STORY PLEIN ÉCRAN */}
       {currentViewingStoryIndex !== null && orderedStories[currentViewingStoryIndex] && (
         <div className="fixed inset-0 z-50 bg-black flex flex-col justify-between p-4 select-none animate-fadeIn">
           <div className="space-y-2 pt-2">
