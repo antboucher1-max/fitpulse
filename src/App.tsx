@@ -9,14 +9,14 @@ import {
 } from './types';
 import { askFitBotAI } from './services/gemini';
 
-// Import de nos composants modulaires
-import FeedTab from './components/FeedTab';
-import LiveTrackerTab from './components/LiveTrackerTab';
-import FitBotTab from './components/FitBotTab';
-import ExercisesTab from './components/ExercisesTab';
-import ChatTab from './components/ChatTab';
-import CalculatorTab from './components/CalculatorTab';
-import ProfileTab from './components/ProfileTab';
+// Import de nos composants modulaires avec le chemin src/src/components
+import FeedTab from './src/components/FeedTab';
+import LiveTrackerTab from './src/src/components/LiveTrackerTab';
+import FitBotTab from './src/src/components/FitBotTab';
+import ExercisesTab from './src/src/components/ExercisesTab';
+import ChatTab from './src/src/components/ChatTab';
+import CalculatorTab from './src/src/components/CalculatorTab';
+import ProfileTab from './src/src/components/ProfileTab';
 
 // Configuration Supabase
 const supabaseUrl = 'https://obtahwmcoqrcauscpksv.supabase.co';
@@ -164,18 +164,6 @@ export default function App() {
   const handleTabChange = (tab: any) => { setCurrentTab(tab); try { sessionStorage.setItem('fitpulse_current_tab', tab); } catch (e) {} };
   const startRestTimer = (seconds: number) => { setRestTimeRemaining(seconds); setIsRestTimerActive(true); };
 
-  const handleNextStory = () => {
-    if (activeStoryIndex === null) return;
-    if (activeStoryIndex < friendStoriesList.length - 1) { setActiveStoryIndex(activeStoryIndex + 1); setStoryProgress(0); setStoryCommentInput(''); } 
-    else { setActiveStoryIndex(null); }
-  };
-
-  const handlePrevStory = () => {
-    if (activeStoryIndex === null) return;
-    if (activeStoryIndex > 0) { setActiveStoryIndex(activeStoryIndex - 1); setStoryProgress(0); setStoryCommentInput(''); } 
-    else { setStoryProgress(0); }
-  };
-
   const handleDeletePost = async (postId: string) => {
     if (!window.confirm("Supprimer cette publication ?")) return;
     const { error } = await supabase.from('posts').delete().eq('id', postId);
@@ -195,25 +183,6 @@ export default function App() {
       }
     }
     alert("🚨 Publication signalée.");
-  };
-
-  const handleUpdateProfileAvatar = async (fileOrUrl: File | string) => {
-    if (!user) return;
-    let finalAvatarUrl = typeof fileOrUrl === 'string' ? fileOrUrl : '';
-    if (typeof fileOrUrl !== 'string') {
-      try {
-        const fileName = `avatar-${user.id}-${Date.now()}.jpg`;
-        const { data } = await supabase.storage.from('posts').upload(fileName, await compressImage(fileOrUrl, 400, 0.7), { contentType: 'image/jpeg', upsert: true });
-        if (data) finalAvatarUrl = supabase.storage.from('posts').getPublicUrl(fileName).data.publicUrl;
-      } catch (err) {}
-    }
-    if (finalAvatarUrl) { 
-      setUserAvatarUrl(finalAvatarUrl); 
-      await supabase.auth.updateUser({ data: { ...user.user_metadata, avatar_url: finalAvatarUrl } }); 
-      await supabase.from('profiles').update({ avatar_url: finalAvatarUrl }).eq('id', user.id);
-      setRegisteredUsers(prev => prev.map(u => u.id === user.id ? { ...u, avatar_url: finalAvatarUrl } : u));
-      alert('🌟 Photo de profil mise à jour !'); 
-    }
   };
 
   const compressImage = (file: File, maxWidth = 800, quality = 0.7): Promise<Blob> => {
@@ -337,41 +306,28 @@ export default function App() {
     await supabase.from('posts').update({ likes_count: newCount, liked_by: updatedLikedBy }).eq('id', postId);
   };
 
-  const handlePublishStory = async (e: React.FormEvent) => {
-    e.preventDefault(); if (!user || !storyImageFile) return; setStoryUploading(true); let uploadedStoryUrl = storyImagePreview || '';
-    try {
-      const compressedBlob = await compressImage(storyImageFile, 800, 0.7); const fileName = `story-${Date.now()}-${Math.random().toString(36).substring(7)}.jpg`;
-      const { data: uploadData } = await supabase.storage.from('posts').upload(fileName, compressedBlob, { contentType: 'image/jpeg' });
-      if (uploadData) { const { data } = supabase.storage.from('posts').getPublicUrl(fileName); uploadedStoryUrl = data.publicUrl; }
-    } catch (err) {}
-    const myName = user.user_metadata?.first_name || user.user_metadata?.username || 'Moi';
-    const uniqueStoryId = 'story-' + Date.now();
-    const newStory: Story = { id: uniqueStoryId, user_id: user.id, username: myName, avatar_url: userAvatarUrl, image_url: uploadedStoryUrl, caption: storyCaption, club_name: selectedClub, likes_count: 0, created_at: new Date().toISOString() };
-    await supabase.from('stories').insert([{ id: uniqueStoryId, user_id: user.id, username: myName, avatar_url: userAvatarUrl, image_url: uploadedStoryUrl, caption: storyCaption, club_name: selectedClub }]);
-    setCloudStories([newStory, ...cloudStories]); setStoryImageFile(null); setStoryImagePreview(null); setStoryCaption(''); setIsCreatingStory(false);
-    setStoryUploading(false);
+  const handleFinishLiveWorkout = async () => {
+    if (!user) return;
+    if (liveExercises.length === 0) { alert("Ajoute au moins un exercice !"); return; }
+    const formattedExercises: ExerciseEntry[] = liveExercises.map(ex => ({ name: ex.name, sets: ex.sets.length, reps: ex.sets[0]?.reps || 10, weight: ex.sets[0]?.weight || 50 }));
+    const { data } = await supabase.from('posts').insert([{ user_id: user.id, username: user.user_metadata?.username || 'Athlète', avatar_url: userAvatarUrl, club_name: selectedClub, session_type: liveWorkoutName, caption: "Séance en direct terminée ! 💪 #gym", exercises: formattedExercises, likes_count: 0, liked_by: [], comments_count: 0, comments: [], is_private: isPrivateMode }]).select('*');
+    if (data) { setPosts([data[0] as Post, ...posts]); setIsLiveActive(false); handleTabChange('feed'); }
   };
 
-  const handleAddPostComment = async (e: React.FormEvent) => {
-    e.preventDefault(); if (!postCommentInput.trim() || !activeCommentPostId || !user) return;
-    const newComment: Comment = { id: 'c-' + Date.now(), username: user.user_metadata?.username || 'Moi', avatar_url: userAvatarUrl, text: postCommentInput.trim(), created_at: new Date().toISOString() };
-    const targetPost = posts.find(p => p.id === activeCommentPostId); if (!targetPost) return;
-    const updatedComments = [...(targetPost.comments || []), newComment];
-    await supabase.from('posts').update({ comments: updatedComments, comments_count: updatedComments.length }).eq('id', activeCommentPostId);
-    setPosts(prev => prev.map(p => p.id === activeCommentPostId ? { ...p, comments: updatedComments, comments_count: updatedComments.length } : p));
-    setPostCommentInput('');
+  const handleDeleteConversationForBuddy = async (buddyId: string, buddyName: string) => {
+    if (!user) return; if (!window.confirm(`Effacer toute la conversation avec ${buddyName} ?`)) return;
+    await supabase.from('direct_messages').delete().or(`and(sender_id.eq.${user.id},receiver_id.eq.${buddyId}),and(sender_id.eq.${buddyId},receiver_id.eq.${user.id})`);
+    setAllMessages((prev) => prev.filter((m) => !((m.sender_id === user.id && m.receiver_id === buddyId) || (m.sender_id === buddyId && m.receiver_id === user.id))));
   };
 
-  const handleAddTransformation = async (e: React.FormEvent) => {
-    e.preventDefault(); if (!user || !newTransBefore || !newTransAfter || newTransWeight === '') return;
-    let beforeUrl = newTransBefore; let afterUrl = newTransAfter;
-    try {
-      if (newTransBefore.startsWith('blob:')) { const resB = await fetch(newTransBefore); const { data } = await supabase.storage.from('posts').upload(`trans-b-${Date.now()}.jpg`, await compressImage(new File([await resB.blob()], 'b.jpg', { type: 'image/jpeg' }), 800, 0.7), { contentType: 'image/jpeg' }); if (data) beforeUrl = supabase.storage.from('posts').getPublicUrl(data.path).data.publicUrl; }
-      if (newTransAfter.startsWith('blob:')) { const resA = await fetch(newTransAfter); const { data } = await supabase.storage.from('posts').upload(`trans-a-${Date.now()}.jpg`, await compressImage(new File([await resA.blob()], 'a.jpg', { type: 'image/jpeg' }), 800, 0.7), { contentType: 'image/jpeg' }); if (data) afterUrl = supabase.storage.from('posts').getPublicUrl(data.path).data.publicUrl; }
-    } catch (err) {}
-    const newItem = { user_id: user.id, before_url: beforeUrl, after_url: afterUrl, date: new Date().toISOString().split('T')[0], weight: Number(newTransWeight), note: newTransNote || 'Évolution', is_private: newTransIsPrivate };
-    const { data, error } = await supabase.from('transformations').insert([newItem]).select('*');
-    if (!error && data) { setTransformations([data[0] as TransformationPhoto, ...transformations]); setNewTransBefore(null); setNewTransAfter(null); setNewTransNote(''); setNewTransWeight(''); alert('📸 Transformation enregistrée !'); }
+  const handleReportConversation = async (buddyName: string) => {
+    if (!window.confirm(`Signaler la conversation avec ${buddyName} ?`)) return;
+    if (user) {
+      let adminId = registeredUsers.find(u => u.username.toLowerCase() === 'antbou')?.id;
+      if (!adminId) { const { data } = await supabase.from('posts').select('user_id').ilike('username', 'antbou').limit(1); if (data && data.length > 0) adminId = data[0].user_id; }
+      if (adminId) await supabase.from('direct_messages').insert([{ sender_id: 'system-bot', receiver_id: adminId, sender_name: '⚠️ Bot', text: `🚨 SIGNALEMENT CHAT : ${user.user_metadata?.username} a signalé la conversation avec ${buddyName}.` }]);
+    }
+    alert("🚨 Conversation signalée.");
   };
 
   // Variables dérivées
@@ -390,10 +346,27 @@ export default function App() {
     return isMatchingClub(post.club_name, selectedClub);
   });
 
-  const friendStoriesList = cloudStories.filter((s) => {
-    const storyDate = new Date(s.created_at).getTime();
-    return !isNaN(storyDate) ? storyDate >= Date.now() - 24 * 3600 * 1000 : true;
-  });
+  const currentChatMessages = allMessages.filter(
+    (m) => selectedBuddyChat && user && ((m.sender_id === user.id && m.receiver_id === selectedBuddyChat.id) || (m.sender_id === selectedBuddyChat.id && m.receiver_id === user.id))
+  );
+
+  const isSelectedChatFriend = selectedBuddyChat ? acceptedFriendIds.includes(selectedBuddyChat.id) || selectedBuddyChat.id === 'system-bot' : true;
+  const mySentMessagesCount = selectedBuddyChat && user ? allMessages.filter(m => m.sender_id === user.id && m.receiver_id === selectedBuddyChat.id).length : 0;
+  const isMessageLimitReached = !isSelectedChatFriend && mySentMessagesCount >= 3;
+
+  const availablePlates = [25, 20, 15, 10, 5, 2.5, 1.25];
+  const calculatePlates = (target: number | '', bar: number) => {
+    if (target === '' || target <= bar) return [];
+    let remaining = (target - bar) / 2;
+    const result: { weight: number; count: number }[] = [];
+    for (const plate of availablePlates) {
+      if (remaining <= 0) break;
+      const count = Math.floor(remaining / plate);
+      if (count > 0) { result.push({ weight: plate, count }); remaining = Number((remaining - count * plate).toFixed(2)); }
+    }
+    return result;
+  };
+  const plateBreakdown = targetWeight !== '' ? calculatePlates(targetWeight, barbellWeight) : [];
 
   const unreadChatCount = activeChatUsers.filter(friend => {
     const lastRead = lastReadTimestamps[friend.id] || 0;
@@ -414,91 +387,6 @@ export default function App() {
     fetchCloudPosts(); fetchDirectMessages(); fetchCloudStories(); fetchRealUsers();
   }, []);
 
-  if (isResetPasswordMode) {
-    return (
-      <div className="min-h-screen bg-neutral-950 text-white flex flex-col justify-center items-center px-4 py-8">
-        <div className="w-full max-w-md bg-neutral-900/90 border border-neutral-800 rounded-3xl p-6 sm:p-8 shadow-2xl backdrop-blur-xl space-y-5">
-          <div className="flex justify-center"><div className="w-14 h-14 rounded-2xl bg-orange-500/20 border border-orange-500/40 flex items-center justify-center text-orange-500"><Key className="w-7 h-7" /></div></div>
-          <h1 className="text-xl font-black text-center tracking-tight">Nouveau mot de passe</h1>
-          <form onSubmit={handleUpdatePassword} className="space-y-4">
-            <input type="password" required placeholder="Nouveau mot de passe" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3.5 py-3 text-sm text-white focus:border-orange-500" />
-            <input type="password" required placeholder="Confirmer" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3.5 py-3 text-sm text-white focus:border-orange-500" />
-            <button type="submit" disabled={authLoading} className="w-full bg-orange-600 text-white font-bold py-3.5 rounded-xl text-sm">Mettre à jour</button>
-          </form>
-        </div>
-      </div>
-    );
-  }
-
-  if (!user) {
-    if (signupSuccessEmail) {
-      return (
-        <div className="min-h-screen bg-neutral-950 text-white flex flex-col justify-center items-center px-4">
-          <div className="w-full max-w-md bg-neutral-900 border border-neutral-800 rounded-3xl p-8 text-center space-y-5">
-            <div className="w-16 h-16 bg-orange-500/20 rounded-2xl flex items-center justify-center text-orange-500 mx-auto"><Mail className="w-8 h-8" /></div>
-            <h2 className="text-xl font-black">Vérifie ta boîte mail !</h2>
-            <button onClick={() => { setSignupSuccessEmail(null); setIsSignUp(false); }} className="w-full py-3 bg-neutral-800 text-white font-bold rounded-xl text-sm">Retour</button>
-          </div>
-        </div>
-      );
-    }
-    if (isForgotPassword) {
-      return (
-        <div className="min-h-screen bg-neutral-950 text-white flex flex-col justify-center items-center px-4">
-          <div className="w-full max-w-md bg-neutral-900 border border-neutral-800 rounded-3xl p-6">
-            <h1 className="text-xl font-black text-center mb-4">Mot de passe oublié</h1>
-            {forgotPasswordSent ? (
-              <p className="text-center text-sm text-neutral-300">Lien envoyé à {email}.</p>
-            ) : (
-              <form onSubmit={handleForgotPassword} className="space-y-4">
-                <input type="email" required placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3.5 py-3 text-sm text-white" />
-                <button type="submit" className="w-full bg-orange-600 text-white font-bold py-3 rounded-xl text-sm">Envoyer</button>
-              </form>
-            )}
-            <button onClick={() => setIsForgotPassword(false)} className="w-full text-center text-sm text-neutral-400 mt-4">Retour</button>
-          </div>
-        </div>
-      );
-    }
-    return (
-      <div className="min-h-screen bg-neutral-950 text-white flex flex-col justify-center items-center px-4 py-8">
-        <div className="w-full max-w-md bg-neutral-900/90 border border-neutral-800 rounded-3xl p-6 sm:p-8 shadow-2xl backdrop-blur-xl">
-          <div className="flex justify-center mb-4"><div className="w-14 h-14 rounded-2xl bg-orange-500/20 border border-orange-500/40 flex items-center justify-center text-orange-500"><Zap className="w-7 h-7" /></div></div>
-          <h1 className="text-2xl font-black text-center tracking-tight mb-1">FitPulse</h1>
-          <form onSubmit={handleAuth} className="space-y-4 mt-6">
-            {isSignUp && (
-              <>
-                <div className="grid grid-cols-2 gap-2.5">
-                  <input type="text" required placeholder="Prénom" value={firstName} onChange={(e) => setFirstName(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3.5 py-3 text-sm text-white" />
-                  <input type="text" required placeholder="Nom" value={lastName} onChange={(e) => setLastName(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3.5 py-3 text-sm text-white" />
-                </div>
-                <div className="grid grid-cols-2 gap-2.5">
-                  <input type="text" required placeholder="Pseudo" value={username} onChange={(e) => setUsername(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3.5 py-3 text-sm text-white" />
-                  <input type="text" required placeholder="JJ/MM/AAAA" value={birthDateInput} onChange={(e) => setBirthDateInput(e.target.value)} maxLength={10} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3.5 py-3 text-sm text-white" />
-                </div>
-                <select value={preferredTime} onChange={(e) => setPreferredTime(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3.5 py-3 text-sm text-white">{TIME_SLOTS.map((s) => <option key={s} value={s}>{s}</option>)}</select>
-              </>
-            )}
-            <input type="email" required placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3.5 py-3 text-sm text-white" />
-            <input type="password" required placeholder="Mot de passe" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3.5 py-3 text-sm text-white" />
-            
-            {!isSignUp && <div className="text-right"><button type="button" onClick={() => setIsForgotPassword(true)} className="text-xs text-orange-400">Mot de passe oublié ?</button></div>}
-            {isSignUp && (
-              <div className="flex items-center gap-2 pt-1">
-                <input type="checkbox" id="cgu" checked={acceptCGU} onChange={(e) => setAcceptCGU(e.target.checked)} className="accent-orange-500 w-4 h-4" />
-                <label htmlFor="cgu" className="text-xs text-neutral-400">J'accepte les CGU</label>
-              </div>
-            )}
-            <button type="submit" disabled={authLoading} className="w-full bg-orange-600 text-white font-bold py-3.5 rounded-xl text-sm flex justify-center">
-              {authLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : isSignUp ? "Créer mon compte" : "Se connecter"}
-            </button>
-          </form>
-          <button onClick={() => setIsSignUp(!isSignUp)} className="w-full text-center text-sm text-neutral-400 mt-5">{isSignUp ? "Déjà un compte ? Se connecter" : "Pas de compte ? S'inscrire"}</button>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col font-sans select-none">
       <header className="sticky top-0 z-40 bg-neutral-950/80 backdrop-blur-md border-b border-neutral-900 px-4 py-3 flex items-center justify-between">
@@ -514,14 +402,13 @@ export default function App() {
         </div>
       </header>
 
-      {/* Affichage conditionnel des composants modulaires */}
       <main className="flex-1 max-w-lg w-full mx-auto px-4 py-3 pb-24">
         {currentTab === 'feed' && (
           <FeedTab 
             stories={friendStoriesList}
             posts={displayedPosts}
             registeredUsers={registeredUsers}
-            currentUserId={user.id}
+            currentUserId={user?.id}
             feedLoading={feedLoading}
             viewedStoryIds={viewedStoryIds}
             onOpenStory={(idx) => setActiveStoryIndex(idx)}
@@ -589,7 +476,7 @@ export default function App() {
 
         {currentTab === 'chat' && (
           <ChatTab 
-            currentUserId={user.id}
+            currentUserId={user?.id}
             selectedBuddyChat={selectedBuddyChat}
             setSelectedBuddyChat={setSelectedBuddyChat}
             activeChatUsers={activeChatUsers}
@@ -622,7 +509,7 @@ export default function App() {
             newTransIsPrivate={newTransIsPrivate}
             setNewTransWeight={setNewTransWeight}
             setNewTransNote={setNewTransNote}
-            setNewTransIsPrivate={setNewTransIsPrivate}
+            setNewTransIsPrivate={newTransIsPrivate}
             onAvatarClick={() => profileAvatarInputRef.current?.click()}
             onCameraStart={(target) => {}}
             onBeforeFileSelect={(e) => {}}
