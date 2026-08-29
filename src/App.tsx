@@ -88,6 +88,10 @@ export default function App() {
 
   const [newTransNote, setNewTransNote] = useState('');
   const [newTransWeight, setNewTransWeight] = useState<number | ''>('');
+  const [newTransBefore, setNewTransBefore] = useState<string | null>(null);
+  const [newTransAfter, setNewTransAfter] = useState<string | null>(null);
+  const [newTransIsPrivate, setNewTransIsPrivate] = useState<boolean>(true);
+
   const [activeCommentPostId, setActiveCommentPostId] = useState<string | null>(null);
   const [exerciseSearch, setExerciseSearch] = useState('');
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>('Tous');
@@ -337,7 +341,59 @@ export default function App() {
         {currentTab === 'calculator' && <CalculatorTab targetWeight={targetWeight} setTargetWeight={setTargetWeight} barbellWeight={barbellWeight} setBarbellWeight={setBarbellWeight} plateBreakdown={plateBreakdown} />}
         {currentTab === 'live_tracker' && <LiveTrackerTab liveWorkoutName={liveWorkoutName} setLiveWorkoutName={setLiveWorkoutName} liveElapsedSeconds={0} liveExercises={liveExercises} selectedExToAdd={selectedExToAdd} setSelectedExToAdd={setSelectedExToAdd} exercisesDatabase={EXERCISES_DATABASE} onAddExercise={() => setLiveExercises([...liveExercises, { id: 'lex-' + Date.now(), name: selectedExToAdd, sets: [{ setNumber: 1, weight: 50, reps: 10, completed: false }] }])} onAddSet={(exId) => setLiveExercises(liveExercises.map(ex => ex.id === exId ? { ...ex, sets: [...ex.sets, { setNumber: ex.sets.length + 1, weight: 50, reps: 10, completed: false }] } : ex))} onToggleSet={(exId, sIdx) => setLiveExercises(liveExercises.map(ex => ex.id === exId ? { ...ex, sets: ex.sets.map((s, i) => i === sIdx ? { ...s, completed: !s.completed } : s) } : ex))} onUpdateWeight={(exId, sIdx, val) => setLiveExercises(liveExercises.map(item => item.id === exId ? { ...item, sets: item.sets.map((s, i) => i === sIdx ? { ...s, weight: val } : s) } : item))} onUpdateReps={(exId, sIdx, val) => setLiveExercises(liveExercises.map(item => item.id === exId ? { ...item, sets: item.sets.map((s, i) => i === sIdx ? { ...s, reps: val } : s) } : item))} onFinishWorkout={handleFinishLiveWorkout} onQuitLive={() => setIsLiveActive(false)} />}
         {currentTab === 'chat' && <ChatTab currentUserId={user?.id} selectedBuddyChat={selectedBuddyChat} setSelectedBuddyChat={handleOpenChatWithUser} activeChatUsers={activeChatUsers} currentChatMessages={currentChatMessages} currentMessageInput={currentMessageInput} onInputChange={(e) => setCurrentMessageInput(e.target.value)} onSendMessage={handleSendMessage} onSelectBuddy={(f) => handleOpenChatWithUser(f)} onDeleteConversation={() => {}} onReportConversation={() => {}} isOtherUserTyping={isOtherUserTyping} isMessageLimitReached={false} lastReadTimestamps={lastReadTimestamps} messagesEndRef={messagesEndRef} allMessages={allMessages} />}
-        {currentTab === 'profile' && <ProfileTab user={user} currentUserProfile={currentUserProfile} userAvatarUrl={userAvatarUrl} isAdmin={isAdmin} registeredUsers={registeredUsers} transformations={transformations} newTransWeight={newTransWeight} newTransNote={newTransNote} setNewTransWeight={setNewTransWeight} setNewTransNote={setNewTransNote} onAvatarClick={() => profileAvatarInputRef.current?.click()} onCameraStart={() => {}} onBeforeFileSelect={() => {}} onAfterFileSelect={() => {}} onAddTransformation={async (e) => { e.preventDefault(); if (!user || newTransWeight === '') return; await supabase.from('transformations').insert([{ user_id: user.id, before_url: 'https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?w=400', after_url: 'https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?w=400', date: new Date().toISOString().split('T')[0], weight: Number(newTransWeight), note: newTransNote || 'Évolution', is_private: true }]); fetchTransformations(user.id); setNewTransWeight(''); setNewTransNote(''); alert('📸 Transformation enregistrée !'); }} onShareTransformation={() => {}} onUpdatePasswordSubmit={async (e) => { e.preventDefault(); await supabase.auth.updateUser({}); alert("🔒 Mot de passe mis à jour !"); }} password={password} setPassword={setPassword} confirmPassword={confirmPassword} setConfirmPassword={setConfirmPassword} isPrivateMode={isPrivateMode} setIsPrivateMode={setIsPrivateMode} onSignOut={() => supabase.auth.signOut()} onToggleVerifyAdmin={async (uId, status) => { await supabase.from('profiles').update({ is_verified: !status }).eq('id', uId); fetchRealUsers(); }} beforeFileInputRef={beforeFileInputRef} afterFileInputRef={afterFileInputRef} />}
+        {currentTab === 'profile' && (
+          <ProfileTab 
+            user={user} 
+            currentUserProfile={currentUserProfile} 
+            userAvatarUrl={userAvatarUrl} 
+            isAdmin={isAdmin} 
+            registeredUsers={registeredUsers} 
+            transformations={transformations} 
+            newTransBefore={newTransBefore}
+            newTransAfter={newTransAfter}
+            newTransWeight={newTransWeight} 
+            newTransNote={newTransNote} 
+            newTransIsPrivate={newTransIsPrivate}
+            setNewTransWeight={setNewTransWeight} 
+            setNewTransNote={setNewTransNote} 
+            setNewTransIsPrivate={setNewTransIsPrivate}
+            onAvatarClick={() => profileAvatarInputRef.current?.click()} 
+            onCameraStart={() => {}} 
+            onBeforeFileSelect={() => {}} 
+            onAfterFileSelect={() => {}} 
+            onAddTransformation={async (e) => { 
+              e.preventDefault(); 
+              if (!user || newTransWeight === '') return; 
+              await supabase.from('transformations').insert([{ 
+                user_id: user.id, 
+                before_url: newTransBefore || 'https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?w=400', 
+                after_url: newTransAfter || 'https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?w=400', 
+                date: new Date().toISOString().split('T')[0], 
+                weight: Number(newTransWeight), 
+                note: newTransNote || 'Évolution', 
+                is_private: newTransIsPrivate 
+              }]); 
+              fetchTransformations(user.id); 
+              setNewTransWeight(''); 
+              setNewTransNote(''); 
+              setNewTransBefore(null);
+              setNewTransAfter(null);
+              alert('📸 Transformation enregistrée !'); 
+            }} 
+            onShareTransformation={() => {}} 
+            onUpdatePasswordSubmit={async (e) => { e.preventDefault(); await supabase.auth.updateUser({}); alert("🔒 Mot de passe mis à jour !"); }} 
+            password={password} 
+            setPassword={setPassword} 
+            confirmPassword={confirmPassword} 
+            setConfirmPassword={setConfirmPassword} 
+            isPrivateMode={isPrivateMode} 
+            setIsPrivateMode={setIsPrivateMode} 
+            onSignOut={() => supabase.auth.signOut()} 
+            onToggleVerifyAdmin={async (uId, status) => { await supabase.from('profiles').update({ is_verified: !status }).eq('id', uId); fetchRealUsers(); }} 
+            beforeFileInputRef={beforeFileInputRef} 
+            afterFileInputRef={afterFileInputRef} 
+          />
+        )}
       </main>
 
       {viewingProfileUser && (
