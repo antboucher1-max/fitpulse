@@ -1,45 +1,282 @@
-12:37:47.815 Running build in Washington, D.C., USA (East) – iad1
-12:37:47.815 Build machine configuration: 2 cores, 8 GB
-12:37:47.957 Cloning github.com/antboucher1-max/fitpulse (Branch: main, Commit: f770c3b)
-12:37:48.459 Cloning completed: 502.000ms
-12:37:48.586 Restored build cache from previous deployment (CpqEe4Adhor3pcWdPeQCgYAsrxEK)
-12:37:48.830 Running "vercel build"
-12:37:48.877 Vercel CLI 59.3.0
-12:37:49.448 Installing dependencies...
-12:37:51.820 
-12:37:51.820 up to date in 2s
-12:37:51.820 
-12:37:51.820 270 packages are looking for funding
-12:37:51.821   run `npm fund` for details
-12:37:51.822 npm warn allow-scripts 2 packages have install scripts not yet covered by allowScripts:
-12:37:51.822 npm warn allow-scripts   core-js@3.50.0 (postinstall: node -e "try{require('./postinstall')}catch(e){}")
-12:37:51.823 npm warn allow-scripts   core-js-pure@3.50.0 (postinstall: node -e "try{require('./postinstall')}catch(e){}")
-12:37:51.823 npm warn allow-scripts
-12:37:51.824 npm warn allow-scripts Run `npm approve-scripts --allow-scripts-pending` to review, or `npm approve-scripts <pkg>` to allow.
-12:37:51.825 npm notice
-12:37:51.825 npm notice New major version of npm available! 11.17.0 -> 12.0.2
-12:37:51.826 npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.0.2
-12:37:51.826 npm notice To update run: npm install -g npm@12.0.2
-12:37:51.826 npm notice
-12:37:51.872 Running "npm run build"
-12:37:51.974 
-12:37:51.975 > react-ts@0.0.0 build
-12:37:51.975 > react-scripts build
-12:37:51.975 
-12:37:53.505 (node:104) [DEP0176] DeprecationWarning: fs.F_OK is deprecated, use fs.constants.F_OK instead
-12:37:53.506 (Use `node --trace-deprecation ...` to show where the warning was created)
-12:37:53.507 
-12:37:53.509 Creating an optimized production build...
-12:38:02.513 Failed to compile.
-12:38:02.516 
-12:38:02.516 TS2306: File '/vercel/path0/src/components/ChatTab.tsx' is not a module.
-12:38:02.517     16 | import FitBotTab from './components/FitBotTab';
-12:38:02.517     17 | import ExercisesTab from './components/ExercisesTab';
-12:38:02.517   > 18 | import ChatTab from './components/ChatTab';
-12:38:02.518        |                     ^^^^^^^^^^^^^^^^^^^^^^
-12:38:02.518     19 | import CalculatorTab from './components/CalculatorTab';
-12:38:02.518     20 | import ProfileTab from './components/ProfileTab';
-12:38:02.518     21 |
-12:38:02.518 
-12:38:02.518 
-12:38:02.628 Error: Command "npm run build" exited with 1
+import React, { useState, useEffect, useRef } from 'react';
+import { Send, MessageCircle, ArrowLeft, Trash2, Flag, Check, Flame } from 'lucide-react';
+import { RealUser, DBMessage } from '../types';
+import { createClient } from '@supabase/supabase-js';
+
+const supabaseUrl = 'https://obtahwmcoqrcauscpksv.supabase.co';
+const supabaseAnonKey = 'sb_publishable_O8CKhUtzgq9nO9lKavNE9A__fAdRWoB';
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+interface ChatTabProps {
+  currentUserId?: string;
+  selectedBuddyChat: RealUser | null;
+  setSelectedBuddyChat: (user: RealUser | null) => void;
+  activeChatUsers: RealUser[];
+  currentChatMessages: DBMessage[];
+  currentMessageInput: string;
+  onInputChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onSendMessage: () => void;
+  onSelectBuddy: (user: RealUser) => void;
+  onDeleteConversation: () => void;
+  onReportConversation: () => void;
+  isOtherUserTyping: boolean;
+  isMessageLimitReached: boolean;
+  lastReadTimestamps: Record<string, number>;
+  messagesEndRef: React.RefObject<HTMLDivElement>;
+  allMessages?: DBMessage[];
+}
+
+const calculateStreak = (messages: DBMessage[], currentUserId?: string, buddyId?: string) => {
+  if (!currentUserId || !buddyId) return 0;
+  const convo = messages.filter(
+    m => (m.sender_id === currentUserId && m.receiver_id === buddyId) ||
+         (m.sender_id === buddyId && m.receiver_id === currentUserId)
+  );
+  if (convo.length === 0) return 0;
+  return convo.length > 3 ? Math.floor(convo.length / 2) : 1;
+};
+
+const getUserStatus = (lastSeenString?: string) => {
+  if (!lastSeenString) return { color: 'bg-neutral-500', text: 'Hors ligne' };
+  
+  const lastSeenTime = new Date(lastSeenString).getTime();
+  const now = Date.now();
+  const diffMinutes = Math.floor((now - lastSeenTime) / (1000 * 60));
+  const diffHours = Math.floor(diffMinutes / 60);
+
+  if (diffMinutes < 5) return { color: 'bg-green-500 animate-pulse', text: 'En ligne' };
+  if (diffMinutes < 60) return { color: 'bg-red-500', text: `Actif il y a ${diffMinutes} min` };
+  if (diffHours < 24) return { color: 'bg-red-500', text: `Actif il y a ${diffHours}h` };
+  return { color: 'bg-neutral-500', text: 'Absent (+24h)' };
+};
+
+export default function ChatTab({
+  currentUserId,
+  selectedBuddyChat,
+  setSelectedBuddyChat,
+  activeChatUsers,
+  currentChatMessages,
+  currentMessageInput,
+  onInputChange,
+  onSendMessage,
+  onSelectBuddy,
+  onDeleteConversation,
+  onReportConversation,
+  allMessages = []
+}: ChatTabProps) {
+  const [showMenu, setShowMenu] = useState(false);
+  const [remoteTyping, setRemoteTyping] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const typingTimeoutRef = useRef<any>(null);
+
+  useEffect(() => {
+    if (!selectedBuddyChat || !currentUserId) return;
+    const channelId = `room_${[currentUserId, selectedBuddyChat.id].sort().join('_')}`;
+    const channel = supabase.channel(channelId);
+
+    channel
+      .on('broadcast', { event: 'typing' }, (payload) => {
+        if (payload.payload.sender_id === selectedBuddyChat.id) {
+          setRemoteTyping(payload.payload.isTyping);
+        }
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [selectedBuddyChat, currentUserId]);
+
+  const handleInputWithTyping = (e: React.ChangeEvent<HTMLInputElement>) => {
+    onInputChange(e);
+    if (!selectedBuddyChat || !currentUserId) return;
+    const channelId = `room_${[currentUserId, selectedBuddyChat.id].sort().join('_')}`;
+    
+    supabase.channel(channelId).send({
+      type: 'broadcast',
+      event: 'typing',
+      payload: { sender_id: currentUserId, isTyping: true }
+    });
+
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    typingTimeoutRef.current = setTimeout(() => {
+      supabase.channel(channelId).send({
+        type: 'broadcast',
+        event: 'typing',
+        payload: { sender_id: currentUserId, isTyping: false }
+      });
+    }, 2000);
+  };
+
+  useEffect(() => {
+    if (selectedBuddyChat) {
+      setTimeout(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'auto' }); }, 50);
+    }
+  }, [selectedBuddyChat?.id]);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [currentChatMessages.length, remoteTyping]);
+
+  if (!selectedBuddyChat) {
+    return (
+      <div className="space-y-4">
+        <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4 shadow-xl">
+          <h2 className="text-base font-black tracking-tight flex items-center gap-2 text-white">
+            <MessageCircle className="w-5 h-5 text-orange-500" /> Messages Privés & Flammes 🔥
+          </h2>
+          <p className="text-xs text-neutral-400">Discutez chaque jour avec vos buddies pour faire grandir vos flammes !</p>
+
+          <div className="space-y-3 pt-2">
+            {activeChatUsers.length === 0 ? (
+              <div className="text-center py-12 text-neutral-500 text-sm">
+                Aucun(e) ami(e) pour le moment. Va dans l'onglet <span className="text-orange-400 font-bold">Buddies</span> pour ajouter des partenaires !
+              </div>
+            ) : (
+              activeChatUsers.map((buddy: any) => {
+                const status = getUserStatus(buddy.last_seen || buddy.created_at);
+                const streak = calculateStreak(allMessages, currentUserId, buddy.id);
+                const conversationMessages = allMessages.filter(
+                  m => (m.sender_id === currentUserId && m.receiver_id === buddy.id) ||
+                       (m.sender_id === buddy.id && m.receiver_id === currentUserId)
+                );
+                const lastMsg = conversationMessages[conversationMessages.length - 1];
+                const isUnread = lastMsg && lastMsg.sender_id !== currentUserId;
+
+                return (
+                  <div 
+                    key={buddy.id} 
+                    onClick={() => onSelectBuddy(buddy)}
+                    className={`p-4 rounded-2xl border flex items-center justify-between cursor-pointer transition shadow-md ${
+                      isUnread 
+                        ? 'bg-neutral-900 border-orange-500/60 shadow-orange-500/10' 
+                        : 'bg-neutral-950 border-neutral-800 hover:border-neutral-700'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3.5 relative flex-1 min-w-0">
+                      <div className="relative flex-shrink-0">
+                        <img src={buddy.avatar_url} alt="" className="w-12 h-12 rounded-full object-cover border border-neutral-800" />
+                        <span className={`absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full border-2 border-neutral-950 ${status.color}`} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between">
+                          <h3 className={`text-sm font-bold truncate flex items-center gap-1.5 ${isUnread ? 'text-orange-400' : 'text-white'}`}>
+                            {buddy.username}
+                            {streak > 0 && (
+                              <span className="bg-orange-500/20 text-orange-400 text-[10px] px-2 py-0.5 rounded-full border border-orange-500/30 flex items-center gap-0.5 font-black">
+                                <Flame className="w-3 h-3 fill-orange-500" /> {streak}
+                              </span>
+                            )}
+                          </h3>
+                          {isUnread && (
+                            <span className="bg-orange-600 text-white font-black text-[10px] px-2 py-0.5 rounded-full animate-pulse">
+                              1 non lu
+                            </span>
+                          )}
+                        </div>
+                        <p className={`text-xs truncate mt-0.5 font-medium ${isUnread ? 'text-white font-semibold' : 'text-neutral-400'}`}>
+                          {lastMsg ? (lastMsg.sender_id === currentUserId ? `Moi : ${lastMsg.text}` : lastMsg.text) : status.text}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const buddyStatus = getUserStatus((selectedBuddyChat as any).last_seen);
+  const currentStreak = calculateStreak(allMessages, currentUserId, selectedBuddyChat.id);
+  const myMessages = currentChatMessages.filter(m => m.sender_id === currentUserId);
+  const lastMyMessage = myMessages[myMessages.length - 1];
+  const lastMessageOverall = currentChatMessages[currentChatMessages.length - 1];
+  const isReadByOther = lastMyMessage && lastMessageOverall && lastMessageOverall.sender_id !== currentUserId;
+
+  return (
+    <div className="flex flex-col h-[calc(100vh-130px)] bg-neutral-900 border border-neutral-800 rounded-3xl overflow-hidden shadow-2xl">
+      <div className="bg-neutral-950 px-4 py-3 border-b border-neutral-800 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <button onClick={() => setSelectedBuddyChat(null)} className="p-1.5 text-neutral-400 hover:text-white rounded-xl">
+            <ArrowLeft className="w-5 h-5" />
+          </button>
+          <div className="relative">
+            <img src={selectedBuddyChat.avatar_url} alt="" className="w-10 h-10 rounded-full object-cover border border-neutral-800" />
+            <span className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-neutral-950 ${buddyStatus.color}`} />
+          </div>
+          <div>
+            <h3 className="font-bold text-sm text-white leading-tight flex items-center gap-2">
+              {selectedBuddyChat.username}
+              {currentStreak > 0 && (
+                <span className="text-orange-400 text-xs font-black flex items-center gap-0.5 bg-orange-500/10 px-2 py-0.5 rounded-full border border-orange-500/20">
+                  <Flame className="w-3.5 h-3.5 fill-orange-500" /> {currentStreak}
+                </span>
+              )}
+            </h3>
+            <p className="text-[10px] text-neutral-400 font-medium">{buddyStatus.text}</p>
+          </div>
+        </div>
+
+        <div className="relative">
+          <button onClick={() => setShowMenu(!showMenu)} className="p-2 text-neutral-400 hover:text-white rounded-xl font-bold">⋮</button>
+          {showMenu && (
+            <div className="absolute right-0 mt-2 w-48 bg-neutral-950 border border-neutral-800 rounded-2xl shadow-xl z-50 py-1.5">
+              <button onClick={() => { onDeleteConversation(); setShowMenu(false); }} className="w-full px-4 py-2 text-left text-xs text-red-400 hover:bg-neutral-900 flex items-center gap-2"><Trash2 className="w-3.5 h-3.5" /> Supprimer</button>
+              <button onClick={() => { onReportConversation(); setShowMenu(false); }} className="w-full px-4 py-2 text-left text-xs text-neutral-300 hover:bg-neutral-900 flex items-center gap-2"><Flag className="w-3.5 h-3.5" /> Signaler</button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-neutral-950/50">
+        {currentChatMessages.length === 0 ? (
+          <div className="text-center py-16 text-neutral-500 text-xs">Démarrez la conversation pour allumer vos flammes 🔥 !</div>
+        ) : (
+          currentChatMessages.map((msg, index) => {
+            const isMe = msg.sender_id === currentUserId;
+            const isLastMyMsg = isMe && lastMyMessage && lastMyMessage.id === msg.id;
+
+            return (
+              <div key={msg.id || index} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
+                <div className={`max-w-[75%] px-4 py-2.5 rounded-2xl text-xs leading-relaxed ${isMe ? 'bg-orange-600 text-white rounded-br-xs shadow-md' : 'bg-neutral-900 text-neutral-100 border border-neutral-800 rounded-bl-xs'}`}>
+                  {msg.text}
+                </div>
+                {isLastMyMsg && isReadByOther && (
+                  <span className="text-[10px] text-neutral-400 mt-1 px-1 font-medium flex items-center gap-1">
+                    <Check className="w-3 h-3 text-green-500" /> Vu
+                  </span>
+                )}
+              </div>
+            );
+          })
+        )}
+
+        {remoteTyping && (
+          <div className="flex items-start">
+            <div className="bg-neutral-900 border border-neutral-800 px-4 py-2.5 rounded-2xl rounded-bl-xs text-xs text-neutral-400 flex items-center gap-1.5 shadow-md">
+              <span className="w-1.5 h-1.5 bg-orange-500 rounded-full animate-bounce" />
+              <span className="w-1.5 h-1.5 bg-orange-500 rounded-full animate-bounce [animation-delay:0.2s]" />
+              <span className="w-1.5 h-1.5 bg-orange-500 rounded-full animate-bounce [animation-delay:0.4s]" />
+            </div>
+          </div>
+        )}
+        <div ref={messagesEndRef} />
+      </div>
+
+      <div className="p-3 bg-neutral-950 border-t border-neutral-800 flex items-center gap-2">
+        <input 
+          type="text" 
+          placeholder={`Écrire à ${selectedBuddyChat.username}...`} 
+          value={currentMessageInput} 
+          onChange={handleInputWithTyping}
+          onKeyDown={(e) => { if (e.key === 'Enter') onSendMessage(); }}
+          className="flex-1 bg-neutral-900 border border-neutral-800 rounded-2xl px-4 py-3 text-xs text-white focus:border-orange-500" 
+        />
+        <button onClick={onSendMessage} className="p-3 bg-orange-600 hover:bg-orange-500 text-white rounded-2xl transition shadow-md flex items-center justify-center">
+          <Send className="w-4 h-4" />
+        </button>
+      </div>
+    </div>
+  );
+}
