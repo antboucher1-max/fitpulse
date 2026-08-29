@@ -6,7 +6,7 @@ interface FeedTabProps {
   stories: Story[];
   posts: Post[];
   registeredUsers: RealUser[];
-  friendRequests: FriendRequest[]; // Ajouté pour filtrer par amis
+  friendRequests: FriendRequest[];
   currentUserId?: string;
   feedLoading: boolean;
   viewedStoryIds: string[];
@@ -18,6 +18,7 @@ interface FeedTabProps {
   onDeletePost: (postId: string) => void;
   onSelectProfile: (user: RealUser) => void;
   onStartRestTimer: () => void;
+  onMarkStoryAsViewed?: (storyId: string) => void;
 }
 
 const STORY_REACTIONS = ['👍', '❤️', '👏', '😲', '😂', '🔥'];
@@ -31,14 +32,10 @@ export default function FeedTab({
   currentUserId,
   feedLoading,
   viewedStoryIds,
-  onOpenStory,
-  onCreateStoryClick,
   onToggleLike,
   onOpenComments,
-  onReportPost,
-  onDeletePost,
   onSelectProfile,
-  onStartRestTimer
+  onMarkStoryAsViewed
 }: FeedTabProps) {
   const [activeCommentsPostId, setActiveCommentsPostId] = useState<string | null>(null);
   const [commentInput, setCommentInput] = useState('');
@@ -106,64 +103,81 @@ export default function FeedTab({
     alert("✨ Story publiée avec succès !");
   };
 
-  // Filtrer uniquement les stories des amis (ou de soi-même) comme sur Insta/FB
+  // Filtrer les stories des amis + ma propre story
   const acceptedFriendIds = friendRequests
     .filter(req => req.status === 'accepted')
     .map(req => (req.sender_id === currentUserId ? req.receiver_id : req.sender_id));
 
-  const filteredStories = stories.filter(story => 
-    story.user_id === currentUserId || acceptedFriendIds.includes(story.user_id)
-  );
+  const myStories = stories.filter(story => story.user_id === currentUserId);
+  const friendStories = stories.filter(story => story.user_id !== currentUserId && acceptedFriendIds.includes(story.user_id));
+
+  // Fusionner en mettant MA story en tout premier
+  const orderedStories = [...myStories, ...friendStories];
+
+  const handleOpenStoryViewer = (index: number) => {
+    setCurrentViewingStoryIndex(index);
+    const openedStory = orderedStories[index];
+    if (openedStory && onMarkStoryAsViewed) {
+      onMarkStoryAsViewed(openedStory.id);
+    }
+  };
 
   return (
     <div className="space-y-4 pb-12">
       <input type="file" accept="image/*" capture="environment" ref={cameraInputRef} onChange={handleFileChange} className="hidden" />
       <input type="file" accept="image/*" ref={galleryInputRef} onChange={handleFileChange} className="hidden" />
 
-      {/* SECTION DES STORIES (Amis uniquement + Toi) */}
+      {/* SECTION DES STORIES (Votre story en 1er, puis les amis) */}
       <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-4 shadow-xl">
         <div className="flex items-center gap-3 overflow-x-auto no-scrollbar pb-1">
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <div 
-              onClick={() => cameraInputRef.current?.click()} 
-              className="flex flex-col items-center gap-1.5 cursor-pointer group"
-            >
-              <div className="w-16 h-16 rounded-full bg-neutral-950 border-2 border-dashed border-orange-500/60 flex items-center justify-center text-orange-500 group-hover:bg-orange-500/10 transition shadow-lg">
-                <Camera className="w-6 h-6" />
-              </div>
-              <span className="text-[11px] font-bold text-neutral-300">Caméra</span>
+          {/* Votre propre bulle "Ma Story" en premier */}
+          <div 
+            onClick={() => {
+              if (myStories.length > 0) {
+                const myIdx = orderedStories.findIndex(s => s.user_id === currentUserId);
+                if (myIdx !== -1) handleOpenStoryViewer(myIdx);
+              } else {
+                cameraInputRef.current?.click();
+              }
+            }} 
+            className="flex flex-col items-center gap-1.5 flex-shrink-0 cursor-pointer group"
+          >
+            <div className="relative w-16 h-16 rounded-full bg-gradient-to-tr from-orange-500 to-amber-400 p-[2.5px] shadow-lg">
+              <img 
+                src={myStories[0]?.image_url || registeredUsers.find(u => u.id === currentUserId)?.avatar_url || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150"} 
+                alt="Ma story" 
+                className="w-full h-full rounded-full object-cover border-2 border-neutral-950" 
+              />
+              <button 
+                onClick={(e) => { e.stopPropagation(); cameraInputRef.current?.click(); }}
+                className="absolute bottom-0 right-0 w-6 h-6 bg-orange-600 hover:bg-orange-500 rounded-full border-2 border-neutral-950 flex items-center justify-center text-white"
+                title="Ajouter une story"
+              >
+                <Plus className="w-3.5 h-3.5 stroke-[3]" />
+              </button>
             </div>
-
-            <div 
-              onClick={() => galleryInputRef.current?.click()} 
-              className="flex flex-col items-center gap-1.5 cursor-pointer group"
-            >
-              <div className="w-16 h-16 rounded-full bg-neutral-950 border-2 border-dashed border-neutral-700 flex items-center justify-center text-neutral-300 group-hover:bg-neutral-800 transition shadow-lg">
-                <ImageIcon className="w-6 h-6" />
-              </div>
-              <span className="text-[11px] font-bold text-neutral-300">Galerie</span>
-            </div>
+            <span className="text-[11px] font-bold text-neutral-300 truncate w-16 text-center">Ma Story</span>
           </div>
 
           <div className="w-[1px] h-12 bg-neutral-800 mx-1 flex-shrink-0" />
 
-          {/* Affichage des stories filtrées des amis */}
-          {filteredStories.map((story, index) => {
+          {/* Stories des amis (excluant les vôtres pour éviter les doublons) */}
+          {friendStories.map((story) => {
             const author = registeredUsers.find(u => u.id === story.user_id);
+            const globalIndex = orderedStories.findIndex(s => s.id === story.id);
             const isViewed = viewedStoryIds.includes(story.id);
 
             return (
               <div 
                 key={story.id} 
-                onClick={() => setCurrentViewingStoryIndex(index)}
+                onClick={() => handleOpenStoryViewer(globalIndex)}
                 className="flex flex-col items-center gap-1.5 flex-shrink-0 cursor-pointer"
               >
-                <div className={`w-16 h-16 rounded-full p-0.5 ${isViewed ? 'border-2 border-neutral-700' : 'bg-gradient-to-tr from-orange-500 to-amber-400 p-[2.5px]'}`}>
+                {/* Cercle gris si lu, dégradé orange si non lu */}
+                <div className={`w-16 h-16 rounded-full p-0.5 ${isViewed ? 'border-2 border-neutral-600' : 'bg-gradient-to-tr from-orange-500 to-amber-400 p-[2.5px]'}`}>
                   <img src={story.image_url || author?.avatar_url} alt="" className="w-full h-full rounded-full object-cover border-2 border-neutral-950" />
                 </div>
-                <span className="text-[11px] font-bold text-neutral-300 truncate w-16 text-center">
-                  {story.user_id === currentUserId ? 'Moi' : (author?.username || 'Athlète')}
-                </span>
+                <span className="text-[11px] font-bold text-neutral-300 truncate w-16 text-center">{author?.username || 'Athlète'}</span>
               </div>
             );
           })}
@@ -340,25 +354,27 @@ export default function FeedTab({
       </div>
 
       {/* VISIONNEUSE DE STORY PLEIN ÉCRAN */}
-      {currentViewingStoryIndex !== null && filteredStories[currentViewingStoryIndex] && (
+      {currentViewingStoryIndex !== null && orderedStories[currentViewingStoryIndex] && (
         <div className="fixed inset-0 z-50 bg-black flex flex-col justify-between p-4 select-none animate-fadeIn">
           <div className="space-y-2 pt-2">
             <div className="flex gap-1">
-              {filteredStories.map((_, idx) => (
+              {orderedStories.map((_, idx) => (
                 <div key={idx} className={`flex-1 h-1 rounded-full ${idx === currentViewingStoryIndex ? 'bg-orange-500' : 'bg-neutral-700'}`} />
               ))}
             </div>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">
-                <img src={registeredUsers.find(u => u.id === filteredStories[currentViewingStoryIndex].user_id)?.avatar_url} alt="" className="w-9 h-9 rounded-full object-cover border border-neutral-700" />
-                <span className="font-bold text-sm text-white">{registeredUsers.find(u => u.id === filteredStories[currentViewingStoryIndex].user_id)?.username || 'Athlète'}</span>
+                <img src={registeredUsers.find(u => u.id === orderedStories[currentViewingStoryIndex].user_id)?.avatar_url} alt="" className="w-9 h-9 rounded-full object-cover border border-neutral-700" />
+                <span className="font-bold text-sm text-white">
+                  {orderedStories[currentViewingStoryIndex].user_id === currentUserId ? 'Moi' : (registeredUsers.find(u => u.id === orderedStories[currentViewingStoryIndex].user_id)?.username || 'Athlète')}
+                </span>
               </div>
               <button onClick={() => setCurrentViewingStoryIndex(null)} className="p-2 text-white bg-neutral-900/80 rounded-full"><X className="w-5 h-5" /></button>
             </div>
           </div>
 
           <div className="flex-1 relative flex items-center justify-center my-4 overflow-hidden rounded-3xl bg-neutral-950">
-            <img src={filteredStories[currentViewingStoryIndex].image_url} alt="Story" className="w-full h-full object-contain" />
+            <img src={orderedStories[currentViewingStoryIndex].image_url} alt="Story" className="w-full h-full object-contain" />
             
             {storyReactionAnim && (
               <div className="absolute inset-0 flex items-center justify-center bg-black/30 backdrop-blur-xs animate-bounce">
