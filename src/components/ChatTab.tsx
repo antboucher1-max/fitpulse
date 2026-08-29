@@ -176,4 +176,32 @@ export default function ChatTab({
 
         {isOtherUserTyping && (
           <div className="flex items-start">
-            <div className="bg-neutral-900 border border-neutral-800 px-4 py-2.5 rounded-2xl rounded-bl
+            <div className="bg-neutral-900 border border-neutral-800 px-4 py-2.5 rounded-2xl rounded-bl-xs text-xs text-neutral-400 flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 bg-orange-500 rounded-full animate-bounce" />
+              <span className="w-1.5 h-1.5 bg-orange-500 rounded-full animate-bounce [animation-delay:0.2s]" />
+              <span className="w-1.5 h-1.5 bg-orange-500 rounded-full animate-bounce [animation-delay:0.4s]" />
+            </div>
+          </div>
+        )}
+        <div ref={messagesEndRef} />
+      </div>
+
+      <div className="p-3 bg-neutral-950 border-t border-neutral-800 flex items-center gap-2">
+        <input 
+          type="text" 
+          placeholder={`Écrire à ${selectedBuddyChat.username}...`} 
+          value={currentMessageInput} 
+          onChange={onInputChange}
+          onKeyDown={(e) => { if (e.key === 'Enter') onSendMessage(); }}
+          className="flex-1 bg-neutral-900 border border-neutral-800 rounded-2xl px-4 py-3 text-xs text-white focus:border-orange-500" 
+        />
+        <button 
+          onClick={onSendMessage} 
+          className="p-3 bg-orange-600 hover:bg-orange-500 text-white rounded-2xl transition shadow-md flex items-center justify-center"
+        >
+          <Send className="w-4 h-4" />
+        </button>
+      </div>
+    </div>
+  );
+}
