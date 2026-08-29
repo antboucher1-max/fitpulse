@@ -103,15 +103,12 @@ export default function FeedTab({
     alert("✨ Story publiée avec succès !");
   };
 
-  // Filtrer les stories des amis + ma propre story
   const acceptedFriendIds = friendRequests
     .filter(req => req.status === 'accepted')
     .map(req => (req.sender_id === currentUserId ? req.receiver_id : req.sender_id));
 
   const myStories = stories.filter(story => story.user_id === currentUserId);
   const friendStories = stories.filter(story => story.user_id !== currentUserId && acceptedFriendIds.includes(story.user_id));
-
-  // Fusionner en mettant MA story en tout premier
   const orderedStories = [...myStories, ...friendStories];
 
   const handleOpenStoryViewer = (index: number) => {
@@ -127,10 +124,9 @@ export default function FeedTab({
       <input type="file" accept="image/*" capture="environment" ref={cameraInputRef} onChange={handleFileChange} className="hidden" />
       <input type="file" accept="image/*" ref={galleryInputRef} onChange={handleFileChange} className="hidden" />
 
-      {/* SECTION DES STORIES (Votre story en 1er, puis les amis) */}
+      {/* SECTION DES STORIES */}
       <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-4 shadow-xl">
         <div className="flex items-center gap-3 overflow-x-auto no-scrollbar pb-1">
-          {/* Votre propre bulle "Ma Story" en premier */}
           <div 
             onClick={() => {
               if (myStories.length > 0) {
@@ -151,7 +147,6 @@ export default function FeedTab({
               <button 
                 onClick={(e) => { e.stopPropagation(); cameraInputRef.current?.click(); }}
                 className="absolute bottom-0 right-0 w-6 h-6 bg-orange-600 hover:bg-orange-500 rounded-full border-2 border-neutral-950 flex items-center justify-center text-white"
-                title="Ajouter une story"
               >
                 <Plus className="w-3.5 h-3.5 stroke-[3]" />
               </button>
@@ -161,7 +156,6 @@ export default function FeedTab({
 
           <div className="w-[1px] h-12 bg-neutral-800 mx-1 flex-shrink-0" />
 
-          {/* Stories des amis (excluant les vôtres pour éviter les doublons) */}
           {friendStories.map((story) => {
             const author = registeredUsers.find(u => u.id === story.user_id);
             const globalIndex = orderedStories.findIndex(s => s.id === story.id);
@@ -173,7 +167,6 @@ export default function FeedTab({
                 onClick={() => handleOpenStoryViewer(globalIndex)}
                 className="flex flex-col items-center gap-1.5 flex-shrink-0 cursor-pointer"
               >
-                {/* Cercle gris si lu, dégradé orange si non lu */}
                 <div className={`w-16 h-16 rounded-full p-0.5 ${isViewed ? 'border-2 border-neutral-600' : 'bg-gradient-to-tr from-orange-500 to-amber-400 p-[2.5px]'}`}>
                   <img src={story.image_url || author?.avatar_url} alt="" className="w-full h-full rounded-full object-cover border-2 border-neutral-950" />
                 </div>
@@ -183,85 +176,6 @@ export default function FeedTab({
           })}
         </div>
       </div>
-
-      {/* MODALE DE CRÉATION DE STORY */}
-      {isStoryModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/95 backdrop-blur-md flex flex-col justify-between p-4 overflow-y-auto animate-fadeIn">
-          <div className="flex items-center justify-between pb-2">
-            <h3 className="font-extrabold text-sm text-white flex items-center gap-2">
-              <Camera className="w-5 h-5 text-orange-500" /> Personnaliser ta Story
-            </h3>
-            <button onClick={() => { setIsStoryModalOpen(false); setStoryImagePreview(null); }} className="p-2 text-white bg-neutral-900 rounded-full">
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-
-          <div className="space-y-4 my-2">
-            <div className="relative rounded-3xl overflow-hidden h-64 bg-neutral-950 border border-neutral-800 flex items-center justify-center">
-              {storyImagePreview && <img src={storyImagePreview} alt="Aperçu" className="w-full h-full object-cover" />}
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-neutral-300 mb-1">Texte / Commentaire :</label>
-              <input 
-                type="text" 
-                placeholder="Ex: Grosse séance jambes validée ! 🔥" 
-                value={storyCaption} 
-                onChange={(e) => setStoryCaption(e.target.value)} 
-                className="w-full bg-neutral-900 border border-neutral-800 rounded-2xl px-4 py-3 text-sm text-white focus:border-orange-500" 
-              />
-            </div>
-
-            <div className="space-y-2">
-              <label className="block text-xs font-bold text-neutral-300 flex items-center gap-1.5">
-                <Hash className="w-4 h-4 text-orange-500" /> Choisir tes hashtags :
-              </label>
-              
-              <div className="flex flex-wrap gap-1.5">
-                {PRESET_HASHTAGS.map((tag) => {
-                  const isSelected = selectedHashtags.includes(tag);
-                  return (
-                    <button
-                      key={tag}
-                      type="button"
-                      onClick={() => togglePresetTag(tag)}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition border ${isSelected ? 'bg-orange-600 text-white border-orange-500 shadow-md' : 'bg-neutral-900 text-neutral-400 border-neutral-800 hover:text-white'}`}
-                    >
-                      {tag} {isSelected ? '✓' : ''}
-                    </button>
-                  );
-                })}
-              </div>
-
-              <input 
-                type="text" 
-                placeholder="Ajouter un hashtag perso (Entrée)..." 
-                value={customTagInput} 
-                onChange={(e) => setCustomTagInput(e.target.value)}
-                onKeyDown={handleAddCustomTag}
-                className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:border-orange-500 mt-2" 
-              />
-            </div>
-          </div>
-
-          <div className="space-y-3 pt-2">
-            <button 
-              onClick={handlePublishStory} 
-              className="w-full py-4 bg-orange-600 hover:bg-orange-500 text-white font-extrabold rounded-2xl text-sm shadow-xl transition"
-            >
-              Publier ma Story 🚀
-            </button>
-            <div className="flex gap-2">
-              <button onClick={() => cameraInputRef.current?.click()} className="flex-1 py-3 bg-neutral-900 border border-neutral-800 text-xs font-bold text-neutral-300 rounded-xl flex items-center justify-center gap-2">
-                <Camera className="w-4 h-4 text-orange-500" /> Caméra
-              </button>
-              <button onClick={() => galleryInputRef.current?.click()} className="flex-1 py-3 bg-neutral-900 border border-neutral-800 text-xs font-bold text-neutral-300 rounded-xl flex items-center justify-center gap-2">
-                <ImageIcon className="w-4 h-4 text-orange-500" /> Galerie
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* FIL D'ACTUALITÉ */}
       <div className="space-y-4">
@@ -279,11 +193,12 @@ export default function FeedTab({
 
             return (
               <div key={post.id} className="bg-neutral-900 border border-neutral-800 rounded-3xl overflow-hidden shadow-xl space-y-3">
+                {/* EN-TÊTE DU POST CLIQUABLE POUR VOIR LE PROFIL */}
                 <div className="px-5 pt-4 flex items-center justify-between">
-                  <div className="flex items-center gap-3 cursor-pointer" onClick={() => author && onSelectProfile(author)}>
-                    <img src={post.avatar_url || author?.avatar_url} alt="" className="w-11 h-11 rounded-full object-cover border border-neutral-800" />
+                  <div className="flex items-center gap-3 cursor-pointer group" onClick={() => author && onSelectProfile(author)}>
+                    <img src={post.avatar_url || author?.avatar_url} alt="" className="w-11 h-11 rounded-full object-cover border border-neutral-800 group-hover:border-orange-500 transition" />
                     <div>
-                      <h3 className="font-extrabold text-sm text-white flex items-center gap-1.5">
+                      <h3 className="font-extrabold text-sm text-white flex items-center gap-1.5 group-hover:text-orange-400 transition">
                         {post.username} {author?.is_verified && <ShieldCheck className="w-4 h-4 text-orange-500 fill-orange-500/20" />}
                       </h3>
                       <p className="text-[11px] text-orange-400 font-semibold flex items-center gap-1 mt-0.5">
@@ -352,52 +267,6 @@ export default function FeedTab({
           })
         )}
       </div>
-
-      {/* VISIONNEUSE DE STORY PLEIN ÉCRAN */}
-      {currentViewingStoryIndex !== null && orderedStories[currentViewingStoryIndex] && (
-        <div className="fixed inset-0 z-50 bg-black flex flex-col justify-between p-4 select-none animate-fadeIn">
-          <div className="space-y-2 pt-2">
-            <div className="flex gap-1">
-              {orderedStories.map((_, idx) => (
-                <div key={idx} className={`flex-1 h-1 rounded-full ${idx === currentViewingStoryIndex ? 'bg-orange-500' : 'bg-neutral-700'}`} />
-              ))}
-            </div>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <img src={registeredUsers.find(u => u.id === orderedStories[currentViewingStoryIndex].user_id)?.avatar_url} alt="" className="w-9 h-9 rounded-full object-cover border border-neutral-700" />
-                <span className="font-bold text-sm text-white">
-                  {orderedStories[currentViewingStoryIndex].user_id === currentUserId ? 'Moi' : (registeredUsers.find(u => u.id === orderedStories[currentViewingStoryIndex].user_id)?.username || 'Athlète')}
-                </span>
-              </div>
-              <button onClick={() => setCurrentViewingStoryIndex(null)} className="p-2 text-white bg-neutral-900/80 rounded-full"><X className="w-5 h-5" /></button>
-            </div>
-          </div>
-
-          <div className="flex-1 relative flex items-center justify-center my-4 overflow-hidden rounded-3xl bg-neutral-950">
-            <img src={orderedStories[currentViewingStoryIndex].image_url} alt="Story" className="w-full h-full object-contain" />
-            
-            {storyReactionAnim && (
-              <div className="absolute inset-0 flex items-center justify-center bg-black/30 backdrop-blur-xs animate-bounce">
-                <span className="text-8xl drop-shadow-2xl">{storyReactionAnim}</span>
-              </div>
-            )}
-          </div>
-
-          <div className="pb-6 px-2 space-y-3">
-            <div className="flex items-center justify-around bg-neutral-900/90 backdrop-blur-md border border-neutral-800 rounded-full px-4 py-3 shadow-2xl">
-              {STORY_REACTIONS.map((emoji) => (
-                <button 
-                  key={emoji} 
-                  onClick={() => handleReactStory(emoji)} 
-                  className="text-2xl hover:scale-125 transition transform active:scale-95 p-1"
-                >
-                  {emoji}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
