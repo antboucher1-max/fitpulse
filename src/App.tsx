@@ -251,15 +251,47 @@ export default function App() {
     return '1995-01-01';
   };
 
-  const handleTabChange = (tab: any) => { setCurrentTab(tab); try { sessionStorage.setItem('fitpulse_current_tab', tab); } catch (e) {} };
-  const startRestTimer = (seconds: number) => { setRestTimerSeconds(seconds); setRestTimeRemaining(seconds); setIsRestTimerActive(true); };
-  const handleNextStory = () => { if (activeStoryIndex === null) return; if (activeStoryIndex < friendStoriesList.length - 1) { setActiveStoryIndex(activeStoryIndex + 1); setStoryProgress(0); setStoryCommentInput(''); } else { setActiveStoryIndex(null); } };
-  const handlePrevStory = () => { if (activeStoryIndex === null) return; if (activeStoryIndex > 0) { setActiveStoryIndex(activeStoryIndex - 1); setStoryProgress(0); setStoryCommentInput(''); } else { setStoryProgress(0); } };
-  const stopCameraStream = () => { if (streamRef.current) { streamRef.current.getTracks().forEach((t) => t.stop()); streamRef.current = null; } setIsCameraActive(false); if (cameraTarget === 'story') { setIsCreatingStory(true); } };
-  const startCameraHandler = (target: any) => { if (target === 'story') { setIsCreatingStory(false); } setCameraTarget(target); setIsCameraActive(true); };
-  
-  const handleDeletePost = async (postId: string) => { if (!window.confirm("Supprimer cette publication ?")) return; const { error } = await supabase.from('posts').delete().eq('id', postId); if (!error) { setPosts((prev) => prev.filter((p) => p.id !== postId)); alert("Publication supprimée."); } };
-  
+  const handleTabChange = (tab: any) => {
+    setCurrentTab(tab);
+    try { sessionStorage.setItem('fitpulse_current_tab', tab); } catch (e) {}
+  };
+
+  const startRestTimer = (seconds: number) => { 
+    setRestTimerSeconds(seconds); 
+    setRestTimeRemaining(seconds); 
+    setIsRestTimerActive(true); 
+  };
+
+  const handleNextStory = () => {
+    if (activeStoryIndex === null) return;
+    if (activeStoryIndex < friendStoriesList.length - 1) { setActiveStoryIndex(activeStoryIndex + 1); setStoryProgress(0); setStoryCommentInput(''); } 
+    else { setActiveStoryIndex(null); }
+  };
+
+  const handlePrevStory = () => {
+    if (activeStoryIndex === null) return;
+    if (activeStoryIndex > 0) { setActiveStoryIndex(activeStoryIndex - 1); setStoryProgress(0); setStoryCommentInput(''); } 
+    else { setStoryProgress(0); }
+  };
+
+  const stopCameraStream = () => {
+    if (streamRef.current) { streamRef.current.getTracks().forEach((t) => t.stop()); streamRef.current = null; }
+    setIsCameraActive(false);
+    if (cameraTarget === 'story') { setIsCreatingStory(true); }
+  };
+
+  const startCameraHandler = (target: any) => {
+    if (target === 'story') { setIsCreatingStory(false); }
+    setCameraTarget(target);
+    setIsCameraActive(true);
+  };
+
+  const handleDeletePost = async (postId: string) => {
+    if (!window.confirm("Supprimer cette publication ?")) return;
+    const { error } = await supabase.from('posts').delete().eq('id', postId);
+    if (!error) { setPosts((prev) => prev.filter((p) => p.id !== postId)); alert("Publication supprimée."); }
+  };
+
   const handleReportPost = async (post: Post) => {
     if (!window.confirm("Signaler cette publication ?")) return;
     if (user) {
@@ -269,7 +301,8 @@ export default function App() {
         if (data && data.length > 0) adminId = data[0].user_id;
       }
       if (adminId) {
-        await supabase.from('direct_messages').insert([{ sender_id: 'system-bot', receiver_id: adminId, sender_name: '⚠️ Bot', text: `🚨 SIGNALEMENT : ${user.user_metadata?.username} a signalé le post de ${post.username}.` }]);
+        const myName = user.user_metadata?.username || 'Un utilisateur';
+        await supabase.from('direct_messages').insert([{ sender_id: 'system-bot', receiver_id: adminId, sender_name: '⚠️ Bot', text: `🚨 SIGNALEMENT : ${myName} a signalé le post de ${post.username}.` }]);
       }
     }
     alert("🚨 Publication signalée aux modérateurs.");
@@ -346,6 +379,13 @@ export default function App() {
   const fetchCloudStories = async () => { try { const { data, error } = await supabase.from('stories').select('*').order('created_at', { ascending: false }); if (!error && data && data.length > 0) setCloudStories(data as Story[]); } catch (err) {} };
   const fetchDirectMessages = async () => { const { data, error } = await supabase.from('direct_messages').select('*').order('created_at', { ascending: true }); if (!error && data) setAllMessages(data as DBMessage[]); };
   
+  const syncProfile = async (sessionUser: SupabaseUser) => {
+    try {
+      const bDate = sessionUser.user_metadata?.birth_date || '1995-01-01';
+      await supabase.from('profiles').upsert({ id: sessionUser.id, username: sessionUser.user_metadata?.username || sessionUser.email?.split('@')[0], email: sessionUser.email, gender: sessionUser.user_metadata?.gender || 'M', birth_date: bDate, age: calculateAge(bDate), goal: sessionUser.user_metadata?.goal || 'Sportif', home_club: sessionUser.user_metadata?.home_club || selectedClub, preferred_time: sessionUser.user_metadata?.preferred_time || TIME_SLOTS[2], avatar_url: sessionUser.user_metadata?.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150', last_seen: new Date().toISOString() });
+    } catch(e) {}
+  };
+
   const fetchRealUsers = async () => {
     const { data: profilesData, error: profilesError } = await supabase.from('profiles').select('*');
     let combinedUsers = new Map();
@@ -501,105 +541,6 @@ export default function App() {
     const newCount = hasLiked ? Math.max(0, post.likes_count - 1) : post.likes_count + 1;
     setPosts(prev => prev.map(p => p.id === postId ? { ...p, likes_count: newCount, liked_by: updatedLikedBy } : p));
     await supabase.from('posts').update({ likes_count: newCount, liked_by: updatedLikedBy }).eq('id', postId);
-  };
-
-  const handlePublishStory = async (e: React.FormEvent) => {
-    e.preventDefault(); if (!user || !storyImageFile) return; setStoryUploading(true); let uploadedStoryUrl = storyImagePreview || '';
-    try {
-      const compressedBlob = await compressImage(storyImageFile, 800, 0.7); const fileName = `story-${Date.now()}-${Math.random().toString(36).substring(7)}.jpg`;
-      const { data: uploadData } = await supabase.storage.from('posts').upload(fileName, compressedBlob, { contentType: 'image/jpeg' });
-      if (uploadData) { const { data } = supabase.storage.from('posts').getPublicUrl(fileName); uploadedStoryUrl = data.publicUrl; }
-    } catch (err) {}
-    const myName = user.user_metadata?.first_name || user.user_metadata?.username || user.email?.split('@')[0] || 'Moi';
-    const uniqueStoryId = 'story-' + Date.now() + '-' + Math.random().toString(36).substring(2, 7);
-    const newStory: Story = { id: uniqueStoryId, user_id: user.id, username: myName, avatar_url: userAvatarUrl, image_url: uploadedStoryUrl, caption: storyCaption, club_name: selectedClub, likes_count: 0, created_at: new Date().toISOString() };
-    const { error } = await supabase.from('stories').insert([{ id: uniqueStoryId, user_id: user.id, username: myName, avatar_url: userAvatarUrl, image_url: uploadedStoryUrl, caption: storyCaption, club_name: selectedClub }]);
-    if (error) alert("Erreur publication story : " + error.message); else { setCloudStories([newStory, ...cloudStories]); setStoryImageFile(null); setStoryImagePreview(null); setStoryCaption(''); setIsCreatingStory(false); }
-    setStoryUploading(false);
-  };
-
-  const handleAddPostComment = async (e: React.FormEvent) => {
-    e.preventDefault(); if (!postCommentInput.trim() || !activeCommentPostId || !user) return;
-    const newComment: Comment = { id: 'c-' + Date.now(), username: user.user_metadata?.username || 'Moi', avatar_url: userAvatarUrl, text: postCommentInput.trim(), created_at: new Date().toISOString() };
-    const targetPost = posts.find(p => p.id === activeCommentPostId); if (!targetPost) return;
-    const updatedComments = [...(targetPost.comments || []), newComment];
-    const { error } = await supabase.from('posts').update({ comments: updatedComments, comments_count: updatedComments.length }).eq('id', activeCommentPostId);
-    if (!error) { setPosts(prev => prev.map(p => p.id === activeCommentPostId ? { ...p, comments: updatedComments, comments_count: updatedComments.length } : p)); setPostCommentInput(''); }
-  };
-
-  const handleDeleteConversationForBuddy = async (buddyId: string, buddyName: string) => {
-    if (!user) return; if (!window.confirm(`Effacer toute la conversation avec ${buddyName} ?`)) return;
-    await supabase.from('direct_messages').delete().or(`and(sender_id.eq.${user.id},receiver_id.eq.${buddyId}),and(sender_id.eq.${buddyId},receiver_id.eq.${user.id})`);
-    setAllMessages((prev) => prev.filter((m) => !((m.sender_id === user.id && m.receiver_id === buddyId) || (m.sender_id === buddyId && m.receiver_id === user.id))));
-  };
-
-  const handleReportConversation = async (buddyName: string) => {
-    if (!window.confirm(`Signaler la conversation avec ${buddyName} pour comportement inapproprié ?`)) return;
-    if (user) {
-      let adminId = registeredUsers.find(u => u.username.toLowerCase() === 'antbou')?.id;
-      if (!adminId) { const { data } = await supabase.from('posts').select('user_id').ilike('username', 'antbou').limit(1); if (data && data.length > 0) adminId = data[0].user_id; }
-      if (adminId) await supabase.from('direct_messages').insert([{ sender_id: 'system-bot', receiver_id: adminId, sender_name: '⚠️ Bot', text: `🚨 SIGNALEMENT CHAT : ${user.user_metadata?.username} a signalé la conversation avec ${buddyName}.` }]);
-    }
-    alert("🚨 Conversation signalée.");
-  };
-
-  const handleAddTransformation = async (e: React.FormEvent) => {
-    e.preventDefault(); if (!user || !newTransBefore || !newTransAfter || newTransWeight === '') return;
-    let beforeUrl = newTransBefore; let afterUrl = newTransAfter;
-    try {
-      if (newTransBefore.startsWith('blob:')) { const resB = await fetch(newTransBefore); const { data } = await supabase.storage.from('posts').upload(`trans-b-${Date.now()}.jpg`, await compressImage(new File([await resB.blob()], 'b.jpg', { type: 'image/jpeg' }), 800, 0.7), { contentType: 'image/jpeg' }); if (data) beforeUrl = supabase.storage.from('posts').getPublicUrl(data.path).data.publicUrl; }
-      if (newTransAfter.startsWith('blob:')) { const resA = await fetch(newTransAfter); const { data } = await supabase.storage.from('posts').upload(`trans-a-${Date.now()}.jpg`, await compressImage(new File([await resA.blob()], 'a.jpg', { type: 'image/jpeg' }), 800, 0.7), { contentType: 'image/jpeg' }); if (data) afterUrl = supabase.storage.from('posts').getPublicUrl(data.path).data.publicUrl; }
-    } catch (err) {}
-    const newItem = { user_id: user.id, before_url: beforeUrl, after_url: afterUrl, date: new Date().toISOString().split('T')[0], weight: Number(newTransWeight), note: newTransNote || 'Évolution', is_private: newTransIsPrivate };
-    const { data, error } = await supabase.from('transformations').insert([newItem]).select('*');
-    if (!error && data) { setTransformations([data[0] as TransformationPhoto, ...transformations]); setNewTransBefore(null); setNewTransAfter(null); setNewTransNote(''); setNewTransWeight(''); alert('📸 Transformation enregistrée !'); }
-  };
-
-  const handleShareTransformationToFeed = async (item: TransformationPhoto) => {
-    if (!user) return;
-    const newPostData = { user_id: user.id, username: user.user_metadata?.username || 'Athlète', avatar_url: userAvatarUrl, image_url: item.after_url, club_name: selectedClub, session_type: 'Transformation #transformation', caption: `Bilan évolution (${item.weight} kg) : ${item.note} #pr #gym`, exercises: [], likes_count: 0, liked_by: [], comments_count: 0, comments: [], is_private: isPrivateMode };
-    const { data, error } = await supabase.from('posts').insert([newPostData]).select('*');
-    if (!error && data) { setPosts([data[0] as Post, ...posts]); alert('✨ Bilan partagé avec succès !'); }
-  };
-
-  const handleSendFriendRequest = async (targetUserId: string) => {
-    if (!user) return; const { error } = await supabase.from('friend_requests').insert([{ sender_id: user.id, receiver_id: targetUserId, status: 'pending' }]);
-    if (!error) { alert("Demande envoyée !"); fetchFriendRequests(user.id); sendSystemNotification(targetUserId, `👋 Quelqu'un souhaite devenir votre Buddy !`); }
-  };
-
-  const handleAcceptFriendRequest = async (requestId: string) => {
-    const { error } = await supabase.from('friend_requests').update({ status: 'accepted' }).eq('id', requestId);
-    if (!error && user) { alert("Demande acceptée !"); fetchFriendRequests(user.id); const req = friendRequests.find(r => r.id === requestId); if (req) sendSystemNotification(req.sender_id, `✅ Demande d'ami acceptée !`); }
-  };
-
-  const handleRejectFriendRequest = async (requestId: string) => {
-    const { error } = await supabase.from('friend_requests').delete().eq('id', requestId);
-    if (!error && user) fetchFriendRequests(user.id);
-  };
-
-  const handleSendInvite = async () => {
-    if (!inviteModalTarget || !user) return;
-    const myName = user.user_metadata?.first_name || user.user_metadata?.username || 'Un ami';
-    await supabase.from('direct_messages').insert([{ sender_id: user.id, receiver_id: inviteModalTarget.id, sender_name: myName, text: `🏋️ INVITATION PUSH UP : Prêt(e) pour une séance **${inviteType}** ?` }]);
-    await sendSystemNotification(inviteModalTarget.id, `⚡ ${myName} a envoyé une invitation Push Up !`);
-    const updatedPushUps = { ...sentPushUps, [inviteModalTarget.id]: Date.now() };
-    setSentPushUps(updatedPushUps); alert(`Invitation Push Up envoyée !`); setInviteModalTarget(null);
-  };
-
-  const handleQuickEmojiReaction = async (emoji: string) => {
-    if (!activeViewingStory || !user) return; setStoryCommentInput(emoji);
-    await supabase.from('direct_messages').insert([{ sender_id: user.id, receiver_id: activeViewingStory.user_id, sender_name: user.user_metadata?.username || 'Moi', text: `Réaction à ta story : ${emoji}` }]);
-    alert('Réaction envoyée !');
-  };
-
-  const handleSendStoryComment = async (e: React.FormEvent) => {
-    e.preventDefault(); if (!activeViewingStory || !user || !storyCommentInput.trim()) return;
-    await supabase.from('direct_messages').insert([{ sender_id: user.id, receiver_id: activeViewingStory.user_id, sender_name: user.user_metadata?.username || 'Moi', text: `Réponse à ta story : ${storyCommentInput}` }]);
-    setStoryCommentInput(''); alert('Message envoyé !');
-  };
-
-  const handleToggleStoryLike = async (storyId: string) => {
-    const isLiked = likedStories[storyId]; setLikedStories(prev => ({ ...prev, [storyId]: !isLiked }));
   };
 
   // ==========================================
@@ -904,9 +845,7 @@ export default function App() {
         </div>
       )}
 
-      {/* ICI, ON RESTAURE TOUS LES ONGLETS ! */}
       <main className="flex-1 max-w-lg w-full mx-auto px-4 py-3 pb-24">
-        
         {currentTab === 'feed' && (
           <div className="space-y-4">
             <div className="bg-neutral-900/60 border border-neutral-800/80 rounded-3xl p-3">
