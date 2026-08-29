@@ -69,7 +69,6 @@ import {
 } from 'lucide-react';
 import { createClient, User as SupabaseUser } from '@supabase/supabase-js';
 
-// Importation de nos modules propres
 import { 
   ClubLocation, 
   ExerciseGuide, 
@@ -298,7 +297,7 @@ export default function App() {
   const [liveElapsedSeconds, setLiveElapsedSeconds] = useState<number>(0);
 
   const [aiChatMessages, setAiChatMessages] = useState<AIChatMessage[]>([
-    { sender: 'bot', text: "Salut l'athlète ! Je suis **FitBot**, ton coach IA personnel. Comment puis-je t'aider aujourd'hui ? (Programme pour ton Basic-Fit, nutrition, conseils d'exécution...)" }
+    { sender: 'bot', text: "Salut l'athlète ! Je suis **FitBot**, ton coach IA personnel. Comment puis-je t'aider aujourd'hui ?" }
   ]);
   const [aiInputText, setAiInputText] = useState('');
   const [isListening, setIsListening] = useState(false);
@@ -401,9 +400,11 @@ export default function App() {
   const [likedStories, setLikedStories] = useState<Record<string, boolean>>({});
   const [viewedStoryIds, setViewedStoryIds] = useState<string[]>([]);
 
+
   // ==========================================
   // FONCTIONS HISSÉES
   // ==========================================
+
   const convertJJMMAAAAtoYYYYMMDD = (input: string): string => {
     const parts = input.split('/');
     if (parts.length === 3 && parts[2].length === 4) { return `${parts[2]}-${parts[1]}-${parts[0]}`; }
@@ -465,6 +466,25 @@ export default function App() {
       }
     }
     alert("🚨 Publication signalée aux modérateurs.");
+  };
+
+  const handleUpdateProfileAvatar = async (fileOrUrl: File | string) => {
+    if (!user) return;
+    let finalAvatarUrl = typeof fileOrUrl === 'string' ? fileOrUrl : '';
+    if (typeof fileOrUrl !== 'string') {
+      try {
+        const fileName = `avatar-${user.id}-${Date.now()}.jpg`;
+        const { data } = await supabase.storage.from('posts').upload(fileName, await compressImage(fileOrUrl, 400, 0.7), { contentType: 'image/jpeg', upsert: true });
+        if (data) finalAvatarUrl = supabase.storage.from('posts').getPublicUrl(fileName).data.publicUrl;
+      } catch (err) {}
+    }
+    if (finalAvatarUrl) { 
+      setUserAvatarUrl(finalAvatarUrl); 
+      await supabase.auth.updateUser({ data: { ...user.user_metadata, avatar_url: finalAvatarUrl } }); 
+      await supabase.from('profiles').update({ avatar_url: finalAvatarUrl }).eq('id', user.id);
+      setRegisteredUsers(prev => prev.map(u => u.id === user.id ? { ...u, avatar_url: finalAvatarUrl } : u));
+      alert('🌟 Photo de profil mise à jour !'); 
+    }
   };
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>, targetType?: string) => {
