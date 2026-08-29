@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  Zap, Bell, Bot, PlusSquare, Calculator, User, MessageCircle, Home, Users, Key, Mail, Plus, X, Image as ImageIcon, Camera, Flame, MapPin
+  Zap, Bell, Bot, PlusSquare, Calculator, User, MessageCircle, Home, Users, Key, Mail, Plus, X, Image as ImageIcon, Camera, Flame, MapPin, Hash
 } from 'lucide-react';
 import { createClient, User as SupabaseUser } from '@supabase/supabase-js';
 
@@ -25,7 +25,6 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 const TIME_SLOTS = ['🌅 Matin (6h - 9h)', '☀️ Midi (12h - 14h)', '🌆 Soir (17h - 20h)', '🌙 Nocturne (20h+)', '📅 Week-end flexible'];
 
-// Liste complète de tes clubs
 const CLUBS_LIST = [
   'Club Tournai (Bastion)',
   'Club Tournai (les jeunesses)',
@@ -64,11 +63,13 @@ export default function App() {
   const profileAvatarInputRef = useRef<HTMLInputElement>(null);
   const beforeFileInputRef = useRef<HTMLInputElement>(null);
   const afterFileInputRef = useRef<HTMLInputElement>(null);
+  const postImageFileInputRef = useRef<HTMLInputElement>(null);
 
-  // États pour la création de post avec photo
+  // États pour la création de post avec photo du téléphone et hashtags
   const [isPostModalOpen, setIsPostModalOpen] = useState(false);
   const [postSessionType, setPostSessionType] = useState('Musculation Full Body');
   const [postCaption, setPostCaption] = useState('');
+  const [postHashtags, setPostHashtags] = useState('#fitpulse #workout');
   const [postImageUrl, setPostImageUrl] = useState<string | null>(null);
 
   const [isPrivateMode, setIsPrivateMode] = useState<boolean>(false);
@@ -189,16 +190,29 @@ export default function App() {
     await supabase.from('posts').update({ likes_count: newCount, liked_by: updatedLikedBy }).eq('id', postId);
   };
 
+  // Gestion de l'upload de photo depuis le téléphone
+  const handlePostImageFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPostImageUrl(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handlePublishPost = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
+    const fullCaption = `${postCaption} ${postHashtags}`.trim();
     const { data, error } = await supabase.from('posts').insert([{
       user_id: user.id,
       username: user.user_metadata?.username || 'Athlète',
       avatar_url: userAvatarUrl,
       club_name: selectedClub,
       session_type: postSessionType,
-      caption: postCaption,
+      caption: fullCaption,
       image_url: postImageUrl,
       exercises: [],
       likes_count: 0,
@@ -222,7 +236,7 @@ export default function App() {
     if (!user) return;
     if (liveExercises.length === 0) { alert("Ajoute au moins un exercice !"); return; }
     const formattedExercises: ExerciseEntry[] = liveExercises.map(ex => ({ name: ex.name, sets: ex.sets.length, reps: ex.sets[0]?.reps || 10, weight: ex.sets[0]?.weight || 50 }));
-    const { data } = await supabase.from('posts').insert([{ user_id: user.id, username: user.user_metadata?.username || 'Athlète', avatar_url: userAvatarUrl, club_name: selectedClub, session_type: liveWorkoutName, caption: "Séance terminée en direct ! 💪", exercises: formattedExercises, likes_count: 0, liked_by: [], comments_count: 0, comments: [], is_private: false }]).select('*');
+    const { data } = await supabase.from('posts').insert([{ user_id: user.id, username: user.user_metadata?.username || 'Athlète', avatar_url: userAvatarUrl, club_name: selectedClub, session_type: liveWorkoutName, caption: "Séance terminée en direct ! 💪 #fitpulse", exercises: formattedExercises, likes_count: 0, liked_by: [], comments_count: 0, comments: [], is_private: false }]).select('*');
     if (data) { setPosts([data[0] as Post, ...posts]); setIsLiveActive(false); handleTabChange('feed'); }
   };
 
@@ -249,7 +263,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col font-sans select-none">
-      {/* Header avec logo à gauche et sélecteur de club à droite */}
+      {/* Header */}
       <header className="sticky top-0 z-40 bg-neutral-950/80 backdrop-blur-md border-b border-neutral-900 px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-xl bg-orange-500/20 flex items-center justify-center text-orange-500"><Zap className="w-5 h-5" /></div>
@@ -272,9 +286,6 @@ export default function App() {
               ))}
             </select>
           </div>
-          <button onClick={() => setIsPostModalOpen(true)} className="p-2 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-xl shadow-lg transition" title="Poster une séance">
-            <Plus className="w-4 h-4 stroke-[3]" />
-          </button>
         </div>
       </header>
 
@@ -289,7 +300,7 @@ export default function App() {
         {currentTab === 'profile' && <ProfileTab user={user} currentUserProfile={currentUserProfile} userAvatarUrl={userAvatarUrl} isAdmin={isAdmin} registeredUsers={registeredUsers} transformations={transformations} newTransBefore={newTransBefore} newTransAfter={newTransAfter} newTransWeight={newTransWeight} newTransNote={newTransNote} newTransIsPrivate={newTransIsPrivate} setNewTransWeight={setNewTransWeight} setNewTransNote={setNewTransNote} setNewTransIsPrivate={setNewTransIsPrivate} onAvatarClick={() => profileAvatarInputRef.current?.click()} onCameraStart={() => {}} onBeforeFileSelect={() => {}} onAfterFileSelect={() => {}} onAddTransformation={async (e) => { e.preventDefault(); if (!user || newTransWeight === '') return; await supabase.from('transformations').insert([{ user_id: user.id, before_url: 'https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?w=400', after_url: 'https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?w=400', date: new Date().toISOString().split('T')[0], weight: Number(newTransWeight), note: newTransNote || 'Évolution', is_private: newTransIsPrivate }]); fetchTransformations(user.id); setNewTransWeight(''); setNewTransNote(''); alert('📸 Transformation enregistrée !'); }} onShareTransformation={() => {}} onUpdatePasswordSubmit={async (e) => { e.preventDefault(); await supabase.auth.updateUser({}); alert("🔒 Mot de passe mis à jour !"); }} password={''} setPassword={() => {}} confirmPassword={''} setConfirmPassword={() => {}} isPrivateMode={isPrivateMode} setIsPrivateMode={setIsPrivateMode} onSignOut={() => supabase.auth.signOut()} onToggleVerifyAdmin={async (uId, status) => { await supabase.from('profiles').update({ is_verified: !status }).eq('id', uId); fetchRealUsers(); }} beforeFileInputRef={beforeFileInputRef} afterFileInputRef={afterFileInputRef} />}
       </main>
 
-      {/* Modale de création de publication avec photo */}
+      {/* Modale de création de publication avec photo du téléphone et Hashtags */}
       {isPostModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl animate-fadeIn">
@@ -314,14 +325,23 @@ export default function App() {
 
               <div>
                 <label className="block text-xs font-semibold text-neutral-400 mb-1">Légende :</label>
-                <textarea rows={3} placeholder="Comment s'est passée ta séance ? #fitpulse" value={postCaption} onChange={(e) => setPostCaption(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-sm text-white focus:border-orange-500" />
+                <textarea rows={3} placeholder="Comment s'est passée ta séance ?" value={postCaption} onChange={(e) => setPostCaption(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-sm text-white focus:border-orange-500" />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-neutral-400 mb-1">Photo de séance (URL ou image) :</label>
+                <label className="block text-xs font-semibold text-neutral-400 mb-1 flex items-center gap-1">
+                  <Hash className="w-3.5 h-3.5 text-orange-500" /> Hashtags :
+                </label>
+                <input type="text" placeholder="#fitpulse #muscu #tournai" value={postHashtags} onChange={(e) => setPostHashtags(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:border-orange-500" />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-neutral-400 mb-1">Ajouter une photo (depuis votre téléphone) :</label>
                 <div className="flex gap-2">
-                  <input type="text" placeholder="https://images.unsplash.com/..." value={postImageUrl || ''} onChange={(e) => setPostImageUrl(e.target.value)} className="flex-1 bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2.5 text-xs text-white" />
-                  <button type="button" onClick={() => setPostImageUrl('https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=800')} className="px-3 bg-neutral-800 hover:bg-neutral-700 text-xs font-bold rounded-xl text-neutral-200">Exemple</button>
+                  <button type="button" onClick={() => postImageFileInputRef.current?.click()} className="flex-1 py-3 bg-neutral-950 border border-neutral-800 hover:border-orange-500 rounded-xl text-xs font-bold text-neutral-200 flex items-center justify-center gap-2 transition">
+                    <Camera className="w-4 h-4 text-orange-500" /> Choisir une photo
+                  </button>
+                  <input type="file" accept="image/*" ref={postImageFileInputRef} onChange={handlePostImageFileSelect} className="hidden" />
                 </div>
               </div>
 
@@ -340,12 +360,17 @@ export default function App() {
         </div>
       )}
 
+      {/* Barre de navigation du bas avec le bouton "+" au milieu pour poster */}
       <nav className="fixed bottom-0 left-0 right-0 z-40 bg-neutral-950/90 backdrop-blur-xl border-t border-neutral-800 px-2 py-2 flex justify-around items-center">
         <button onClick={() => handleTabChange('feed')} className={`flex flex-col items-center gap-1 ${currentTab === 'feed' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Home className="w-5 h-5" /><span className="text-[10px]">Accueil</span></button>
         <button onClick={() => handleTabChange('buddy')} className={`flex flex-col items-center gap-1 ${currentTab === 'buddy' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Users className="w-5 h-5" /><span className="text-[10px]">Buddies</span></button>
+        
+        {/* Bouton central "+" pour poster */}
+        <button onClick={() => setIsPostModalOpen(true)} className="flex flex-col items-center justify-center w-12 h-12 rounded-full bg-orange-600 hover:bg-orange-500 text-white shadow-lg transition transform hover:scale-105 -mt-3">
+          <Plus className="w-6 h-6 stroke-[3]" />
+        </button>
+
         <button onClick={() => handleTabChange('fitbot')} className={`flex flex-col items-center gap-1 ${currentTab === 'fitbot' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Bot className="w-5 h-5" /><span className="text-[10px]">FitBot IA</span></button>
-        <button onClick={() => handleTabChange('live_tracker')} className={`flex flex-col items-center gap-1 ${currentTab === 'live_tracker' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><PlusSquare className="w-5 h-5" /><span className="text-[10px]">Séance</span></button>
-        <button onClick={() => handleTabChange('calculator')} className={`flex flex-col items-center gap-1 ${currentTab === 'calculator' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Calculator className="w-5 h-5" /><span className="text-[10px]">Calculateur</span></button>
         <button onClick={() => handleTabChange('chat')} className={`flex flex-col items-center gap-1 ${currentTab === 'chat' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><MessageCircle className="w-5 h-5" /><span className="text-[10px]">Chat</span></button>
         <button onClick={() => handleTabChange('profile')} className={`flex flex-col items-center gap-1 ${currentTab === 'profile' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><User className="w-5 h-5" /><span className="text-[10px]">Profil</span></button>
       </nav>
