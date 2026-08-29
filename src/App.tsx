@@ -135,6 +135,11 @@ export default function App() {
     if (data) setFriendRequests(data as FriendRequest[]);
   };
 
+  const fetchAllMessages = async () => {
+    const { data } = await supabase.from('direct_messages').select('*').order('created_at', { ascending: true });
+    if (data) setAllMessages(data as DBMessage[]);
+  };
+
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
@@ -145,8 +150,34 @@ export default function App() {
         fetchFriendRequests(session.user.id);
       }
     });
+
     fetchCloudPosts();
     fetchRealUsers();
+    fetchAllMessages();
+
+    // Configuration des écoutes en temps réel (Realtime Supabase) pour les messages et les likes/posts
+    const postsChannel = supabase
+      .channel('public:posts')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'posts' }, (payload) => {
+        if (payload.eventType === 'UPDATE') {
+          setPosts(prev => prev.map(p => p.id === payload.new.id ? (payload.new as Post) : p));
+        } else if (payload.eventType === 'INSERT') {
+          setPosts(prev => [payload.new as Post, ...prev]);
+        }
+      })
+      .subscribe();
+
+    const messagesChannel = supabase
+      .channel('public:direct_messages')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'direct_messages' }, (payload) => {
+        setAllMessages(prev => [...prev, payload.new as DBMessage]);
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(postsChannel);
+      supabase.removeChannel(messagesChannel);
+    };
   }, []);
 
   const handleTabChange = (tab: any) => { setCurrentTab(tab); };
@@ -188,6 +219,8 @@ export default function App() {
     const hasLiked = likedByList.includes(user.id);
     const updatedLikedBy = hasLiked ? likedByList.filter(id => id !== user.id) : [...likedByList, user.id];
     const newCount = hasLiked ? Math.max(0, post.likes_count - 1) : post.likes_count + 1;
+    
+    // Mise à jour optimiste locale et en base
     setPosts(prev => prev.map(p => p.id === postId ? { ...p, likes_count: newCount, liked_by: updatedLikedBy } : p));
     await supabase.from('posts').update({ likes_count: newCount, liked_by: updatedLikedBy }).eq('id', postId);
   };
@@ -207,7 +240,7 @@ export default function App() {
     e.preventDefault();
     if (!user) return;
     const fullCaption = `${postCaption} ${postHashtags}`.trim();
-    const { data, error } = await supabase.from('posts').insert([{
+    const { error } = await supabase.from('posts').insert([{
       user_id: user.id,
       username: user.user_metadata?.username || 'Athlète',
       avatar_url: userAvatarUrl,
@@ -221,13 +254,13 @@ export default function App() {
       comments_count: 0,
       comments: [],
       is_private: false
-    }]).select('*');
+    }]);
 
-    if (!error && data) {
-      setPosts([data[0] as Post, ...posts]);
+    if (!error) {
       setIsPostModalOpen(false);
       setPostCaption('');
       setPostImageUrl(null);
+      fetchCloudPosts();
     } else {
       alert("Erreur lors de la publication : " + error?.message);
     }
@@ -237,8 +270,10 @@ export default function App() {
     if (!user) return;
     if (liveExercises.length === 0) { alert("Ajoute au moins un exercice !"); return; }
     const formattedExercises: ExerciseEntry[] = liveExercises.map(ex => ({ name: ex.name, sets: ex.sets.length, reps: ex.sets[0]?.reps || 10, weight: ex.sets[0]?.weight || 50 }));
-    const { data } = await supabase.from('posts').insert([{ user_id: user.id, username: user.user_metadata?.username || 'Athlète', avatar_url: userAvatarUrl, club_name: selectedClub, session_type: liveWorkoutName, caption: "Séance terminée en direct ! 💪 #fitpulse", exercises: formattedExercises, likes_count: 0, liked_by: [], comments_count: 0, comments: [], is_private: false }]).select('*');
-    if (data) { setPosts([data[0] as Post, ...posts]); setIsLiveActive(false); handleTabChange('feed'); }
+    await supabase.from('posts').insert([{ user_id: user.id, username: user.user_metadata?.username || 'Athlète', avatar_url: userAvatarUrl, club_name: selectedClub, session_type: liveWorkoutName, caption: "Séance terminée en direct ! 💪 #fitpulse", exercises: formattedExercises, likes_count: 0, liked_by: [], comments_count: 0, comments: [], is_private: false }]);
+    setIsLiveActive(false);
+    handleTabChange('feed');
+    fetchCloudPosts();
   };
 
   const acceptedFriendIds = friendRequests.filter(req => req.status === 'accepted').map(req => (req.sender_id === user?.id ? req.receiver_id : req.sender_id));
