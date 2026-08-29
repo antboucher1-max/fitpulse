@@ -10,13 +10,13 @@ import {
 import { askFitBotAI } from './services/gemini';
 
 // Import de nos composants modulaires avec le chemin src/src/components
-import FeedTab from './components/FeedTab';
-import LiveTrackerTab from './components/LiveTrackerTab';
-import FitBotTab from './components/FitBotTab';
-import ExercisesTab from './components/ExercisesTab';
-import ChatTab from './components/ChatTab';
-import CalculatorTab from './components/CalculatorTab';
-import ProfileTab from './components/ProfileTab';
+import FeedTab from './src/components/FeedTab';
+import LiveTrackerTab from './src/src/components/LiveTrackerTab';
+import FitBotTab from './src/src/components/FitBotTab';
+import ExercisesTab from './src/src/components/ExercisesTab';
+import ChatTab from './src/src/components/ChatTab';
+import CalculatorTab from './src/src/components/CalculatorTab';
+import ProfileTab from './src/src/components/ProfileTab';
 
 // Configuration Supabase
 const supabaseUrl = 'https://obtahwmcoqrcauscpksv.supabase.co';
