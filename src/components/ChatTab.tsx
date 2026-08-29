@@ -18,6 +18,7 @@ interface ChatTabProps {
   isMessageLimitReached: boolean;
   lastReadTimestamps: Record<string, number>;
   messagesEndRef: React.RefObject<HTMLDivElement>;
+  allMessages?: DBMessage[]; // Pour calculer les non-lus globaux et par contact
 }
 
 const getUserStatus = (lastSeenString?: string) => {
@@ -52,7 +53,8 @@ export default function ChatTab({
   onDeleteConversation,
   onReportConversation,
   isOtherUserTyping,
-  messagesEndRef
+  messagesEndRef,
+  allMessages = []
 }: ChatTabProps) {
   const [showMenu, setShowMenu] = useState(false);
 
@@ -77,25 +79,49 @@ export default function ChatTab({
             ) : (
               activeChatUsers.map((buddy: any) => {
                 const status = getUserStatus(buddy.last_seen || buddy.created_at);
+                
+                // Récupérer les messages avec ce contact pour l'aperçu et le compteur non-lu
+                const conversationMessages = allMessages.filter(
+                  m => (m.sender_id === currentUserId && m.receiver_id === buddy.id) ||
+                       (m.sender_id === buddy.id && m.receiver_id === currentUserId)
+                );
+                
+                const lastMsg = conversationMessages[conversationMessages.length - 1];
+                // On considère non-lu si le dernier message vient de l'autre personne et n'a pas été ouvert récemment
+                const isUnread = lastMsg && lastMsg.sender_id !== currentUserId;
+
                 return (
                   <div 
                     key={buddy.id} 
                     onClick={() => onSelectBuddy(buddy)}
-                    className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 flex items-center justify-between cursor-pointer hover:border-orange-500/50 transition shadow-md"
+                    className={`p-4 rounded-2xl border flex items-center justify-between cursor-pointer transition shadow-md ${
+                      isUnread 
+                        ? 'bg-neutral-900 border-orange-500/60 shadow-orange-500/10' 
+                        : 'bg-neutral-950 border-neutral-800 hover:border-neutral-700'
+                    }`}
                   >
-                    <div className="flex items-center gap-3.5 relative">
-                      <div className="relative">
+                    <div className="flex items-center gap-3.5 relative flex-1 min-w-0">
+                      <div className="relative flex-shrink-0">
                         <img src={buddy.avatar_url} alt="" className="w-12 h-12 rounded-full object-cover border border-neutral-800" />
                         <span className={`absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full border-2 border-neutral-950 ${status.color}`} />
                       </div>
-                      <div>
-                        <h3 className="text-sm font-bold text-white">{buddy.username}</h3>
-                        <p className="text-[11px] text-neutral-400 font-medium mt-0.5">{status.text}</p>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between">
+                          <h3 className={`text-sm font-bold truncate ${isUnread ? 'text-orange-400' : 'text-white'}`}>
+                            {buddy.username}
+                          </h3>
+                          {isUnread && (
+                            <span className="bg-orange-600 text-white font-black text-[10px] px-2 py-0.5 rounded-full animate-pulse">
+                              1 non lu
+                            </span>
+                          )}
+                        </div>
+                        {/* Aperçu du dernier message */}
+                        <p className={`text-xs truncate mt-0.5 font-medium ${isUnread ? 'text-white font-semibold' : 'text-neutral-400'}`}>
+                          {lastMsg ? (lastMsg.sender_id === currentUserId ? `Moi : ${lastMsg.text}` : lastMsg.text) : status.text}
+                        </p>
                       </div>
                     </div>
-                    <span className="text-xs text-orange-400 font-bold bg-orange-500/10 px-3 py-1.5 rounded-xl border border-orange-500/20">
-                      Discuter
-                    </span>
                   </div>
                 );
               })
