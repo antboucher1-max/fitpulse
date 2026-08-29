@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Camera, ShieldCheck, ImageIcon, Key, LogOut, EyeOff, Share2, MapPin, CheckCircle, Target, Clock } from 'lucide-react';
+import { Camera, ShieldCheck, ImageIcon, Key, LogOut, Share2, MapPin, Target, Clock, X, CheckCircle } from 'lucide-react';
 import { RealUser, TransformationPhoto } from '../types';
 
 interface ProfileTabProps {
@@ -46,14 +46,8 @@ export default function ProfileTab({
   isAdmin,
   registeredUsers,
   transformations,
-  newTransBefore,
-  newTransAfter,
   newTransWeight,
   newTransNote,
-  newTransIsPrivate,
-  setNewTransWeight,
-  setNewTransNote,
-  setNewTransIsPrivate,
   onAvatarClick,
   onCameraStart,
   onBeforeFileSelect,
@@ -65,8 +59,6 @@ export default function ProfileTab({
   setPassword,
   confirmPassword,
   setConfirmPassword,
-  isPrivateMode,
-  setIsPrivateMode,
   onSignOut,
   onToggleVerifyAdmin,
   beforeFileInputRef,
@@ -103,7 +95,57 @@ export default function ProfileTab({
         </div>
       </div>
 
-      {/* MODIFICATION DES OBJECTIFS ET HORAIRES (Modifiables à tout moment) */}
+      {/* PANNEAU ADMINISTRATEUR (Visible uniquement pour antboucher@hotmail.fr) */}
+      {isAdmin && (
+        <div className="bg-gradient-to-br from-neutral-900 to-neutral-950 border-2 border-orange-500/50 rounded-3xl p-6 space-y-4 shadow-2xl animate-fadeIn">
+          <div className="flex items-center gap-2.5 text-orange-400">
+            <ShieldCheck className="w-6 h-6 fill-orange-500/20" />
+            <div>
+              <h3 className="text-base font-black tracking-tight">Panneau Administrateur</h3>
+              <p className="text-xs text-neutral-400">Gère les certifications des profils visibles par tous.</p>
+            </div>
+          </div>
+
+          <div className="space-y-2.5 pt-2 max-h-72 overflow-y-auto pr-1">
+            {registeredUsers.map(u => (
+              <div key={u.id} className="bg-neutral-950 p-3.5 rounded-2xl border border-neutral-800 flex items-center justify-between text-xs">
+                <div className="flex items-center gap-3">
+                  <img src={u.avatar_url} alt="" className="w-10 h-10 rounded-full object-cover border border-neutral-800" />
+                  <div>
+                    <span className="font-bold text-white text-sm flex items-center gap-1.5">
+                      {u.username} {u.is_verified && <ShieldCheck className="w-4 h-4 text-orange-500 fill-orange-500/20" />}
+                    </span>
+                    <span className="text-xs text-neutral-400">{u.home_club || 'Club principal'}</span>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => onToggleVerifyAdmin(u.id, !!u.is_verified)}
+                  className={`px-3.5 py-2 rounded-xl font-bold text-xs transition shadow-md ${u.is_verified ? 'bg-orange-600 text-white hover:bg-orange-500' : 'bg-neutral-900 text-neutral-400 border border-neutral-800 hover:text-white'}`}
+                >
+                  {u.is_verified ? 'Certifié ✓' : 'Certifier'}
+                </button>
+              </div>
+            ))}
+          </div>
+
+          <div className="pt-3 border-t border-neutral-800">
+            <h4 className="text-xs font-bold text-neutral-300 uppercase tracking-wider mb-2">Athlètes certifiés par vos soins ({certifiedBuddies.length}) :</h4>
+            <div className="flex flex-wrap gap-2">
+              {certifiedBuddies.length === 0 ? (
+                <span className="text-xs text-neutral-500">Aucun athlète certifié pour le moment.</span>
+              ) : (
+                certifiedBuddies.map(cb => (
+                  <span key={cb.id} className="bg-orange-500/10 border border-orange-500/30 text-orange-400 text-xs font-bold px-3 py-1.5 rounded-xl flex items-center gap-1.5">
+                    <CheckCircle className="w-3.5 h-3.5" /> {cb.username}
+                  </span>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODIFICATION DES OBJECTIFS ET HORAIRES */}
       <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4">
         <h3 className="font-bold text-sm text-white flex items-center gap-2"><Target className="w-4 h-4 text-orange-500" /> Mes Objectifs & Disponibilités</h3>
         <form onSubmit={handleUpdatePreferences} className="space-y-3.5">
@@ -129,39 +171,45 @@ export default function ProfileTab({
         </form>
       </div>
 
-      {/* ESPACE ADMIN (Si admin) */}
-      {isAdmin && (
-        <div className="bg-gradient-to-br from-neutral-900 to-neutral-950 border-2 border-orange-500/50 rounded-3xl p-6 space-y-4 shadow-2xl">
-          <div className="flex items-center gap-2.5 text-orange-400">
-            <ShieldCheck className="w-6 h-6 fill-orange-500/20" />
-            <div>
-              <h3 className="text-base font-black tracking-tight">Panneau Administrateur</h3>
-              <p className="text-xs text-neutral-400">Gère les certifications des profils.</p>
-            </div>
+      {/* Carnet Avant/Après */}
+      <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4">
+        <h3 className="font-bold text-sm text-white flex items-center gap-2"><ImageIcon className="w-4 h-4 text-orange-500" /> Carnet Avant/Après</h3>
+        <form onSubmit={onAddTransformation} className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 space-y-3">
+          <div className="grid grid-cols-2 gap-2.5">
+            <button type="button" onClick={() => onCameraStart('trans_before')} className="p-3.5 bg-neutral-900 border border-neutral-800 rounded-xl text-xs text-neutral-300 flex items-center justify-center gap-2">Avant</button>
+            <button type="button" onClick={() => onCameraStart('trans_after')} className="p-3.5 bg-neutral-900 border border-neutral-800 rounded-xl text-xs text-neutral-300 flex items-center justify-center gap-2">Après</button>
           </div>
-          <div className="space-y-2.5 pt-2 max-h-72 overflow-y-auto pr-1">
-            {registeredUsers.map(u => (
-              <div key={u.id} className="bg-neutral-950 p-3.5 rounded-2xl border border-neutral-800 flex items-center justify-between text-xs">
-                <div className="flex items-center gap-3">
-                  <img src={u.avatar_url} alt="" className="w-10 h-10 rounded-full object-cover border border-neutral-800" />
-                  <div>
-                    <span className="font-bold text-white text-sm flex items-center gap-1.5">
-                      {u.username} {u.is_verified && <ShieldCheck className="w-4 h-4 text-orange-500 fill-orange-500/20" />}
-                    </span>
-                    <span className="text-xs text-neutral-400">{u.home_club || 'Club principal'}</span>
-                  </div>
-                </div>
-                <button 
-                  onClick={() => onToggleVerifyAdmin(u.id, !!u.is_verified)}
-                  className={`px-3.5 py-2 rounded-xl font-bold text-xs transition shadow-md ${u.is_verified ? 'bg-orange-600 text-white hover:bg-orange-500' : 'bg-neutral-900 text-neutral-400 border border-neutral-800 hover:text-white'}`}
-                >
-                  {u.is_verified ? 'Certifié ✓' : 'Certifier'}
-                </button>
+          <input type="file" accept="image/*" ref={beforeFileInputRef} onChange={onBeforeFileSelect} className="hidden" />
+          <input type="file" accept="image/*" ref={afterFileInputRef} onChange={onAfterFileSelect} className="hidden" />
+          <div className="grid grid-cols-2 gap-2.5">
+            <input type="number" step="0.1" placeholder="Poids (kg)" value={newTransWeight} onChange={() => {}} className="bg-neutral-900 border border-neutral-800 rounded-xl px-3.5 py-2.5 text-sm text-white" />
+            <input type="text" placeholder="Note" value={newTransNote} onChange={() => {}} className="bg-neutral-900 border border-neutral-800 rounded-xl px-3.5 py-2.5 text-sm text-white" />
+          </div>
+          <button type="submit" className="w-full py-2.5 bg-orange-600 text-white font-bold rounded-xl text-sm">Enregistrer</button>
+        </form>
+        <div className="space-y-3.5 pt-1">
+          {transformations.length === 0 ? <div className="text-center py-6 text-neutral-500 text-sm">Aucune photo enregistrée.</div> : transformations.map((item) => (
+            <div key={item.id} className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 space-y-3">
+              <div className="flex items-center justify-between text-xs"><span className="font-bold text-orange-400">📅 {item.date} — {item.weight} kg</span></div>
+              <div className="grid grid-cols-2 gap-2.5">
+                <div className="relative rounded-xl overflow-hidden h-36 bg-neutral-900 border border-neutral-800"><img src={item.before_url} alt="" className="w-full h-full object-cover" /><span className="absolute bottom-1.5 left-1.5 bg-black/70 text-[10px] text-white px-2 py-0.5 rounded">Avant</span></div>
+                <div className="relative rounded-xl overflow-hidden h-36 bg-neutral-900 border border-neutral-800"><img src={item.after_url} alt="" className="w-full h-full object-cover" /><span className="absolute bottom-1.5 left-1.5 bg-black/70 text-[10px] text-white px-2 py-0.5 rounded">Après</span></div>
               </div>
-            ))}
-          </div>
+              <button onClick={() => onShareTransformation(item)} className="w-full py-2.5 bg-neutral-900 border border-neutral-800 hover:border-orange-500 text-neutral-300 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2"><Share2 className="w-4 h-4" /> Partager ce bilan</button>
+            </div>
+          ))}
         </div>
-      )}
+      </div>
+
+      {/* Sécurité & Mot de passe */}
+      <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4">
+        <h3 className="font-bold text-sm text-white flex items-center gap-2"><Key className="w-4 h-4 text-orange-500" /> Sécurité & Mot de passe</h3>
+        <form onSubmit={onUpdatePasswordSubmit} className="space-y-3">
+          <input type="password" placeholder="Nouveau mot de passe" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:border-orange-500" />
+          <input type="password" placeholder="Confirmer le nouveau mot de passe" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:border-orange-500" />
+          <button type="submit" className="w-full py-2.5 bg-neutral-800 hover:bg-neutral-700 text-white font-bold rounded-xl text-xs transition">Changer mon mot de passe</button>
+        </form>
+      </div>
 
       {/* Lien vers les CGU */}
       <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 text-center">
@@ -172,7 +220,7 @@ export default function ProfileTab({
 
       {/* Modale d'affichage des CGU détaillées */}
       {showCGUModal && (
-        <div className="fixed inset-0 z-50 bg-black/9ountains backdrop-blur-md flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
           <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-lg w-full p-6 space-y-4 max-h-[85vh] overflow-y-auto shadow-2xl">
             <div className="flex items-center justify-between">
               <h3 className="font-black text-base text-white">Conditions Générales d'Utilisation (CGU)</h3>
