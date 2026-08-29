@@ -21,6 +21,9 @@ export interface ExerciseGuide {
   detailedDescription: string;
 }
 
+export interface PersonalRecord { exercise: string; weight: number; reps: number; date: string; }
+export interface WeeklyPlan { day: string; focus: string; exercisesText: string; }
+export interface TransformationPhoto { id: string; user_id?: string; before_url: string; after_url: string; date: string; weight: number; note: string; is_private?: boolean; }
 export interface ExerciseEntry { name: string; sets: number; reps: number; weight: number; }
 export interface Comment { id: string; username: string; avatar_url: string; text: string; created_at: string; }
 
