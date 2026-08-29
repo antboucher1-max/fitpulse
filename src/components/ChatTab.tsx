@@ -57,19 +57,18 @@ export default function ChatTab({
   onSelectBuddy,
   onDeleteConversation,
   onReportConversation,
-  messagesEndRef,
   allMessages = []
 }: ChatTabProps) {
   const [showMenu, setShowMenu] = useState(false);
   const [remoteTyping, setRemoteTyping] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<any>(null);
 
   // Canal Realtime pour propager l'état de frappe "..." entre les 2 utilisateurs
   useEffect(() => {
     if (!selectedBuddyChat || !currentUserId) return;
 
-    // Nom de canal unique basé sur les IDs des deux utilisateurs triés alphabétiquement
     const channelId = `room_${[currentUserId, selectedBuddyChat.id].sort().join('_')}`;
     const channel = supabase.channel(channelId);
 
@@ -86,21 +85,18 @@ export default function ChatTab({
     };
   }, [selectedBuddyChat, currentUserId]);
 
-  // Fonction appelée quand l'utilisateur tape dans l'input
   const handleInputWithTyping = (e: React.ChangeEvent<HTMLInputElement>) => {
     onInputChange(e);
 
     if (!selectedBuddyChat || !currentUserId) return;
     const channelId = `room_${[currentUserId, selectedBuddyChat.id].sort().join('_')}`;
     
-    // Envoyer l'événement "en train d'écrire"
     supabase.channel(channelId).send({
       type: 'broadcast',
       event: 'typing',
       payload: { sender_id: currentUserId, isTyping: true }
     });
 
-    // Arrêter l'indicateur après 2 secondes d'inactivité
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
     typingTimeoutRef.current = setTimeout(() => {
       supabase.channel(channelId).send({
@@ -111,11 +107,19 @@ export default function ChatTab({
     }, 2000);
   };
 
+  // FORCER LE DÉFILEMENT EN BAS À L'OUVERTURE DE LA DISCUSSION OU LORS D'UN NOUVEAU MESSAGE
   useEffect(() => {
-    if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    if (selectedBuddyChat) {
+      // Utilisation d'un court délai pour s'assurer que le DOM est bien rendu
+      setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
+      }, 50);
     }
-  }, [currentChatMessages, remoteTyping]);
+  }, [selectedBuddyChat?.id]);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [currentChatMessages.length, remoteTyping]);
 
   if (!selectedBuddyChat) {
     return (
@@ -184,8 +188,6 @@ export default function ChatTab({
   }
 
   const buddyStatus = getUserStatus((selectedBuddyChat as any).last_seen);
-  
-  // Le "Vu" ne s'affiche que si le dernier message vient de TOI et que le destinataire a posté un message après ou qu'il est en ligne dans la conversation
   const myMessages = currentChatMessages.filter(m => m.sender_id === currentUserId);
   const lastMyMessage = myMessages[myMessages.length - 1];
   const lastMessageOverall = currentChatMessages[currentChatMessages.length - 1];
@@ -241,7 +243,6 @@ export default function ChatTab({
                   {msg.text}
                 </div>
 
-                {/* Le "Vu" s'affiche uniquement si l'autre personne a répondu ou lu */}
                 {isLastMyMsg && isReadByOther && (
                   <span className="text-[10px] text-neutral-400 mt-1 px-1 font-medium flex items-center gap-1">
                     <Check className="w-3 h-3 text-green-500" /> Vu
@@ -252,7 +253,6 @@ export default function ChatTab({
           })
         )}
 
-        {/* Indicateur 3 petits points en direct (...) */}
         {remoteTyping && (
           <div className="flex items-start">
             <div className="bg-neutral-900 border border-neutral-800 px-4 py-2.5 rounded-2xl rounded-bl-xs text-xs text-neutral-400 flex items-center gap-1.5 shadow-md">
