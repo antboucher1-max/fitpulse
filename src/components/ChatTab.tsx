@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, MessageCircle, ArrowLeft, Trash2, Flag, Check } from 'lucide-react';
+import { Send, MessageCircle, ArrowLeft, Trash2, Flag, Check, Flame } from 'lucide-react';
 import { RealUser, DBMessage } from '../types';
 import { createClient } from '@supabase/supabase-js';
 
@@ -26,6 +26,19 @@ interface ChatTabProps {
   allMessages?: DBMessage[];
 }
 
+// Fonction pour calculer les flammes de discussion (Snapchat style)
+const calculateStreak = (messages: DBMessage[], currentUserId?: string, buddyId?: string) => {
+  if (!currentUserId || !buddyId) return 0;
+  const convo = messages.filter(
+    m => (m.sender_id === currentUserId && m.receiver_id === buddyId) ||
+         (m.sender_id === buddyId && m.receiver_id === currentUserId)
+  );
+  if (convo.length === 0) return 0;
+
+  // Calcul basique basé sur l'activité récente (par exemple, 1 flamme si messages échangés)
+  return convo.length > 3 ? Math.floor(convo.length / 2) : 1;
+};
+
 const getUserStatus = (lastSeenString?: string) => {
   if (!lastSeenString) return { color: 'bg-neutral-500', text: 'Hors ligne' };
   
@@ -34,15 +47,10 @@ const getUserStatus = (lastSeenString?: string) => {
   const diffMinutes = Math.floor((now - lastSeenTime) / (1000 * 60));
   const diffHours = Math.floor(diffMinutes / 60);
 
-  if (diffMinutes < 5) {
-    return { color: 'bg-green-500 animate-pulse', text: 'En ligne' };
-  } else if (diffMinutes < 60) {
-    return { color: 'bg-red-500', text: `Actif il y a ${diffMinutes} min` };
-  } else if (diffHours < 24) {
-    return { color: 'bg-red-500', text: `Actif il y a ${diffHours}h` };
-  } else {
-    return { color: 'bg-neutral-500', text: 'Absent (+24h)' };
-  }
+  if (diffMinutes < 5) return { color: 'bg-green-500 animate-pulse', text: 'En ligne' };
+  if (diffMinutes < 60) return { color: 'bg-red-500', text: `Actif il y a ${diffMinutes} min` };
+  if (diffHours < 24) return { color: 'bg-red-500', text: `Actif il y a ${diffHours}h` };
+  return { color: 'bg-neutral-500', text: 'Absent (+24h)' };
 };
 
 export default function ChatTab({
@@ -61,14 +69,11 @@ export default function ChatTab({
 }: ChatTabProps) {
   const [showMenu, setShowMenu] = useState(false);
   const [remoteTyping, setRemoteTyping] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<any>(null);
 
-  // Canal Realtime pour propager l'état de frappe "..." entre les 2 utilisateurs
   useEffect(() => {
     if (!selectedBuddyChat || !currentUserId) return;
-
     const channelId = `room_${[currentUserId, selectedBuddyChat.id].sort().join('_')}`;
     const channel = supabase.channel(channelId);
 
@@ -80,14 +85,11 @@ export default function ChatTab({
       })
       .subscribe();
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return () => { supabase.removeChannel(channel); };
   }, [selectedBuddyChat, currentUserId]);
 
   const handleInputWithTyping = (e: React.ChangeEvent<HTMLInputElement>) => {
     onInputChange(e);
-
     if (!selectedBuddyChat || !currentUserId) return;
     const channelId = `room_${[currentUserId, selectedBuddyChat.id].sort().join('_')}`;
     
@@ -107,13 +109,9 @@ export default function ChatTab({
     }, 2000);
   };
 
-  // FORCER LE DÉFILEMENT EN BAS À L'OUVERTURE DE LA DISCUSSION OU LORS D'UN NOUVEAU MESSAGE
   useEffect(() => {
     if (selectedBuddyChat) {
-      // Utilisation d'un court délai pour s'assurer que le DOM est bien rendu
-      setTimeout(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
-      }, 50);
+      setTimeout(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'auto' }); }, 50);
     }
   }, [selectedBuddyChat?.id]);
 
@@ -126,9 +124,9 @@ export default function ChatTab({
       <div className="space-y-4">
         <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4 shadow-xl">
           <h2 className="text-base font-black tracking-tight flex items-center gap-2 text-white">
-            <MessageCircle className="w-5 h-5 text-orange-500" /> Messages Privés
+            <MessageCircle className="w-5 h-5 text-orange-500" /> Messages Privés & Flammes 🔥
           </h2>
-          <p className="text-xs text-neutral-400">Sélectionne un(e) ami(e) pour lancer une discussion instantanée.</p>
+          <p className="text-xs text-neutral-400">Discutez chaque jour avec vos buddies pour faire grandir vos flammes !</p>
 
           <div className="space-y-3 pt-2">
             {activeChatUsers.length === 0 ? (
@@ -138,11 +136,11 @@ export default function ChatTab({
             ) : (
               activeChatUsers.map((buddy: any) => {
                 const status = getUserStatus(buddy.last_seen || buddy.created_at);
+                const streak = calculateStreak(allMessages, currentUserId, buddy.id);
                 const conversationMessages = allMessages.filter(
                   m => (m.sender_id === currentUserId && m.receiver_id === buddy.id) ||
                        (m.sender_id === buddy.id && m.receiver_id === currentUserId)
                 );
-                
                 const lastMsg = conversationMessages[conversationMessages.length - 1];
                 const isUnread = lastMsg && lastMsg.sender_id !== currentUserId;
 
@@ -163,8 +161,13 @@ export default function ChatTab({
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between">
-                          <h3 className={`text-sm font-bold truncate ${isUnread ? 'text-orange-400' : 'text-white'}`}>
+                          <h3 className={`text-sm font-bold truncate flex items-center gap-1.5 ${isUnread ? 'text-orange-400' : 'text-white'}`}>
                             {buddy.username}
+                            {streak > 0 && (
+                              <span className="bg-orange-500/20 text-orange-400 text-[10px] px-2 py-0.5 rounded-full border border-orange-500/30 flex items-center gap-0.5 font-black">
+                                <Flame className="w-3 h-3 fill-orange-500" /> {streak}
+                              </span>
+                            )}
                           </h3>
                           {isUnread && (
                             <span className="bg-orange-600 text-white font-black text-[10px] px-2 py-0.5 rounded-full animate-pulse">
@@ -188,6 +191,7 @@ export default function ChatTab({
   }
 
   const buddyStatus = getUserStatus((selectedBuddyChat as any).last_seen);
+  const currentStreak = calculateStreak(allMessages, currentUserId, selectedBuddyChat.id);
   const myMessages = currentChatMessages.filter(m => m.sender_id === currentUserId);
   const lastMyMessage = myMessages[myMessages.length - 1];
   const lastMessageOverall = currentChatMessages[currentChatMessages.length - 1];
@@ -205,33 +209,32 @@ export default function ChatTab({
             <span className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-neutral-950 ${buddyStatus.color}`} />
           </div>
           <div>
-            <h3 className="font-bold text-sm text-white leading-tight">{selectedBuddyChat.username}</h3>
+            <h3 className="font-bold text-sm text-white leading-tight flex items-center gap-2">
+              {selectedBuddyChat.username}
+              {currentStreak > 0 && (
+                <span className="text-orange-400 text-xs font-black flex items-center gap-0.5 bg-orange-500/10 px-2 py-0.5 rounded-full border border-orange-500/20">
+                  <Flame className="w-3.5 h-3.5 fill-orange-500" /> {currentStreak}
+                </span>
+              )}
+            </h3>
             <p className="text-[10px] text-neutral-400 font-medium">{buddyStatus.text}</p>
           </div>
         </div>
 
         <div className="relative">
-          <button onClick={() => setShowMenu(!showMenu)} className="p-2 text-neutral-400 hover:text-white rounded-xl font-bold">
-            ⋮
-          </button>
+          <button onClick={() => setShowMenu(!showMenu)} className="p-2 text-neutral-400 hover:text-white rounded-xl font-bold">⋮</button>
           {showMenu && (
             <div className="absolute right-0 mt-2 w-48 bg-neutral-950 border border-neutral-800 rounded-2xl shadow-xl z-50 py-1.5">
-              <button onClick={() => { onDeleteConversation(); setShowMenu(false); }} className="w-full px-4 py-2 text-left text-xs text-red-400 hover:bg-neutral-900 flex items-center gap-2">
-                <Trash2 className="w-3.5 h-3.5" /> Supprimer la conv.
-              </button>
-              <button onClick={() => { onReportConversation(); setShowMenu(false); }} className="w-full px-4 py-2 text-left text-xs text-neutral-300 hover:bg-neutral-900 flex items-center gap-2">
-                <Flag className="w-3.5 h-3.5" /> Signaler
-              </button>
+              <button onClick={() => { onDeleteConversation(); setShowMenu(false); }} className="w-full px-4 py-2 text-left text-xs text-red-400 hover:bg-neutral-900 flex items-center gap-2"><Trash2 className="w-3.5 h-3.5" /> Supprimer</button>
+              <button onClick={() => { onReportConversation(); setShowMenu(false); }} className="w-full px-4 py-2 text-left text-xs text-neutral-300 hover:bg-neutral-900 flex items-center gap-2"><Flag className="w-3.5 h-3.5" /> Signaler</button>
             </div>
           )}
         </div>
       </div>
 
-      <div ref={containerRef} className="flex-1 overflow-y-auto p-4 space-y-3 bg-neutral-950/50">
+      <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-neutral-950/50">
         {currentChatMessages.length === 0 ? (
-          <div className="text-center py-16 text-neutral-500 text-xs">
-            Aucun message avec {selectedBuddyChat.username}. Envoie le premier ! 🚀
-          </div>
+          <div className="text-center py-16 text-neutral-500 text-xs">Démarrez la conversation pour allumer vos flammes 🔥 !</div>
         ) : (
           currentChatMessages.map((msg, index) => {
             const isMe = msg.sender_id === currentUserId;
@@ -242,7 +245,6 @@ export default function ChatTab({
                 <div className={`max-w-[75%] px-4 py-2.5 rounded-2xl text-xs leading-relaxed ${isMe ? 'bg-orange-600 text-white rounded-br-xs shadow-md' : 'bg-neutral-900 text-neutral-100 border border-neutral-800 rounded-bl-xs'}`}>
                   {msg.text}
                 </div>
-
                 {isLastMyMsg && isReadByOther && (
                   <span className="text-[10px] text-neutral-400 mt-1 px-1 font-medium flex items-center gap-1">
                     <Check className="w-3 h-3 text-green-500" /> Vu
@@ -274,10 +276,7 @@ export default function ChatTab({
           onKeyDown={(e) => { if (e.key === 'Enter') onSendMessage(); }}
           className="flex-1 bg-neutral-900 border border-neutral-800 rounded-2xl px-4 py-3 text-xs text-white focus:border-orange-500" 
         />
-        <button 
-          onClick={onSendMessage} 
-          className="p-3 bg-orange-600 hover:bg-orange-500 text-white rounded-2xl transition shadow-md flex items-center justify-center"
-        >
+        <button onClick={onSendMessage} className="p-3 bg-orange-600 hover:bg-orange-500 text-white rounded-2xl transition shadow-md flex items-center justify-center">
           <Send className="w-4 h-4" />
         </button>
       </div>
