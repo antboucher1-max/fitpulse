@@ -1,16 +1,17 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  Zap, Plus, Bell, X, Bot, PlusSquare, Calculator, User, MessageCircle, Home, Users, Loader2, Key, Mail
+  Zap, Bell, Bot, PlusSquare, Calculator, User, MessageCircle, Home, Users, Key, Mail
 } from 'lucide-react';
 import { createClient, User as SupabaseUser } from '@supabase/supabase-js';
 
 import { 
-  ClubLocation, ExerciseGuide, PersonalRecord, WeeklyPlan, TransformationPhoto, ExerciseEntry, Comment, Post, Story, RealUser, FriendRequest, DBMessage, LiveWorkoutSet, LiveWorkoutExercise, AIChatMessage 
+  ExerciseGuide, TransformationPhoto, ExerciseEntry, Post, Story, RealUser, FriendRequest, DBMessage, LiveWorkoutExercise, AIChatMessage 
 } from './types';
 import { askFitBotAI } from './services/gemini';
 
-// Import de nos composants modulaires
+// Import de tous nos composants modulaires
 import FeedTab from './components/FeedTab';
+import BuddyTab from './components/BuddyTab';
 import LiveTrackerTab from './components/LiveTrackerTab';
 import FitBotTab from './components/FitBotTab';
 import ExercisesTab from './components/ExercisesTab';
@@ -28,15 +29,6 @@ const EXERCISES_DATABASE: ExerciseGuide[] = [
   { id: 'ex-1', name: 'Développé couché (Barre / Haltères)', category: 'Pectoraux', equipment: 'Banc & Barre', targetMuscles: 'Pectoraux, Triceps', settings: 'Banc à plat', execution: 'Descendre la barre puis pousser', tips: 'Omoplates serrées', image_url: 'https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?w=800', detailedDescription: 'Exercice roi pour les pecs.' },
 ];
 
-const calculateAge = (birthDateString?: string): number => {
-  if (!birthDateString) return 25;
-  const birthDate = new Date(birthDateString); const today = new Date();
-  let age = today.getFullYear() - birthDate.getFullYear();
-  const m = today.getMonth() - birthDate.getMonth();
-  if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) age--;
-  return isNaN(age) ? 25 : age;
-};
-
 const isMatchingClub = (postClubName?: string, selectedClubName?: string): boolean => {
   if (!postClubName || !selectedClubName) return false;
   if (postClubName === selectedClubName) return true;
@@ -48,36 +40,33 @@ const isMatchingClub = (postClubName?: string, selectedClubName?: string): boole
 export default function App() {
   const [user, setUser] = useState<SupabaseUser | null>(null);
   const [isSignUp, setIsSignUp] = useState(false);
-  const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [username, setUsername] = useState('');
-  const [birthDateInput, setBirthDateInput] = useState('');
   const [gender, setGender] = useState<'M' | 'F'>('M');
   const [level, setLevel] = useState<'Débutant' | 'Intermédiaire' | 'Avancé'>('Intermédiaire');
   const [homeClub, setHomeClub] = useState<string>('Club Tournai (Bastion)');
   const [preferredTime, setPreferredTime] = useState<string>(TIME_SLOTS[2]);
   const [acceptCGU, setAcceptCGU] = useState(false);
   const [authLoading, setAuthLoading] = useState(false);
-  const [signupSuccessEmail, setSignupSuccessEmail] = useState<string | null>(null);
 
-  const [currentTab, setCurrentTab] = useState<'feed' | 'buddy' | 'workout' | 'exercises' | 'chat' | 'leaderboard' | 'profile' | 'calculator' | 'live_tracker' | 'fitbot'>('feed');
+  const [currentTab, setCurrentTab] = useState<'feed' | 'buddy' | 'workout' | 'exercises' | 'chat' | 'profile' | 'calculator' | 'live_tracker' | 'fitbot'>('feed');
   const [selectedClub, setSelectedClub] = useState<string>('Club Tournai (Bastion)');
   const [posts, setPosts] = useState<Post[]>([]);
   const [feedLoading, setFeedLoading] = useState(false);
   const [userAvatarUrl, setUserAvatarUrl] = useState<string>('https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150');
   const profileAvatarInputRef = useRef<HTMLInputElement>(null);
 
-  const [isLiveActive, setIsLiveActive] = useState<boolean>(false);
+  const [isPrivateMode, setIsPrivateMode] = useState<boolean>(false);
   const [liveWorkoutName, setLiveWorkoutName] = useState<string>('Séance Full Body');
   const [liveExercises, setLiveExercises] = useState<LiveWorkoutExercise[]>([]);
   const [selectedExToAdd, setSelectedExToAdd] = useState(EXERCISES_DATABASE[0].name);
   const [liveElapsedSeconds, setLiveElapsedSeconds] = useState<number>(0);
 
-  const [aiChatMessages, setAiChatMessages] = useState<AIChatMessage[]>([{ sender: 'bot', text: "Salut l'athlète ! Je suis **FitBot**." }]);
+  const [aiChatMessages, setAiChatMessages] = useState<AIChatMessage[]>([{ sender: 'bot', text: "Salut l'athlète ! Je suis **FitBot**. Comment puis-je t'aider aujourd'hui ?" }]);
   const [aiInputText, setAiInputText] = useState('');
   const [isListening, setIsListening] = useState(false);
   const aiMessagesEndRef = useRef<HTMLDivElement>(null);
@@ -112,22 +101,54 @@ export default function App() {
   const [barbellWeight, setBarbellWeight] = useState<number>(20);
   const [viewedStoryIds, setViewedStoryIds] = useState<string[]>([]);
 
-  const handleTabChange = (tab: any) => { setCurrentTab(tab); };
-  const startRestTimer = (seconds: number) => {};
-
-  const handleAuth = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (isSignUp && !acceptCGU) { alert("Veuillez accepter les CGU."); return; }
-    setAuthLoading(true);
-    if (isSignUp) {
-      const { error } = await supabase.auth.signUp({ email, password, options: { data: { first_name: firstName, last_name: lastName, username: username || `${firstName}_${lastName}`.toLowerCase(), birth_date: '1995-01-01', gender, level, home_club: homeClub, preferred_time: preferredTime, avatar_url: userAvatarUrl } } });
-      if (error) alert("Erreur : " + error.message); else setSignupSuccessEmail(email);
-    } else {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) alert("Erreur : " + error.message);
-    }
-    setAuthLoading(false);
+  // Chargement des données Supabase
+  const fetchCloudPosts = async () => {
+    setFeedLoading(true);
+    const { data, error } = await supabase.from('posts').select('*').order('created_at', { ascending: false });
+    if (!error && data) setPosts(data as Post[]);
+    setFeedLoading(false);
   };
+
+  const fetchCloudStories = async () => {
+    try {
+      const { data, error } = await supabase.from('stories').select('*').order('created_at', { ascending: false });
+      if (!error && data) setCloudStories(data as Story[]);
+    } catch (err) {}
+  };
+
+  const fetchRealUsers = async () => {
+    const { data } = await supabase.from('profiles').select('*');
+    if (data) {
+      setRegisteredUsers(data as RealUser[]);
+    }
+  };
+
+  const fetchTransformations = async (userId: string) => {
+    const { data } = await supabase.from('transformations').select('*').eq('user_id', userId).order('date', { ascending: false });
+    if (data) setTransformations(data as TransformationPhoto[]);
+  };
+
+  const fetchFriendRequests = async (userId: string) => {
+    const { data } = await supabase.from('friend_requests').select('*').or(`sender_id.eq.${userId},receiver_id.eq.${userId}`);
+    if (data) setFriendRequests(data as FriendRequest[]);
+  };
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+      if (session?.user) {
+        setSelectedClub(session.user.user_metadata?.home_club || selectedClub);
+        setUserAvatarUrl(session.user.user_metadata?.avatar_url || userAvatarUrl);
+        fetchTransformations(session.user.id);
+        fetchFriendRequests(session.user.id);
+      }
+    });
+    fetchCloudPosts();
+    fetchCloudStories();
+    fetchRealUsers();
+  }, []);
+
+  const handleTabChange = (tab: any) => { setCurrentTab(tab); };
 
   const handleSendAIChat = async (e?: React.FormEvent, customText?: string) => {
     if (e) e.preventDefault();
@@ -135,7 +156,7 @@ export default function App() {
     if (!textToSend.trim()) return;
     if (!customText) setAiInputText('');
     const newHistory: AIChatMessage[] = [...aiChatMessages, { sender: 'user', text: textToSend }];
-    setAiChatMessages([...newHistory, { sender: 'bot', text: "Hmm... 🧠" }]);
+    setAiChatMessages([...newHistory, { sender: 'bot', text: "Hmm, réfléchissons... 🧠" }]);
     const botReply = await askFitBotAI(textToSend);
     setAiChatMessages([...newHistory, { sender: 'bot', text: botReply }]);
   };
@@ -196,10 +217,8 @@ export default function App() {
     return result;
   };
   const plateBreakdown = targetWeight !== '' ? calculatePlates(targetWeight, barbellWeight) : [];
-
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => { setUser(session?.user ?? null); });
-  }, []);
+  const currentUserProfile = registeredUsers.find(u => u.id === user?.id);
+  const isAdmin = currentUserProfile?.is_admin || user?.email === 'antbou@fitpulse.be';
 
   return (
     <div className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col font-sans select-none">
@@ -211,17 +230,19 @@ export default function App() {
       </header>
 
       <main className="flex-1 max-w-lg w-full mx-auto px-4 py-3 pb-24">
-        {currentTab === 'feed' && <FeedTab stories={cloudStories} posts={displayedPosts} registeredUsers={registeredUsers} currentUserId={user?.id} feedLoading={feedLoading} viewedStoryIds={viewedStoryIds} onOpenStory={(idx) => setActiveStoryIndex(idx)} onCreateStoryClick={() => {}} onToggleLike={handleToggleLike} onOpenComments={(id) => setActiveCommentPostId(id)} onReportPost={() => {}} onDeletePost={() => {}} onSelectProfile={(u) => setViewingProfileUser(u)} onStartRestTimer={startRestTimer} />}
+        {currentTab === 'feed' && <FeedTab stories={cloudStories} posts={displayedPosts} registeredUsers={registeredUsers} currentUserId={user?.id} feedLoading={feedLoading} viewedStoryIds={viewedStoryIds} onOpenStory={(idx) => setActiveStoryIndex(idx)} onCreateStoryClick={() => {}} onToggleLike={handleToggleLike} onOpenComments={(id) => setActiveCommentPostId(id)} onReportPost={() => {}} onDeletePost={() => {}} onSelectProfile={(u) => setViewingProfileUser(u)} onStartRestTimer={() => {}} />}
+        {currentTab === 'buddy' && <BuddyTab currentUserId={user?.id} registeredUsers={registeredUsers} friendRequests={friendRequests} onSendFriendRequest={async (rId) => { if (!user) return; await supabase.from('friend_requests').insert([{ sender_id: user.id, receiver_id: rId, status: 'pending' }]); fetchFriendRequests(user.id); }} onAcceptFriendRequest={async (reqId) => { await supabase.from('friend_requests').update({ status: 'accepted' }).eq('id', reqId); if (user) fetchFriendRequests(user.id); }} onSelectBuddyProfile={(u) => setViewingProfileUser(u)} />}
         {currentTab === 'fitbot' && <FitBotTab messages={aiChatMessages} inputText={aiInputText} setInputText={setAiInputText} isListening={isListening} toggleVoice={toggleVoiceDictation} onSend={(e) => handleSendAIChat(e)} messagesEndRef={aiMessagesEndRef} />}
         {currentTab === 'exercises' && <ExercisesTab exercises={EXERCISES_DATABASE} exerciseSearch={exerciseSearch} setExerciseSearch={setExerciseSearch} selectedCategoryFilter={selectedCategoryFilter} setSelectedCategoryFilter={setSelectedCategoryFilter} onSelectExercise={(ex) => setSelectedExerciseDetail(ex)} />}
         {currentTab === 'calculator' && <CalculatorTab targetWeight={targetWeight} setTargetWeight={setTargetWeight} barbellWeight={barbellWeight} setBarbellWeight={setBarbellWeight} plateBreakdown={plateBreakdown} />}
-        {currentTab === 'live_tracker' && <LiveTrackerTab liveWorkoutName={liveWorkoutName} setLiveWorkoutName={setLiveWorkoutName} liveElapsedSeconds={liveElapsedSeconds} liveExercises={liveExercises} selectedExToAdd={selectedExToAdd} setSelectedExToAdd={setSelectedExToAdd} exercisesDatabase={EXERCISES_DATABASE} onAddExercise={() => setLiveExercises([...liveExercises, { id: 'lex-' + Date.now(), name: selectedExToAdd, sets: [{ setNumber: 1, weight: 50, reps: 10, completed: false }] }])} onAddSet={(exId) => setLiveExercises(liveExercises.map(ex => ex.id === exId ? { ...ex, sets: [...ex.sets, { setNumber: ex.sets.length + 1, weight: 50, reps: 10, completed: false }] } : ex))} onToggleSet={(exId, sIdx) => setLiveExercises(liveExercises.map(ex => ex.id === exId ? { ...ex, sets: ex.sets.map((s, i) => i === sIdx ? { ...s, completed: !s.completed } : s) } : ex))} onUpdateWeight={(exId, sIdx, val) => setLiveExercises(liveExercises.map(item => item.id === exId ? { ...item, sets: item.sets.map((s, i) => i === sIdx ? { ...s, weight: val } : s) } : item))} onUpdateReps={(exId, sIdx, val) => setLiveExercises(liveExercises.map(item => item.id === exId ? { ...item, sets: item.sets.map((s, i) => i === sIdx ? { ...s, reps: val } : s) } : item))} onFinishWorkout={handleFinishLiveWorkout} onQuitLive={() => setIsLiveActive(false)} />}
+        {currentTab === 'live_tracker' && <LiveTrackerTab liveWorkoutName={liveWorkoutName} setLiveWorkoutName={setLiveWorkoutName} liveElapsedSeconds={liveElapsedSeconds} liveExercises={liveExercises} selectedExToAdd={selectedExToAdd} setSelectedExToAdd={setSelectedExToAdd} exercisesDatabase={EXERCISES_DATABASE} onAddExercise={() => setLiveExercises([...liveExercises, { id: 'lex-' + Date.now(), name: selectedExToAdd, sets: [{ setNumber: 1, weight: 50, reps: 10, completed: false }] }])} onAddSet={(exId) => setLiveExercises(liveExercises.map(ex => ex.id === exId ? { ...ex, sets: [...ex.sets, { setNumber: ex.sets.length + 1, weight: 50, reps: 10, completed: false }] } : ex))} onToggleSet={(exId, sIdx) => setLiveExercises(liveExercises.map(ex => ex.id === exId ? { ...ex, sets: ex.sets.map((s, i) => i === sIdx ? { ...s, completed: !s.completed } : s) } : ex))} onUpdateWeight={(exId, sIdx, val) => setLiveExercises(liveExercises.map(item => item.id === exId ? { ...item, sets: item.sets.map((s, i) => i === sIdx ? { ...s, weight: val } : s) } : item))} onUpdateReps={(exId, sIdx, val) => setLiveExercises(liveExercises.map(item => item.id === exId ? { ...item, sets: item.sets.map((s, i) => i === sIdx ? { ...s, reps: val } : s) } : item))} onFinishWorkout={handleFinishLiveWorkout} onQuitLive={() => {}} />}
         {currentTab === 'chat' && <ChatTab currentUserId={user?.id} selectedBuddyChat={selectedBuddyChat} setSelectedBuddyChat={setSelectedBuddyChat} activeChatUsers={activeChatUsers} currentChatMessages={currentChatMessages} currentMessageInput={currentMessageInput} onInputChange={(e) => setCurrentMessageInput(e.target.value)} onSendMessage={handleSendMessage} onSelectBuddy={(f) => setSelectedBuddyChat(f)} onDeleteConversation={() => {}} onReportConversation={() => {}} isOtherUserTyping={isOtherUserTyping} isMessageLimitReached={false} lastReadTimestamps={lastReadTimestamps} messagesEndRef={messagesEndRef} />}
-        {currentTab === 'profile' && <ProfileTab user={user} currentUserProfile={undefined} userAvatarUrl={userAvatarUrl} isAdmin={false} registeredUsers={registeredUsers} transformations={transformations} newTransBefore={newTransBefore} newTransAfter={newTransAfter} newTransWeight={newTransWeight} newTransNote={newTransNote} newTransIsPrivate={newTransIsPrivate} setNewTransWeight={setNewTransWeight} setNewTransNote={setNewTransNote} setNewTransIsPrivate={setNewTransIsPrivate} onAvatarClick={() => {}} onAddTransformation={() => {}} onShareTransformation={() => {}} onUpdatePasswordSubmit={() => {}} password={password} setPassword={setPassword} confirmPassword={confirmPassword} setConfirmPassword={setConfirmPassword} isPrivateMode={false} setIsPrivateMode={() => {}} onSignOut={() => supabase.auth.signOut()} onToggleVerifyAdmin={() => {}} beforeFileInputRef={beforeFileInputRef} afterFileInputRef={afterFileInputRef} />}
+        {currentTab === 'profile' && <ProfileTab user={user} currentUserProfile={currentUserProfile} userAvatarUrl={userAvatarUrl} isAdmin={isAdmin} registeredUsers={registeredUsers} transformations={transformations} newTransBefore={newTransBefore} newTransAfter={newTransAfter} newTransWeight={newTransWeight} newTransNote={newTransNote} newTransIsPrivate={newTransIsPrivate} setNewTransWeight={setNewTransWeight} setNewTransNote={setNewTransNote} setNewTransIsPrivate={setNewTransIsPrivate} onAvatarClick={() => profileAvatarInputRef.current?.click()} onCameraStart={() => {}} onBeforeFileSelect={() => {}} onAfterFileSelect={() => {}} onAddTransformation={async (e) => { e.preventDefault(); if (!user || newTransWeight === '') return; await supabase.from('transformations').insert([{ user_id: user.id, before_url: 'https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?w=400', after_url: 'https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?w=400', date: new Date().toISOString().split('T')[0], weight: Number(newTransWeight), note: newTransNote || 'Évolution', is_private: newTransIsPrivate }]); fetchTransformations(user.id); setNewTransWeight(''); setNewTransNote(''); alert('📸 Transformation enregistrée !'); }} onShareTransformation={() => {}} onUpdatePasswordSubmit={async (e) => { e.preventDefault(); if (!password || password !== confirmPassword) { alert("Mots de passe non concordants."); return; } await supabase.auth.updateUser({ password }); alert("🔒 Mot de passe mis à jour !"); setPassword(''); setConfirmPassword(''); }} password={password} setPassword={setPassword} confirmPassword={confirmPassword} setConfirmPassword={setConfirmPassword} isPrivateMode={isPrivateMode} setIsPrivateMode={setIsPrivateMode} onSignOut={() => supabase.auth.signOut()} onToggleVerifyAdmin={async (uId, status) => { await supabase.from('profiles').update({ is_verified: !status }).eq('id', uId); fetchRealUsers(); }} beforeFileInputRef={beforeFileInputRef} afterFileInputRef={afterFileInputRef} />}
       </main>
 
       <nav className="fixed bottom-0 left-0 right-0 z-40 bg-neutral-950/90 backdrop-blur-xl border-t border-neutral-800 px-2 py-2 flex justify-around items-center">
         <button onClick={() => handleTabChange('feed')} className={`flex flex-col items-center gap-1 ${currentTab === 'feed' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Home className="w-5 h-5" /><span className="text-[10px]">Accueil</span></button>
+        <button onClick={() => handleTabChange('buddy')} className={`flex flex-col items-center gap-1 ${currentTab === 'buddy' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Users className="w-5 h-5" /><span className="text-[10px]">Buddies</span></button>
         <button onClick={() => handleTabChange('fitbot')} className={`flex flex-col items-center gap-1 ${currentTab === 'fitbot' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Bot className="w-5 h-5" /><span className="text-[10px]">FitBot IA</span></button>
         <button onClick={() => handleTabChange('live_tracker')} className={`flex flex-col items-center gap-1 ${currentTab === 'live_tracker' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><PlusSquare className="w-5 h-5" /><span className="text-[10px]">Séance</span></button>
         <button onClick={() => handleTabChange('calculator')} className={`flex flex-col items-center gap-1 ${currentTab === 'calculator' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Calculator className="w-5 h-5" /><span className="text-[10px]">Calculateur</span></button>
