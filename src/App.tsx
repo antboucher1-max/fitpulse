@@ -343,6 +343,46 @@ export default function App() {
         {currentTab === 'profile' && <ProfileTab user={user} currentUserProfile={currentUserProfile} userAvatarUrl={userAvatarUrl} isAdmin={isAdmin} registeredUsers={registeredUsers} transformations={transformations} newTransBefore={newTransBefore} newTransAfter={newTransAfter} newTransWeight={newTransWeight} newTransNote={newTransNote} newTransIsPrivate={newTransIsPrivate} setNewTransWeight={setNewTransWeight} setNewTransNote={setNewTransNote} setNewTransIsPrivate={setNewTransIsPrivate} onAvatarClick={() => profileAvatarInputRef.current?.click()} onCameraStart={() => {}} onBeforeFileSelect={() => {}} onAfterFileSelect={() => {}} onAddTransformation={async (e) => { e.preventDefault(); if (!user || newTransWeight === '') return; await supabase.from('transformations').insert([{ user_id: user.id, before_url: 'https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?w=400', after_url: 'https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?w=400', date: new Date().toISOString().split('T')[0], weight: Number(newTransWeight), note: newTransNote || 'Évolution', is_private: newTransIsPrivate }]); fetchTransformations(user.id); setNewTransWeight(''); setNewTransNote(''); alert('📸 Transformation enregistrée !'); }} onShareTransformation={() => {}} onUpdatePasswordSubmit={async (e) => { e.preventDefault(); await supabase.auth.updateUser({}); alert("🔒 Mot de passe mis à jour !"); }} password={password} setPassword={setPassword} confirmPassword={confirmPassword} setConfirmPassword={setConfirmPassword} isPrivateMode={isPrivateMode} setIsPrivateMode={setIsPrivateMode} onSignOut={() => supabase.auth.signOut()} onToggleVerifyAdmin={async (uId, status) => { await supabase.from('profiles').update({ is_verified: !status }).eq('id', uId); fetchRealUsers(); }} beforeFileInputRef={beforeFileInputRef} afterFileInputRef={afterFileInputRef} />}
       </main>
 
+      {/* Modale de profil lorsqu'on clique sur un utilisateur dans l'accueil */}
+      {viewingProfileUser && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl animate-fadeIn relative">
+            <button onClick={() => setViewingProfileUser(null)} className="absolute top-4 right-4 p-2 text-neutral-400 hover:text-white rounded-xl">
+              <X className="w-5 h-5" />
+            </button>
+            
+            <div className="text-center space-y-3 pt-2">
+              <img src={viewingProfileUser.avatar_url} alt="" className="w-20 h-20 rounded-full object-cover mx-auto border-2 border-orange-500 shadow-xl" />
+              <div>
+                <h3 className="font-extrabold text-base text-white flex items-center justify-center gap-1.5">
+                  {viewingProfileUser.username}
+                  {viewingProfileUser.is_verified && <span className="text-orange-500">✓</span>}
+                </h3>
+                <p className="text-xs text-orange-400 font-semibold mt-0.5 flex items-center justify-center gap-1">
+                  <MapPin className="w-3.5 h-3.5" /> {viewingProfileUser.home_club || 'Club partenaire'}
+                </p>
+              </div>
+
+              <div className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 text-xs space-y-2 text-left">
+                <p className="text-neutral-300"><strong>Objectif :</strong> {viewingProfileUser.goal || 'Musculation / Force'}</p>
+                <p className="text-neutral-300"><strong>Disponibilité :</strong> {viewingProfileUser.preferred_time || 'Soir'}</p>
+              </div>
+
+              <button 
+                onClick={() => {
+                  handleOpenChatWithUser(viewingProfileUser);
+                  setViewingProfileUser(null);
+                  setCurrentTab('chat');
+                }}
+                className="w-full py-3 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-2xl text-xs transition shadow-lg"
+              >
+                Envoyer un message 💬
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Modale de création de publication avec photo du téléphone et Hashtags */}
       {isPostModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
