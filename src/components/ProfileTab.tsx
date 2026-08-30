@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { User as SupabaseUser } from '@supabase/supabase-js';
 import { 
   User, ShieldCheck, MapPin, Target, Clock, Camera, Lock, Unlock, Key, LogOut, 
@@ -81,9 +81,7 @@ export default function ProfileTab({
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
-    setTimeout(() => {
-      setToastMessage(null);
-    }, 3000);
+    setTimeout(() => setToastMessage(null), 3000);
   };
 
   const [currentAvatar, setCurrentAvatar] = useState(userAvatarUrl);
@@ -94,17 +92,20 @@ export default function ProfileTab({
   const avatarFileInputRef = useRef<HTMLInputElement>(null);
   const bannerFileInputRef = useRef<HTMLInputElement>(null);
 
-  // Utilisation prioritaire du profil de la base de données, avec fallback sur les métadonnées ou le state local
-  const initialUsername = currentUserProfile?.username || user?.user_metadata?.username || 'Athlète';
-  const [displayedUsername, setDisplayedUsername] = useState(initialUsername);
-
+  const activeUsername = currentUserProfile?.username || user?.user_metadata?.username || 'Athlète';
   const changesCount = (currentUserProfile as any)?.username_changes_count || 0;
 
-  const [editUsername, setEditUsername] = useState(displayedUsername);
+  const [editUsername, setEditUsername] = useState(activeUsername);
   const [editClub, setEditClub] = useState(currentUserProfile?.home_club || 'Club Tournai (Bastion)');
   const [editGoal, setEditGoal] = useState(currentUserProfile?.goal || 'Prise de masse / Force');
   const [editTime, setEditTime] = useState(currentUserProfile?.preferred_time || 'Soir');
   const [editGender, setEditGender] = useState(currentUserProfile?.gender || 'Homme');
+
+  useEffect(() => {
+    if (currentUserProfile?.username) {
+      setEditUsername(currentUserProfile.username);
+    }
+  }, [currentUserProfile?.username]);
 
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -115,7 +116,7 @@ export default function ProfileTab({
         setCurrentAvatar(res);
         if (onUpdateProfile) {
           onUpdateProfile({
-            username: displayedUsername,
+            username: activeUsername,
             home_club: editClub,
             goal: editGoal,
             preferred_time: editTime,
@@ -140,7 +141,7 @@ export default function ProfileTab({
         setCurrentBanner(res);
         if (onUpdateProfile) {
           onUpdateProfile({
-            username: displayedUsername,
+            username: activeUsername,
             home_club: editClub,
             goal: editGoal,
             preferred_time: editTime,
@@ -160,15 +161,13 @@ export default function ProfileTab({
     e.preventDefault();
 
     let newChangesCount = changesCount;
-    if (editUsername !== displayedUsername) {
+    if (editUsername !== activeUsername) {
       if (changesCount >= MAX_USERNAME_CHANGES) {
         showToast('Nombre maximum de modifications atteint (3/3)');
         return;
       }
       newChangesCount += 1;
     }
-
-    setDisplayedUsername(editUsername); // Mise à jour immédiate à l'écran
 
     if (onUpdateProfile) {
       onUpdateProfile({
@@ -220,7 +219,7 @@ export default function ProfileTab({
 
           <div className="mt-3 space-y-1 w-full">
             <h2 className="text-lg font-black text-white flex items-center justify-center gap-1.5">
-              {displayedUsername}
+              {activeUsername}
               {currentUserProfile?.is_verified && <ShieldCheck className="w-5 h-5 text-orange-500 fill-orange-500/20" />}
             </h2>
             <p className="text-xs text-orange-400 font-semibold flex items-center justify-center gap-1">
@@ -308,7 +307,7 @@ export default function ProfileTab({
                   type="text" 
                   value={editUsername} 
                   onChange={(e) => setEditUsername(e.target.value)} 
-                  disabled={changesCount >= MAX_USERNAME_CHANGES && editUsername === displayedUsername}
+                  disabled={changesCount >= MAX_USERNAME_CHANGES && editUsername === activeUsername}
                   className={`w-full bg-neutral-950 border rounded-xl px-3.5 py-3 text-xs text-white focus:border-orange-500 ${changesCount >= MAX_USERNAME_CHANGES ? 'opacity-60 cursor-not-allowed border-red-900/50' : 'border-neutral-800'}`} 
                   required
                 />
