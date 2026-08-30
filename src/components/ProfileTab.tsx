@@ -1,8 +1,8 @@
-import React, { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { User as SupabaseUser } from '@supabase/supabase-js';
 import { 
-  User, ShieldCheck, MapPin, Target, Clock, Camera, Lock, Unlock, Key, LogOut, 
-  Trash2, Flame, Award, Dumbbell, MessageCircle, Edit3, Check, X, Image as ImageIcon, AlertCircle 
+  ShieldCheck, MapPin, Camera, Key, LogOut, 
+  Dumbbell, Edit3, Check, X, Image as ImageIcon, AlertCircle 
 } from 'lucide-react';
 import { RealUser, TransformationPhoto } from '../types';
 
@@ -37,8 +37,8 @@ interface ProfileTabProps {
   onSignOut: () => void;
   onToggleVerifyAdmin: (userId: string, currentStatus: boolean) => void;
   onUpdateProfile?: (updatedData: { username: string; home_club: string; goal: string; preferred_time: string; gender: string; avatar_url?: string; banner_url?: string; username_changes_count?: number }) => void;
-  beforeFileInputRef: React.RefObject<HTMLInputElement>;
-  afterFileInputRef: React.RefObject<HTMLInputElement>;
+  beforeFileInputRef: React.RefObject<HTMLInputElement | null>;
+  afterFileInputRef: React.RefObject<HTMLInputElement | null>;
 }
 
 const CLUBS_LIST = [
@@ -501,7 +501,13 @@ export default function ProfileTab({
 
           <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-3 shadow-xl">
             <h3 className="text-sm font-extrabold text-white">Session</h3>
-            <button onClick={onSignOut} className="w-full py-3 bg-red-950/40 border border-red-900/50 text-red-400 hover:bg-red-900/40 font-bold rounded-xl text-xs transition flex items-center justify-center gap-2">
+            <button 
+              onClick={async () => {
+                await onSignOut();
+                window.location.reload();
+              }} 
+              className="w-full py-3 bg-red-950/40 border border-red-900/50 text-red-400 hover:bg-red-900/40 font-bold rounded-xl text-xs transition flex items-center justify-center gap-2 active:scale-95 cursor-pointer"
+            >
               <LogOut className="w-4 h-4" /> Se déconnecter
             </button>
           </div>
