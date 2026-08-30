@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, ChangeEvent, FormEvent } from 'react';
 import {
-  Zap, Timer, PlusSquare, Calculator, User, MessageCircle, Home, Users, Plus, X, Camera, Flame, MapPin, Hash, Bell, ShieldCheck, Award, Info
+  Zap, Timer, PlusSquare, Calculator, User, MessageCircle, Home, Users, Plus, X, Camera, Flame, MapPin, Hash, Bell, ShieldCheck, Award, Info, Trophy, Sparkles
 } from 'lucide-react';
 import { createClient, User as SupabaseUser } from '@supabase/supabase-js';
 
@@ -57,6 +57,9 @@ export default function App() {
   const [isSignUpMode, setIsSignUpMode] = useState(false);
   const [acceptCgu, setAcceptCgu] = useState(false);
   const [showCguModal, setShowCguModal] = useState(false);
+
+  // État pour afficher le tutoriel de bienvenue post-onboarding
+  const [showWelcomeGuide, setShowWelcomeGuide] = useState(false);
 
   const [currentTab, setCurrentTab] = useState<'feed' | 'buddy' | 'workout' | 'exercises' | 'chat' | 'profile' | 'calculator' | 'live_tracker' | 'rest_timer' | 'notifications'>(() => {
     const savedTab = localStorage.getItem('fitpulse_active_tab');
@@ -498,14 +501,13 @@ export default function App() {
             <p className="text-xs text-neutral-400">Configure ta fiche athlète pour rejoindre ton club.</p>
           </div>
 
-          {/* Encadré d'explication pour le nouvel adhérent */}
           <div className="bg-neutral-950/80 border border-orange-500/30 rounded-2xl p-3.5 space-y-1.5 text-left">
             <div className="flex items-center gap-1.5 text-orange-400 font-bold text-xs">
               <Info className="w-4 h-4 flex-shrink-0" />
-              <span>Pourquoi remplir ces informations ?</span>
+              <span>Le Concours Inter-Clubs & La Ligue</span>
             </div>
             <p className="text-[11px] text-neutral-300 leading-relaxed">
-              Ces détails permettent de te classer dans ta catégorie d'âge, de représenter fièrement ton club dans la ligue et de permettre à tes partenaires de t'identifier facilement sur le fil et dans le chat !
+              En rejoignant FitPulse, tu représentes ton club (Tournai, Antoing, Péruwelz, etc.) dans la **Ligue des Salles**. Tes entraînements et performances font gagner des points à ton club et te classent selon ta catégorie d'âge !
             </p>
           </div>
 
@@ -536,11 +538,10 @@ export default function App() {
               alert("Erreur lors de la création du profil : " + error.message);
             } else {
               fetchRealUsers();
-              window.location.reload();
+              setShowWelcomeGuide(true); // Déclenche l'affichage du guide des onglets
             }
           }} className="space-y-3">
             
-            {/* Photo de profil optionnelle */}
             <div className="text-center space-y-1.5 pt-1">
               <div className="relative w-14 h-14 mx-auto group cursor-pointer" onClick={() => onboardingAvatarInputRef.current?.click()}>
                 <img src={onboardingAvatar} alt="Avatar" className="w-full h-full rounded-full object-cover border-2 border-orange-500 shadow-md" />
@@ -610,7 +611,7 @@ export default function App() {
               disabled={onboardingSubmitting}
               className="w-full py-3.5 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-2xl text-sm shadow-xl transition active:scale-95 disabled:opacity-50 mt-1"
             >
-              {onboardingSubmitting ? "Enregistrement..." : "Accéder à l'application 🚀"}
+              {onboardingSubmitting ? "Enregistrement..." : "Valider et découvrir l'app 🚀"}
             </button>
           </form>
         </div>
@@ -619,7 +620,52 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col font-sans select-none antialiased">
+    <div className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col font-sans select-none antialiased relative">
+      
+      {/* Modale de tutoriel des onglets (affichée juste après l'inscription) */}
+      {showWelcomeGuide && (
+        <div className="absolute inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4 animate-scaleUp">
+          <div className="bg-neutral-900 border border-orange-500/40 rounded-3xl max-w-sm w-full p-6 space-y-4 shadow-2xl text-left">
+            <div className="text-center space-y-1 border-b border-neutral-800 pb-3">
+              <div className="w-12 h-12 rounded-2xl bg-orange-500/20 flex items-center justify-center text-orange-500 mx-auto">
+                <Trophy className="w-6 h-6" />
+              </div>
+              <h2 className="text-base font-extrabold text-white">Guide des Onglets & Concours</h2>
+              <p className="text-xs text-orange-400 font-semibold">Comment utiliser FitPulse au max ?</p>
+            </div>
+
+            <div className="space-y-3 text-xs text-neutral-300">
+              <div className="flex items-start gap-2.5">
+                <span className="w-6 h-6 rounded-lg bg-orange-500/20 text-orange-500 flex items-center justify-center font-bold flex-shrink-0">🏠</span>
+                <div><strong className="text-white">Accueil (Feed) :</strong> Le fil d'actualité où tu partages tes séances, tes photos et où tu vois les perfs des autres athlètes de ton club.</div>
+              </div>
+              <div className="flex items-start gap-2.5">
+                <span className="w-6 h-6 rounded-lg bg-orange-500/20 text-orange-500 flex items-center justify-center font-bold flex-shrink-0">👥</span>
+                <div><strong className="text-white">Buddies :</strong> Retrouve tes partenaires d'entraînement, ajoute des amis et suis la progression de ta salle.</div>
+              </div>
+              <div className="flex items-start gap-2.5">
+                <span className="w-6 h-6 rounded-lg bg-orange-500/20 text-orange-500 flex items-center justify-center font-bold flex-shrink-0">⏱️</span>
+                <div><strong className="text-white">Chrono / Live Tracker :</strong> Chronomètre tes temps de repos entre les séries ou enregistre ta séance en direct !</div>
+              </div>
+              <div className="flex items-start gap-2.5">
+                <span className="w-6 h-6 rounded-lg bg-orange-500/20 text-orange-500 flex items-center justify-center font-bold flex-shrink-0">💬</span>
+                <div><strong className="text-white">Chat :</strong> Discute en privé avec les membres de ton club ou des autres salles pour te motiver.</div>
+              </div>
+            </div>
+
+            <button 
+              onClick={() => {
+                setShowWelcomeGuide(false);
+                window.location.reload();
+              }}
+              className="w-full py-3.5 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-2xl text-xs shadow-lg transition active:scale-95 mt-2"
+            >
+              C'est compris, allons soulever de la fonte ! 💪🔥
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="w-full max-w-md mx-auto min-h-screen bg-neutral-950 flex flex-col shadow-2xl sm:border-x sm:border-neutral-900 relative">
         <header className="sticky top-0 z-40 bg-neutral-950/80 backdrop-blur-md border-b border-neutral-900 px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
