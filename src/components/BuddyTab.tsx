@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Users, UserPlus, Check, Clock, MapPin, Search, ShieldCheck, UserMinus, Sparkles, Filter, SlidersHorizontal, X, Trophy, Flame, Crown, ChevronRight } from 'lucide-react';
 import { RealUser, FriendRequest, Post } from '../types';
 
@@ -144,13 +144,11 @@ export default function BuddyTab({
 
   const hasActiveFilters = filterOnlyWomen || filterAgeCategory !== 'Tous' || filterTimeSlot !== 'Tous' || filterClub !== 'Tous';
 
-  // Calcul du mois en cours
   const currentMonthName = new Date().toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
   const capitalizedMonth = currentMonthName.charAt(0).toUpperCase() + currentMonthName.slice(1);
   const currentMonthNumber = new Date().getMonth();
   const currentYearNumber = new Date().getFullYear();
 
-  // Logique de calcul du classement avancé (Ligue des Clubs)
   const clubStats = CLUBS_LIST.map(clubName => {
     const clubPosts = posts.filter(p => {
       if (p.club_name !== clubName) return false;
@@ -199,7 +197,6 @@ export default function BuddyTab({
 
   return (
     <div className="space-y-4 pb-12">
-      {/* LIGUE DES CLUBS DÉVELOPPÉE */}
       <div className="bg-gradient-to-br from-neutral-900 via-neutral-900 to-orange-950/40 border border-neutral-800 rounded-3xl p-4 shadow-2xl space-y-3">
         <div className="flex items-center justify-between">
           <div>
@@ -256,7 +253,6 @@ export default function BuddyTab({
         </div>
       </div>
 
-      {/* MODALE DE DÉTAIL D'UN CLUB (Top Athlètes) */}
       {selectedClubDetail && (() => {
         const clubData = clubStats.find(c => c.name === selectedClubDetail);
         if (!clubData) return null;
