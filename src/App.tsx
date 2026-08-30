@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, ChangeEvent, FormEvent } from 'react';
 import {
   Zap, Timer, PlusSquare, Calculator, User, MessageCircle, Home, Users, Plus, X, Camera, Flame, MapPin, Hash, Bell
 } from 'lucide-react';
@@ -249,7 +249,7 @@ export default function App() {
     await supabase.from('posts').update({ likes_count: newCount, liked_by: updatedLikedBy }).eq('id', postId);
   };
 
-  const handlePostImageFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePostImageFileSelect = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
@@ -258,7 +258,7 @@ export default function App() {
     }
   };
 
-  const handlePublishPost = async (e: React.FormEvent) => {
+  const handlePublishPost = async (e: FormEvent) => {
     e.preventDefault();
     if (!user) return;
     const fullCaption = `${postCaption} ${postHashtags}`.trim();
