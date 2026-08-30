@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, ChangeEvent, FormEvent } from 'react';
 import {
-  Zap, Timer, PlusSquare, Calculator, User, MessageCircle, Home, Users, Plus, X, Camera, Flame, MapPin, Hash, Bell
+  Zap, Timer, PlusSquare, Calculator, User, MessageCircle, Home, Users, Plus, X, Camera, Flame, MapPin, Hash, Bell, ShieldCheck
 } from 'lucide-react';
 import { createClient, User as SupabaseUser } from '@supabase/supabase-js';
 
@@ -55,6 +55,8 @@ export default function App() {
   const [authEmail, setAuthEmail] = useState('');
   const [authPassword, setAuthPassword] = useState('');
   const [isSignUpMode, setIsSignUpMode] = useState(false);
+  const [acceptCgu, setAcceptCgu] = useState(false);
+  const [showCguModal, setShowCguModal] = useState(false);
 
   const [currentTab, setCurrentTab] = useState<'feed' | 'buddy' | 'workout' | 'exercises' | 'chat' | 'profile' | 'calculator' | 'live_tracker' | 'rest_timer' | 'notifications'>(() => {
     const savedTab = localStorage.getItem('fitpulse_active_tab');
@@ -330,18 +332,28 @@ export default function App() {
   if (!user) {
     return (
       <div className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col items-center justify-center font-sans p-4 select-none">
-        <div className="w-full max-w-sm bg-neutral-900 border border-neutral-800 rounded-3xl p-6 space-y-6 shadow-2xl">
+        <div className="w-full max-w-sm bg-neutral-900 border border-neutral-800 rounded-3xl p-6 space-y-6 shadow-2xl relative">
+          
           <div className="text-center space-y-2">
             <div className="w-12 h-12 rounded-2xl bg-orange-500/20 flex items-center justify-center text-orange-500 mx-auto">
               <Zap className="w-6 h-6" />
             </div>
             <h1 className="text-xl font-black text-white tracking-tight">FitPulse</h1>
-            <p className="text-xs text-neutral-400">La Ligue des Clubs & Suivi d'Entraînement</p>
+            <p className="text-xs text-orange-400 font-semibold">La Ligue des Clubs & Suivi d'Entraînement</p>
+            <p className="text-xs text-neutral-400 px-2 pt-1">
+              {isSignUpMode 
+                ? "Crée ton compte pour partager tes séances, suivre ton club et échanger avec tes partenaires de musculation !" 
+                : "Connecte-toi pour retrouver ton fil d'actualité et tes entraînements en cours."}
+            </p>
           </div>
 
           <form onSubmit={async (e) => {
             e.preventDefault();
             if (isSignUpMode) {
+              if (!acceptCgu) {
+                alert("Veuillez accepter les Conditions Générales d'Utilisation (CGU) pour vous inscrire.");
+                return;
+              }
               const { data, error } = await supabase.auth.signUp({ email: authEmail, password: authPassword });
               if (error) {
                 alert("Erreur inscription : " + error.message);
@@ -393,6 +405,21 @@ export default function App() {
               />
             </div>
 
+            {isSignUpMode && (
+              <div className="flex items-start gap-2.5 pt-1">
+                <input 
+                  type="checkbox" 
+                  id="cgu"
+                  checked={acceptCgu}
+                  onChange={(e) => setAcceptCgu(e.target.checked)}
+                  className="mt-0.5 w-4 h-4 rounded accent-orange-500 cursor-pointer"
+                />
+                <label htmlFor="cgu" className="text-xs text-neutral-300 select-none leading-relaxed">
+                  J'accepte les <button type="button" onClick={() => setShowCguModal(true)} className="text-orange-400 underline font-semibold">Conditions Générales d'Utilisation (CGU)</button> et le partage de mes performances au sein de mon club.
+                </label>
+              </div>
+            )}
+
             <button type="submit" className="w-full py-3.5 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-2xl text-sm shadow-xl transition active:scale-95">
               {isSignUpMode ? "S'inscrire 🚀" : "Se connecter ⚡"}
             </button>
@@ -401,12 +428,38 @@ export default function App() {
           <div className="text-center">
             <button 
               type="button" 
-              onClick={() => setIsSignUpMode(!isSignUpMode)} 
+              onClick={() => { setIsSignUpMode(!isSignUpMode); setAcceptCgu(false); }} 
               className="text-xs text-orange-400 hover:underline font-semibold"
             >
               {isSignUpMode ? "Déjà un compte ? Connecte-toi" : "Pas encore de compte ? Inscris-toi"}
             </button>
           </div>
+
+          {showCguModal && (
+            <div className="absolute inset-0 z-50 bg-neutral-950/95 backdrop-blur-md rounded-3xl p-6 flex flex-col justify-between space-y-4 border border-neutral-800 animate-scaleUp">
+              <div className="flex items-center justify-between border-b border-neutral-800 pb-3">
+                <h3 className="font-extrabold text-sm text-white flex items-center gap-2">
+                  <ShieldCheck className="w-4 h-4 text-orange-500" /> Conditions Générales d'Utilisation
+                </h3>
+                <button onClick={() => setShowCguModal(false)} className="text-neutral-400 hover:text-white p-1">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="flex-1 overflow-y-auto text-xs text-neutral-300 space-y-3 pr-1">
+                <p><strong>1. Objet :</strong> FitPulse est une application de suivi d'entraînement de musculation et de mise en relation inter-clubs.</p>
+                <p><strong>2. Respect et Bienveillance :</strong> La communauté repose sur l'entraide sportive. Tout comportement inapproprié ou publication injurieuse entraînera la suppression immédiate du compte.</p>
+                <p><strong>3. Données personnelles :</strong> Vos données de séances, photos d'évolution et messages sont stockés de manière sécurisée et ne sont partagés qu'au sein de votre cercle de partenaires et clubs sélectionnés.</p>
+                <p><strong>4. Utilisation :</strong> L'utilisation de l'application se fait sous votre propre responsabilité lors de la pratique des exercices physiques.</p>
+              </div>
+              <button 
+                onClick={() => { setAcceptCgu(true); setShowCguModal(false); }}
+                className="w-full py-3 bg-orange-600 text-white font-bold rounded-xl text-xs"
+              >
+                J'ai compris et j'accepte ✓
+              </button>
+            </div>
+          )}
+
         </div>
       </div>
     );
