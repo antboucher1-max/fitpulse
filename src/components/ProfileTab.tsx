@@ -186,9 +186,9 @@ export default function ProfileTab({
   };
 
   return (
-    <div className="space-y-4 pb-16 animate-fadeIn relative">
+    <div className="space-y-4 pb-16 animate-fadeIn relative text-[13px] font-normal leading-normal">
       {toastMessage && (
-        <div className="fixed top-16 left-1/2 transform -translate-x-1/2 z-50 bg-neutral-900 border border-orange-500/50 text-white px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-2.5 text-xs font-bold animate-bounce">
+        <div className="fixed top-16 left-1/2 transform -translate-x-1/2 z-50 bg-neutral-900 border border-orange-500/50 text-white px-4 py-2.5 rounded-xl shadow-2xl flex items-center gap-2 text-xs font-semibold animate-fadeIn">
           <Check className="w-4 h-4 text-orange-500" /> {toastMessage}
         </div>
       )}
@@ -196,111 +196,114 @@ export default function ProfileTab({
       <input type="file" accept="image/*" ref={avatarFileInputRef} onChange={handleAvatarChange} className="hidden" />
       <input type="file" accept="image/*" ref={bannerFileInputRef} onChange={handleBannerChange} className="hidden" />
 
-      <div className="bg-neutral-900 border border-neutral-800 rounded-3xl overflow-hidden shadow-2xl relative">
-        <div className="h-36 relative group">
+      {/* Profil Card Style Insta/FB */}
+      <div className="bg-neutral-900 border border-neutral-800/80 rounded-2xl overflow-hidden shadow-xl relative">
+        <div className="h-32 relative group">
           <img src={currentBanner} alt="Bannière" className="w-full h-full object-cover" />
           <div className="absolute inset-0 bg-black/30 group-hover:bg-black/50 transition flex items-center justify-center opacity-0 group-hover:opacity-100">
             <button 
               onClick={() => bannerFileInputRef.current?.click()}
-              className="px-3 py-1.5 bg-black/70 hover:bg-black text-white text-xs font-bold rounded-xl flex items-center gap-1.5 backdrop-blur-md shadow-lg transition"
+              className="px-3 py-1.5 bg-black/70 hover:bg-black text-white text-[12px] font-semibold rounded-lg flex items-center gap-1.5 backdrop-blur-md shadow transition"
             >
-              <ImageIcon className="w-3.5 h-3.5 text-orange-500" /> Modifier la couverture 🖼️
+              <ImageIcon className="w-3.5 h-3.5 text-orange-500" /> Modifier la couverture
             </button>
           </div>
         </div>
 
-        <div className="px-6 pb-6 pt-0 relative flex flex-col items-center text-center -mt-14">
+        <div className="px-4 pb-4 pt-0 relative flex flex-col items-center text-center -mt-12">
           <div className="relative group cursor-pointer" onClick={() => avatarFileInputRef.current?.click()}>
-            <img src={currentAvatar} alt="Avatar" className="w-24 h-24 rounded-full object-cover border-4 border-neutral-950 shadow-2xl group-hover:brightness-90 transition" />
+            <img src={currentAvatar} alt="Avatar" className="w-20 h-20 rounded-full object-cover border-3 border-neutral-950 shadow-lg group-hover:brightness-90 transition" />
             <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition text-white">
-              <Camera className="w-6 h-6 text-orange-500" />
+              <Camera className="w-5 h-5 text-orange-500" />
             </div>
           </div>
 
-          <div className="mt-3 space-y-1 w-full">
-            <h2 className="text-lg font-black text-white flex items-center justify-center gap-1.5">
+          <div className="mt-2.5 space-y-0.5 w-full">
+            <h2 className="text-sm font-bold text-white flex items-center justify-center gap-1">
               {activeUsername}
-              {currentUserProfile?.is_verified && <ShieldCheck className="w-5 h-5 text-orange-500 fill-orange-500/20" />}
+              {currentUserProfile?.is_verified && <ShieldCheck className="w-4 h-4 text-orange-500 fill-orange-500/20" />}
             </h2>
-            <p className="text-xs text-orange-400 font-semibold flex items-center justify-center gap-1">
-              <MapPin className="w-3.5 h-3.5" /> {currentUserProfile?.home_club || 'Club Tournai (Bastion)'}
+            <p className="text-[11px] text-orange-400 font-medium flex items-center justify-center gap-1">
+              <MapPin className="w-3 h-3" /> {currentUserProfile?.home_club || 'Club Tournai (Bastion)'}
             </p>
           </div>
 
           <button 
             onClick={() => setIsEditingProfile(true)}
-            className="mt-3 px-4 py-2 bg-neutral-800 hover:bg-neutral-700 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 transition shadow-md"
+            className="mt-2.5 px-3.5 py-1.5 bg-neutral-800 hover:bg-neutral-700 text-white font-semibold rounded-lg text-[12px] flex items-center gap-1 transition shadow-sm"
           >
-            <Edit3 className="w-3.5 h-3.5 text-orange-500" /> Modifier mon profil ✏️
+            <Edit3 className="w-3.5 h-3.5 text-orange-500" /> Modifier le profil
           </button>
 
-          <div className="grid grid-cols-2 gap-2 w-full mt-4">
-            <div className="bg-neutral-950 p-2.5 rounded-2xl border border-neutral-800 text-left">
-              <span className="text-[10px] text-neutral-400 font-semibold block uppercase">Objectif</span>
-              <span className="text-xs font-bold text-white truncate block">{currentUserProfile?.goal || 'Musculation'}</span>
+          <div className="grid grid-cols-2 gap-2 w-full mt-3">
+            <div className="bg-neutral-950/70 p-2.5 rounded-xl border border-neutral-800/60 text-left">
+              <span className="text-[10px] text-neutral-400 font-medium block uppercase tracking-wider">Objectif</span>
+              <span className="text-[12px] font-semibold text-white truncate block mt-0.5">{currentUserProfile?.goal || 'Musculation'}</span>
             </div>
-            <div className="bg-neutral-950 p-2.5 rounded-2xl border border-neutral-800 text-left">
-              <span className="text-[10px] text-neutral-400 font-semibold block uppercase">Disponibilité</span>
-              <span className="text-xs font-bold text-white truncate block">{currentUserProfile?.preferred_time || 'Soir'}</span>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-3 gap-3 w-full mt-3">
-            <div className="bg-neutral-950 p-3 rounded-2xl border border-neutral-800 text-center">
-              <span className="block text-base font-black text-orange-500">🔥 12</span>
-              <span className="text-[10px] text-neutral-400 font-semibold uppercase">Jours Streak</span>
-            </div>
-            <div className="bg-neutral-950 p-3 rounded-2xl border border-neutral-800 text-center">
-              <span className="block text-base font-black text-white">💪 {transformations.length}</span>
-              <span className="text-[10px] text-neutral-400 font-semibold uppercase">Évolutions</span>
-            </div>
-            <div className="bg-neutral-950 p-3 rounded-2xl border border-neutral-800 text-center">
-              <span className="block text-base font-black text-orange-400">⚡ Actif</span>
-              <span className="text-[10px] text-neutral-400 font-semibold uppercase">Statut</span>
+            <div className="bg-neutral-950/70 p-2.5 rounded-xl border border-neutral-800/60 text-left">
+              <span className="text-[10px] text-neutral-400 font-medium block uppercase tracking-wider">Disponibilité</span>
+              <span className="text-[12px] font-semibold text-white truncate block mt-0.5">{currentUserProfile?.preferred_time || 'Soir'}</span>
             </div>
           </div>
 
-          <div className="flex gap-2 w-full mt-5 bg-neutral-950 p-1.5 rounded-2xl border border-neutral-800">
+          <div className="grid grid-cols-3 gap-2 w-full mt-2.5">
+            <div className="bg-neutral-950/70 p-2.5 rounded-xl border border-neutral-800/60 text-center">
+              <span className="block text-sm font-bold text-orange-500">🔥 12</span>
+              <span className="text-[10px] text-neutral-400 font-medium uppercase">Streak</span>
+            </div>
+            <div className="bg-neutral-950/70 p-2.5 rounded-xl border border-neutral-800/60 text-center">
+              <span className="block text-sm font-bold text-white">💪 {transformations.length}</span>
+              <span className="text-[10px] text-neutral-400 font-medium uppercase">Évolutions</span>
+            </div>
+            <div className="bg-neutral-950/70 p-2.5 rounded-xl border border-neutral-800/60 text-center">
+              <span className="block text-sm font-bold text-orange-400">⚡ Actif</span>
+              <span className="text-[10px] text-neutral-400 font-medium uppercase">Statut</span>
+            </div>
+          </div>
+
+          {/* Sub-navigation tabs */}
+          <div className="flex gap-1.5 w-full mt-4 bg-neutral-950 p-1 rounded-xl border border-neutral-800/80">
             <button 
               onClick={() => setActiveSubSection('feed')}
-              className={`flex-1 py-2 rounded-xl text-xs font-bold transition ${activeSubSection === 'feed' ? 'bg-orange-600 text-white shadow-lg' : 'text-neutral-400 hover:text-white'}`}
+              className={`flex-1 py-1.5 rounded-lg text-[12px] font-semibold transition ${activeSubSection === 'feed' ? 'bg-orange-600 text-white shadow' : 'text-neutral-400 hover:text-white'}`}
             >
-              Mes Publications 📝
+              Publications
             </button>
             <button 
               onClick={() => setActiveSubSection('transformations')}
-              className={`flex-1 py-2 rounded-xl text-xs font-bold transition ${activeSubSection === 'transformations' ? 'bg-orange-600 text-white shadow-lg' : 'text-neutral-400 hover:text-white'}`}
+              className={`flex-1 py-1.5 rounded-lg text-[12px] font-semibold transition ${activeSubSection === 'transformations' ? 'bg-orange-600 text-white shadow' : 'text-neutral-400 hover:text-white'}`}
             >
-              Transformations 📸
+              Transformations
             </button>
             <button 
               onClick={() => setActiveSubSection('settings')}
-              className={`flex-1 py-2 rounded-xl text-xs font-bold transition ${activeSubSection === 'settings' ? 'bg-orange-600 text-white shadow-lg' : 'text-neutral-400 hover:text-white'}`}
+              className={`flex-1 py-1.5 rounded-lg text-[12px] font-semibold transition ${activeSubSection === 'settings' ? 'bg-orange-600 text-white shadow' : 'text-neutral-400 hover:text-white'}`}
             >
-              Paramètres ⚙️
+              Paramètres
             </button>
           </div>
         </div>
       </div>
 
+      {/* EDIT PROFILE MODAL */}
       {isEditingProfile && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl animate-fadeIn">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-2xl max-w-sm w-full p-5 space-y-3.5 shadow-2xl animate-fadeIn">
             <div className="flex items-center justify-between">
-              <h3 className="font-extrabold text-base text-white flex items-center gap-2">
-                <Edit3 className="w-5 h-5 text-orange-500" /> Modifier mon profil
+              <h3 className="font-bold text-sm text-white flex items-center gap-1.5">
+                <Edit3 className="w-4 h-4 text-orange-500" /> Modifier mon profil
               </h3>
-              <button onClick={() => setIsEditingProfile(false)} className="p-2 text-neutral-400 hover:text-white rounded-xl">
-                <X className="w-5 h-5" />
+              <button onClick={() => setIsEditingProfile(false)} className="p-1.5 text-neutral-400 hover:text-white rounded-lg">
+                <X className="w-4 h-4" />
               </button>
             </div>
 
-            <form onSubmit={handleSaveProfile} className="space-y-3.5">
+            <form onSubmit={handleSaveProfile} className="space-y-3">
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <label className="text-xs font-semibold text-neutral-400">Pseudo :</label>
+                  <label className="text-[11px] font-medium text-neutral-400">Pseudo :</label>
                   <span className="text-[10px] text-orange-400 font-medium">
-                    Modifications : {changesCount} / {MAX_USERNAME_CHANGES} max
+                    Modifs : {changesCount} / {MAX_USERNAME_CHANGES} max
                   </span>
                 </div>
                 <input 
@@ -308,22 +311,22 @@ export default function ProfileTab({
                   value={editUsername} 
                   onChange={(e) => setEditUsername(e.target.value)} 
                   disabled={changesCount >= MAX_USERNAME_CHANGES && editUsername === activeUsername}
-                  className={`w-full bg-neutral-950 border rounded-xl px-3.5 py-3 text-xs text-white focus:border-orange-500 ${changesCount >= MAX_USERNAME_CHANGES ? 'opacity-60 cursor-not-allowed border-red-900/50' : 'border-neutral-800'}`} 
+                  className={`w-full bg-neutral-950 border rounded-xl px-3 py-2.5 text-[13px] text-white focus:border-orange-500 ${changesCount >= MAX_USERNAME_CHANGES ? 'opacity-60 cursor-not-allowed border-red-900/50' : 'border-neutral-800'}`} 
                   required
                 />
                 {changesCount >= MAX_USERNAME_CHANGES && (
                   <p className="text-[10px] text-red-400 mt-1 flex items-center gap-1">
-                    <AlertCircle className="w-3 h-3" /> Limite maximale de modifications atteinte (3).
+                    <AlertCircle className="w-3 h-3" /> Limite de modifications atteinte (3).
                   </p>
                 )}
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-neutral-400 mb-1">Club Principal :</label>
+                <label className="block text-[11px] font-medium text-neutral-400 mb-1">Club Principal :</label>
                 <select 
                   value={editClub} 
                   onChange={(e) => setEditClub(e.target.value)} 
-                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3.5 py-3 text-xs text-white focus:border-orange-500"
+                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2.5 text-[13px] text-white focus:border-orange-500"
                 >
                   {CLUBS_LIST.map((club) => (
                     <option key={club} value={club}>{club}</option>
@@ -332,22 +335,22 @@ export default function ProfileTab({
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-neutral-400 mb-1">Objectif principal :</label>
+                <label className="block text-[11px] font-medium text-neutral-400 mb-1">Objectif principal :</label>
                 <input 
                   type="text" 
                   value={editGoal} 
                   onChange={(e) => setEditGoal(e.target.value)} 
-                  placeholder="Ex: Prise de masse / Force / Sèche" 
-                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3.5 py-3 text-xs text-white focus:border-orange-500" 
+                  placeholder="Ex: Prise de masse / Force" 
+                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2.5 text-[13px] text-white focus:border-orange-500" 
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-neutral-400 mb-1">Créneau / Disponibilité :</label>
+                <label className="block text-[11px] font-medium text-neutral-400 mb-1">Disponibilité :</label>
                 <select 
                   value={editTime} 
                   onChange={(e) => setEditTime(e.target.value)} 
-                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3.5 py-3 text-xs text-white focus:border-orange-500"
+                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2.5 text-[13px] text-white focus:border-orange-500"
                 >
                   <option value="Matin">Matin</option>
                   <option value="Midi">Midi</option>
@@ -357,11 +360,11 @@ export default function ProfileTab({
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-neutral-400 mb-1">Genre (pour le système de match) :</label>
+                <label className="block text-[11px] font-medium text-neutral-400 mb-1">Genre :</label>
                 <select 
                   value={editGender} 
                   onChange={(e) => setEditGender(e.target.value)} 
-                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3.5 py-3 text-xs text-white focus:border-orange-500"
+                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2.5 text-[13px] text-white focus:border-orange-500"
                 >
                   <option value="Homme">Homme</option>
                   <option value="Femme">Femme</option>
@@ -369,8 +372,8 @@ export default function ProfileTab({
               </div>
 
               <div className="pt-2">
-                <button type="submit" className="w-full py-3.5 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-2xl text-xs shadow-xl transition">
-                  Enregistrer les modifications 💾
+                <button type="submit" className="w-full py-2.5 bg-orange-600 hover:bg-orange-500 text-white font-semibold rounded-xl text-[13px] shadow transition">
+                  Enregistrer
                 </button>
               </div>
             </form>
@@ -378,61 +381,63 @@ export default function ProfileTab({
         </div>
       )}
 
+      {/* FEED SUB-SECTION */}
       {activeSubSection === 'feed' && (
-        <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4 shadow-xl">
-          <h3 className="text-sm font-black text-white flex items-center gap-2">
-            <Dumbbell className="w-4 h-4 text-orange-500" /> Mon mur d'entraînements
+        <div className="bg-neutral-900 border border-neutral-800/80 rounded-2xl p-4 space-y-3 shadow-xl">
+          <h3 className="text-[13px] font-bold text-white flex items-center gap-1.5">
+            <Dumbbell className="w-4 h-4 text-orange-500" /> Mes publications
           </h3>
-          <div className="text-center py-10 text-neutral-500 text-xs bg-neutral-950 rounded-2xl border border-neutral-800">
-            Retrouve ici toutes les séances que tu as partagées sur le fil d'actualité de ton club ! 🚀
+          <div className="text-center py-8 text-neutral-500 text-[12px] bg-neutral-950/60 rounded-xl border border-neutral-800/60">
+            Retrouve ici toutes les séances que tu as partagées sur le fil d'actualité !
           </div>
         </div>
       )}
 
+      {/* TRANSFORMATIONS SUB-SECTION */}
       {activeSubSection === 'transformations' && (
-        <div className="space-y-4">
-          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4 shadow-xl">
-            <h3 className="text-sm font-black text-white flex items-center gap-2">
-              <Camera className="w-4 h-4 text-orange-500" /> Ajouter une photo d'évolution
+        <div className="space-y-3">
+          <div className="bg-neutral-900 border border-neutral-800/80 rounded-2xl p-4 space-y-3 shadow-xl">
+            <h3 className="text-[13px] font-bold text-white flex items-center gap-1.5">
+              <Camera className="w-4 h-4 text-orange-500" /> Ajouter une évolution
             </h3>
 
-            <form onSubmit={onAddTransformation} className="space-y-3">
+            <form onSubmit={onAddTransformation} className="space-y-2.5">
               <div className="grid grid-cols-2 gap-2">
-                <button type="button" onClick={onBeforeFileSelect} className="py-3 bg-neutral-950 border border-neutral-800 hover:border-orange-500 rounded-xl text-xs font-bold text-neutral-300 flex items-center justify-center gap-2">
-                  <Camera className="w-4 h-4 text-orange-500" /> Photo Avant
+                <button type="button" onClick={onBeforeFileSelect} className="py-2.5 bg-neutral-950 border border-neutral-800 hover:border-orange-500 rounded-xl text-[12px] font-semibold text-neutral-300 flex items-center justify-center gap-1.5">
+                  <Camera className="w-3.5 h-3.5 text-orange-500" /> Photo Avant
                 </button>
-                <button type="button" onClick={onAfterFileSelect} className="py-3 bg-neutral-950 border border-neutral-800 hover:border-orange-500 rounded-xl text-xs font-bold text-neutral-300 flex items-center justify-center gap-2">
-                  <Camera className="w-4 h-4 text-orange-500" /> Photo Après
+                <button type="button" onClick={onAfterFileSelect} className="py-2.5 bg-neutral-950 border border-neutral-800 hover:border-orange-500 rounded-xl text-[12px] font-semibold text-neutral-300 flex items-center justify-center gap-1.5">
+                  <Camera className="w-3.5 h-3.5 text-orange-500" /> Photo Après
                 </button>
                 <input type="file" accept="image/*" ref={beforeFileInputRef} className="hidden" />
                 <input type="file" accept="image/*" ref={afterFileInputRef} className="hidden" />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-neutral-400 mb-1">Poids actuel (kg) :</label>
+                <label className="block text-[11px] font-medium text-neutral-400 mb-1">Poids actuel (kg) :</label>
                 <input 
                   type="number" 
                   step="0.1" 
                   placeholder="Ex: 82.5" 
                   value={newTransWeight} 
                   onChange={(e) => setNewTransWeight(e.target.value === '' ? '' : Number(e.target.value))} 
-                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:border-orange-500" 
+                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3.5 py-2 text-[13px] text-white focus:border-orange-500" 
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-neutral-400 mb-1">Notes / Ressenti :</label>
+                <label className="block text-[11px] font-medium text-neutral-400 mb-1">Notes / Ressenti :</label>
                 <input 
                   type="text" 
-                  placeholder="Ex: -3kg sur le mois, belle sèche !" 
+                  placeholder="Ex: -3kg sur le mois" 
                   value={newTransNote} 
                   onChange={(e) => setNewTransNote(e.target.value)} 
-                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:border-orange-500" 
+                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3.5 py-2 text-[13px] text-white focus:border-orange-500" 
                 />
               </div>
 
-              <div className="flex items-center justify-between bg-neutral-950 p-3 rounded-xl border border-neutral-800">
-                <span className="text-xs font-semibold text-neutral-300">Mode Privé (visible de toi seul)</span>
+              <div className="flex items-center justify-between bg-neutral-950 p-2.5 rounded-xl border border-neutral-800">
+                <span className="text-[12px] font-medium text-neutral-300">Mode Privé</span>
                 <input 
                   type="checkbox" 
                   checked={newTransIsPrivate} 
@@ -441,16 +446,16 @@ export default function ProfileTab({
                 />
               </div>
 
-              <button type="submit" onClick={() => showToast('Évolution enregistrée !')} className="w-full py-3 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-xl text-xs shadow-lg transition">
-                Enregistrer l'évolution 📸
+              <button type="submit" onClick={() => showToast('Évolution enregistrée !')} className="w-full py-2.5 bg-orange-600 hover:bg-orange-500 text-white font-semibold rounded-xl text-[13px] shadow transition">
+                Enregistrer l'évolution
               </button>
             </form>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-2.5">
             {transformations.map((t) => (
-              <div key={t.id} className="bg-neutral-900 border border-neutral-800 rounded-2xl overflow-hidden p-3 space-y-2 shadow-lg">
-                <div className="grid grid-cols-2 gap-1 h-32 rounded-xl overflow-hidden bg-neutral-950">
+              <div key={t.id} className="bg-neutral-900 border border-neutral-800/80 rounded-xl overflow-hidden p-2.5 space-y-2 shadow">
+                <div className="grid grid-cols-2 gap-1 h-28 rounded-lg overflow-hidden bg-neutral-950">
                   <img src={t.before_url} alt="Avant" className="w-full h-full object-cover" />
                   <img src={t.after_url} alt="Après" className="w-full h-full object-cover" />
                 </div>
@@ -465,59 +470,60 @@ export default function ProfileTab({
         </div>
       )}
 
+      {/* SETTINGS SUB-SECTION */}
       {activeSubSection === 'settings' && (
-        <div className="space-y-4">
-          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4 shadow-xl">
-            <h3 className="text-sm font-black text-white flex items-center gap-2">
-              <Key className="w-4 h-4 text-orange-500" /> Modifier mon mot de passe
+        <div className="space-y-3">
+          <div className="bg-neutral-900 border border-neutral-800/80 rounded-2xl p-4 space-y-3 shadow-xl">
+            <h3 className="text-[13px] font-bold text-white flex items-center gap-1.5">
+              <Key className="w-4 h-4 text-orange-500" /> Sécurité du mot de passe
             </h3>
 
-            <form onSubmit={(e) => { e.preventDefault(); showToast('Mot de passe mis à jour !'); onUpdatePasswordSubmit(e); }} className="space-y-3">
+            <form onSubmit={(e) => { e.preventDefault(); showToast('Mot de passe mis à jour !'); onUpdatePasswordSubmit(e); }} className="space-y-2.5">
               <input 
                 type="password" 
                 placeholder="Nouveau mot de passe" 
                 value={password} 
                 onChange={(e) => setPassword(e.target.value)} 
-                className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3.5 py-2.5 text-xs text-white" 
+                className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3.5 py-2 text-[13px] text-white" 
               />
               <input 
                 type="password" 
                 placeholder="Confirmer le mot de passe" 
                 value={confirmPassword} 
                 onChange={(e) => setConfirmPassword(e.target.value)} 
-                className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3.5 py-2.5 text-xs text-white" 
+                className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3.5 py-2 text-[13px] text-white" 
               />
-              <button type="submit" className="w-full py-3 bg-neutral-800 hover:bg-neutral-700 text-white font-bold rounded-xl text-xs transition">
-                Mettre à jour le mot de passe 🔒
+              <button type="submit" className="w-full py-2 bg-neutral-800 hover:bg-neutral-700 text-white font-semibold rounded-xl text-[12px] transition">
+                Mettre à jour le mot de passe
               </button>
             </form>
           </div>
 
-          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-3 shadow-xl">
-            <h3 className="text-sm font-black text-white">Session & Compte</h3>
-            <button onClick={onSignOut} className="w-full py-3 bg-red-950/40 border border-red-900/50 text-red-400 hover:bg-red-900/40 font-bold rounded-xl text-xs transition flex items-center justify-center gap-2">
+          <div className="bg-neutral-900 border border-neutral-800/80 rounded-2xl p-4 space-y-2.5 shadow-xl">
+            <h3 className="text-[13px] font-bold text-white">Session</h3>
+            <button onClick={onSignOut} className="w-full py-2.5 bg-red-950/40 border border-red-900/50 text-red-400 hover:bg-red-900/40 font-semibold rounded-xl text-[12px] transition flex items-center justify-center gap-1.5">
               <LogOut className="w-4 h-4" /> Se déconnecter
             </button>
           </div>
 
           {isAdmin && (
-            <div className="bg-neutral-900 border border-orange-500/40 rounded-3xl p-5 space-y-4 shadow-xl">
-              <h3 className="text-sm font-black text-orange-400 flex items-center gap-2">
-                <ShieldCheck className="w-4 h-4" /> Espace Administrateur (Gestion des Badges)
+            <div className="bg-neutral-900 border border-orange-500/40 rounded-2xl p-4 space-y-3 shadow-xl">
+              <h3 className="text-[13px] font-bold text-orange-400 flex items-center gap-1.5">
+                <ShieldCheck className="w-4 h-4" /> Espace Administrateur
               </h3>
-              <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+              <div className="space-y-2 max-h-44 overflow-y-auto pr-1">
                 {registeredUsers.map((u) => (
-                  <div key={u.id} className="bg-neutral-950 p-3 rounded-2xl border border-neutral-800 flex items-center justify-between">
-                    <div className="flex items-center gap-2.5">
-                      <img src={u.avatar_url} alt="" className="w-8 h-8 rounded-full object-cover" />
+                  <div key={u.id} className="bg-neutral-950 p-2.5 rounded-xl border border-neutral-800 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <img src={u.avatar_url} alt="" className="w-7 h-7 rounded-full object-cover" />
                       <div>
-                        <span className="text-xs font-bold text-white block">{u.username}</span>
-                        <span className="text-[10px] text-neutral-400">{u.home_club || 'Club partenaire'}</span>
+                        <span className="text-[12px] font-bold text-white block">{u.username}</span>
+                        <span className="text-[10px] text-neutral-400">{u.home_club || 'Club'}</span>
                       </div>
                     </div>
                     <button 
-                      onClick={() => { onToggleVerifyAdmin(u.id, u.is_verified || false); showToast('Statut du badge mis à jour'); }} 
-                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${u.is_verified ? 'bg-orange-600 text-white' : 'bg-neutral-800 text-neutral-400'}`}
+                      onClick={() => { onToggleVerifyAdmin(u.id, u.is_verified || false); showToast('Badge mis à jour'); }} 
+                      className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition ${u.is_verified ? 'bg-orange-600 text-white' : 'bg-neutral-800 text-neutral-400'}`}
                     >
                       {u.is_verified ? 'Certifié ✓' : 'Certifier'}
                     </button>
