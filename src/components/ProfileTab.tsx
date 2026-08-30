@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { User as SupabaseUser } from '@supabase/supabase-js';
 import { 
   User, ShieldCheck, MapPin, Target, Clock, Camera, Lock, Unlock, Key, LogOut, 
-  Trash2, Flame, Award, Dumbbell, MessageCircle, Edit3, Check, X 
+  Trash2, Flame, Award, Dumbbell, MessageCircle, Edit3, Check, X, Image as ImageIcon 
 } from 'lucide-react';
 import { RealUser, TransformationPhoto } from '../types';
 
@@ -36,7 +36,7 @@ interface ProfileTabProps {
   setIsPrivateMode: (val: boolean) => void;
   onSignOut: () => void;
   onToggleVerifyAdmin: (userId: string, currentStatus: boolean) => void;
-  onUpdateProfile?: (updatedData: { username: string; home_club: string; goal: string; preferred_time: string; gender: string }) => void;
+  onUpdateProfile?: (updatedData: { username: string; home_club: string; goal: string; preferred_time: string; gender: string; avatar_url?: string; banner_url?: string }) => void;
   beforeFileInputRef: React.RefObject<HTMLInputElement>;
   afterFileInputRef: React.RefObject<HTMLInputElement>;
 }
@@ -59,17 +59,12 @@ export default function ProfileTab({
   setNewTransWeight,
   setNewTransNote,
   setNewTransIsPrivate,
-  onAvatarClick,
-  onBeforeFileSelect,
-  onAfterFileSelect,
   onAddTransformation,
   onUpdatePasswordSubmit,
   password,
   setPassword,
   confirmPassword,
   setConfirmPassword,
-  isPrivateMode,
-  setIsPrivateMode,
   onSignOut,
   onToggleVerifyAdmin,
   onUpdateProfile,
@@ -79,12 +74,69 @@ export default function ProfileTab({
   const [activeSubSection, setActiveSubSection] = useState<'feed' | 'transformations' | 'settings'>('feed');
   const [isEditingProfile, setIsEditingProfile] = useState(false);
 
+  // État local pour l'avatar et la bannière
+  const [currentAvatar, setCurrentAvatar] = useState(userAvatarUrl);
+  const [currentBanner, setCurrentBanner] = useState<string>(
+    currentUserProfile?.banner_url || 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=1200'
+  );
+
+  const avatarFileInputRef = useRef<HTMLInputElement>(null);
+  const bannerFileInputRef = useRef<HTMLInputElement>(null);
+
   // Champs modifiables du profil
   const [editUsername, setEditUsername] = useState(currentUserProfile?.username || user?.user_metadata?.username || '');
   const [editClub, setEditClub] = useState(currentUserProfile?.home_club || 'Club Tournai (Bastion)');
   const [editGoal, setEditGoal] = useState(currentUserProfile?.goal || 'Prise de masse / Force');
   const [editTime, setEditTime] = useState(currentUserProfile?.preferred_time || 'Soir');
   const [editGender, setEditGender] = useState(currentUserProfile?.gender || 'Homme');
+
+  // Gestion changement photo de profil (Fichier ou Appareil photo)
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const res = reader.result as string;
+        setCurrentAvatar(res);
+        if (onUpdateProfile) {
+          onUpdateProfile({
+            username: editUsername,
+            home_club: editClub,
+            goal: editGoal,
+            preferred_time: editTime,
+            gender: editGender,
+            avatar_url: res,
+            banner_url: currentBanner
+          });
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // Gestion changement bannière de couverture
+  const handleBannerChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const res = reader.result as string;
+        setCurrentBanner(res);
+        if (onUpdateProfile) {
+          onUpdateProfile({
+            username: editUsername,
+            home_club: editClub,
+            goal: editGoal,
+            preferred_time: editTime,
+            gender: editGender,
+            avatar_url: currentAvatar,
+            banner_url: res
+          });
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   const handleSaveProfile = (e: React.FormEvent) => {
     e.preventDefault();
@@ -94,7 +146,9 @@ export default function ProfileTab({
         home_club: editClub,
         goal: editGoal,
         preferred_time: editTime,
-        gender: editGender
+        gender: editGender,
+        avatar_url: currentAvatar,
+        banner_url: currentBanner
       });
     }
     setIsEditingProfile(false);
@@ -103,21 +157,49 @@ export default function ProfileTab({
 
   return (
     <div className="space-y-4 pb-16 animate-fadeIn">
+      {/* Inputs cachés pour l'upload d'images */}
+      <input 
+        type="file" 
+        accept="image/*" 
+        ref={avatarFileInputRef} 
+        onChange={handleAvatarChange} 
+        className="hidden" 
+      />
+      <input 
+        type="file" 
+        accept="image/*" 
+        ref={bannerFileInputRef} 
+        onChange={handleBannerChange} 
+        className="hidden" 
+      />
+
       {/* Bannière de profil style Réseau Social */}
       <div className="bg-neutral-900 border border-neutral-800 rounded-3xl overflow-hidden shadow-2xl relative">
-        <div className="h-36 bg-gradient-to-r from-orange-600 via-amber-600 to-neutral-900 relative">
-          <div className="absolute inset-0 bg-black/20" />
+        <div className="h-36 relative group">
+          <img 
+            src={currentBanner} 
+            alt="Bannière" 
+            className="w-full h-full object-cover" 
+          />
+          <div className="absolute inset-0 bg-black/30 group-hover:bg-black/50 transition flex items-center justify-center opacity-0 group-hover:opacity-100">
+            <button 
+              onClick={() => bannerFileInputRef.current?.click()}
+              className="px-3 py-1.5 bg-black/70 hover:bg-black text-white text-xs font-bold rounded-xl flex items-center gap-1.5 backdrop-blur-md shadow-lg transition"
+            >
+              <ImageIcon className="w-3.5 h-3.5 text-orange-500" /> Modifier la couverture 🖼️
+            </button>
+          </div>
         </div>
 
         <div className="px-6 pb-6 pt-0 relative flex flex-col items-center text-center -mt-14">
-          <div className="relative group cursor-pointer" onClick={onAvatarClick}>
+          <div className="relative group cursor-pointer" onClick={() => avatarFileInputRef.current?.click()}>
             <img 
-              src={userAvatarUrl} 
+              src={currentAvatar} 
               alt="Avatar" 
               className="w-24 h-24 rounded-full object-cover border-4 border-neutral-950 shadow-2xl group-hover:brightness-90 transition" 
             />
-            <div className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-full opacity-0 group-hover:opacity-100 transition text-white">
-              <Camera className="w-6 h-6" />
+            <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition text-white">
+              <Camera className="w-6 h-6 text-orange-500" />
             </div>
           </div>
 
