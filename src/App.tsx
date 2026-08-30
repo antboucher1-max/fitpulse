@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  Zap, Bot, PlusSquare, Calculator, User, MessageCircle, Home, Users, Plus, X, Camera, Flame, MapPin, Hash, Bell
+  Zap, Timer, PlusSquare, Calculator, User, MessageCircle, Home, Users, Plus, X, Camera, Flame, MapPin, Hash, Bell
 } from 'lucide-react';
 import { createClient, User as SupabaseUser } from '@supabase/supabase-js';
 
@@ -12,7 +12,7 @@ import { askFitBotAI } from './services/gemini';
 import FeedTab from './components/FeedTab';
 import BuddyTab from './components/BuddyTab';
 import LiveTrackerTab from './components/LiveTrackerTab';
-import FitBotTab from './components/FitBotTab';
+import RestTimerTab from './components/RestTimerTab';
 import ExercisesTab from './components/ExercisesTab';
 import ChatTab from './components/ChatTab';
 import CalculatorTab from './components/CalculatorTab';
@@ -42,7 +42,7 @@ const isMatchingClub = (postClubName?: string, selectedClubName?: string): boole
 export default function App() {
   const [user, setUser] = useState<SupabaseUser | null>(null);
   
-  const [currentTab, setCurrentTab] = useState<'feed' | 'buddy' | 'workout' | 'exercises' | 'chat' | 'profile' | 'calculator' | 'live_tracker' | 'fitbot' | 'notifications'>(() => {
+  const [currentTab, setCurrentTab] = useState<'feed' | 'buddy' | 'workout' | 'exercises' | 'chat' | 'profile' | 'calculator' | 'live_tracker' | 'rest_timer' | 'notifications'>(() => {
     const savedTab = localStorage.getItem('fitpulse_active_tab');
     return (savedTab as any) || 'feed';
   });
@@ -70,11 +70,6 @@ export default function App() {
   const [liveWorkoutName, setLiveWorkoutName] = useState<string>('Séance Full Body');
   const [liveExercises, setLiveExercises] = useState<LiveWorkoutExercise[]>([]);
   const [selectedExToAdd, setSelectedExToAdd] = useState(EXERCISES_DATABASE[0].name);
-
-  const [aiChatMessages, setAiChatMessages] = useState<AIChatMessage[]>([{ sender: 'bot', text: "Salut l'athlète ! Je suis **FitBot**. Comment puis-je t'aider aujourd'hui ?" }]);
-  const [aiInputText, setAiInputText] = useState('');
-  const [isListening, setIsListening] = useState(false);
-  const aiMessagesEndRef = useRef<HTMLDivElement>(null);
 
   const [transformations, setTransformations] = useState<TransformationPhoto[]>([]);
   const [friendRequests, setFriendRequests] = useState<FriendRequest[]>([]);
@@ -213,29 +208,6 @@ export default function App() {
     setLastReadTimestamps(prev => ({ ...prev, [buddy.id]: Date.now() }));
   };
 
-  const handleSendAIChat = async (e?: React.FormEvent, customText?: string) => {
-    if (e) e.preventDefault();
-    const textToSend = customText || aiInputText;
-    if (!textToSend.trim()) return;
-    if (!customText) setAiInputText('');
-    const newHistory: AIChatMessage[] = [...aiChatMessages, { sender: 'user', text: textToSend }];
-    setAiChatMessages([...newHistory, { sender: 'bot', text: "Hmm, réfléchissons... 🧠" }]);
-    const botReply = await askFitBotAI(textToSend);
-    setAiChatMessages([...newHistory, { sender: 'bot', text: botReply }]);
-  };
-
-  const toggleVoiceDictation = () => {
-    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) { alert("Non supporté."); return; }
-    if (isListening) { setIsListening(false); return; }
-    const recognition = new (window as any).SpeechRecognition();
-    recognition.lang = 'fr-FR';
-    recognition.onstart = () => setIsListening(true);
-    recognition.onresult = (ev: any) => { setAiInputText(ev.results[0][0].transcript); setIsListening(false); handleSendAIChat(undefined, ev.results[0][0].transcript); };
-    recognition.onerror = () => setIsListening(false);
-    recognition.onend = () => setIsListening(false);
-    recognition.start();
-  };
-
   const currentUserProfile = registeredUsers.find(u => u.id === user?.id);
   const currentUsername = currentUserProfile?.username || user?.user_metadata?.username || 'Athlète';
 
@@ -354,7 +326,7 @@ export default function App() {
       <main className="flex-1 max-w-lg w-full mx-auto px-4 py-3 pb-24">
         {currentTab === 'feed' && <FeedTab stories={cloudStories} posts={displayedPosts} registeredUsers={registeredUsers} friendRequests={friendRequests} currentUserId={user?.id} feedLoading={feedLoading} viewedStoryIds={viewedStoryIds} calculateStreak={calculateUserStreak} onOpenStory={(idx) => setActiveStoryIndex(idx)} onCreateStoryClick={() => setIsPostModalOpen(true)} onToggleLike={handleToggleLike} onOpenComments={(id) => setActiveCommentPostId(id)} onReportPost={() => {}} onDeletePost={() => {}} onSelectProfile={(u) => setViewingProfileUser(u)} onStartRestTimer={() => {}} />}
         {currentTab === 'buddy' && <BuddyTab currentUserId={user?.id} registeredUsers={registeredUsers} friendRequests={friendRequests} onSendFriendRequest={async (rId) => { if (!user) return; await supabase.from('friend_requests').insert([{ sender_id: user.id, receiver_id: rId, status: 'pending' }]); fetchFriendRequests(user.id); }} onAcceptFriendRequest={async (reqId) => { await supabase.from('friend_requests').update({ status: 'accepted' }).eq('id', reqId); if (user) fetchFriendRequests(user.id); }} onSelectBuddyProfile={(u) => setViewingProfileUser(u)} />}
-        {currentTab === 'fitbot' && <FitBotTab messages={aiChatMessages} inputText={aiInputText} setInputText={setAiInputText} isListening={isListening} toggleVoice={toggleVoiceDictation} onSend={(e) => handleSendAIChat(e)} messagesEndRef={aiMessagesEndRef} />}
+        {currentTab === 'rest_timer' && <RestTimerTab />}
         {currentTab === 'exercises' && <ExercisesTab exercises={EXERCISES_DATABASE} exerciseSearch={exerciseSearch} setExerciseSearch={setExerciseSearch} selectedCategoryFilter={selectedCategoryFilter} setSelectedCategoryFilter={setSelectedCategoryFilter} onSelectExercise={(ex) => setSelectedExerciseDetail(ex)} />}
         {currentTab === 'calculator' && <CalculatorTab targetWeight={targetWeight} setTargetWeight={setTargetWeight} barbellWeight={barbellWeight} setBarbellWeight={setBarbellWeight} plateBreakdown={plateBreakdown} />}
         {currentTab === 'live_tracker' && <LiveTrackerTab liveWorkoutName={liveWorkoutName} setLiveWorkoutName={setLiveWorkoutName} liveElapsedSeconds={0} liveExercises={liveExercises} selectedExToAdd={selectedExToAdd} setSelectedExToAdd={setSelectedExToAdd} exercisesDatabase={EXERCISES_DATABASE} onAddExercise={() => setLiveExercises([...liveExercises, { id: 'lex-' + Date.now(), name: selectedExToAdd, sets: [{ setNumber: 1, weight: 50, reps: 10, completed: false }] }])} onAddSet={(exId) => setLiveExercises(liveExercises.map(ex => ex.id === exId ? { ...ex, sets: [...ex.sets, { setNumber: ex.sets.length + 1, weight: 50, reps: 10, completed: false }] } : ex))} onToggleSet={(exId, sIdx) => setLiveExercises(liveExercises.map(ex => ex.id === exId ? { ...ex, sets: ex.sets.map((s, i) => i === sIdx ? { ...s, completed: !s.completed } : s) } : ex))} onUpdateWeight={(exId, sIdx, val) => setLiveExercises(liveExercises.map(item => item.id === exId ? { ...item, sets: item.sets.map((s, i) => i === sIdx ? { ...s, weight: val } : s) } : item))} onUpdateReps={(exId, sIdx, val) => setLiveExercises(liveExercises.map(item => item.id === exId ? { ...item, sets: item.sets.map((s, i) => i === sIdx ? { ...s, reps: val } : s) } : item))} onFinishWorkout={handleFinishLiveWorkout} onQuitLive={() => setIsLiveActive(false)} />}
@@ -528,7 +500,7 @@ export default function App() {
           <Plus className="w-6 h-6 stroke-[3]" />
         </button>
 
-        <button onClick={() => handleTabChange('fitbot')} className={`flex flex-col items-center gap-1 ${currentTab === 'fitbot' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Bot className="w-5 h-5" /><span className="text-[10px]">FitBot IA</span></button>
+        <button onClick={() => handleTabChange('rest_timer')} className={`flex flex-col items-center gap-1 ${currentTab === 'rest_timer' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Timer className="w-5 h-5" /><span className="text-[10px]">Chrono</span></button>
         
         {(() => {
           const unreadCount = activeChatUsers.filter(buddy => {
