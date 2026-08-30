@@ -36,9 +36,15 @@ interface ProfileTabProps {
   setIsPrivateMode: (val: boolean) => void;
   onSignOut: () => void;
   onToggleVerifyAdmin: (userId: string, currentStatus: boolean) => void;
+  onUpdateProfile?: (updatedData: { username: string; home_club: string; goal: string; preferred_time: string; gender: string }) => void;
   beforeFileInputRef: React.RefObject<HTMLInputElement>;
   afterFileInputRef: React.RefObject<HTMLInputElement>;
 }
+
+const CLUBS_LIST = [
+  'Club Tournai (Bastion)', 'Club Tournai (les jeunesses)', 'Club Antoing', 'Club Péruwelz',
+  'Club Leuze', 'Club Ath', 'Club Mouscron', 'Club Ronse', 'Club St-Ghislain', 'Club Mons', 'Club Jurbise'
+];
 
 export default function ProfileTab({
   user,
@@ -66,12 +72,34 @@ export default function ProfileTab({
   setIsPrivateMode,
   onSignOut,
   onToggleVerifyAdmin,
+  onUpdateProfile,
   beforeFileInputRef,
   afterFileInputRef
 }: ProfileTabProps) {
   const [activeSubSection, setActiveSubSection] = useState<'feed' | 'transformations' | 'settings'>('feed');
-  const [bio, setBio] = useState(currentUserProfile?.goal || "Passionné(e) de fitness et de dépassement de soi ! 💪");
-  const [isEditingBio, setIsEditingBio] = useState(false);
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+
+  // Champs modifiables du profil
+  const [editUsername, setEditUsername] = useState(currentUserProfile?.username || user?.user_metadata?.username || '');
+  const [editClub, setEditClub] = useState(currentUserProfile?.home_club || 'Club Tournai (Bastion)');
+  const [editGoal, setEditGoal] = useState(currentUserProfile?.goal || 'Prise de masse / Force');
+  const [editTime, setEditTime] = useState(currentUserProfile?.preferred_time || 'Soir');
+  const [editGender, setEditGender] = useState(currentUserProfile?.gender || 'Homme');
+
+  const handleSaveProfile = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (onUpdateProfile) {
+      onUpdateProfile({
+        username: editUsername,
+        home_club: editClub,
+        goal: editGoal,
+        preferred_time: editTime,
+        gender: editGender
+      });
+    }
+    setIsEditingProfile(false);
+    alert('✅ Profil mis à jour avec succès !');
+  };
 
   return (
     <div className="space-y-4 pb-16 animate-fadeIn">
@@ -93,7 +121,7 @@ export default function ProfileTab({
             </div>
           </div>
 
-          <div className="mt-3 space-y-1">
+          <div className="mt-3 space-y-1 w-full">
             <h2 className="text-lg font-black text-white flex items-center justify-center gap-1.5">
               {currentUserProfile?.username || user?.user_metadata?.username || 'Athlète FitPulse'}
               {currentUserProfile?.is_verified && <ShieldCheck className="w-5 h-5 text-orange-500 fill-orange-500/20" />}
@@ -103,13 +131,28 @@ export default function ProfileTab({
             </p>
           </div>
 
-          {/* Bio personnalisable */}
-          <div className="mt-3 max-w-sm text-xs text-neutral-300 bg-neutral-950/60 p-3 rounded-2xl border border-neutral-800 relative group">
-            <p className="italic">"{bio}"</p>
+          {/* Bouton de modification rapide du profil */}
+          <button 
+            onClick={() => setIsEditingProfile(true)}
+            className="mt-3 px-4 py-2 bg-neutral-800 hover:bg-neutral-700 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 transition shadow-md"
+          >
+            <Edit3 className="w-3.5 h-3.5 text-orange-500" /> Modifier mon profil ✏️
+          </button>
+
+          {/* Infos rapides (Objectif & Disponibilité) */}
+          <div className="grid grid-cols-2 gap-2 w-full mt-4">
+            <div className="bg-neutral-950 p-2.5 rounded-2xl border border-neutral-800 text-left">
+              <span className="text-[10px] text-neutral-400 font-semibold block uppercase">Objectif</span>
+              <span className="text-xs font-bold text-white truncate block">{currentUserProfile?.goal || 'Musculation'}</span>
+            </div>
+            <div className="bg-neutral-950 p-2.5 rounded-2xl border border-neutral-800 text-left">
+              <span className="text-[10px] text-neutral-400 font-semibold block uppercase">Disponibilité</span>
+              <span className="text-xs font-bold text-white truncate block">{currentUserProfile?.preferred_time || 'Soir'}</span>
+            </div>
           </div>
 
           {/* Statistiques du profil */}
-          <div className="grid grid-cols-3 gap-3 w-full mt-5">
+          <div className="grid grid-cols-3 gap-3 w-full mt-3">
             <div className="bg-neutral-950 p-3 rounded-2xl border border-neutral-800 text-center">
               <span className="block text-base font-black text-orange-500">🔥 12</span>
               <span className="text-[10px] text-neutral-400 font-semibold uppercase">Jours Streak</span>
@@ -147,6 +190,91 @@ export default function ProfileTab({
           </div>
         </div>
       </div>
+
+      {/* MODAL DE MODIFICATION DU PROFIL */}
+      {isEditingProfile && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl animate-fadeIn">
+            <div className="flex items-center justify-between">
+              <h3 className="font-extrabold text-base text-white flex items-center gap-2">
+                <Edit3 className="w-5 h-5 text-orange-500" /> Modifier mon profil
+              </h3>
+              <button onClick={() => setIsEditingProfile(false)} className="p-2 text-neutral-400 hover:text-white rounded-xl">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveProfile} className="space-y-3.5">
+              <div>
+                <label className="block text-xs font-semibold text-neutral-400 mb-1">Pseudo :</label>
+                <input 
+                  type="text" 
+                  value={editUsername} 
+                  onChange={(e) => setEditUsername(e.target.value)} 
+                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3.5 py-3 text-xs text-white focus:border-orange-500" 
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-neutral-400 mb-1">Club Principal :</label>
+                <select 
+                  value={editClub} 
+                  onChange={(e) => setEditClub(e.target.value)} 
+                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3.5 py-3 text-xs text-white focus:border-orange-500"
+                >
+                  {CLUBS_LIST.map((club) => (
+                    <option key={club} value={club}>{club}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-neutral-400 mb-1">Objectif principal :</label>
+                <input 
+                  type="text" 
+                  value={editGoal} 
+                  onChange={(e) => setEditGoal(e.target.value)} 
+                  placeholder="Ex: Prise de masse / Force / Sèche" 
+                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3.5 py-3 text-xs text-white focus:border-orange-500" 
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-neutral-400 mb-1">Créneau / Disponibilité :</label>
+                <select 
+                  value={editTime} 
+                  onChange={(e) => setEditTime(e.target.value)} 
+                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3.5 py-3 text-xs text-white focus:border-orange-500"
+                >
+                  <option value="Matin">Matin</option>
+                  <option value="Midi">Midi</option>
+                  <option value="Soir">Soir</option>
+                  <option value="Week-end">Week-end</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-neutral-400 mb-1">Genre (pour le système de match) :</label>
+                <select 
+                  value={editGender} 
+                  onChange={(e) => setEditGender(e.target.value)} 
+                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3.5 py-3 text-xs text-white focus:border-orange-500"
+                >
+                  <option value="Homme">Homme</option>
+                  <option value="Femme">Femme</option>
+                </select>
+              </div>
+
+              <div className="pt-2">
+                <button type="submit" className="w-full py-3.5 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-2xl text-xs shadow-xl transition">
+                  Enregistrer les modifications 💾
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* SECTION 1 : PUBLICATIONS DE L'UTILISATEUR */}
       {activeSubSection === 'feed' && (
