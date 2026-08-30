@@ -23,8 +23,18 @@ const supabaseAnonKey = 'sb_publishable_O8CKhUtzgq9nO9lKavNE9A__fAdRWoB';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 const CLUBS_LIST = [
-  'Club Tournai (Bastion)', 'Club Tournai (les jeunesses)', 'Club Antoing', 'Club Péruwelz',
-  'Club Leuze', 'Club Ath', 'Club Mouscron', 'Club Ronse', 'Club St-Ghislain', 'Club Mons', 'Club Jurbise'
+  '🌐 Tous les clubs (Global)', 
+  'Club Tournai (Bastion)', 
+  'Club Tournai (les jeunesses)', 
+  'Club Antoing', 
+  'Club Péruwelz',
+  'Club Leuze', 
+  'Club Ath', 
+  'Club Mouscron', 
+  'Club Ronse', 
+  'Club St-Ghislain', 
+  'Club Mons', 
+  'Club Jurbise'
 ];
 
 const EXERCISES_DATABASE: ExerciseGuide[] = [
