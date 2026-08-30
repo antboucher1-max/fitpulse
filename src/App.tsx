@@ -511,7 +511,13 @@ export default function App() {
           }).length;
 
           return (
-            <button onClick={() => { handleTabChange('chat'); setSelectedBuddyChat(null); }} className={`relative flex flex-col items-center gap-1 ${currentTab === 'chat' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}>
+            <button onClick={() => { 
+              handleTabChange('chat'); 
+              setSelectedBuddyChat(null); 
+              const nowTimestamps: Record<string, number> = {};
+              activeChatUsers.forEach(b => { nowTimestamps[b.id] = Date.now(); });
+              setLastReadTimestamps(nowTimestamps);
+            }} className={`relative flex flex-col items-center gap-1 ${currentTab === 'chat' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}>
               <MessageCircle className="w-5 h-5" />
               <span className="text-[10px]">Chat</span>
               {unreadCount > 0 && (
