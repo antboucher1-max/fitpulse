@@ -94,6 +94,7 @@ export default function ProfileTab({
 
   const activeUsername = currentUserProfile?.username || user?.user_metadata?.username || 'Athlète';
   const changesCount = (currentUserProfile as any)?.username_changes_count || 0;
+  const userPoints = (currentUserProfile as any)?.points || 0; // 🏆 Récupération des points du profil
 
   const [editUsername, setEditUsername] = useState(activeUsername);
   const [editClub, setEditClub] = useState(currentUserProfile?.home_club || 'Club Tournai (Bastion)');
@@ -246,6 +247,7 @@ export default function ProfileTab({
             </div>
           </div>
 
+          {/* Statistiques incluant les Points Ligue en direct */}
           <div className="grid grid-cols-3 gap-3 w-full mt-3">
             <div className="bg-neutral-950 p-3 rounded-2xl border border-neutral-800 text-center">
               <span className="block text-base font-black text-orange-500">🔥 12</span>
@@ -256,8 +258,8 @@ export default function ProfileTab({
               <span className="text-xs text-neutral-400 font-semibold uppercase">Évolutions</span>
             </div>
             <div className="bg-neutral-950 p-3 rounded-2xl border border-neutral-800 text-center">
-              <span className="block text-base font-black text-orange-400">⚡ Actif</span>
-              <span className="text-xs text-neutral-400 font-semibold uppercase">Statut</span>
+              <span className="block text-base font-black text-orange-400">🏆 {userPoints}</span>
+              <span className="text-xs text-neutral-400 font-semibold uppercase">Points Ligue</span>
             </div>
           </div>
 
