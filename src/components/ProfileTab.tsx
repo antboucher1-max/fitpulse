@@ -59,6 +59,8 @@ export default function ProfileTab({
   setNewTransWeight,
   setNewTransNote,
   setNewTransIsPrivate,
+  onBeforeFileSelect,
+  onAfterFileSelect,
   onAddTransformation,
   onUpdatePasswordSubmit,
   password,
