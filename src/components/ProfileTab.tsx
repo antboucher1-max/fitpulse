@@ -94,10 +94,13 @@ export default function ProfileTab({
   const avatarFileInputRef = useRef<HTMLInputElement>(null);
   const bannerFileInputRef = useRef<HTMLInputElement>(null);
 
-  const currentUsername = currentUserProfile?.username || user?.user_metadata?.username || '';
+  // Utilisation prioritaire du profil de la base de données, avec fallback sur les métadonnées ou le state local
+  const initialUsername = currentUserProfile?.username || user?.user_metadata?.username || 'Athlète';
+  const [displayedUsername, setDisplayedUsername] = useState(initialUsername);
+
   const changesCount = (currentUserProfile as any)?.username_changes_count || 0;
 
-  const [editUsername, setEditUsername] = useState(currentUsername);
+  const [editUsername, setEditUsername] = useState(displayedUsername);
   const [editClub, setEditClub] = useState(currentUserProfile?.home_club || 'Club Tournai (Bastion)');
   const [editGoal, setEditGoal] = useState(currentUserProfile?.goal || 'Prise de masse / Force');
   const [editTime, setEditTime] = useState(currentUserProfile?.preferred_time || 'Soir');
@@ -112,7 +115,7 @@ export default function ProfileTab({
         setCurrentAvatar(res);
         if (onUpdateProfile) {
           onUpdateProfile({
-            username: currentUsername,
+            username: displayedUsername,
             home_club: editClub,
             goal: editGoal,
             preferred_time: editTime,
@@ -137,7 +140,7 @@ export default function ProfileTab({
         setCurrentBanner(res);
         if (onUpdateProfile) {
           onUpdateProfile({
-            username: currentUsername,
+            username: displayedUsername,
             home_club: editClub,
             goal: editGoal,
             preferred_time: editTime,
@@ -157,14 +160,15 @@ export default function ProfileTab({
     e.preventDefault();
 
     let newChangesCount = changesCount;
-    // Si l'utilisateur a changé son pseudo par rapport au pseudo actuel
-    if (editUsername !== currentUsername) {
+    if (editUsername !== displayedUsername) {
       if (changesCount >= MAX_USERNAME_CHANGES) {
-        showToast('Nombre maximum de modifications de pseudo atteint (3/3)');
+        showToast('Nombre maximum de modifications atteint (3/3)');
         return;
       }
       newChangesCount += 1;
     }
+
+    setDisplayedUsername(editUsername); // Mise à jour immédiate à l'écran
 
     if (onUpdateProfile) {
       onUpdateProfile({
@@ -216,7 +220,7 @@ export default function ProfileTab({
 
           <div className="mt-3 space-y-1 w-full">
             <h2 className="text-lg font-black text-white flex items-center justify-center gap-1.5">
-              {currentUsername}
+              {displayedUsername}
               {currentUserProfile?.is_verified && <ShieldCheck className="w-5 h-5 text-orange-500 fill-orange-500/20" />}
             </h2>
             <p className="text-xs text-orange-400 font-semibold flex items-center justify-center gap-1">
@@ -304,13 +308,13 @@ export default function ProfileTab({
                   type="text" 
                   value={editUsername} 
                   onChange={(e) => setEditUsername(e.target.value)} 
-                  disabled={changesCount >= MAX_USERNAME_CHANGES && editUsername === currentUsername}
+                  disabled={changesCount >= MAX_USERNAME_CHANGES && editUsername === displayedUsername}
                   className={`w-full bg-neutral-950 border rounded-xl px-3.5 py-3 text-xs text-white focus:border-orange-500 ${changesCount >= MAX_USERNAME_CHANGES ? 'opacity-60 cursor-not-allowed border-red-900/50' : 'border-neutral-800'}`} 
                   required
                 />
                 {changesCount >= MAX_USERNAME_CHANGES && (
                   <p className="text-[10px] text-red-400 mt-1 flex items-center gap-1">
-                    <AlertCircle className="w-3 h-3" /> Vous avez atteint la limite maximale de modifications de pseudo (3).
+                    <AlertCircle className="w-3 h-3" /> Limite maximale de modifications atteinte (3).
                   </p>
                 )}
               </div>
