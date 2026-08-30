@@ -1,15 +1,5 @@
-import React from 'react';
-import { Trophy, Flame, MapPin } from 'lucide-react';
-import { Post } from '../types';
-
-interface ClubLeaderboardProps {
-  posts: Post[];
-}
-
-const CLUBS_FOR_LEADERBOARD = [
-  'Club Tournai (Bastion)', 
-  'Club Tournai (les jeunesses)',import React, { useState } from 'react';
-import { Trophy, Flame, MapPin, Zap, Crown, ChevronRight, User, X, Sparkles } from 'lucide-react';
+import { useState } from 'react';
+import { Trophy, MapPin, X, Sparkles, Crown, ChevronRight } from 'lucide-react';
 import { Post, RealUser } from '../types';
 
 interface ClubLeaderboardProps {
@@ -35,49 +25,38 @@ const CLUBS_LIST = [
 export default function ClubLeaderboard({ posts, registeredUsers, calculateStreak }: ClubLeaderboardProps) {
   const [selectedClubDetail, setSelectedClubDetail] = useState<string | null>(null);
 
-  // Mois en cours (ex: "Août 2026")
   const currentMonthName = new Date().toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
   const capitalizedMonth = currentMonthName.charAt(0).toUpperCase() + currentMonthName.slice(1);
-
-  // Calcul des points par club pour le mois en cours
   const currentMonthNumber = new Date().getMonth();
   const currentYearNumber = new Date().getFullYear();
 
   const clubStats = CLUBS_LIST.map(clubName => {
-    // Filtrer les posts du club pour le mois en cours
     const clubPosts = posts.filter(p => {
       if (p.club_name !== clubName) return false;
-      if (!p.created_at) return true; // Si pas de date, on prend par défaut
+      if (!p.created_at) return true;
       const postDate = new Date(p.created_at);
       return postDate.getMonth() === currentMonthNumber && postDate.getFullYear() === currentYearNumber;
     });
 
-    // Calcul des points pondérés
     let totalPoints = 0;
     const contributorsMap = new Map<string, { username: string; avatar: string; points: number; sessions: number }>();
 
     clubPosts.forEach(post => {
-      // 15 pts pour un live tracker ou une séance détaillée, 10 pts pour un post classique
       const isLive = post.exercises && post.exercises.length > 0;
       const sessionPoints = isLive ? 15 : 10;
       totalPoints += sessionPoints;
 
-      // Suivi des contributeurs du club
       if (post.user_id) {
-        const userStreak = calculateStreak(post.user_id);
-        const streakBonus = userStreak * 2; // Bonus de 2 pts par jour de streak
-        const userTotalSessionPts = sessionPoints + streakBonus;
-
+        const authorProfile = registeredUsers.find(u => u.id === post.user_id);
         const existing = contributorsMap.get(post.user_id);
         if (existing) {
-          existing.points += userTotalSessionPts;
+          existing.points += sessionPoints;
           existing.sessions += 1;
         } else {
-          const authorProfile = registeredUsers.find(u => u.id === post.user_id);
           contributorsMap.set(post.user_id, {
             username: post.username || authorProfile?.username || 'Athlète',
             avatar: post.avatar_url || authorProfile?.avatar_url || 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=150',
-            points: userTotalSessionPts,
+            points: sessionPoints,
             sessions: 1
           });
         }
@@ -94,13 +73,11 @@ export default function ClubLeaderboard({ posts, registeredUsers, calculateStrea
     };
   });
 
-  // Trier du plus de points au moins de points
   clubStats.sort((a, b) => b.points - a.points);
   const leadingClub = clubStats[0];
 
   return (
     <div className="space-y-4">
-      {/* En-tête Classement style Ligue */}
       <div className="bg-gradient-to-br from-neutral-900 via-neutral-900 to-orange-950/40 border border-neutral-800 rounded-3xl p-5 shadow-2xl space-y-4">
         <div className="flex items-center justify-between">
           <div>
@@ -117,10 +94,9 @@ export default function ClubLeaderboard({ posts, registeredUsers, calculateStrea
         </div>
 
         <p className="text-xs text-neutral-300">
-          Gagne des points pour ton club : <strong className="text-white">10 pts</strong> par publication, <strong className="text-white">15 pts</strong> par séance Live, et des bonus de régularité (Streak) ! 🔥
+          Gagne des points pour ton club : <strong className="text-white">10 pts</strong> par publication, <strong className="text-white">15 pts</strong> par séance Live ! 🔥
         </p>
 
-        {/* Liste du classement */}
         <div className="space-y-2.5 pt-1">
           {clubStats.map((club, index) => {
             let rankBadge = 'bg-neutral-950 text-neutral-400 border border-neutral-800';
@@ -164,7 +140,6 @@ export default function ClubLeaderboard({ posts, registeredUsers, calculateStrea
         </div>
       </div>
 
-      {/* MODALE DE DÉTAIL D'UN CLUB (Top Athlètes) */}
       {selectedClubDetail && (() => {
         const clubData = clubStats.find(c => c.name === selectedClubDetail);
         if (!clubData) return null;
@@ -230,73 +205,6 @@ export default function ClubLeaderboard({ posts, registeredUsers, calculateStrea
           </div>
         );
       })()}
-    </div>
-  );
-}
-  'Club Antoing', 
-  'Club Péruwelz',
-  'Club Leuze', 
-  'Club Ath', 
-  'Club Mouscron', 
-  'Club Ronse', 
-  'Club St-Ghislain', 
-  'Club Mons', 
-  'Club Jurbise'
-];
-
-export default function ClubLeaderboard({ posts }: ClubLeaderboardProps) {
-  // Calculer le nombre de séances par club en se basant sur les posts publiés
-  const clubStats = CLUBS_FOR_LEADERBOARD.map(clubName => {
-    const count = posts.filter(p => p.club_name === clubName).length;
-    return { name: clubName, count };
-  });
-
-  // Trier du plus actif au moins actif
-  clubStats.sort((a, b) => b.count - a.count);
-
-  return (
-    <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4 shadow-xl">
-      <div className="flex items-center justify-between">
-        <h3 className="text-sm font-extrabold text-white flex items-center gap-2">
-          <Trophy className="w-5 h-5 text-orange-500" /> Classement des Clubs 🏆
-        </h3>
-        <span className="text-xs text-orange-400 font-semibold bg-orange-500/10 px-3 py-1 rounded-full border border-orange-500/20">
-          Activité du mois
-        </span>
-      </div>
-
-      <p className="text-xs text-neutral-400">
-        Quel club s'entraîne le plus ? Partage tes séances pour faire grimper ton club sur le podium ! 💪
-      </p>
-
-      <div className="space-y-2.5 pt-1">
-        {clubStats.map((club, index) => {
-          let rankBadge = 'bg-neutral-950 text-neutral-400 border border-neutral-800';
-          if (index === 0) rankBadge = 'bg-amber-500/20 text-amber-400 border border-amber-500/30 font-black';
-          if (index === 1) rankBadge = 'bg-neutral-300/20 text-neutral-200 border border-neutral-300/30 font-bold';
-          if (index === 2) rankBadge = 'bg-amber-700/20 text-amber-600 border border-amber-700/30 font-bold';
-
-          return (
-            <div 
-              key={club.name} 
-              className="bg-neutral-950 p-3 rounded-2xl border border-neutral-800/80 flex items-center justify-between transition hover:border-neutral-700"
-            >
-              <div className="flex items-center gap-3">
-                <div className={`w-7 h-7 rounded-xl flex items-center justify-center text-xs ${rankBadge}`}>
-                  {index + 1}
-                </div>
-                <span className="text-xs font-bold text-white flex items-center gap-1.5">
-                  <MapPin className="w-3.5 h-3.5 text-orange-500" /> {club.name}
-                </span>
-              </div>
-
-              <div className="flex items-center gap-1.5 text-xs font-black text-orange-400 bg-orange-500/10 px-3 py-1 rounded-xl">
-                <Flame className="w-3.5 h-3.5 fill-orange-500" /> {club.count} séances
-              </div>
-            </div>
-          );
-        })}
-      </div>
     </div>
   );
 }
