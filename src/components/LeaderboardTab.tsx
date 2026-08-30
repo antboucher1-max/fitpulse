@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Trophy, Award, MapPin, Flame } from 'lucide-react';
+import { Trophy, MapPin, Flame } from 'lucide-react';
 import { RealUser } from '../types';
 
 interface LeaderboardTabProps {
@@ -9,15 +9,18 @@ interface LeaderboardTabProps {
 export default function LeaderboardTab({ registeredUsers }: LeaderboardTabProps) {
   const [leaderboardView, setLeaderboardView] = useState<'clubs' | 'athletes'>('clubs');
 
-  // Simulation du calcul des points des clubs basé sur les membres inscrits
+  // Calcul dynamique des points des clubs en additionnant les points réels de leurs membres
   const clubsScoreMap: Record<string, number> = {};
   registeredUsers.forEach(u => {
     const club = u.home_club || 'Club Tournai (Bastion)';
-    clubsScoreMap[club] = (clubsScoreMap[club] || 0) + 120; // Base de points par membre pour l'exemple
+    const userPoints = (u as any).points || 0;
+    clubsScoreMap[club] = (clubsScoreMap[club] || 0) + userPoints;
   });
 
   const sortedClubs = Object.entries(clubsScoreMap).sort((a, b) => b[1] - a[1]);
-  const sortedAthletes = [...registeredUsers].sort((a, b) => (b.age || 25) - (a.age || 25));
+  
+  // Tri des athlètes du plus grand nombre de points au plus faible
+  const sortedAthletes = [...registeredUsers].sort((a, b) => ((b as any).points || 0) - ((a as any).points || 0));
 
   return (
     <div className="space-y-4 pb-20 animate-fadeIn">
@@ -28,7 +31,7 @@ export default function LeaderboardTab({ registeredUsers }: LeaderboardTabProps)
         </div>
         <div>
           <h2 className="text-base font-black text-white">La Ligue des Salles</h2>
-          <p className="text-xs text-neutral-400">Classement officiel inter-clubs & catégories d'âge</p>
+          <p className="text-xs text-neutral-400">Classement officiel inter-clubs & individuel en direct</p>
         </div>
 
         {/* Boutons de bascule */}
@@ -43,7 +46,7 @@ export default function LeaderboardTab({ registeredUsers }: LeaderboardTabProps)
             onClick={() => setLeaderboardView('athletes')}
             className={`flex-1 py-2 rounded-xl text-xs font-bold transition ${leaderboardView === 'athletes' ? 'bg-orange-600 text-white shadow-lg' : 'text-neutral-400 hover:text-white'}`}
           >
-            ⚡ Athlètes & Âge
+            ⚡ Top Athlètes
           </button>
         </div>
       </div>
@@ -70,12 +73,15 @@ export default function LeaderboardTab({ registeredUsers }: LeaderboardTabProps)
         </div>
       )}
 
-      {/* Contenu ATHLÈTES / CATÉGORIES D'ÂGE */}
+      {/* Contenu ATHLÈTES */}
       {leaderboardView === 'athletes' && (
         <div className="space-y-2.5">
           {sortedAthletes.map((athlete, index) => (
             <div key={athlete.id} className="bg-neutral-900 border border-neutral-800 rounded-2xl p-3.5 flex items-center justify-between shadow-md">
               <div className="flex items-center gap-3">
+                <span className={`w-7 h-7 rounded-xl flex items-center justify-center font-black text-xs ${index === 0 ? 'bg-yellow-500 text-black shadow-lg shadow-yellow-500/20' : index === 1 ? 'bg-neutral-300 text-black' : index === 2 ? 'bg-amber-700 text-white' : 'bg-neutral-800 text-neutral-400'}`}>
+                  {index + 1}
+                </span>
                 <img src={athlete.avatar_url} alt="" className="w-10 h-10 rounded-full object-cover border border-orange-500/40" />
                 <div>
                   <h4 className="font-bold text-xs text-white flex items-center gap-1.5">
@@ -88,7 +94,7 @@ export default function LeaderboardTab({ registeredUsers }: LeaderboardTabProps)
                 </div>
               </div>
               <div className="text-right">
-                <span className="text-xs font-black text-white">🔥 Actif</span>
+                <span className="text-sm font-black text-orange-400">{(athlete as any).points || 0} pts</span>
               </div>
             </div>
           ))}
