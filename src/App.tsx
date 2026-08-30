@@ -41,11 +41,17 @@ const isMatchingClub = (postClubName?: string, selectedClubName?: string): boole
 
 export default function App() {
   const [user, setUser] = useState<SupabaseUser | null>(null);
-  const [currentTab, setCurrentTab] = useState<'feed' | 'buddy' | 'workout' | 'exercises' | 'chat' | 'profile' | 'calculator' | 'live_tracker' | 'fitbot' | 'notifications'>('feed');
+  
+  // Mémorisation de l'onglet actif dans le localStorage pour éviter le retour à l'accueil au refresh
+  const [currentTab, setCurrentTab] = useState<'feed' | 'buddy' | 'workout' | 'exercises' | 'chat' | 'profile' | 'calculator' | 'live_tracker' | 'fitbot' | 'notifications'>(() => {
+    const savedTab = localStorage.getItem('fitpulse_active_tab');
+    return (savedTab as any) || 'feed';
+  });
+
   const [selectedClub, setSelectedClub] = useState<string>('Club Tournai (Bastion)');
   const [posts, setPosts] = useState<Post[]>([]);
   const [feedLoading, setFeedLoading] = useState(false);
-  const [userAvatarUrl, setUserAvatarUrl] = useState<string>('https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150');
+  const [userAvatarUrl, setUserAvatarUrl] = useState<string>('https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=150');
   
   const profileAvatarInputRef = useRef<HTMLInputElement>(null);
   const beforeFileInputRef = useRef<HTMLInputElement>(null);
@@ -190,7 +196,10 @@ export default function App() {
     };
   }, []);
 
-  const handleTabChange = (tab: any) => { setCurrentTab(tab); };
+  const handleTabChange = (tab: any) => { 
+    setCurrentTab(tab); 
+    localStorage.setItem('fitpulse_active_tab', tab);
+  };
 
   const handleOpenChatWithUser = (buddy: RealUser) => {
     setSelectedBuddyChat(buddy);
@@ -390,6 +399,14 @@ export default function App() {
             setIsPrivateMode={setIsPrivateMode} 
             onSignOut={() => supabase.auth.signOut()} 
             onToggleVerifyAdmin={async (uId, status) => { await supabase.from('profiles').update({ is_verified: !status }).eq('id', uId); fetchRealUsers(); }} 
+            onUpdateProfile={async (updatedData) => {
+              if (!user) return;
+              await supabase.from('profiles').upsert({
+                id: user.id,
+                ...updatedData
+              });
+              fetchRealUsers();
+            }}
             beforeFileInputRef={beforeFileInputRef} 
             afterFileInputRef={afterFileInputRef} 
           />
@@ -424,7 +441,7 @@ export default function App() {
                   onClick={() => {
                     handleOpenChatWithUser(viewingProfileUser);
                     setViewingProfileUser(null);
-                    setCurrentTab('chat');
+                    handleTabChange('chat');
                   }}
                   className="w-full py-3 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-2xl text-xs transition shadow-lg flex items-center justify-center gap-2"
                 >
