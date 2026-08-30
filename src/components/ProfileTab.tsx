@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, FormEvent, ChangeEvent } from 'react';
 import { User as SupabaseUser } from '@supabase/supabase-js';
 import { 
   ShieldCheck, MapPin, Camera, Key, LogOut, 
@@ -25,9 +25,9 @@ interface ProfileTabProps {
   onCameraStart: () => void;
   onBeforeFileSelect: () => void;
   onAfterFileSelect: () => void;
-  onAddTransformation: (e: React.FormEvent) => void;
+  onAddTransformation: (e: FormEvent) => void;
   onShareTransformation: (id: string) => void;
-  onUpdatePasswordSubmit: (e: React.FormEvent) => void;
+  onUpdatePasswordSubmit: (e: FormEvent) => void;
   password: string;
   setPassword: (val: string) => void;
   confirmPassword: string;
@@ -107,7 +107,7 @@ export default function ProfileTab({
     }
   }, [currentUserProfile?.username]);
 
-  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAvatarChange = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
@@ -132,7 +132,7 @@ export default function ProfileTab({
     }
   };
 
-  const handleBannerChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleBannerChange = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
@@ -157,7 +157,7 @@ export default function ProfileTab({
     }
   };
 
-  const handleSaveProfile = (e: React.FormEvent) => {
+  const handleSaveProfile = (e: FormEvent) => {
     e.preventDefault();
 
     let newChangesCount = changesCount;
