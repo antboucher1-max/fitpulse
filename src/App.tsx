@@ -342,9 +342,24 @@ export default function App() {
           <form onSubmit={async (e) => {
             e.preventDefault();
             if (isSignUpMode) {
-              const { error } = await supabase.auth.signUp({ email: authEmail, password: authPassword });
-              if (error) alert("Erreur inscription : " + error.message);
-              else alert("Compte créé ! Vérifie tes e-mails ou connecte-toi.");
+              const { data, error } = await supabase.auth.signUp({ email: authEmail, password: authPassword });
+              if (error) {
+                alert("Erreur inscription : " + error.message);
+              } else {
+                if (data.session?.user) {
+                  setUser(data.session.user);
+                  window.location.reload();
+                } else {
+                  const { data: loginData, error: loginError } = await supabase.auth.signInWithPassword({ email: authEmail, password: authPassword });
+                  if (loginError) {
+                    alert("Compte créé ! Connecte-toi maintenant.");
+                    setIsSignUpMode(false);
+                  } else if (loginData.session?.user) {
+                    setUser(loginData.session.user);
+                    window.location.reload();
+                  }
+                }
+              }
             } else {
               const { data, error } = await supabase.auth.signInWithPassword({ email: authEmail, password: authPassword });
               if (error) alert("Erreur connexion : " + error.message);
