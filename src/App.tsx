@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, ChangeEvent, FormEvent } from 'react';
 import {
-  Zap, Timer, PlusSquare, Calculator, User, MessageCircle, Home, Users, Plus, X, Camera, Flame, MapPin, Hash, Bell, ShieldCheck, Award
+  Zap, Timer, PlusSquare, Calculator, User, MessageCircle, Home, Users, Plus, X, Camera, Flame, MapPin, Hash, Bell, ShieldCheck, Award, Info
 } from 'lucide-react';
 import { createClient, User as SupabaseUser } from '@supabase/supabase-js';
 
@@ -489,13 +489,24 @@ export default function App() {
   if (user && registeredUsers.length >= 0 && !hasProfile) {
     return (
       <div className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col items-center justify-center font-sans p-4 select-none">
-        <div className="w-full max-w-sm bg-neutral-900 border border-neutral-800 rounded-3xl p-6 space-y-5 shadow-2xl">
-          <div className="text-center space-y-1.5">
+        <div className="w-full max-w-sm bg-neutral-900 border border-neutral-800 rounded-3xl p-6 space-y-4 shadow-2xl">
+          <div className="text-center space-y-1">
             <div className="w-12 h-12 rounded-2xl bg-orange-500/20 flex items-center justify-center text-orange-500 mx-auto">
               <Award className="w-6 h-6" />
             </div>
-            <h1 className="text-xl font-black text-white tracking-tight">Bienvenue sur FitPulse !</h1>
-            <p className="text-xs text-neutral-400">Configure ta fiche athlète pour classer tes performances et rejoindre ton club.</p>
+            <h1 className="text-lg font-black text-white tracking-tight">Bienvenue sur FitPulse !</h1>
+            <p className="text-xs text-neutral-400">Configure ta fiche athlète pour rejoindre ton club.</p>
+          </div>
+
+          {/* Encadré d'explication pour le nouvel adhérent */}
+          <div className="bg-neutral-950/80 border border-orange-500/30 rounded-2xl p-3.5 space-y-1.5 text-left">
+            <div className="flex items-center gap-1.5 text-orange-400 font-bold text-xs">
+              <Info className="w-4 h-4 flex-shrink-0" />
+              <span>Pourquoi remplir ces informations ?</span>
+            </div>
+            <p className="text-[11px] text-neutral-300 leading-relaxed">
+              Ces détails permettent de te classer dans ta catégorie d'âge, de représenter fièrement ton club dans la ligue et de permettre à tes partenaires de t'identifier facilement sur le fil et dans le chat !
+            </p>
           </div>
 
           <form onSubmit={async (e) => {
@@ -527,14 +538,14 @@ export default function App() {
               fetchRealUsers();
               window.location.reload();
             }
-          }} className="space-y-3.5">
+          }} className="space-y-3">
             
             {/* Photo de profil optionnelle */}
-            <div className="text-center space-y-2">
-              <div className="relative w-16 h-16 mx-auto group cursor-pointer" onClick={() => onboardingAvatarInputRef.current?.click()}>
+            <div className="text-center space-y-1.5 pt-1">
+              <div className="relative w-14 h-14 mx-auto group cursor-pointer" onClick={() => onboardingAvatarInputRef.current?.click()}>
                 <img src={onboardingAvatar} alt="Avatar" className="w-full h-full rounded-full object-cover border-2 border-orange-500 shadow-md" />
                 <div className="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition">
-                  <Camera className="w-5 h-5 text-white" />
+                  <Camera className="w-4 h-4 text-white" />
                 </div>
               </div>
               <div>
@@ -597,7 +608,7 @@ export default function App() {
             <button 
               type="submit" 
               disabled={onboardingSubmitting}
-              className="w-full py-3.5 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-2xl text-sm shadow-xl transition active:scale-95 disabled:opacity-50 mt-2"
+              className="w-full py-3.5 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-2xl text-sm shadow-xl transition active:scale-95 disabled:opacity-50 mt-1"
             >
               {onboardingSubmitting ? "Enregistrement..." : "Accéder à l'application 🚀"}
             </button>
