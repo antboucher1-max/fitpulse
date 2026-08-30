@@ -23,7 +23,7 @@ const supabaseAnonKey = 'sb_publishable_O8CKhUtzgq9nO9lKavNE9A__fAdRWoB';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 const CLUBS_LIST = [
-  '🌐 Tous les clubs (Global)', 
+  '🌐 Tous les clubs (Global)',
   'Club Tournai (Bastion)', 
   'Club Tournai (les jeunesses)', 
   'Club Antoing', 
@@ -57,7 +57,7 @@ export default function App() {
     return (savedTab as any) || 'feed';
   });
 
-  const [selectedClub, setSelectedClub] = useState<string>('Club Tournai (Bastion)');
+  const [selectedClub, setSelectedClub] = useState<string>('🌐 Tous les clubs (Global)');
   const [posts, setPosts] = useState<Post[]>([]);
   const [feedLoading, setFeedLoading] = useState(false);
   const [userAvatarUrl, setUserAvatarUrl] = useState<string>('https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=150');
@@ -94,7 +94,6 @@ export default function App() {
   const [currentMessageInput, setCurrentMessageInput] = useState('');
   const [isOtherUserTyping, setIsOtherUserTyping] = useState(false);
   
-  // Mémorisation persistante dans le localStorage pour survivre au refresh
   const [lastReadTimestamps, setLastReadTimestamps] = useState<Record<string, number>>(() => {
     try {
       const saved = localStorage.getItem('fitpulse_read_timestamps');
@@ -175,8 +174,6 @@ export default function App() {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
       if (session?.user) {
-        setSelectedClub(session.user.user_metadata?.home_club || selectedClub);
-        setUserAvatarUrl(session.user.user_metadata?.avatar_url || userAvatarUrl);
         fetchTransformations(session.user.id);
         fetchFriendRequests(session.user.id);
       }
@@ -269,7 +266,7 @@ export default function App() {
       user_id: user.id,
       username: currentUsername,
       avatar_url: currentUserProfile?.avatar_url || userAvatarUrl,
-      club_name: selectedClub,
+      club_name: selectedClub === '🌐 Tous les clubs (Global)' ? 'Club Tournai (Bastion)' : selectedClub,
       session_type: postSessionType,
       caption: fullCaption,
       image_url: postImageUrl,
@@ -295,7 +292,7 @@ export default function App() {
     if (!user) return;
     if (liveExercises.length === 0) { alert("Ajoute au moins un exercice !"); return; }
     const formattedExercises: ExerciseEntry[] = liveExercises.map(ex => ({ name: ex.name, sets: ex.sets.length, reps: ex.sets[0]?.reps || 10, weight: ex.sets[0]?.weight || 50 }));
-    await supabase.from('posts').insert([{ user_id: user.id, username: currentUsername, avatar_url: currentUserProfile?.avatar_url || userAvatarUrl, club_name: selectedClub, session_type: liveWorkoutName, caption: "Séance terminée en direct ! 💪 #fitpulse", exercises: formattedExercises, likes_count: 0, liked_by: [], comments_count: 0, comments: [], is_private: false }]);
+    await supabase.from('posts').insert([{ user_id: user.id, username: currentUsername, avatar_url: currentUserProfile?.avatar_url || userAvatarUrl, club_name: selectedClub === '🌐 Tous les clubs (Global)' ? 'Club Tournai (Bastion)' : selectedClub, session_type: liveWorkoutName, caption: "Séance terminée en direct ! 💪 #fitpulse", exercises: formattedExercises, likes_count: 0, liked_by: [], comments_count: 0, comments: [], is_private: false }]);
     setIsLiveActive(false);
     handleTabChange('feed');
     fetchCloudPosts();
@@ -303,10 +300,13 @@ export default function App() {
 
   const acceptedFriendIds = friendRequests.filter(req => req.status === 'accepted').map(req => (req.sender_id === user?.id ? req.receiver_id : req.sender_id));
   const activeChatUsers = registeredUsers.filter((u) => u.id !== user?.id && acceptedFriendIds.includes(u.id));
+  
+  // Filtrage des posts avec prise en compte du mode Global
   const displayedPosts = posts.filter((post) => {
-  if (selectedClub === '🌐 Tous les clubs (Global)') return true;
-  return isMatchingClub(post.club_name, selectedClub);
-});
+    if (selectedClub === '🌐 Tous les clubs (Global)') return true;
+    return isMatchingClub(post.club_name, selectedClub);
+  });
+
   const currentChatMessages = allMessages.filter((m) => selectedBuddyChat && user && ((m.sender_id === user.id && m.receiver_id === selectedBuddyChat.id) || (m.sender_id === selectedBuddyChat.id && m.receiver_id === user.id)));
 
   const availablePlates = [25, 20, 15, 10, 5, 2.5, 1.25];
@@ -419,8 +419,8 @@ export default function App() {
       </main>
 
       {viewingProfileUser && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl animate-fadeIn relative">
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-scaleUp">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl relative">
             <button onClick={() => setViewingProfileUser(null)} className="absolute top-4 right-4 p-2 text-neutral-400 hover:text-white rounded-xl">
               <X className="w-5 h-5" />
             </button>
@@ -448,7 +448,7 @@ export default function App() {
                     setViewingProfileUser(null);
                     handleTabChange('chat');
                   }}
-                  className="w-full py-3 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-2xl text-xs transition shadow-lg flex items-center justify-center gap-2"
+                  className="w-full py-3 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-2xl text-xs transition shadow-lg flex items-center justify-center gap-2 active:scale-95"
                 >
                   <MessageCircle className="w-4 h-4" /> Envoyer un message 💬
                 </button>
@@ -459,8 +459,8 @@ export default function App() {
       )}
 
       {isPostModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl animate-fadeIn">
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-scaleUp">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl">
             <div className="flex items-center justify-between">
               <h3 className="font-extrabold text-base text-white flex items-center gap-2">
                 <Flame className="w-5 h-5 text-orange-500" /> Partager une séance
@@ -495,7 +495,7 @@ export default function App() {
               <div>
                 <label className="block text-xs font-semibold text-neutral-400 mb-1">Ajouter une photo (depuis votre téléphone) :</label>
                 <div className="flex gap-2">
-                  <button type="button" onClick={() => postImageFileInputRef.current?.click()} className="flex-1 py-3 bg-neutral-950 border border-neutral-800 hover:border-orange-500 rounded-xl text-xs font-bold text-neutral-200 flex items-center justify-center gap-2 transition">
+                  <button type="button" onClick={() => postImageFileInputRef.current?.click()} className="flex-1 py-3 bg-neutral-950 border border-neutral-800 hover:border-orange-500 rounded-xl text-xs font-bold text-neutral-200 flex items-center justify-center gap-2 transition active:scale-95">
                     <Camera className="w-4 h-4 text-orange-500" /> Choisir une photo
                   </button>
                   <input type="file" accept="image/*" ref={postImageFileInputRef} onChange={handlePostImageFileSelect} className="hidden" />
@@ -509,7 +509,7 @@ export default function App() {
                 </div>
               )}
 
-              <button type="submit" className="w-full py-3.5 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-2xl text-sm shadow-xl transition">
+              <button type="submit" className="w-full py-3.5 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-2xl text-sm shadow-xl transition active:scale-95">
                 Publier sur le fil 🚀
               </button>
             </form>
@@ -518,14 +518,14 @@ export default function App() {
       )}
 
       <nav className="fixed bottom-0 left-0 right-0 z-40 bg-neutral-950/90 backdrop-blur-xl border-t border-neutral-800 px-2 py-2 flex justify-around items-center">
-        <button onClick={() => handleTabChange('feed')} className={`flex flex-col items-center gap-1 ${currentTab === 'feed' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Home className="w-5 h-5" /><span className="text-[10px]">Accueil</span></button>
-        <button onClick={() => handleTabChange('buddy')} className={`flex flex-col items-center gap-1 ${currentTab === 'buddy' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Users className="w-5 h-5" /><span className="text-[10px]">Buddies</span></button>
+        <button onClick={() => handleTabChange('feed')} className={`flex flex-col items-center gap-1 transition active:scale-95 ${currentTab === 'feed' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Home className="w-5 h-5" /><span className="text-[10px]">Accueil</span></button>
+        <button onClick={() => handleTabChange('buddy')} className={`flex flex-col items-center gap-1 transition active:scale-95 ${currentTab === 'buddy' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Users className="w-5 h-5" /><span className="text-[10px]">Buddies</span></button>
         
-        <button onClick={() => setIsPostModalOpen(true)} className="flex flex-col items-center justify-center w-12 h-12 rounded-full bg-orange-600 hover:bg-orange-500 text-white shadow-lg transition transform hover:scale-105 -mt-3">
+        <button onClick={() => setIsPostModalOpen(true)} className="flex flex-col items-center justify-center w-12 h-12 rounded-full bg-orange-600 hover:bg-orange-500 text-white shadow-lg transition transform hover:scale-105 active:scale-95 -mt-3">
           <Plus className="w-6 h-6 stroke-[3]" />
         </button>
 
-        <button onClick={() => handleTabChange('rest_timer')} className={`flex flex-col items-center gap-1 ${currentTab === 'rest_timer' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Timer className="w-5 h-5" /><span className="text-[10px]">Chrono</span></button>
+        <button onClick={() => handleTabChange('rest_timer')} className={`flex flex-col items-center gap-1 transition active:scale-95 ${currentTab === 'rest_timer' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Timer className="w-5 h-5" /><span className="text-[10px]">Chrono</span></button>
         
         {(() => {
           const unreadCount = activeChatUsers.filter(buddy => {
@@ -543,7 +543,7 @@ export default function App() {
               activeChatUsers.forEach(b => { nowTimestamps[b.id] = Date.now(); });
               setLastReadTimestamps(nowTimestamps);
               localStorage.setItem('fitpulse_read_timestamps', JSON.stringify(nowTimestamps));
-            }} className={`relative flex flex-col items-center gap-1 ${currentTab === 'chat' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}>
+            }} className={`relative flex flex-col items-center gap-1 transition active:scale-95 ${currentTab === 'chat' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}>
               <MessageCircle className="w-5 h-5" />
               <span className="text-[10px]">Chat</span>
               {unreadCount > 0 && (
@@ -555,7 +555,7 @@ export default function App() {
           );
         })()}
 
-        <button onClick={() => handleTabChange('profile')} className={`flex flex-col items-center gap-1 ${currentTab === 'profile' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><User className="w-5 h-5" /><span className="text-[10px]">Profil</span></button>
+        <button onClick={() => handleTabChange('profile')} className={`flex flex-col items-center gap-1 transition active:scale-95 ${currentTab === 'profile' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><User className="w-5 h-5" /><span className="text-[10px]">Profil</span></button>
       </nav>
     </div>
   );
