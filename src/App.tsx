@@ -83,7 +83,17 @@ export default function App() {
   const [selectedBuddyChat, setSelectedBuddyChat] = useState<RealUser | null>(null);
   const [currentMessageInput, setCurrentMessageInput] = useState('');
   const [isOtherUserTyping, setIsOtherUserTyping] = useState(false);
-  const [lastReadTimestamps, setLastReadTimestamps] = useState<Record<string, number>>({});
+  
+  // Mémorisation persistante dans le localStorage pour survivre au refresh
+  const [lastReadTimestamps, setLastReadTimestamps] = useState<Record<string, number>>(() => {
+    try {
+      const saved = localStorage.getItem('fitpulse_read_timestamps');
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const [newTransNote, setNewTransNote] = useState('');
@@ -205,7 +215,9 @@ export default function App() {
 
   const handleOpenChatWithUser = (buddy: RealUser) => {
     setSelectedBuddyChat(buddy);
-    setLastReadTimestamps(prev => ({ ...prev, [buddy.id]: Date.now() }));
+    const newTimestamps = { ...lastReadTimestamps, [buddy.id]: Date.now() };
+    setLastReadTimestamps(newTimestamps);
+    localStorage.setItem('fitpulse_read_timestamps', JSON.stringify(newTimestamps));
   };
 
   const currentUserProfile = registeredUsers.find(u => u.id === user?.id);
@@ -514,9 +526,10 @@ export default function App() {
             <button onClick={() => { 
               handleTabChange('chat'); 
               setSelectedBuddyChat(null); 
-              const nowTimestamps: Record<string, number> = {};
+              const nowTimestamps: Record<string, number> = { ...lastReadTimestamps };
               activeChatUsers.forEach(b => { nowTimestamps[b.id] = Date.now(); });
               setLastReadTimestamps(nowTimestamps);
+              localStorage.setItem('fitpulse_read_timestamps', JSON.stringify(nowTimestamps));
             }} className={`relative flex flex-col items-center gap-1 ${currentTab === 'chat' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}>
               <MessageCircle className="w-5 h-5" />
               <span className="text-[10px]">Chat</span>
