@@ -402,7 +402,11 @@ export default function App() {
               setConfirmPassword={setConfirmPassword} 
               isPrivateMode={isPrivateMode} 
               setIsPrivateMode={setIsPrivateMode} 
-              onSignOut={() => supabase.auth.signOut()} 
+              onSignOut={async () => {
+                await supabase.auth.signOut();
+                localStorage.clear();
+                window.location.href = '/';
+              }} 
               onToggleVerifyAdmin={async (uId, status) => { await supabase.from('profiles').update({ is_verified: !status }).eq('id', uId); fetchRealUsers(); }} 
               onUpdateProfile={async (updatedData) => {
                 if (!user) return;
