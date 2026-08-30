@@ -42,7 +42,6 @@ const isMatchingClub = (postClubName?: string, selectedClubName?: string): boole
 export default function App() {
   const [user, setUser] = useState<SupabaseUser | null>(null);
   
-  // Mémorisation de l'onglet actif dans le localStorage pour éviter le retour à l'accueil au refresh
   const [currentTab, setCurrentTab] = useState<'feed' | 'buddy' | 'workout' | 'exercises' | 'chat' | 'profile' | 'calculator' | 'live_tracker' | 'fitbot' | 'notifications'>(() => {
     const savedTab = localStorage.getItem('fitpulse_active_tab');
     return (savedTab as any) || 'feed';
@@ -190,9 +189,17 @@ export default function App() {
       })
       .subscribe();
 
+    const profilesChannel = supabase
+      .channel('public:profiles')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => {
+        fetchRealUsers();
+      })
+      .subscribe();
+
     return () => {
       supabase.removeChannel(postsChannel);
       supabase.removeChannel(messagesChannel);
+      supabase.removeChannel(profilesChannel);
     };
   }, []);
 
@@ -229,10 +236,13 @@ export default function App() {
     recognition.start();
   };
 
+  const currentUserProfile = registeredUsers.find(u => u.id === user?.id);
+  const currentUsername = currentUserProfile?.username || user?.user_metadata?.username || 'Athlète';
+
   const handleSendMessage = async () => {
     if (!currentMessageInput.trim() || !selectedBuddyChat || !user) return;
     const text = currentMessageInput.trim(); setCurrentMessageInput('');
-    await supabase.from('direct_messages').insert([{ sender_id: user.id, receiver_id: selectedBuddyChat.id, sender_name: user.user_metadata?.username || 'Moi', text }]);
+    await supabase.from('direct_messages').insert([{ sender_id: user.id, receiver_id: selectedBuddyChat.id, sender_name: currentUsername, text }]);
   };
 
   const handleToggleLike = async (postId: string) => {
@@ -263,8 +273,8 @@ export default function App() {
     const fullCaption = `${postCaption} ${postHashtags}`.trim();
     const { error } = await supabase.from('posts').insert([{
       user_id: user.id,
-      username: user.user_metadata?.username || 'Athlète',
-      avatar_url: userAvatarUrl,
+      username: currentUsername,
+      avatar_url: currentUserProfile?.avatar_url || userAvatarUrl,
       club_name: selectedClub,
       session_type: postSessionType,
       caption: fullCaption,
@@ -291,7 +301,7 @@ export default function App() {
     if (!user) return;
     if (liveExercises.length === 0) { alert("Ajoute au moins un exercice !"); return; }
     const formattedExercises: ExerciseEntry[] = liveExercises.map(ex => ({ name: ex.name, sets: ex.sets.length, reps: ex.sets[0]?.reps || 10, weight: ex.sets[0]?.weight || 50 }));
-    await supabase.from('posts').insert([{ user_id: user.id, username: user.user_metadata?.username || 'Athlète', avatar_url: userAvatarUrl, club_name: selectedClub, session_type: liveWorkoutName, caption: "Séance terminée en direct ! 💪 #fitpulse", exercises: formattedExercises, likes_count: 0, liked_by: [], comments_count: 0, comments: [], is_private: false }]);
+    await supabase.from('posts').insert([{ user_id: user.id, username: currentUsername, avatar_url: currentUserProfile?.avatar_url || userAvatarUrl, club_name: selectedClub, session_type: liveWorkoutName, caption: "Séance terminée en direct ! 💪 #fitpulse", exercises: formattedExercises, likes_count: 0, liked_by: [], comments_count: 0, comments: [], is_private: false }]);
     setIsLiveActive(false);
     handleTabChange('feed');
     fetchCloudPosts();
@@ -315,7 +325,6 @@ export default function App() {
     return result;
   };
   const plateBreakdown = targetWeight !== '' ? calculatePlates(targetWeight, barbellWeight) : [];
-  const currentUserProfile = registeredUsers.find(u => u.id === user?.id);
   const isAdmin = currentUserProfile?.is_admin || user?.email === 'antboucher@hotmail.fr';
 
   return (
@@ -354,7 +363,7 @@ export default function App() {
           <ProfileTab 
             user={user} 
             currentUserProfile={currentUserProfile} 
-            userAvatarUrl={userAvatarUrl} 
+            userAvatarUrl={currentUserProfile?.avatar_url || userAvatarUrl} 
             isAdmin={isAdmin} 
             registeredUsers={registeredUsers} 
             transformations={transformations} 
@@ -387,10 +396,9 @@ export default function App() {
               setNewTransNote(''); 
               setNewTransBefore(null);
               setNewTransAfter(null);
-              alert('📸 Transformation enregistrée !'); 
             }} 
             onShareTransformation={() => {}} 
-            onUpdatePasswordSubmit={async (e) => { e.preventDefault(); await supabase.auth.updateUser({}); alert("🔒 Mot de passe mis à jour !"); }} 
+            onUpdatePasswordSubmit={async (e) => { e.preventDefault(); await supabase.auth.updateUser({}); }} 
             password={password} 
             setPassword={setPassword} 
             confirmPassword={confirmPassword} 
