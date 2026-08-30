@@ -324,238 +324,240 @@ export default function App() {
   const isAdmin = currentUserProfile?.is_admin || user?.email === 'antboucher@hotmail.fr';
 
   return (
-    <div className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col font-sans select-none">
-      <header className="sticky top-0 z-40 bg-neutral-950/80 backdrop-blur-md border-b border-neutral-900 px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl bg-orange-500/20 flex items-center justify-center text-orange-500"><Zap className="w-5 h-5" /></div>
-          <h1 className="text-base font-black tracking-tight leading-none text-white">FitPulse</h1>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <div className="relative flex items-center bg-neutral-900 border border-neutral-800 rounded-xl px-2.5 py-1.5">
-            <MapPin className="w-3.5 h-3.5 text-orange-500 mr-1.5 flex-shrink-0" />
-            <select 
-              value={selectedClub} 
-              onChange={(e) => setSelectedClub(e.target.value)} 
-              className="bg-transparent text-xs font-bold text-orange-400 focus:outline-none cursor-pointer pr-1"
-            >
-              {CLUBS_LIST.map((club) => (
-                <option key={club} value={club} className="bg-neutral-900 text-white">{club}</option>
-              ))}
-            </select>
+    <div className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col font-sans select-none antialiased">
+      <div className="w-full max-w-md mx-auto min-h-screen bg-neutral-950 flex flex-col shadow-2xl sm:border-x sm:border-neutral-900 relative">
+        <header className="sticky top-0 z-40 bg-neutral-950/80 backdrop-blur-md border-b border-neutral-900 px-4 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-orange-500/20 flex items-center justify-center text-orange-500"><Zap className="w-5 h-5" /></div>
+            <h1 className="text-base font-black tracking-tight leading-none text-white">FitPulse</h1>
           </div>
-        </div>
-      </header>
 
-      <main className="flex-1 max-w-lg w-full mx-auto px-4 py-3 pb-24">
-        {currentTab === 'feed' && <FeedTab stories={cloudStories} posts={displayedPosts} registeredUsers={registeredUsers} friendRequests={friendRequests} currentUserId={user?.id} feedLoading={feedLoading} viewedStoryIds={viewedStoryIds} calculateStreak={calculateUserStreak} onOpenStory={(idx) => setActiveStoryIndex(idx)} onCreateStoryClick={() => setIsPostModalOpen(true)} onToggleLike={handleToggleLike} onOpenComments={(id) => setActiveCommentPostId(id)} onReportPost={() => {}} onDeletePost={() => {}} onSelectProfile={(u) => setViewingProfileUser(u)} onStartRestTimer={() => {}} />}
-        {currentTab === 'buddy' && <BuddyTab currentUserId={user?.id} registeredUsers={registeredUsers} friendRequests={friendRequests} posts={posts} onSendFriendRequest={async (rId) => { if (!user) return; await supabase.from('friend_requests').insert([{ sender_id: user.id, receiver_id: rId, status: 'pending' }]); fetchFriendRequests(user.id); }} onAcceptFriendRequest={async (reqId) => { await supabase.from('friend_requests').update({ status: 'accepted' }).eq('id', reqId); if (user) fetchFriendRequests(user.id); }} onSelectBuddyProfile={(u) => setViewingProfileUser(u)} />}
-        {currentTab === 'rest_timer' && <RestTimerTab />}
-        {currentTab === 'exercises' && <ExercisesTab exercises={EXERCISES_DATABASE} exerciseSearch={exerciseSearch} setExerciseSearch={setExerciseSearch} selectedCategoryFilter={selectedCategoryFilter} setSelectedCategoryFilter={setSelectedCategoryFilter} onSelectExercise={(ex) => setSelectedExerciseDetail(ex)} />}
-        {currentTab === 'calculator' && <CalculatorTab targetWeight={targetWeight} setTargetWeight={setTargetWeight} barbellWeight={barbellWeight} setBarbellWeight={setBarbellWeight} plateBreakdown={plateBreakdown} />}
-        {currentTab === 'live_tracker' && <LiveTrackerTab liveWorkoutName={liveWorkoutName} setLiveWorkoutName={setLiveWorkoutName} liveElapsedSeconds={0} liveExercises={liveExercises} selectedExToAdd={selectedExToAdd} setSelectedExToAdd={setSelectedExToAdd} exercisesDatabase={EXERCISES_DATABASE} onAddExercise={() => setLiveExercises([...liveExercises, { id: 'lex-' + Date.now(), name: selectedExToAdd, sets: [{ setNumber: 1, weight: 50, reps: 10, completed: false }] }])} onAddSet={(exId) => setLiveExercises(liveExercises.map(ex => ex.id === exId ? { ...ex, sets: [...ex.sets, { setNumber: ex.sets.length + 1, weight: 50, reps: 10, completed: false }] } : ex))} onToggleSet={(exId, sIdx) => setLiveExercises(liveExercises.map(ex => ex.id === exId ? { ...ex, sets: ex.sets.map((s, i) => i === sIdx ? { ...s, completed: !s.completed } : s) } : ex))} onUpdateWeight={(exId, sIdx, val) => setLiveExercises(liveExercises.map(item => item.id === exId ? { ...item, sets: item.sets.map((s, i) => i === sIdx ? { ...s, weight: val } : s) } : item))} onUpdateReps={(exId, sIdx, val) => setLiveExercises(liveExercises.map(item => item.id === exId ? { ...item, sets: item.sets.map((s, i) => i === sIdx ? { ...s, reps: val } : s) } : item))} onFinishWorkout={handleFinishLiveWorkout} onQuitLive={() => setIsLiveActive(false)} />}
-        {currentTab === 'chat' && <ChatTab currentUserId={user?.id} selectedBuddyChat={selectedBuddyChat} setSelectedBuddyChat={handleOpenChatWithUser} activeChatUsers={activeChatUsers} currentChatMessages={currentChatMessages} currentMessageInput={currentMessageInput} onInputChange={(e) => setCurrentMessageInput(e.target.value)} onSendMessage={handleSendMessage} onSelectBuddy={(f) => handleOpenChatWithUser(f)} onDeleteConversation={() => {}} onReportConversation={() => {}} isOtherUserTyping={isOtherUserTyping} isMessageLimitReached={false} lastReadTimestamps={lastReadTimestamps} messagesEndRef={messagesEndRef} allMessages={allMessages} />}
-        {currentTab === 'profile' && (
-          <ProfileTab 
-            user={user} 
-            currentUserProfile={currentUserProfile} 
-            userAvatarUrl={currentUserProfile?.avatar_url || userAvatarUrl} 
-            isAdmin={isAdmin} 
-            registeredUsers={registeredUsers} 
-            transformations={transformations} 
-            newTransBefore={newTransBefore}
-            newTransAfter={newTransAfter}
-            newTransWeight={newTransWeight} 
-            newTransNote={newTransNote} 
-            newTransIsPrivate={newTransIsPrivate}
-            setNewTransWeight={setNewTransWeight} 
-            setNewTransNote={setNewTransNote} 
-            setNewTransIsPrivate={setNewTransIsPrivate}
-            onAvatarClick={() => profileAvatarInputRef.current?.click()} 
-            onCameraStart={() => {}} 
-            onBeforeFileSelect={() => {}} 
-            onAfterFileSelect={() => {}} 
-            onAddTransformation={async (e) => { 
-              e.preventDefault(); 
-              if (!user || newTransWeight === '') return; 
-              await supabase.from('transformations').insert([{ 
-                user_id: user.id, 
-                before_url: newTransBefore || 'https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?w=400', 
-                after_url: newTransAfter || 'https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?w=400', 
-                date: new Date().toISOString().split('T')[0], 
-                weight: Number(newTransWeight), 
-                note: newTransNote || 'Évolution', 
-                is_private: newTransIsPrivate 
-              }]); 
-              fetchTransformations(user.id); 
-              setNewTransWeight(''); 
-              setNewTransNote(''); 
-              setNewTransBefore(null);
-              setNewTransAfter(null);
-            }} 
-            onShareTransformation={() => {}} 
-            onUpdatePasswordSubmit={async (e) => { e.preventDefault(); await supabase.auth.updateUser({}); }} 
-            password={password} 
-            setPassword={setPassword} 
-            confirmPassword={confirmPassword} 
-            setConfirmPassword={setConfirmPassword} 
-            isPrivateMode={isPrivateMode} 
-            setIsPrivateMode={setIsPrivateMode} 
-            onSignOut={() => supabase.auth.signOut()} 
-            onToggleVerifyAdmin={async (uId, status) => { await supabase.from('profiles').update({ is_verified: !status }).eq('id', uId); fetchRealUsers(); }} 
-            onUpdateProfile={async (updatedData) => {
-              if (!user) return;
-              await supabase.from('profiles').upsert({
-                id: user.id,
-                ...updatedData
-              });
-              fetchRealUsers();
-            }}
-            beforeFileInputRef={beforeFileInputRef} 
-            afterFileInputRef={afterFileInputRef} 
-          />
-        )}
-      </main>
-
-      {viewingProfileUser && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-scaleUp">
-          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl relative">
-            <button onClick={() => setViewingProfileUser(null)} className="absolute top-4 right-4 p-2 text-neutral-400 hover:text-white rounded-xl">
-              <X className="w-5 h-5" />
-            </button>
-            <div className="text-center space-y-3 pt-2">
-              <img src={viewingProfileUser.avatar_url} alt="" className="w-20 h-20 rounded-full object-cover mx-auto border-2 border-orange-500 shadow-xl" />
-              <div>
-                <h3 className="font-extrabold text-base text-white flex items-center justify-center gap-1.5">
-                  {viewingProfileUser.username}
-                  {viewingProfileUser.is_verified && <span className="text-orange-500">✓</span>}
-                </h3>
-                <p className="text-xs text-orange-400 font-semibold mt-0.5 flex items-center justify-center gap-1">
-                  <MapPin className="w-3.5 h-3.5" /> {viewingProfileUser.home_club || 'Club partenaire'}
-                </p>
-              </div>
-
-              <div className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 text-xs space-y-2 text-left">
-                <p className="text-neutral-300"><strong>Objectif :</strong> {viewingProfileUser.goal || 'Musculation / Force'}</p>
-                <p className="text-neutral-300"><strong>Disponibilité :</strong> {viewingProfileUser.preferred_time || 'Soir'}</p>
-              </div>
-
-              <div className="space-y-2 pt-1">
-                <button 
-                  onClick={() => {
-                    handleOpenChatWithUser(viewingProfileUser);
-                    setViewingProfileUser(null);
-                    handleTabChange('chat');
-                  }}
-                  className="w-full py-3 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-2xl text-xs transition shadow-lg flex items-center justify-center gap-2 active:scale-95"
-                >
-                  <MessageCircle className="w-4 h-4" /> Envoyer un message 💬
-                </button>
-              </div>
+          <div className="flex items-center gap-2">
+            <div className="relative flex items-center bg-neutral-900 border border-neutral-800 rounded-xl px-2.5 py-1.5">
+              <MapPin className="w-3.5 h-3.5 text-orange-500 mr-1.5 flex-shrink-0" />
+              <select 
+                value={selectedClub} 
+                onChange={(e) => setSelectedClub(e.target.value)} 
+                className="bg-transparent text-xs font-bold text-orange-400 focus:outline-none cursor-pointer pr-1"
+              >
+                {CLUBS_LIST.map((club) => (
+                  <option key={club} value={club} className="bg-neutral-900 text-white">{club}</option>
+                ))}
+              </select>
             </div>
           </div>
-        </div>
-      )}
+        </header>
 
-      {isPostModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-scaleUp">
-          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl">
-            <div className="flex items-center justify-between">
-              <h3 className="font-extrabold text-base text-white flex items-center gap-2">
-                <Flame className="w-5 h-5 text-orange-500" /> Partager une séance
-              </h3>
-              <button onClick={() => setIsPostModalOpen(false)} className="p-2 text-neutral-400 hover:text-white rounded-xl"><X className="w-5 h-5" /></button>
-            </div>
+        <main className="flex-1 w-full mx-auto px-4 py-3 pb-24">
+          {currentTab === 'feed' && <FeedTab stories={cloudStories} posts={displayedPosts} registeredUsers={registeredUsers} friendRequests={friendRequests} currentUserId={user?.id} feedLoading={feedLoading} viewedStoryIds={viewedStoryIds} calculateStreak={calculateUserStreak} onOpenStory={(idx) => setActiveStoryIndex(idx)} onCreateStoryClick={() => setIsPostModalOpen(true)} onToggleLike={handleToggleLike} onOpenComments={(id) => setActiveCommentPostId(id)} onReportPost={() => {}} onDeletePost={() => {}} onSelectProfile={(u) => setViewingProfileUser(u)} onStartRestTimer={() => {}} />}
+          {currentTab === 'buddy' && <BuddyTab currentUserId={user?.id} registeredUsers={registeredUsers} friendRequests={friendRequests} posts={posts} onSendFriendRequest={async (rId) => { if (!user) return; await supabase.from('friend_requests').insert([{ sender_id: user.id, receiver_id: rId, status: 'pending' }]); fetchFriendRequests(user.id); }} onAcceptFriendRequest={async (reqId) => { await supabase.from('friend_requests').update({ status: 'accepted' }).eq('id', reqId); if (user) fetchFriendRequests(user.id); }} onSelectBuddyProfile={(u) => setViewingProfileUser(u)} />}
+          {currentTab === 'rest_timer' && <RestTimerTab />}
+          {currentTab === 'exercises' && <ExercisesTab exercises={EXERCISES_DATABASE} exerciseSearch={exerciseSearch} setExerciseSearch={setExerciseSearch} selectedCategoryFilter={selectedCategoryFilter} setSelectedCategoryFilter={setSelectedCategoryFilter} onSelectExercise={(ex) => setSelectedExerciseDetail(ex)} />}
+          {currentTab === 'calculator' && <CalculatorTab targetWeight={targetWeight} setTargetWeight={setTargetWeight} barbellWeight={barbellWeight} setBarbellWeight={setBarbellWeight} plateBreakdown={plateBreakdown} />}
+          {currentTab === 'live_tracker' && <LiveTrackerTab liveWorkoutName={liveWorkoutName} setLiveWorkoutName={setLiveWorkoutName} liveElapsedSeconds={0} liveExercises={liveExercises} selectedExToAdd={selectedExToAdd} setSelectedExToAdd={setSelectedExToAdd} exercisesDatabase={EXERCISES_DATABASE} onAddExercise={() => setLiveExercises([...liveExercises, { id: 'lex-' + Date.now(), name: selectedExToAdd, sets: [{ setNumber: 1, weight: 50, reps: 10, completed: false }] }])} onAddSet={(exId) => setLiveExercises(liveExercises.map(ex => ex.id === exId ? { ...ex, sets: [...ex.sets, { setNumber: ex.sets.length + 1, weight: 50, reps: 10, completed: false }] } : ex))} onToggleSet={(exId, sIdx) => setLiveExercises(liveExercises.map(ex => ex.id === exId ? { ...ex, sets: ex.sets.map((s, i) => i === sIdx ? { ...s, completed: !s.completed } : s) } : ex))} onUpdateWeight={(exId, sIdx, val) => setLiveExercises(liveExercises.map(item => item.id === exId ? { ...item, sets: item.sets.map((s, i) => i === sIdx ? { ...s, weight: val } : s) } : item))} onUpdateReps={(exId, sIdx, val) => setLiveExercises(liveExercises.map(item => item.id === exId ? { ...item, sets: item.sets.map((s, i) => i === sIdx ? { ...s, reps: val } : s) } : item))} onFinishWorkout={handleFinishLiveWorkout} onQuitLive={() => setIsLiveActive(false)} />}
+          {currentTab === 'chat' && <ChatTab currentUserId={user?.id} selectedBuddyChat={selectedBuddyChat} setSelectedBuddyChat={handleOpenChatWithUser} activeChatUsers={activeChatUsers} currentChatMessages={currentChatMessages} currentMessageInput={currentMessageInput} onInputChange={(e) => setCurrentMessageInput(e.target.value)} onSendMessage={handleSendMessage} onSelectBuddy={(f) => handleOpenChatWithUser(f)} onDeleteConversation={() => {}} onReportConversation={() => {}} isOtherUserTyping={isOtherUserTyping} isMessageLimitReached={false} lastReadTimestamps={lastReadTimestamps} messagesEndRef={messagesEndRef} allMessages={allMessages} />}
+          {currentTab === 'profile' && (
+            <ProfileTab 
+              user={user} 
+              currentUserProfile={currentUserProfile} 
+              userAvatarUrl={currentUserProfile?.avatar_url || userAvatarUrl} 
+              isAdmin={isAdmin} 
+              registeredUsers={registeredUsers} 
+              transformations={transformations} 
+              newTransBefore={newTransBefore}
+              newTransAfter={newTransAfter}
+              newTransWeight={newTransWeight} 
+              newTransNote={newTransNote} 
+              newTransIsPrivate={newTransIsPrivate}
+              setNewTransWeight={setNewTransWeight} 
+              setNewTransNote={setNewTransNote} 
+              setNewTransIsPrivate={setNewTransIsPrivate}
+              onAvatarClick={() => profileAvatarInputRef.current?.click()} 
+              onCameraStart={() => {}} 
+              onBeforeFileSelect={() => {}} 
+              onAfterFileSelect={() => {}} 
+              onAddTransformation={async (e) => { 
+                e.preventDefault(); 
+                if (!user || newTransWeight === '') return; 
+                await supabase.from('transformations').insert([{ 
+                  user_id: user.id, 
+                  before_url: newTransBefore || 'https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?w=400', 
+                  after_url: newTransAfter || 'https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?w=400', 
+                  date: new Date().toISOString().split('T')[0], 
+                  weight: Number(newTransWeight), 
+                  note: newTransNote || 'Évolution', 
+                  is_private: newTransIsPrivate 
+                }]); 
+                fetchTransformations(user.id); 
+                setNewTransWeight(''); 
+                setNewTransNote(''); 
+                setNewTransBefore(null);
+                setNewTransAfter(null);
+              }} 
+              onShareTransformation={() => {}} 
+              onUpdatePasswordSubmit={async (e) => { e.preventDefault(); await supabase.auth.updateUser({}); }} 
+              password={password} 
+              setPassword={setPassword} 
+              confirmPassword={confirmPassword} 
+              setConfirmPassword={setConfirmPassword} 
+              isPrivateMode={isPrivateMode} 
+              setIsPrivateMode={setIsPrivateMode} 
+              onSignOut={() => supabase.auth.signOut()} 
+              onToggleVerifyAdmin={async (uId, status) => { await supabase.from('profiles').update({ is_verified: !status }).eq('id', uId); fetchRealUsers(); }} 
+              onUpdateProfile={async (updatedData) => {
+                if (!user) return;
+                await supabase.from('profiles').upsert({
+                  id: user.id,
+                  ...updatedData
+                });
+                fetchRealUsers();
+              }}
+              beforeFileInputRef={beforeFileInputRef} 
+              afterFileInputRef={afterFileInputRef} 
+            />
+          )}
+        </main>
 
-            <form onSubmit={handlePublishPost} className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-neutral-400 mb-1">Type de séance :</label>
-                <select value={postSessionType} onChange={(e) => setPostSessionType(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3.5 py-3 text-sm text-white">
-                  <option value="Musculation Full Body">Musculation Full Body</option>
-                  <option value="Pectoraux / Triceps">Pectoraux / Triceps</option>
-                  <option value="Dos / Biceps">Dos / Biceps</option>
-                  <option value="Jambes / Abdos">Jambes / Abdos</option>
-                  <option value="Cardio / HIIT">Cardio / HIIT</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-neutral-400 mb-1">Légende :</label>
-                <textarea rows={3} placeholder="Comment s'est passée ta séance ?" value={postCaption} onChange={(e) => setPostCaption(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-sm text-white focus:border-orange-500" />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-neutral-400 mb-1 flex items-center gap-1">
-                  <Hash className="w-3.5 h-3.5 text-orange-500" /> Hashtags :
-                </label>
-                <input type="text" placeholder="#fitpulse #muscu #tournai" value={postHashtags} onChange={(e) => setPostHashtags(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:border-orange-500" />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-neutral-400 mb-1">Ajouter une photo (depuis votre téléphone) :</label>
-                <div className="flex gap-2">
-                  <button type="button" onClick={() => postImageFileInputRef.current?.click()} className="flex-1 py-3 bg-neutral-950 border border-neutral-800 hover:border-orange-500 rounded-xl text-xs font-bold text-neutral-200 flex items-center justify-center gap-2 transition active:scale-95">
-                    <Camera className="w-4 h-4 text-orange-500" /> Choisir une photo
-                  </button>
-                  <input type="file" accept="image/*" ref={postImageFileInputRef} onChange={handlePostImageFileSelect} className="hidden" />
-                </div>
-              </div>
-
-              {postImageUrl && (
-                <div className="relative rounded-2xl overflow-hidden h-40 border border-neutral-800">
-                  <img src={postImageUrl} alt="Aperçu" className="w-full h-full object-cover" />
-                  <button type="button" onClick={() => setPostImageUrl(null)} className="absolute top-2 right-2 p-1.5 bg-black/70 rounded-full text-white"><X className="w-4 h-4" /></button>
-                </div>
-              )}
-
-              <button type="submit" className="w-full py-3.5 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-2xl text-sm shadow-xl transition active:scale-95">
-                Publier sur le fil 🚀
+        {viewingProfileUser && (
+          <div className="absolute inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-scaleUp">
+            <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-sm w-full p-6 space-y-4 shadow-2xl relative">
+              <button onClick={() => setViewingProfileUser(null)} className="absolute top-4 right-4 p-2 text-neutral-400 hover:text-white rounded-xl">
+                <X className="w-5 h-5" />
               </button>
-            </form>
+              <div className="text-center space-y-3 pt-2">
+                <img src={viewingProfileUser.avatar_url} alt="" className="w-20 h-20 rounded-full object-cover mx-auto border-2 border-orange-500 shadow-xl" />
+                <div>
+                  <h3 className="font-extrabold text-base text-white flex items-center justify-center gap-1.5">
+                    {viewingProfileUser.username}
+                    {viewingProfileUser.is_verified && <span className="text-orange-500">✓</span>}
+                  </h3>
+                  <p className="text-xs text-orange-400 font-semibold mt-0.5 flex items-center justify-center gap-1">
+                    <MapPin className="w-3.5 h-3.5" /> {viewingProfileUser.home_club || 'Club partenaire'}
+                  </p>
+                </div>
+
+                <div className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 text-xs space-y-2 text-left">
+                  <p className="text-neutral-300"><strong>Objectif :</strong> {viewingProfileUser.goal || 'Musculation / Force'}</p>
+                  <p className="text-neutral-300"><strong>Disponibilité :</strong> {viewingProfileUser.preferred_time || 'Soir'}</p>
+                </div>
+
+                <div className="space-y-2 pt-1">
+                  <button 
+                    onClick={() => {
+                      handleOpenChatWithUser(viewingProfileUser);
+                      setViewingProfileUser(null);
+                      handleTabChange('chat');
+                    }}
+                    className="w-full py-3 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-2xl text-xs transition shadow-lg flex items-center justify-center gap-2 active:scale-95"
+                  >
+                    <MessageCircle className="w-4 h-4" /> Envoyer un message 💬
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-neutral-950/90 backdrop-blur-xl border-t border-neutral-800 px-2 py-2 flex justify-around items-center">
-        <button onClick={() => handleTabChange('feed')} className={`flex flex-col items-center gap-1 transition active:scale-95 ${currentTab === 'feed' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Home className="w-5 h-5" /><span className="text-[10px]">Accueil</span></button>
-        <button onClick={() => handleTabChange('buddy')} className={`flex flex-col items-center gap-1 transition active:scale-95 ${currentTab === 'buddy' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Users className="w-5 h-5" /><span className="text-[10px]">Buddies</span></button>
-        
-        <button onClick={() => setIsPostModalOpen(true)} className="flex flex-col items-center justify-center w-12 h-12 rounded-full bg-orange-600 hover:bg-orange-500 text-white shadow-lg transition transform hover:scale-105 active:scale-95 -mt-3">
-          <Plus className="w-6 h-6 stroke-[3]" />
-        </button>
+        {isPostModalOpen && (
+          <div className="absolute inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-scaleUp">
+            <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-sm w-full p-6 space-y-4 shadow-2xl">
+              <div className="flex items-center justify-between">
+                <h3 className="font-extrabold text-base text-white flex items-center gap-2">
+                  <Flame className="w-5 h-5 text-orange-500" /> Partager une séance
+                </h3>
+                <button onClick={() => setIsPostModalOpen(false)} className="p-2 text-neutral-400 hover:text-white rounded-xl"><X className="w-5 h-5" /></button>
+              </div>
 
-        <button onClick={() => handleTabChange('rest_timer')} className={`flex flex-col items-center gap-1 transition active:scale-95 ${currentTab === 'rest_timer' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Timer className="w-5 h-5" /><span className="text-[10px]">Chrono</span></button>
-        
-        {(() => {
-          const unreadCount = activeChatUsers.filter(buddy => {
-            const lastRead = lastReadTimestamps[buddy.id] || 0;
-            const buddyMessages = allMessages.filter(m => (m.sender_id === buddy.id && m.receiver_id === user?.id));
-            const lastMsg = buddyMessages[buddyMessages.length - 1];
-            return lastMsg && lastMsg.sender_id !== user?.id && new Date(lastMsg.created_at || Date.now()).getTime() > lastRead;
-          }).length;
+              <form onSubmit={handlePublishPost} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold text-neutral-400 mb-1">Type de séance :</label>
+                  <select value={postSessionType} onChange={(e) => setPostSessionType(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3.5 py-3 text-sm text-white">
+                    <option value="Musculation Full Body">Musculation Full Body</option>
+                    <option value="Pectoraux / Triceps">Pectoraux / Triceps</option>
+                    <option value="Dos / Biceps">Dos / Biceps</option>
+                    <option value="Jambes / Abdos">Jambes / Abdos</option>
+                    <option value="Cardio / HIIT">Cardio / HIIT</option>
+                  </select>
+                </div>
 
-          return (
-            <button onClick={() => { 
-              handleTabChange('chat'); 
-              setSelectedBuddyChat(null); 
-              const nowTimestamps: Record<string, number> = { ...lastReadTimestamps };
-              activeChatUsers.forEach(b => { nowTimestamps[b.id] = Date.now(); });
-              setLastReadTimestamps(nowTimestamps);
-              localStorage.setItem('fitpulse_read_timestamps', JSON.stringify(nowTimestamps));
-            }} className={`relative flex flex-col items-center gap-1 transition active:scale-95 ${currentTab === 'chat' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}>
-              <MessageCircle className="w-5 h-5" />
-              <span className="text-[10px]">Chat</span>
-              {unreadCount > 0 && (
-                <span className="absolute -top-1 right-2 bg-red-600 text-white text-[9px] font-black w-4 h-4 rounded-full flex items-center justify-center shadow-lg border border-neutral-950 animate-pulse">
-                  {unreadCount}
-                </span>
-              )}
-            </button>
-          );
-        })()}
+                <div>
+                  <label className="block text-xs font-semibold text-neutral-400 mb-1">Légende :</label>
+                  <textarea rows={3} placeholder="Comment s'est passée ta séance ?" value={postCaption} onChange={(e) => setPostCaption(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-sm text-white focus:border-orange-500" />
+                </div>
 
-        <button onClick={() => handleTabChange('profile')} className={`flex flex-col items-center gap-1 transition active:scale-95 ${currentTab === 'profile' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><User className="w-5 h-5" /><span className="text-[10px]">Profil</span></button>
-      </nav>
+                <div>
+                  <label className="block text-xs font-semibold text-neutral-400 mb-1 flex items-center gap-1">
+                    <Hash className="w-3.5 h-3.5 text-orange-500" /> Hashtags :
+                  </label>
+                  <input type="text" placeholder="#fitpulse #muscu #tournai" value={postHashtags} onChange={(e) => setPostHashtags(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:border-orange-500" />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-neutral-400 mb-1">Ajouter une photo (depuis votre téléphone) :</label>
+                  <div className="flex gap-2">
+                    <button type="button" onClick={() => postImageFileInputRef.current?.click()} className="flex-1 py-3 bg-neutral-950 border border-neutral-800 hover:border-orange-500 rounded-xl text-xs font-bold text-neutral-200 flex items-center justify-center gap-2 transition active:scale-95">
+                      <Camera className="w-4 h-4 text-orange-500" /> Choisir une photo
+                    </button>
+                    <input type="file" accept="image/*" ref={postImageFileInputRef} onChange={handlePostImageFileSelect} className="hidden" />
+                  </div>
+                </div>
+
+                {postImageUrl && (
+                  <div className="relative rounded-2xl overflow-hidden h-40 border border-neutral-800">
+                    <img src={postImageUrl} alt="Aperçu" className="w-full h-full object-cover" />
+                    <button type="button" onClick={() => setPostImageUrl(null)} className="absolute top-2 right-2 p-1.5 bg-black/70 rounded-full text-white"><X className="w-4 h-4" /></button>
+                  </div>
+                )}
+
+                <button type="submit" className="w-full py-3.5 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-2xl text-sm shadow-xl transition active:scale-95">
+                  Publier sur le fil 🚀
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
+
+        <nav className="sticky bottom-0 left-0 right-0 z-40 bg-neutral-950/95 backdrop-blur-xl border-t border-neutral-800 px-2 py-2 flex justify-around items-center">
+          <button onClick={() => handleTabChange('feed')} className={`flex flex-col items-center gap-1 transition active:scale-95 ${currentTab === 'feed' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Home className="w-5 h-5" /><span className="text-[10px]">Accueil</span></button>
+          <button onClick={() => handleTabChange('buddy')} className={`flex flex-col items-center gap-1 transition active:scale-95 ${currentTab === 'buddy' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Users className="w-5 h-5" /><span className="text-[10px]">Buddies</span></button>
+          
+          <button onClick={() => setIsPostModalOpen(true)} className="flex flex-col items-center justify-center w-12 h-12 rounded-full bg-orange-600 hover:bg-orange-500 text-white shadow-lg transition transform hover:scale-105 active:scale-95 -mt-3">
+            <Plus className="w-6 h-6 stroke-[3]" />
+          </button>
+
+          <button onClick={() => handleTabChange('rest_timer')} className={`flex flex-col items-center gap-1 transition active:scale-95 ${currentTab === 'rest_timer' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Timer className="w-5 h-5" /><span className="text-[10px]">Chrono</span></button>
+          
+          {(() => {
+            const unreadCount = activeChatUsers.filter(buddy => {
+              const lastRead = lastReadTimestamps[buddy.id] || 0;
+              const buddyMessages = allMessages.filter(m => (m.sender_id === buddy.id && m.receiver_id === user?.id));
+              const lastMsg = buddyMessages[buddyMessages.length - 1];
+              return lastMsg && lastMsg.sender_id !== user?.id && new Date(lastMsg.created_at || Date.now()).getTime() > lastRead;
+            }).length;
+
+            return (
+              <button onClick={() => { 
+                handleTabChange('chat'); 
+                setSelectedBuddyChat(null); 
+                const nowTimestamps: Record<string, number> = { ...lastReadTimestamps };
+                activeChatUsers.forEach(b => { nowTimestamps[b.id] = Date.now(); });
+                setLastReadTimestamps(nowTimestamps);
+                localStorage.setItem('fitpulse_read_timestamps', JSON.stringify(nowTimestamps));
+              }} className={`relative flex flex-col items-center gap-1 transition active:scale-95 ${currentTab === 'chat' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}>
+                <MessageCircle className="w-5 h-5" />
+                <span className="text-[10px]">Chat</span>
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 right-2 bg-red-600 text-white text-[9px] font-black w-4 h-4 rounded-full flex items-center justify-center shadow-lg border border-neutral-950 animate-pulse">
+                    {unreadCount}
+                  </span>
+                )}
+              </button>
+            );
+          })()}
+
+          <button onClick={() => handleTabChange('profile')} className={`flex flex-col items-center gap-1 transition active:scale-95 ${currentTab === 'profile' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><User className="w-5 h-5" /><span className="text-[10px]">Profil</span></button>
+        </nav>
+      </div>
     </div>
   );
 }
