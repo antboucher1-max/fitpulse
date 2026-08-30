@@ -404,8 +404,9 @@ export default function App() {
               setIsPrivateMode={setIsPrivateMode} 
               onSignOut={async () => {
                 await supabase.auth.signOut();
+                setUser(null);
                 localStorage.clear();
-                window.location.href = '/';
+                window.location.reload();
               }} 
               onToggleVerifyAdmin={async (uId, status) => { await supabase.from('profiles').update({ is_verified: !status }).eq('id', uId); fetchRealUsers(); }} 
               onUpdateProfile={async (updatedData) => {
