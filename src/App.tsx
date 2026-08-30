@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, ChangeEvent, FormEvent } from 'react';
 import {
-  Zap, Timer, PlusSquare, Calculator, User, MessageCircle, Home, Users, Plus, X, Camera, Flame, MapPin, Hash, Bell, ShieldCheck
+  Zap, Timer, PlusSquare, Calculator, User, MessageCircle, Home, Users, Plus, X, Camera, Flame, MapPin, Hash, Bell, ShieldCheck, Award
 } from 'lucide-react';
 import { createClient, User as SupabaseUser } from '@supabase/supabase-js';
 
@@ -23,7 +23,6 @@ const supabaseAnonKey = 'sb_publishable_O8CKhUtzgq9nO9lKavNE9A__fAdRWoB';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 const CLUBS_LIST = [
-  '🌐 Tous les clubs (Global)',
   'Club Tournai (Bastion)', 
   'Club Tournai (les jeunesses)', 
   'Club Antoing', 
@@ -43,6 +42,7 @@ const EXERCISES_DATABASE: ExerciseGuide[] = [
 
 const isMatchingClub = (postClubName?: string, selectedClubName?: string): boolean => {
   if (!postClubName || !selectedClubName) return false;
+  if (selectedClubName.includes('Tous les clubs')) return true;
   if (postClubName === selectedClubName) return true;
   const normalize = (str: string) => str.toLowerCase().replace(/[()]/g, '').trim();
   const p = normalize(postClubName); const s = normalize(selectedClubName);
@@ -72,6 +72,7 @@ export default function App() {
   const beforeFileInputRef = useRef<HTMLInputElement>(null);
   const afterFileInputRef = useRef<HTMLInputElement>(null);
   const postImageFileInputRef = useRef<HTMLInputElement>(null);
+  const onboardingAvatarInputRef = useRef<HTMLInputElement>(null);
 
   const [isPostModalOpen, setIsPostModalOpen] = useState(false);
   const [postSessionType, setPostSessionType] = useState('Musculation Full Body');
@@ -99,6 +100,15 @@ export default function App() {
   const [selectedBuddyChat, setSelectedBuddyChat] = useState<RealUser | null>(null);
   const [currentMessageInput, setCurrentMessageInput] = useState('');
   const [isOtherUserTyping, setIsOtherUserTyping] = useState(false);
+
+  // États pour l'onboarding du nouveau profil
+  const [onboardingUsername, setOnboardingUsername] = useState('');
+  const [onboardingAge, setOnboardingAge] = useState<number | ''>('');
+  const [onboardingClub, setOnboardingClub] = useState(CLUBS_LIST[0]);
+  const [onboardingGoal, setOnboardingGoal] = useState('Prise de masse / Force');
+  const [onboardingTime, setOnboardingTime] = useState('Soir');
+  const [onboardingAvatar, setOnboardingAvatar] = useState<string>('https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=150');
+  const [onboardingSubmitting, setOnboardingSubmitting] = useState(false);
   
   const [lastReadTimestamps, setLastReadTimestamps] = useState<Record<string, number>>(() => {
     try {
@@ -260,6 +270,15 @@ export default function App() {
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => { setPostImageUrl(reader.result as string); };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleOnboardingAvatarSelect = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => { setOnboardingAvatar(reader.result as string); };
       reader.readAsDataURL(file);
     }
   };
@@ -465,6 +484,129 @@ export default function App() {
     );
   }
 
+  // Écran d'onboarding obligatoire si l'utilisateur n'a pas encore configuré son profil
+  const hasProfile = registeredUsers.some(u => u.id === user.id);
+  if (user && registeredUsers.length >= 0 && !hasProfile) {
+    return (
+      <div className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col items-center justify-center font-sans p-4 select-none">
+        <div className="w-full max-w-sm bg-neutral-900 border border-neutral-800 rounded-3xl p-6 space-y-5 shadow-2xl">
+          <div className="text-center space-y-1.5">
+            <div className="w-12 h-12 rounded-2xl bg-orange-500/20 flex items-center justify-center text-orange-500 mx-auto">
+              <Award className="w-6 h-6" />
+            </div>
+            <h1 className="text-xl font-black text-white tracking-tight">Bienvenue sur FitPulse !</h1>
+            <p className="text-xs text-neutral-400">Configure ta fiche athlète pour classer tes performances et rejoindre ton club.</p>
+          </div>
+
+          <form onSubmit={async (e) => {
+            e.preventDefault();
+            if (!onboardingUsername.trim()) {
+              alert("Veuillez entrer un pseudo valide.");
+              return;
+            }
+            if (onboardingAge === '' || Number(onboardingAge) <= 0) {
+              alert("Veuillez indiquer un âge valide pour la catégorisation.");
+              return;
+            }
+            setOnboardingSubmitting(true);
+            const { error } = await supabase.from('profiles').upsert({
+              id: user.id,
+              username: onboardingUsername.trim(),
+              age: Number(onboardingAge),
+              home_club: onboardingClub,
+              goal: onboardingGoal,
+              preferred_time: onboardingTime,
+              avatar_url: onboardingAvatar,
+              is_admin: user.email === 'antboucher@hotmail.fr',
+              is_verified: false
+            });
+            setOnboardingSubmitting(false);
+            if (error) {
+              alert("Erreur lors de la création du profil : " + error.message);
+            } else {
+              fetchRealUsers();
+              window.location.reload();
+            }
+          }} className="space-y-3.5">
+            
+            {/* Photo de profil optionnelle */}
+            <div className="text-center space-y-2">
+              <div className="relative w-16 h-16 mx-auto group cursor-pointer" onClick={() => onboardingAvatarInputRef.current?.click()}>
+                <img src={onboardingAvatar} alt="Avatar" className="w-full h-full rounded-full object-cover border-2 border-orange-500 shadow-md" />
+                <div className="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition">
+                  <Camera className="w-5 h-5 text-white" />
+                </div>
+              </div>
+              <div>
+                <button type="button" onClick={() => onboardingAvatarInputRef.current?.click()} className="text-xs text-orange-400 hover:underline font-semibold">
+                  Ajouter une photo de profil <span className="text-neutral-500 font-normal">(facultatif)</span>
+                </button>
+                <input type="file" accept="image/*" ref={onboardingAvatarInputRef} onChange={handleOnboardingAvatarSelect} className="hidden" />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-neutral-400 mb-1">Ton Pseudo / Nom d'athlète :</label>
+              <input 
+                type="text" 
+                required
+                placeholder="ex: Antoine_Fit" 
+                value={onboardingUsername} 
+                onChange={(e) => setOnboardingUsername(e.target.value)} 
+                className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-2.5 text-sm text-white focus:border-orange-500 focus:outline-none" 
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-neutral-400 mb-1">Ton Âge (pour la catégorisation) :</label>
+              <input 
+                type="number" 
+                required
+                min="10"
+                max="100"
+                placeholder="ex: 28" 
+                value={onboardingAge} 
+                onChange={(e) => setOnboardingAge(e.target.value === '' ? '' : Number(e.target.value))} 
+                className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-2.5 text-sm text-white focus:border-orange-500 focus:outline-none" 
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-neutral-400 mb-1">Ton Club de rattachement :</label>
+              <select 
+                value={onboardingClub} 
+                onChange={(e) => setOnboardingClub(e.target.value)} 
+                className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-2.5 text-sm text-white focus:border-orange-500 focus:outline-none cursor-pointer"
+              >
+                {CLUBS_LIST.map((club) => (
+                  <option key={club} value={club}>{club}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-neutral-400 mb-1">Ton Objectif principal :</label>
+              <input 
+                type="text" 
+                value={onboardingGoal} 
+                onChange={(e) => setOnboardingGoal(e.target.value)} 
+                className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-2.5 text-sm text-white focus:border-orange-500 focus:outline-none" 
+              />
+            </div>
+
+            <button 
+              type="submit" 
+              disabled={onboardingSubmitting}
+              className="w-full py-3.5 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-2xl text-sm shadow-xl transition active:scale-95 disabled:opacity-50 mt-2"
+            >
+              {onboardingSubmitting ? "Enregistrement..." : "Accéder à l'application 🚀"}
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col font-sans select-none antialiased">
       <div className="w-full max-w-md mx-auto min-h-screen bg-neutral-950 flex flex-col shadow-2xl sm:border-x sm:border-neutral-900 relative">
@@ -482,6 +624,7 @@ export default function App() {
                 onChange={(e) => setSelectedClub(e.target.value)} 
                 className="bg-transparent text-xs font-bold text-orange-400 focus:outline-none cursor-pointer pr-1"
               >
+                <option value="🌐 Tous les clubs (Global)">🌐 Tous les clubs (Global)</option>
                 {CLUBS_LIST.map((club) => (
                   <option key={club} value={club} className="bg-neutral-900 text-white">{club}</option>
                 ))}
@@ -575,7 +718,7 @@ export default function App() {
                 <img src={viewingProfileUser.avatar_url} alt="" className="w-20 h-20 rounded-full object-cover mx-auto border-2 border-orange-500 shadow-xl" />
                 <div>
                   <h3 className="font-extrabold text-base text-white flex items-center justify-center gap-1.5">
-                    {viewingProfileUser.username}
+                    {viewingProfileUser.username} {viewingProfileUser.age ? `(${viewingProfileUser.age} ans)` : ''}
                     {viewingProfileUser.is_verified && <span className="text-orange-500">✓</span>}
                   </h3>
                   <p className="text-xs text-orange-400 font-semibold mt-0.5 flex items-center justify-center gap-1">
