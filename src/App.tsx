@@ -17,6 +17,7 @@ import ExercisesTab from './components/ExercisesTab';
 import ChatTab from './components/ChatTab';
 import CalculatorTab from './components/CalculatorTab';
 import ProfileTab from './components/ProfileTab';
+import LeaderboardTab from './components/LeaderboardTab'; // 🏆 Import du composant de classement
 
 const supabaseUrl = 'https://obtahwmcoqrcauscpksv.supabase.co';
 const supabaseAnonKey = 'sb_publishable_O8CKhUtzgq9nO9lKavNE9A__fAdRWoB';
@@ -58,10 +59,10 @@ export default function App() {
   const [acceptCgu, setAcceptCgu] = useState(false);
   const [showCguModal, setShowCguModal] = useState(false);
 
-  // État pour afficher le tutoriel de bienvenue post-onboarding
   const [showWelcomeGuide, setShowWelcomeGuide] = useState(false);
 
-  const [currentTab, setCurrentTab] = useState<'feed' | 'buddy' | 'workout' | 'exercises' | 'chat' | 'profile' | 'calculator' | 'live_tracker' | 'rest_timer' | 'notifications'>(() => {
+  // Ajout de 'leaderboard' dans les onglets possibles
+  const [currentTab, setCurrentTab] = useState<'feed' | 'buddy' | 'workout' | 'exercises' | 'chat' | 'profile' | 'calculator' | 'live_tracker' | 'rest_timer' | 'notifications' | 'leaderboard'>(() => {
     const savedTab = localStorage.getItem('fitpulse_active_tab');
     return (savedTab as any) || 'feed';
   });
@@ -104,7 +105,6 @@ export default function App() {
   const [currentMessageInput, setCurrentMessageInput] = useState('');
   const [isOtherUserTyping, setIsOtherUserTyping] = useState(false);
 
-  // États pour l'onboarding du nouveau profil
   const [onboardingUsername, setOnboardingUsername] = useState('');
   const [onboardingAge, setOnboardingAge] = useState<number | ''>('');
   const [onboardingClub, setOnboardingClub] = useState(CLUBS_LIST[0]);
@@ -162,6 +162,22 @@ export default function App() {
   const fetchAllMessages = async () => {
     const { data } = await supabase.from('direct_messages').select('*').order('created_at', { ascending: true });
     if (data) setAllMessages(data as DBMessage[]);
+  };
+
+  // 🏆 Fonction d'attribution automatique des points dans Supabase
+  const addPointsToUser = async (userId: string, pointsToAdd: number) => {
+    const targetUser = registeredUsers.find(u => u.id === userId);
+    const currentPoints = (targetUser as any)?.points || 0;
+    const newTotalPoints = currentPoints + pointsToAdd;
+
+    const { error } = await supabase
+      .from('profiles')
+      .update({ points: newTotalPoints })
+      .eq('id', userId);
+
+    if (!error) {
+      fetchRealUsers(); // Rafraîchit les profils et met à jour le classement en direct
+    }
   };
 
   const calculateUserStreak = (targetUserId: string) => {
@@ -307,6 +323,9 @@ export default function App() {
     }]);
 
     if (!error) {
+      // 🏆 Attribution automatique de 10 points pour la séance partagée !
+      await addPointsToUser(user.id, 10);
+
       setIsPostModalOpen(false);
       setPostCaption('');
       setPostImageUrl(null);
@@ -321,6 +340,10 @@ export default function App() {
     if (liveExercises.length === 0) { alert("Ajoute au moins un exercice !"); return; }
     const formattedExercises: ExerciseEntry[] = liveExercises.map(ex => ({ name: ex.name, sets: ex.sets.length, reps: ex.sets[0]?.reps || 10, weight: ex.sets[0]?.weight || 50 }));
     await supabase.from('posts').insert([{ user_id: user.id, username: currentUsername, avatar_url: currentUserProfile?.avatar_url || userAvatarUrl, club_name: selectedClub === '🌐 Tous les clubs (Global)' ? 'Club Tournai (Bastion)' : selectedClub, session_type: liveWorkoutName, caption: "Séance terminée en direct ! 💪 #fitpulse", exercises: formattedExercises, likes_count: 0, liked_by: [], comments_count: 0, comments: [], is_private: false }]);
+    
+    // 🏆 Attribution automatique de 10 points pour la séance en direct
+    await addPointsToUser(user.id, 10);
+
     setIsLiveActive(false);
     handleTabChange('feed');
     fetchCloudPosts();
@@ -487,7 +510,6 @@ export default function App() {
     );
   }
 
-  // Écran d'onboarding obligatoire si l'utilisateur n'a pas encore configuré son profil
   const hasProfile = registeredUsers.some(u => u.id === user.id);
   if (user && registeredUsers.length >= 0 && !hasProfile) {
     return (
@@ -530,6 +552,7 @@ export default function App() {
               goal: onboardingGoal,
               preferred_time: onboardingTime,
               avatar_url: onboardingAvatar,
+              points: 0,
               is_admin: user.email === 'antboucher@hotmail.fr',
               is_verified: false
             });
@@ -538,7 +561,7 @@ export default function App() {
               alert("Erreur lors de la création du profil : " + error.message);
             } else {
               fetchRealUsers();
-              setShowWelcomeGuide(true); // Déclenche l'affichage du guide des onglets
+              setShowWelcomeGuide(true);
             }
           }} className="space-y-3">
             
@@ -622,7 +645,6 @@ export default function App() {
   return (
     <div className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col font-sans select-none antialiased relative">
       
-      {/* Modale de tutoriel des onglets (affichée juste après l'inscription) */}
       {showWelcomeGuide && (
         <div className="absolute inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4 animate-scaleUp">
           <div className="bg-neutral-900 border border-orange-500/40 rounded-3xl max-w-sm w-full p-6 space-y-4 shadow-2xl text-left">
@@ -637,19 +659,19 @@ export default function App() {
             <div className="space-y-3 text-xs text-neutral-300">
               <div className="flex items-start gap-2.5">
                 <span className="w-6 h-6 rounded-lg bg-orange-500/20 text-orange-500 flex items-center justify-center font-bold flex-shrink-0">🏠</span>
-                <div><strong className="text-white">Accueil (Feed) :</strong> Le fil d'actualité où tu partages tes séances, tes photos et où tu vois les perfs des autres athlètes de ton club.</div>
+                <div><strong className="text-white">Accueil (Feed) :</strong> Le fil d'actualité où tu partages tes séances, tes photos et vois les perfs.</div>
+              </div>
+              <div className="flex items-start gap-2.5">
+                <span className="w-6 h-6 rounded-lg bg-orange-500/20 text-orange-500 flex items-center justify-center font-bold flex-shrink-0">🏆</span>
+                <div><strong className="text-white">Classement (Ligue) :</strong> Suis les scores en direct des clubs et des athlètes par catégorie d'âge !</div>
               </div>
               <div className="flex items-start gap-2.5">
                 <span className="w-6 h-6 rounded-lg bg-orange-500/20 text-orange-500 flex items-center justify-center font-bold flex-shrink-0">👥</span>
-                <div><strong className="text-white">Buddies :</strong> Retrouve tes partenaires d'entraînement, ajoute des amis et suis la progression de ta salle.</div>
+                <div><strong className="text-white">Buddies :</strong> Retrouve tes partenaires d'entraînement et ajoute des amis.</div>
               </div>
               <div className="flex items-start gap-2.5">
                 <span className="w-6 h-6 rounded-lg bg-orange-500/20 text-orange-500 flex items-center justify-center font-bold flex-shrink-0">⏱️</span>
-                <div><strong className="text-white">Chrono / Live Tracker :</strong> Chronomètre tes temps de repos entre les séries ou enregistre ta séance en direct !</div>
-              </div>
-              <div className="flex items-start gap-2.5">
-                <span className="w-6 h-6 rounded-lg bg-orange-500/20 text-orange-500 flex items-center justify-center font-bold flex-shrink-0">💬</span>
-                <div><strong className="text-white">Chat :</strong> Discute en privé avec les membres de ton club ou des autres salles pour te motiver.</div>
+                <div><strong className="text-white">Chrono & Live :</strong> Chronomètre tes temps de repos ou enregistre ta séance en direct.</div>
               </div>
             </div>
 
@@ -692,6 +714,7 @@ export default function App() {
 
         <main className="flex-1 w-full mx-auto px-4 py-3 pb-24">
           {currentTab === 'feed' && <FeedTab stories={cloudStories} posts={displayedPosts} registeredUsers={registeredUsers} friendRequests={friendRequests} currentUserId={user?.id} feedLoading={feedLoading} viewedStoryIds={viewedStoryIds} calculateStreak={calculateUserStreak} onOpenStory={(idx) => setActiveStoryIndex(idx)} onCreateStoryClick={() => setIsPostModalOpen(true)} onToggleLike={handleToggleLike} onOpenComments={(id) => setActiveCommentPostId(id)} onReportPost={() => {}} onDeletePost={() => {}} onSelectProfile={(u) => setViewingProfileUser(u)} onStartRestTimer={() => {}} />}
+          {currentTab === 'leaderboard' && <LeaderboardTab registeredUsers={registeredUsers} />}
           {currentTab === 'buddy' && <BuddyTab currentUserId={user?.id} registeredUsers={registeredUsers} friendRequests={friendRequests} posts={posts} onSendFriendRequest={async (rId) => { if (!user) return; await supabase.from('friend_requests').insert([{ sender_id: user.id, receiver_id: rId, status: 'pending' }]); fetchFriendRequests(user.id); }} onAcceptFriendRequest={async (reqId) => { await supabase.from('friend_requests').update({ status: 'accepted' }).eq('id', reqId); if (user) fetchFriendRequests(user.id); }} onSelectBuddyProfile={(u) => setViewingProfileUser(u)} />}
           {currentTab === 'rest_timer' && <RestTimerTab />}
           {currentTab === 'exercises' && <ExercisesTab exercises={EXERCISES_DATABASE} exerciseSearch={exerciseSearch} setExerciseSearch={setExerciseSearch} selectedCategoryFilter={selectedCategoryFilter} setSelectedCategoryFilter={setSelectedCategoryFilter} onSelectExercise={(ex) => setSelectedExerciseDetail(ex)} />}
@@ -730,6 +753,10 @@ export default function App() {
                   note: newTransNote || 'Évolution', 
                   is_private: newTransIsPrivate 
                 }]); 
+
+                // 🏆 Attribution automatique de 25 points pour l'évolution / record validé
+                await addPointsToUser(user.id, 25);
+
                 fetchTransformations(user.id); 
                 setNewTransWeight(''); 
                 setNewTransNote(''); 
@@ -786,6 +813,7 @@ export default function App() {
                 <div className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 text-xs space-y-2 text-left">
                   <p className="text-neutral-300"><strong>Objectif :</strong> {viewingProfileUser.goal || 'Musculation / Force'}</p>
                   <p className="text-neutral-300"><strong>Disponibilité :</strong> {viewingProfileUser.preferred_time || 'Soir'}</p>
+                  <p className="text-neutral-300"><strong>Points Ligue :</strong> <span className="text-orange-400 font-bold">{(viewingProfileUser as any).points || 0} pts</span></p>
                 </div>
 
                 <div className="space-y-2 pt-1">
@@ -857,7 +885,7 @@ export default function App() {
                 )}
 
                 <button type="submit" className="w-full py-3.5 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-2xl text-sm shadow-xl transition active:scale-95">
-                  Publier sur le fil 🚀
+                  Publier sur le fil (+10 pts 🚀)
                 </button>
               </form>
             </div>
@@ -866,14 +894,14 @@ export default function App() {
 
         <nav className="sticky bottom-0 left-0 right-0 z-40 bg-neutral-950/95 backdrop-blur-xl border-t border-neutral-800 px-2 py-2 flex justify-around items-center">
           <button onClick={() => handleTabChange('feed')} className={`flex flex-col items-center gap-1 transition active:scale-95 ${currentTab === 'feed' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Home className="w-5 h-5" /><span className="text-[10px]">Accueil</span></button>
-          <button onClick={() => handleTabChange('buddy')} className={`flex flex-col items-center gap-1 transition active:scale-95 ${currentTab === 'buddy' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Users className="w-5 h-5" /><span className="text-[10px]">Buddies</span></button>
+          <button onClick={() => handleTabChange('leaderboard')} className={`flex flex-col items-center gap-1 transition active:scale-95 ${currentTab === 'leaderboard' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Trophy className="w-5 h-5" /><span className="text-[10px]">Ligue</span></button>
           
           <button onClick={() => setIsPostModalOpen(true)} className="flex flex-col items-center justify-center w-12 h-12 rounded-full bg-orange-600 hover:bg-orange-500 text-white shadow-lg transition transform hover:scale-105 active:scale-95 -mt-3">
             <Plus className="w-6 h-6 stroke-[3]" />
           </button>
 
-          <button onClick={() => handleTabChange('rest_timer')} className={`flex flex-col items-center gap-1 transition active:scale-95 ${currentTab === 'rest_timer' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Timer className="w-5 h-5" /><span className="text-[10px]">Chrono</span></button>
-          
+          <button onClick={() => handleTabChange('buddy')} className={`flex flex-col items-center gap-1 transition active:scale-95 ${currentTab === 'buddy' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Users className="w-5 h-5" /><span className="text-[10px]">Buddies</span></button>
+
           {(() => {
             const unreadCount = activeChatUsers.filter(buddy => {
               const lastRead = lastReadTimestamps[buddy.id] || 0;
