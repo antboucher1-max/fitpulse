@@ -75,6 +75,14 @@ export default function ProfileTab({
 }: ProfileTabProps) {
   const [activeSubSection, setActiveSubSection] = useState<'feed' | 'transformations' | 'settings'>('feed');
   const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => {
+      setToastMessage(null);
+    }, 3000);
+  };
 
   const [currentAvatar, setCurrentAvatar] = useState(userAvatarUrl);
   const [currentBanner, setCurrentBanner] = useState<string>(
@@ -108,6 +116,7 @@ export default function ProfileTab({
             banner_url: currentBanner
           });
         }
+        showToast('Photo de profil mise à jour');
       };
       reader.readAsDataURL(file);
     }
@@ -131,6 +140,7 @@ export default function ProfileTab({
             banner_url: res
           });
         }
+        showToast('Couverture mise à jour');
       };
       reader.readAsDataURL(file);
     }
@@ -150,11 +160,18 @@ export default function ProfileTab({
       });
     }
     setIsEditingProfile(false);
-    alert('✅ Profil mis à jour avec succès !');
+    showToast('Profil mis à jour avec succès !');
   };
 
   return (
-    <div className="space-y-4 pb-16 animate-fadeIn">
+    <div className="space-y-4 pb-16 animate-fadeIn relative">
+      {/* Toast Notification Élégante */}
+      {toastMessage && (
+        <div className="fixed top-16 left-1/2 transform -translate-x-1/2 z-50 bg-neutral-900 border border-orange-500/50 text-white px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-2.5 text-xs font-bold animate-bounce">
+          <Check className="w-4 h-4 text-orange-500" /> {toastMessage}
+        </div>
+      )}
+
       <input type="file" accept="image/*" ref={avatarFileInputRef} onChange={handleAvatarChange} className="hidden" />
       <input type="file" accept="image/*" ref={bannerFileInputRef} onChange={handleBannerChange} className="hidden" />
 
@@ -392,7 +409,7 @@ export default function ProfileTab({
                 />
               </div>
 
-              <button type="submit" className="w-full py-3 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-xl text-xs shadow-lg transition">
+              <button type="submit" onClick={() => showToast('Évolution enregistrée !')} className="w-full py-3 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-xl text-xs shadow-lg transition">
                 Enregistrer l'évolution 📸
               </button>
             </form>
@@ -423,7 +440,7 @@ export default function ProfileTab({
               <Key className="w-4 h-4 text-orange-500" /> Modifier mon mot de passe
             </h3>
 
-            <form onSubmit={onUpdatePasswordSubmit} className="space-y-3">
+            <form onSubmit={(e) => { e.preventDefault(); showToast('Mot de passe mis à jour !'); onUpdatePasswordSubmit(e); }} className="space-y-3">
               <input 
                 type="password" 
                 placeholder="Nouveau mot de passe" 
@@ -467,7 +484,7 @@ export default function ProfileTab({
                       </div>
                     </div>
                     <button 
-                      onClick={() => onToggleVerifyAdmin(u.id, u.is_verified || false)} 
+                      onClick={() => { onToggleVerifyAdmin(u.id, u.is_verified || false); showToast('Statut du badge mis à jour'); }} 
                       className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${u.is_verified ? 'bg-orange-600 text-white' : 'bg-neutral-800 text-neutral-400'}`}
                     >
                       {u.is_verified ? 'Certifié ✓' : 'Certifier'}
