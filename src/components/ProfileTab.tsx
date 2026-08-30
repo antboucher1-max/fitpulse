@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import { User as SupabaseUser } from '@supabase/supabase-js';
 import { 
   User, ShieldCheck, MapPin, Target, Clock, Camera, Lock, Unlock, Key, LogOut, 
-  Trash2, Flame, Award, Dumbbell, MessageCircle, Edit3, Check, X, Image as ImageIcon 
+  Trash2, Flame, Award, Dumbbell, MessageCircle, Edit3, Check, X, Image as ImageIcon, AlertCircle 
 } from 'lucide-react';
 import { RealUser, TransformationPhoto } from '../types';
 
@@ -36,7 +36,7 @@ interface ProfileTabProps {
   setIsPrivateMode: (val: boolean) => void;
   onSignOut: () => void;
   onToggleVerifyAdmin: (userId: string, currentStatus: boolean) => void;
-  onUpdateProfile?: (updatedData: { username: string; home_club: string; goal: string; preferred_time: string; gender: string; avatar_url?: string; banner_url?: string }) => void;
+  onUpdateProfile?: (updatedData: { username: string; home_club: string; goal: string; preferred_time: string; gender: string; avatar_url?: string; banner_url?: string; username_changes_count?: number }) => void;
   beforeFileInputRef: React.RefObject<HTMLInputElement>;
   afterFileInputRef: React.RefObject<HTMLInputElement>;
 }
@@ -45,6 +45,8 @@ const CLUBS_LIST = [
   'Club Tournai (Bastion)', 'Club Tournai (les jeunesses)', 'Club Antoing', 'Club Péruwelz',
   'Club Leuze', 'Club Ath', 'Club Mouscron', 'Club Ronse', 'Club St-Ghislain', 'Club Mons', 'Club Jurbise'
 ];
+
+const MAX_USERNAME_CHANGES = 3;
 
 export default function ProfileTab({
   user,
@@ -92,7 +94,10 @@ export default function ProfileTab({
   const avatarFileInputRef = useRef<HTMLInputElement>(null);
   const bannerFileInputRef = useRef<HTMLInputElement>(null);
 
-  const [editUsername, setEditUsername] = useState(currentUserProfile?.username || user?.user_metadata?.username || '');
+  const currentUsername = currentUserProfile?.username || user?.user_metadata?.username || '';
+  const changesCount = (currentUserProfile as any)?.username_changes_count || 0;
+
+  const [editUsername, setEditUsername] = useState(currentUsername);
   const [editClub, setEditClub] = useState(currentUserProfile?.home_club || 'Club Tournai (Bastion)');
   const [editGoal, setEditGoal] = useState(currentUserProfile?.goal || 'Prise de masse / Force');
   const [editTime, setEditTime] = useState(currentUserProfile?.preferred_time || 'Soir');
@@ -107,13 +112,14 @@ export default function ProfileTab({
         setCurrentAvatar(res);
         if (onUpdateProfile) {
           onUpdateProfile({
-            username: editUsername,
+            username: currentUsername,
             home_club: editClub,
             goal: editGoal,
             preferred_time: editTime,
             gender: editGender,
             avatar_url: res,
-            banner_url: currentBanner
+            banner_url: currentBanner,
+            username_changes_count: changesCount
           });
         }
         showToast('Photo de profil mise à jour');
@@ -131,13 +137,14 @@ export default function ProfileTab({
         setCurrentBanner(res);
         if (onUpdateProfile) {
           onUpdateProfile({
-            username: editUsername,
+            username: currentUsername,
             home_club: editClub,
             goal: editGoal,
             preferred_time: editTime,
             gender: editGender,
             avatar_url: currentAvatar,
-            banner_url: res
+            banner_url: res,
+            username_changes_count: changesCount
           });
         }
         showToast('Couverture mise à jour');
@@ -148,6 +155,17 @@ export default function ProfileTab({
 
   const handleSaveProfile = (e: React.FormEvent) => {
     e.preventDefault();
+
+    let newChangesCount = changesCount;
+    // Si l'utilisateur a changé son pseudo par rapport au pseudo actuel
+    if (editUsername !== currentUsername) {
+      if (changesCount >= MAX_USERNAME_CHANGES) {
+        showToast('Nombre maximum de modifications de pseudo atteint (3/3)');
+        return;
+      }
+      newChangesCount += 1;
+    }
+
     if (onUpdateProfile) {
       onUpdateProfile({
         username: editUsername,
@@ -156,7 +174,8 @@ export default function ProfileTab({
         preferred_time: editTime,
         gender: editGender,
         avatar_url: currentAvatar,
-        banner_url: currentBanner
+        banner_url: currentBanner,
+        username_changes_count: newChangesCount
       });
     }
     setIsEditingProfile(false);
@@ -165,7 +184,6 @@ export default function ProfileTab({
 
   return (
     <div className="space-y-4 pb-16 animate-fadeIn relative">
-      {/* Toast Notification Élégante */}
       {toastMessage && (
         <div className="fixed top-16 left-1/2 transform -translate-x-1/2 z-50 bg-neutral-900 border border-orange-500/50 text-white px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-2.5 text-xs font-bold animate-bounce">
           <Check className="w-4 h-4 text-orange-500" /> {toastMessage}
@@ -198,7 +216,7 @@ export default function ProfileTab({
 
           <div className="mt-3 space-y-1 w-full">
             <h2 className="text-lg font-black text-white flex items-center justify-center gap-1.5">
-              {currentUserProfile?.username || user?.user_metadata?.username || 'Athlète FitPulse'}
+              {currentUsername}
               {currentUserProfile?.is_verified && <ShieldCheck className="w-5 h-5 text-orange-500 fill-orange-500/20" />}
             </h2>
             <p className="text-xs text-orange-400 font-semibold flex items-center justify-center gap-1">
@@ -276,14 +294,25 @@ export default function ProfileTab({
 
             <form onSubmit={handleSaveProfile} className="space-y-3.5">
               <div>
-                <label className="block text-xs font-semibold text-neutral-400 mb-1">Pseudo :</label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs font-semibold text-neutral-400">Pseudo :</label>
+                  <span className="text-[10px] text-orange-400 font-medium">
+                    Modifications : {changesCount} / {MAX_USERNAME_CHANGES} max
+                  </span>
+                </div>
                 <input 
                   type="text" 
                   value={editUsername} 
                   onChange={(e) => setEditUsername(e.target.value)} 
-                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3.5 py-3 text-xs text-white focus:border-orange-500" 
+                  disabled={changesCount >= MAX_USERNAME_CHANGES && editUsername === currentUsername}
+                  className={`w-full bg-neutral-950 border rounded-xl px-3.5 py-3 text-xs text-white focus:border-orange-500 ${changesCount >= MAX_USERNAME_CHANGES ? 'opacity-60 cursor-not-allowed border-red-900/50' : 'border-neutral-800'}`} 
                   required
                 />
+                {changesCount >= MAX_USERNAME_CHANGES && (
+                  <p className="text-[10px] text-red-400 mt-1 flex items-center gap-1">
+                    <AlertCircle className="w-3 h-3" /> Vous avez atteint la limite maximale de modifications de pseudo (3).
+                  </p>
+                )}
               </div>
 
               <div>
