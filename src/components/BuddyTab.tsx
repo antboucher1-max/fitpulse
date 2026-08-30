@@ -6,7 +6,7 @@ interface BuddyTabProps {
   currentUserId?: string;
   registeredUsers: RealUser[];
   friendRequests: FriendRequest[];
-  posts?: Post[]; // Ajouté pour alimenter le classement des clubs
+  posts?: Post[];
   onSendFriendRequest: (receiverId: string) => void;
   onAcceptFriendRequest: (requestId: string) => void;
   onRemoveFriend?: (requestId: string) => void;
@@ -143,7 +143,6 @@ export default function BuddyTab({
 
   const hasActiveFilters = filterOnlyWomen || filterAgeCategory !== 'Tous' || filterTimeSlot !== 'Tous' || filterClub !== 'Tous';
 
-  // Calcul du Classement des Clubs basé sur les publications
   const clubStats = CLUBS_FOR_LEADERBOARD.map(clubName => {
     const count = posts.filter(p => p.club_name === clubName).length;
     return { name: clubName, count };
@@ -152,7 +151,6 @@ export default function BuddyTab({
 
   return (
     <div className="space-y-4 pb-12">
-      {/* CLASSEMENT DES CLUBS INTÉGRÉ EN HAUT */}
       <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-4 shadow-xl space-y-3">
         <div className="flex items-center justify-between">
           <h3 className="text-xs font-extrabold text-white flex items-center gap-1.5">
@@ -223,4 +221,271 @@ export default function BuddyTab({
                   type="text"
                   placeholder="Rechercher par pseudo ou club..."
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full bg-neutral-950 border border-neutral-800 rounded-2xl pl-10 pr-4 py-3 text-xs text-white focus:border-orange-500"
+                />
+              </div>
+              <button 
+                onClick={() => setShowFiltersModal(true)}
+                className={`px-4 py-3 rounded-2xl border flex items-center gap-1.5 text-xs font-bold transition ${hasActiveFilters ? 'bg-orange-600/20 border-orange-500 text-orange-400' : 'bg-neutral-950 border-neutral-800 text-neutral-300 hover:border-neutral-700'}`}
+              >
+                <SlidersHorizontal className="w-4 h-4" /> Filtres {hasActiveFilters && '• Actifs'}
+              </button>
+            </div>
+            
+            <p className="text-[11px] text-orange-400 font-semibold flex items-center gap-1 px-1">
+              <Sparkles className="w-3.5 h-3.5" /> Système de match intelligent activé selon vos critères.
+            </p>
+          </div>
+        )}
+      </div>
+
+      {showFiltersModal && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-md w-full p-6 space-y-5 shadow-2xl animate-fadeIn">
+            <div className="flex items-center justify-between">
+              <h3 className="font-extrabold text-sm text-white flex items-center gap-2">
+                <Filter className="w-4 h-4 text-orange-500" /> Critères de Match & Filtres
+              </h3>
+              <button onClick={() => setShowFiltersModal(false)} className="p-1.5 text-neutral-400 hover:text-white rounded-xl">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="bg-neutral-950 p-3.5 rounded-2xl border border-neutral-800 flex items-center justify-between">
+                <div>
+                  <h4 className="text-xs font-bold text-white">Entre femmes uniquement</h4>
+                  <p className="text-[10px] text-neutral-400">Restreindre la recherche aux profils féminins</p>
+                </div>
+                <input 
+                  type="checkbox" 
+                  checked={filterOnlyWomen} 
+                  onChange={(e) => setFilterOnlyWomen(e.target.checked)}
+                  className="w-4 h-4 accent-orange-600 cursor-pointer rounded"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-neutral-400 mb-1">Tranche d'âge :</label>
+                <select 
+                  value={filterAgeCategory} 
+                  onChange={(e) => setFilterAgeCategory(e.target.value)}
+                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2.5 text-xs text-white"
+                >
+                  <option value="Tous">Tous les âges</option>
+                  <option value="18-25 ans">18-25 ans</option>
+                  <option value="25-35 ans">25-35 ans</option>
+                  <option value="35-45 ans">35-45 ans</option>
+                  <option value="45-55 ans">45-55 ans</option>
+                  <option value="55 ans et +">55 ans et +</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-neutral-400 mb-1">Disponibilité / Horaire :</label>
+                <select 
+                  value={filterTimeSlot} 
+                  onChange={(e) => setFilterTimeSlot(e.target.value)}
+                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2.5 text-xs text-white"
+                >
+                  <option value="Tous">Tous les horaires</option>
+                  <option value="Matin">Matin</option>
+                  <option value="Midi">Midi</option>
+                  <option value="Soir">Soir</option>
+                  <option value="Week-end">Week-end</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-neutral-400 mb-1">Club partenaire :</label>
+                <select 
+                  value={filterClub} 
+                  onChange={(e) => setFilterClub(e.target.value)}
+                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2.5 text-xs text-white"
+                >
+                  <option value="Tous">Tous les clubs</option>
+                  <option value="Club Tournai (Bastion)">Club Tournai (Bastion)</option>
+                  <option value="Club Tournai (les jeunesses)">Club Tournai (les jeunesses)</option>
+                  <option value="Club Antoing">Club Antoing</option>
+                  <option value="Club Péruwelz">Club Péruwelz</option>
+                  <option value="Club Leuze">Club Leuze</option>
+                  <option value="Club Ath">Club Ath</option>
+                  <option value="Club Mouscron">Club Mouscron</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <button 
+                onClick={resetFilters} 
+                className="flex-1 py-3 bg-neutral-950 border border-neutral-800 hover:border-neutral-700 text-neutral-300 font-bold rounded-xl text-xs transition"
+              >
+                Réinitialiser
+              </button>
+              <button 
+                onClick={() => setShowFiltersModal(false)} 
+                className="flex-1 py-3 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-xl text-xs shadow-lg transition"
+              >
+                Appliquer les filtres 🎯
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {pendingReceivedRequests.length > 0 && (
+        <div className="bg-neutral-900 border border-orange-500/30 rounded-3xl p-4 shadow-xl space-y-3">
+          <h3 className="text-xs font-bold text-orange-400 flex items-center gap-1.5">
+            <Clock className="w-4 h-4" /> Demandes d'amis en attente ({pendingReceivedRequests.length})
+          </h3>
+          <div className="space-y-2">
+            {pendingReceivedRequests.map(req => {
+              const sender = registeredUsers.find(u => u.id === req.sender_id);
+              if (!sender) return null;
+              const ageCategory = getAgeCategory(sender.birth_date);
+
+              return (
+                <div key={req.id} className="bg-neutral-950 p-3 rounded-2xl border border-neutral-800 flex items-center justify-between">
+                  <div className="flex items-center gap-3 cursor-pointer" onClick={() => onSelectBuddyProfile(sender)}>
+                    <img src={sender.avatar_url} alt="" className="w-10 h-10 rounded-full object-cover border border-neutral-800" />
+                    <div>
+                      <h4 className="text-xs font-bold text-white flex items-center gap-1">
+                        {sender.username} {sender.is_verified && <ShieldCheck className="w-3.5 h-3.5 text-orange-500" />}
+                      </h4>
+                      <p className="text-[10px] text-neutral-400 flex items-center gap-1">
+                        <MapPin className="w-3 h-3 text-orange-500" /> {sender.home_club || 'Club partenaire'} • <span className="text-orange-400 font-semibold">{ageCategory}</span>
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => onAcceptFriendRequest(req.id)}
+                    className="px-3 py-2 bg-orange-600 hover:bg-orange-500 text-white rounded-xl text-xs font-bold flex items-center gap-1 shadow-md transition"
+                  >
+                    <Check className="w-3.5 h-3.5" /> Accepter
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      <div className="space-y-3">
+        {activeSubTab === 'buddies' ? (
+          myBuddies.length === 0 ? (
+            <div className="text-center py-16 text-neutral-500 text-xs bg-neutral-900 border border-neutral-800 rounded-3xl p-6">
+              Tu n'as pas encore de buddies dans ta liste. Va dans l'onglet <span className="text-orange-400 font-bold">Découvrir</span> pour ajouter des partenaires ! 🤝
+            </div>
+          ) : (
+            myBuddies.map(buddy => {
+              const ageCategory = getAgeCategory(buddy.birth_date);
+              const req = acceptedFriendRequests.find(
+                r => (r.sender_id === currentUserId && r.receiver_id === buddy.id) ||
+                     (r.sender_id === buddy.id && r.receiver_id === currentUserId)
+              );
+
+              return (
+                <div 
+                  key={buddy.id} 
+                  className="bg-neutral-900 border border-neutral-800 hover:border-neutral-700 p-4 rounded-3xl flex items-center justify-between shadow-lg transition"
+                >
+                  <div className="flex items-center gap-3.5 cursor-pointer flex-1" onClick={() => onSelectBuddyProfile(buddy)}>
+                    <img src={buddy.avatar_url} alt="" className="w-12 h-12 rounded-full object-cover border border-neutral-800" />
+                    <div>
+                      <h3 className="text-sm font-bold text-white flex items-center gap-1.5">
+                        {buddy.username} {buddy.is_verified && <ShieldCheck className="w-4 h-4 text-orange-500" />}
+                      </h3>
+                      <p className="text-xs text-orange-400 font-semibold flex items-center gap-1 mt-0.5">
+                        <MapPin className="w-3 h-3" /> {buddy.home_club || 'Club partenaire'}
+                      </p>
+                      <p className="text-[11px] text-neutral-400 mt-0.5">
+                        Tranche d'âge : <span className="text-neutral-200 font-bold">{ageCategory}</span> • Objectif : {buddy.goal || 'Musculation'}
+                      </p>
+                    </div>
+                  </div>
+
+                  {req && onRemoveFriend && (
+                    <button
+                      onClick={() => {
+                        if (window.confirm(`Retirer ${buddy.username} de tes amis ?`)) {
+                          onRemoveFriend(req.id);
+                        }
+                      }}
+                      className="p-2.5 bg-red-950/40 border border-red-900/50 hover:bg-red-900/40 text-red-400 rounded-2xl transition"
+                      title="Retirer des amis"
+                    >
+                      <UserMinus className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+              );
+            })
+          )
+        ) : (
+          searchResults.length === 0 ? (
+            <div className="text-center py-16 text-neutral-500 text-xs bg-neutral-900 border border-neutral-800 rounded-3xl p-6">
+              Aucun athlète trouvé pour ces critères de match.
+            </div>
+          ) : (
+            searchResults.map(user => {
+              const ageCategory = getAgeCategory(user.birth_date);
+              const existingReq = myRequests.find(
+                r => (r.sender_id === currentUserId && r.receiver_id === user.id) ||
+                     (r.sender_id === user.id && r.receiver_id === currentUserId)
+              );
+
+              return (
+                <div 
+                  key={user.id} 
+                  className="bg-neutral-900 border border-neutral-800 p-4 rounded-3xl flex items-center justify-between shadow-lg relative overflow-hidden"
+                >
+                  <div className="flex items-center gap-3.5 cursor-pointer flex-1" onClick={() => onSelectBuddyProfile(user)}>
+                    <div className="relative">
+                      <img src={user.avatar_url} alt="" className="w-12 h-12 rounded-full object-cover border border-neutral-800" />
+                      <span className="absolute -bottom-1 -right-1 bg-orange-600 text-white font-black text-[9px] px-1.5 py-0.5 rounded-full border border-neutral-950">
+                        {user.matchScore}%
+                      </span>
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-bold text-white flex items-center gap-1.5">
+                        {user.username} {user.is_verified && <ShieldCheck className="w-4 h-4 text-orange-500" />}
+                      </h3>
+                      <p className="text-xs text-orange-400 font-semibold flex items-center gap-1 mt-0.5">
+                        <MapPin className="w-3 h-3" /> {user.home_club || 'Club partenaire'}
+                      </p>
+                      <p className="text-[11px] text-neutral-400 mt-0.5 flex items-center gap-2">
+                        <span>Tranche d'âge : <strong className="text-neutral-200">{ageCategory}</strong></span>
+                        <span>•</span>
+                        <span className="text-orange-400 font-medium">🎯 {user.goal || 'Musculation'}</span>
+                      </p>
+                    </div>
+                  </div>
+
+                  <div>
+                    {!existingReq ? (
+                      <button
+                        onClick={() => onSendFriendRequest(user.id)}
+                        className="px-3.5 py-2.5 bg-orange-600 hover:bg-orange-500 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md transition"
+                      >
+                        <UserPlus className="w-4 h-4" /> Ajouter
+                      </button>
+                    ) : existingReq.status === 'pending' ? (
+                      <span className="text-xs text-neutral-400 bg-neutral-950 px-3 py-2 rounded-xl border border-neutral-800">
+                        ⏳ En attente
+                      </span>
+                    ) : (
+                      <span className="text-xs text-green-400 bg-green-950/40 px-3 py-2 rounded-xl border border-green-900/50">
+                        Amis 🤝
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })
+          )
+        )}
+      </div>
+    </div>
+  );
+}
