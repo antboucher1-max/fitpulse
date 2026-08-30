@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, FormEvent, ChangeEvent, RefObject } from '
 import { User as SupabaseUser } from '@supabase/supabase-js';
 import { 
   ShieldCheck, MapPin, Camera, Key, LogOut, 
-  Dumbbell, Edit3, Check, X, Image as ImageIcon, AlertCircle 
+  Dumbbell, Edit3, Check, X, Image as ImageIcon, AlertCircle, Trophy 
 } from 'lucide-react';
 import { RealUser, TransformationPhoto } from '../types';
 
@@ -473,6 +473,47 @@ export default function ProfileTab({
       {/* SETTINGS SUB-SECTION */}
       {activeSubSection === 'settings' && (
         <div className="space-y-4">
+          
+          {/* BARÈME DES POINTS DE LA LIGUE */}
+          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4 shadow-xl">
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-xl bg-orange-500/20 flex items-center justify-center text-orange-500">
+                <Trophy className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="font-extrabold text-sm text-white">Barème des Points de la Ligue</h3>
+                <p className="text-xs text-neutral-400">Fais gagner ton club et grimpe dans ta catégorie !</p>
+              </div>
+            </div>
+
+            <div className="space-y-2.5 text-xs">
+              <div className="flex items-center justify-between bg-neutral-950 p-3 rounded-2xl border border-neutral-800/80">
+                <span className="text-neutral-300 font-medium">🔥 Battre un record (PR)</span>
+                <span className="font-black text-orange-400 bg-orange-500/10 px-2.5 py-1 rounded-xl">+25 pts</span>
+              </div>
+
+              <div className="flex items-center justify-between bg-neutral-950 p-3 rounded-2xl border border-neutral-800/80">
+                <span className="text-neutral-300 font-medium">🏋️ Partager une séance</span>
+                <span className="font-black text-orange-400 bg-orange-500/10 px-2.5 py-1 rounded-xl">+10 pts</span>
+              </div>
+
+              <div className="flex items-center justify-between bg-neutral-950 p-3 rounded-2xl border border-neutral-800/80">
+                <span className="text-neutral-300 font-medium">📸 Publier une Story</span>
+                <span className="font-black text-orange-400 bg-orange-500/10 px-2.5 py-1 rounded-xl">+5 pts</span>
+              </div>
+
+              <div className="flex items-center justify-between bg-neutral-950 p-3 rounded-2xl border border-neutral-800/80">
+                <span className="text-neutral-300 font-medium">⚡ Série (Streak journalier)</span>
+                <span className="font-black text-orange-400 bg-orange-500/10 px-2.5 py-1 rounded-xl">+2 pts / jour</span>
+              </div>
+
+              <div className="flex items-center justify-between bg-neutral-950 p-3 rounded-2xl border border-neutral-800/80">
+                <span className="text-neutral-300 font-medium">💬 Interaction (Like / Comm)</span>
+                <span className="font-black text-orange-400 bg-orange-500/10 px-2.5 py-1 rounded-xl">+1 pt</span>
+              </div>
+            </div>
+          </div>
+
           <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4 shadow-xl">
             <h3 className="text-sm font-extrabold text-white flex items-center gap-2">
               <Key className="w-5 h-5 text-orange-500" /> Sécurité du mot de passe
