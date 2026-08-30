@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, FormEvent, ChangeEvent } from 'react';
+import { useState, useRef, useEffect, FormEvent, ChangeEvent, RefObject } from 'react';
 import { User as SupabaseUser } from '@supabase/supabase-js';
 import { 
   ShieldCheck, MapPin, Camera, Key, LogOut, 
@@ -37,8 +37,8 @@ interface ProfileTabProps {
   onSignOut: () => void;
   onToggleVerifyAdmin: (userId: string, currentStatus: boolean) => void;
   onUpdateProfile?: (updatedData: { username: string; home_club: string; goal: string; preferred_time: string; gender: string; avatar_url?: string; banner_url?: string; username_changes_count?: number }) => void;
-  beforeFileInputRef: React.RefObject<HTMLInputElement | null>;
-  afterFileInputRef: React.RefObject<HTMLInputElement | null>;
+  beforeFileInputRef: RefObject<HTMLInputElement | null>;
+  afterFileInputRef: RefObject<HTMLInputElement | null>;
 }
 
 const CLUBS_LIST = [
