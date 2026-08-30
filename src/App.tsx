@@ -52,6 +52,10 @@ const isMatchingClub = (postClubName?: string, selectedClubName?: string): boole
 export default function App() {
   const [user, setUser] = useState<SupabaseUser | null>(null);
   
+  const [authEmail, setAuthEmail] = useState('');
+  const [authPassword, setAuthPassword] = useState('');
+  const [isSignUpMode, setIsSignUpMode] = useState(false);
+
   const [currentTab, setCurrentTab] = useState<'feed' | 'buddy' | 'workout' | 'exercises' | 'chat' | 'profile' | 'calculator' | 'live_tracker' | 'rest_timer' | 'notifications'>(() => {
     const savedTab = localStorage.getItem('fitpulse_active_tab');
     return (savedTab as any) || 'feed';
@@ -322,6 +326,76 @@ export default function App() {
   };
   const plateBreakdown = targetWeight !== '' ? calculatePlates(targetWeight, barbellWeight) : [];
   const isAdmin = currentUserProfile?.is_admin || user?.email === 'antboucher@hotmail.fr';
+
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col items-center justify-center font-sans p-4 select-none">
+        <div className="w-full max-w-sm bg-neutral-900 border border-neutral-800 rounded-3xl p-6 space-y-6 shadow-2xl">
+          <div className="text-center space-y-2">
+            <div className="w-12 h-12 rounded-2xl bg-orange-500/20 flex items-center justify-center text-orange-500 mx-auto">
+              <Zap className="w-6 h-6" />
+            </div>
+            <h1 className="text-xl font-black text-white tracking-tight">FitPulse</h1>
+            <p className="text-xs text-neutral-400">La Ligue des Clubs & Suivi d'Entraînement</p>
+          </div>
+
+          <form onSubmit={async (e) => {
+            e.preventDefault();
+            if (isSignUpMode) {
+              const { error } = await supabase.auth.signUp({ email: authEmail, password: authPassword });
+              if (error) alert("Erreur inscription : " + error.message);
+              else alert("Compte créé ! Vérifie tes e-mails ou connecte-toi.");
+            } else {
+              const { data, error } = await supabase.auth.signInWithPassword({ email: authEmail, password: authPassword });
+              if (error) alert("Erreur connexion : " + error.message);
+              else if (data.session?.user) {
+                setUser(data.session.user);
+                window.location.reload();
+              }
+            }
+          }} className="space-y-4">
+            <div>
+              <label className="block text-xs font-semibold text-neutral-400 mb-1">E-mail :</label>
+              <input 
+                type="email" 
+                required
+                placeholder="ton.email@exemple.com" 
+                value={authEmail} 
+                onChange={(e) => setAuthEmail(e.target.value)} 
+                className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-3 text-sm text-white focus:border-orange-500 focus:outline-none" 
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-neutral-400 mb-1">Mot de passe :</label>
+              <input 
+                type="password" 
+                required
+                placeholder="••••••••" 
+                value={authPassword} 
+                onChange={(e) => setAuthPassword(e.target.value)} 
+                className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-3 text-sm text-white focus:border-orange-500 focus:outline-none" 
+              />
+            </div>
+
+            <button type="submit" className="w-full py-3.5 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-2xl text-sm shadow-xl transition active:scale-95">
+              {isSignUpMode ? "S'inscrire 🚀" : "Se connecter ⚡"}
+            </button>
+          </form>
+
+          <div className="text-center">
+            <button 
+              type="button" 
+              onClick={() => setIsSignUpMode(!isSignUpMode)} 
+              className="text-xs text-orange-400 hover:underline font-semibold"
+            >
+              {isSignUpMode ? "Déjà un compte ? Connecte-toi" : "Pas encore de compte ? Inscris-toi"}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col font-sans select-none antialiased">
