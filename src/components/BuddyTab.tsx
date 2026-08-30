@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Users, UserPlus, Check, Clock, MapPin, Search, ShieldCheck, UserMinus } from 'lucide-react';
+import { Users, UserPlus, Check, Clock, MapPin, Search, ShieldCheck, UserMinus, Sparkles } from 'lucide-react';
 import { RealUser, FriendRequest } from '../types';
 
 interface BuddyTabProps {
@@ -30,6 +30,25 @@ const getAgeCategory = (birthDateString?: string) => {
   return '55 ans et +';
 };
 
+const calculateMatchScore = (currentUser: RealUser | undefined, targetUser: RealUser) => {
+  if (!currentUser) return 50;
+  let score = 50;
+
+  if (currentUser.home_club && targetUser.home_club && currentUser.home_club === targetUser.home_club) {
+    score += 25;
+  }
+
+  if (currentUser.goal && targetUser.goal && currentUser.goal.toLowerCase() === targetUser.goal.toLowerCase()) {
+    score += 15;
+  }
+
+  if (currentUser.preferred_time && targetUser.preferred_time && currentUser.preferred_time.toLowerCase() === targetUser.preferred_time.toLowerCase()) {
+    score += 10;
+  }
+
+  return Math.min(score, 99);
+};
+
 export default function BuddyTab({
   currentUserId,
   registeredUsers,
@@ -42,6 +61,7 @@ export default function BuddyTab({
   const [searchTerm, setSearchTerm] = useState('');
   const [activeSubTab, setActiveSubTab] = useState<'buddies' | 'search'>('buddies');
 
+  const currentUser = registeredUsers.find(u => u.id === currentUserId);
   const myRequests = friendRequests.filter(
     req => req.sender_id === currentUserId || req.receiver_id === currentUserId
   );
@@ -55,12 +75,19 @@ export default function BuddyTab({
 
   const myBuddies = registeredUsers.filter(u => acceptedFriendIds.includes(u.id));
   
-  const searchResults = registeredUsers.filter(u => {
-    if (u.id === currentUserId) return false;
-    if (acceptedFriendIds.includes(u.id)) return false;
-    return u.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
-           (u.home_club && u.home_club.toLowerCase().includes(searchTerm.toLowerCase()));
-  });
+  const searchResults = registeredUsers
+    .filter(u => {
+      if (u.id === currentUserId) return false;
+      if (acceptedFriendIds.includes(u.id)) return false;
+      return u.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
+             (u.home_club && u.home_club.toLowerCase().includes(searchTerm.toLowerCase())) ||
+             (u.goal && u.goal.toLowerCase().includes(searchTerm.toLowerCase()));
+    })
+    .map(u => ({
+      ...u,
+      matchScore: calculateMatchScore(currentUser, u)
+    }))
+    .sort((a, b) => b.matchScore - a.matchScore);
 
   return (
     <div className="space-y-4 pb-12">
@@ -80,21 +107,26 @@ export default function BuddyTab({
               onClick={() => setActiveSubTab('search')}
               className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${activeSubTab === 'search' ? 'bg-orange-600 text-white' : 'text-neutral-400 hover:text-white'}`}
             >
-              Découvrir
+              Découvrir 🎯
             </button>
           </div>
         </div>
 
         {activeSubTab === 'search' && (
-          <div className="relative">
-            <Search className="absolute left-3.5 top-3.5 w-4 h-4 text-neutral-500" />
-            <input
-              type="text"
-              placeholder="Rechercher par pseudo ou club..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full bg-neutral-950 border border-neutral-800 rounded-2xl pl-10 pr-4 py-3 text-xs text-white focus:border-orange-500"
-            />
+          <div className="space-y-2">
+            <div className="relative">
+              <Search className="absolute left-3.5 top-3.5 w-4 h-4 text-neutral-500" />
+              <input
+                type="text"
+                placeholder="Rechercher par pseudo, club ou objectif..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full bg-neutral-950 border border-neutral-800 rounded-2xl pl-10 pr-4 py-3 text-xs text-white focus:border-orange-500"
+              />
+            </div>
+            <p className="text-[11px] text-orange-400 font-semibold flex items-center gap-1 px-1">
+              <Sparkles className="w-3.5 h-3.5" /> Les profils sont triés selon vos affinités (club, objectifs, horaires).
+            </p>
           </div>
         )}
       </div>
@@ -203,10 +235,15 @@ export default function BuddyTab({
               return (
                 <div 
                   key={user.id} 
-                  className="bg-neutral-900 border border-neutral-800 p-4 rounded-3xl flex items-center justify-between shadow-lg"
+                  className="bg-neutral-900 border border-neutral-800 p-4 rounded-3xl flex items-center justify-between shadow-lg relative overflow-hidden"
                 >
                   <div className="flex items-center gap-3.5 cursor-pointer flex-1" onClick={() => onSelectBuddyProfile(user)}>
-                    <img src={user.avatar_url} alt="" className="w-12 h-12 rounded-full object-cover border border-neutral-800" />
+                    <div className="relative">
+                      <img src={user.avatar_url} alt="" className="w-12 h-12 rounded-full object-cover border border-neutral-800" />
+                      <span className="absolute -bottom-1 -right-1 bg-orange-600 text-white font-black text-[9px] px-1.5 py-0.5 rounded-full border border-neutral-950">
+                        {user.matchScore}%
+                      </span>
+                    </div>
                     <div>
                       <h3 className="text-sm font-bold text-white flex items-center gap-1.5">
                         {user.username} {user.is_verified && <ShieldCheck className="w-4 h-4 text-orange-500" />}
@@ -214,8 +251,10 @@ export default function BuddyTab({
                       <p className="text-xs text-orange-400 font-semibold flex items-center gap-1 mt-0.5">
                         <MapPin className="w-3 h-3" /> {user.home_club || 'Club partenaire'}
                       </p>
-                      <p className="text-[11px] text-neutral-400 mt-0.5">
-                        Tranche d'âge : <span className="text-neutral-200 font-bold">{ageCategory}</span>
+                      <p className="text-[11px] text-neutral-400 mt-0.5 flex items-center gap-2">
+                        <span>Tranche d'âge : <strong className="text-neutral-200">{ageCategory}</strong></span>
+                        <span>•</span>
+                        <span className="text-orange-400 font-medium">🎯 {user.goal || 'Musculation'}</span>
                       </p>
                     </div>
                   </div>
