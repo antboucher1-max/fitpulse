@@ -303,7 +303,10 @@ export default function App() {
 
   const acceptedFriendIds = friendRequests.filter(req => req.status === 'accepted').map(req => (req.sender_id === user?.id ? req.receiver_id : req.sender_id));
   const activeChatUsers = registeredUsers.filter((u) => u.id !== user?.id && acceptedFriendIds.includes(u.id));
-  const displayedPosts = posts.filter((post) => isMatchingClub(post.club_name, selectedClub));
+  const displayedPosts = posts.filter((post) => {
+  if (selectedClub === '🌐 Tous les clubs (Global)') return true;
+  return isMatchingClub(post.club_name, selectedClub);
+});
   const currentChatMessages = allMessages.filter((m) => selectedBuddyChat && user && ((m.sender_id === user.id && m.receiver_id === selectedBuddyChat.id) || (m.sender_id === selectedBuddyChat.id && m.receiver_id === user.id)));
 
   const availablePlates = [25, 20, 15, 10, 5, 2.5, 1.25];
