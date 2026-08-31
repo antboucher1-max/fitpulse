@@ -1,6 +1,6 @@
 import {
   Zap, User, MessageCircle, Home, Users, Plus, X, Camera, Flame, MapPin, ShieldCheck, Award, Info, Trophy, MessageSquareText, Search, Clock, Target
-} from 'lucide-react';;
+} from 'lucide-react';
 import {
   Zap, Timer, PlusSquare, Calculator, User, MessageCircle, Home, Users, Plus, X, Camera, Flame, MapPin, Hash, Bell, ShieldCheck, Award, Info, Trophy, Sparkles, Clock, Target
 } from 'lucide-react';
