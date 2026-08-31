@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, ChangeEvent, FormEvent } from 'react';
 import {
-  Zap, User, MessageCircle, Home, Users, Plus, X, Camera, Flame, MapPin, ShieldCheck, Award, Info, Trophy, MessageSquareText, Dumbbell, Play, Timer
+  Zap, User, MessageCircle, Home, Users, Plus, X, Camera, Flame, MapPin, ShieldCheck, Award, Info, Trophy, MessageSquareText, Sparkles, Check
 } from 'lucide-react';
 import { createClient, User as SupabaseUser } from '@supabase/supabase-js';
 
@@ -43,6 +43,7 @@ export default function App() {
   const [selectedClub, setSelectedClub] = useState<string>('🌐 Tous les clubs (Global)');
   const [posts, setPosts] = useState<any[]>([]);
   const [registeredUsers, setRegisteredUsers] = useState<any[]>([]);
+  const [transformations, setTransformations] = useState<any[]>([]);
   const [allMessages, setAllMessages] = useState<any[]>([]);
   
   const postImageFileInputRef = useRef<HTMLInputElement>(null);
@@ -57,6 +58,7 @@ export default function App() {
   const [selectedBuddyChat, setSelectedBuddyChat] = useState<any | null>(null);
   const [currentMessageInput, setCurrentMessageInput] = useState('');
 
+  // États pour les WODs BoxWars
   const [boxWods, setBoxWods] = useState<any[]>([]);
   const [loadingBoxWods, setLoadingBoxWods] = useState(true);
   const [newWodTitle, setNewWodTitle] = useState('');
@@ -66,17 +68,9 @@ export default function App() {
   const [onboardingUsername, setOnboardingUsername] = useState('');
   const [onboardingAge, setOnboardingAge] = useState<number | ''>('');
   const [onboardingClub, setOnboardingClub] = useState(CLUBS_LIST[0]);
+  const [onboardingGoal, setOnboardingGoal] = useState('Prise de masse / Force');
   const [onboardingAvatar, setOnboardingAvatar] = useState<string>('https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=150');
   const [onboardingSubmitting, setOnboardingSubmitting] = useState(false);
-
-  const [lastReadTimestamps, setLastReadTimestamps] = useState<Record<string, number>>(() => {
-    try {
-      const saved = localStorage.getItem('fitpulse_read_timestamps');
-      return saved ? JSON.parse(saved) : {};
-    } catch {
-      return {};
-    }
-  });
 
   const fetchCloudPosts = async () => {
     const { data, error } = await supabase.from('posts').select('*').order('created_at', { ascending: false });
@@ -86,6 +80,11 @@ export default function App() {
   const fetchRealUsers = async () => {
     const { data } = await supabase.from('profiles').select('*');
     if (data) setRegisteredUsers(data);
+  };
+
+  const fetchTransformations = async (userId: string) => {
+    const { data } = await supabase.from('transformations').select('*').eq('user_id', userId).order('date', { ascending: false });
+    if (data) setTransformations(data);
   };
 
   const fetchAllMessages = async () => {
@@ -110,6 +109,7 @@ export default function App() {
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
+      if (session?.user) fetchTransformations(session.user.id);
     });
     fetchCloudPosts();
     fetchRealUsers();
@@ -207,6 +207,14 @@ export default function App() {
     return post.club_name === selectedClub;
   });
 
+  // Calcul du classement des clubs pour la Ligue
+  const clubScores: Record<string, number> = {};
+  registeredUsers.forEach(u => {
+    const club = u.home_club || 'Club Tournai (Bastion)';
+    clubScores[club] = (clubScores[club] || 0) + (u.points || 0);
+  });
+  const sortedClubs = Object.entries(clubScores).sort((a, b) => b[1] - a[1]);
+
   if (!user) {
     return (
       <div className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col items-center justify-center font-sans p-4 select-none">
@@ -216,7 +224,7 @@ export default function App() {
               <Zap className="w-6 h-6" />
             </div>
             <h1 className="text-xl font-black text-white tracking-tight">FitPulse & BoxWars</h1>
-            <p className="text-xs text-orange-400 font-semibold">Connexion à votre espace d'entraînement</p>
+            <p className="text-xs text-orange-400 font-semibold">La Ligue des Salles & Suivi d'Entraînement</p>
           </div>
 
           <form onSubmit={async (e) => {
@@ -273,7 +281,7 @@ export default function App() {
             setOnboardingSubmitting(true);
             await supabase.from('profiles').upsert({
               id: user.id, username: onboardingUsername.trim(), age: Number(onboardingAge) || 25,
-              home_club: onboardingClub, avatar_url: onboardingAvatar, points: 0, is_admin: user.email === 'antboucher@hotmail.fr'
+              home_club: onboardingClub, goal: onboardingGoal, avatar_url: onboardingAvatar, points: 0, is_admin: user.email === 'antboucher@hotmail.fr'
             });
             setOnboardingSubmitting(false);
             fetchRealUsers(); setShowWelcomeGuide(true);
@@ -371,28 +379,54 @@ export default function App() {
             </div>
           )}
 
-          {/* ONGLET LIGUE */}
+          {/* ONGLET LIGUE (CLASSEMENT CLUBS & INDIVIDUEL COMPLET) */}
           {currentTab === 'leaderboard' && (
-            <div className="space-y-4">
-              <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-4 text-center space-y-1">
-                <Trophy className="w-8 h-8 text-orange-500 mx-auto" />
-                <h2 className="font-extrabold text-sm text-white">Classement de la Ligue des Salles</h2>
-                <p className="text-xs text-neutral-400">Les athlètes les plus réguliers et performants.</p>
+            <div className="space-y-5">
+              <div className="bg-gradient-to-r from-orange-950/60 to-neutral-900 border border-orange-500/30 rounded-3xl p-5 text-center space-y-2">
+                <Trophy className="w-10 h-10 text-orange-500 mx-auto animate-bounce" />
+                <h2 className="font-black text-base text-white">La Ligue des Salles 🏆</h2>
+                <p className="text-xs text-neutral-300">Classement inter-clubs en direct. Chaque séance partagée rapporte 10 points à votre salle !</p>
               </div>
-              <div className="space-y-2">
-                {registeredUsers.sort((a, b) => (b.points || 0) - (a.points || 0)).map((u, idx) => (
-                  <div key={u.id} className="bg-neutral-900 border border-neutral-800 p-3 rounded-xl flex items-center justify-between">
+
+              {/* Classement des Clubs */}
+              <div className="space-y-2.5">
+                <h3 className="text-xs font-black uppercase tracking-wider text-orange-400 px-1">🏛️ Classement des Clubs</h3>
+                {sortedClubs.map(([clubName, totalPoints], idx) => (
+                  <div key={clubName} className={`p-4 rounded-2xl border flex items-center justify-between ${idx === 0 ? 'bg-orange-500/10 border-orange-500/50 shadow-lg' : 'bg-neutral-900 border-neutral-800'}`}>
                     <div className="flex items-center gap-3">
-                      <span className="font-black text-xs text-orange-500 w-5">#{idx + 1}</span>
-                      <img src={u.avatar_url || 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=150'} alt="" className="w-8 h-8 rounded-full object-cover" />
+                      <span className={`font-black text-sm w-6 text-center ${idx === 0 ? 'text-orange-400 text-base' : 'text-neutral-400'}`}>#{idx + 1}</span>
                       <div>
-                        <div className="font-bold text-xs text-white">{u.username}</div>
-                        <div className="text-[10px] text-neutral-400">{u.home_club}</div>
+                        <div className="font-extrabold text-xs text-white">{clubName}</div>
+                        <div className="text-[10px] text-neutral-400">{registeredUsers.filter(u => (u.home_club || 'Club Tournai (Bastion)') === clubName).length} athlètes actifs</div>
                       </div>
                     </div>
-                    <span className="text-xs font-black text-orange-400 bg-orange-500/10 px-2.5 py-1 rounded-lg">{u.points || 0} pts</span>
+                    <div className="text-right">
+                      <span className="text-sm font-black text-orange-400">{totalPoints} pts</span>
+                    </div>
                   </div>
                 ))}
+              </div>
+
+              {/* Classement Individuel */}
+              <div className="space-y-2.5 pt-2">
+                <h3 className="text-xs font-black uppercase tracking-wider text-orange-400 px-1">🔥 Top Athlètes Individuels</h3>
+                <div className="space-y-2">
+                  {registeredUsers.sort((a, b) => (b.points || 0) - (a.points || 0)).map((u, idx) => (
+                    <div key={u.id} className="bg-neutral-900 border border-neutral-800 p-3.5 rounded-2xl flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <span className="font-black text-xs text-orange-500 w-5">#{idx + 1}</span>
+                        <img src={u.avatar_url || 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=150'} alt="" className="w-9 h-9 rounded-full object-cover border border-orange-500/30" />
+                        <div>
+                          <div className="font-bold text-xs text-white flex items-center gap-1">
+                            {u.username} {u.is_verified && <span className="text-orange-500 text-[10px]">✓</span>}
+                          </div>
+                          <div className="text-[10px] text-neutral-400">{u.home_club || 'Club Tournai'}</div>
+                        </div>
+                      </div>
+                      <span className="text-xs font-black text-orange-400 bg-orange-500/10 px-3 py-1.5 rounded-xl">{u.points || 0} pts</span>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           )}
@@ -407,7 +441,7 @@ export default function App() {
                 <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-3 flex flex-col h-[65vh] justify-between">
                   <div className="flex items-center justify-between border-b border-neutral-800 pb-2">
                     <span className="text-xs font-bold text-white">{selectedBuddyChat.username}</span>
-                    <button onClick={() => setSelectedBuddyChat(null)} className="text-xs text-orange-400">Retour</button>
+                    <button onClick={() => setSelectedBuddyChat(null)} className="text-xs text-orange-400 font-semibold">Retour</button>
                   </div>
                   <div className="flex-1 overflow-y-auto space-y-2 py-2">
                     {allMessages.filter(m => (m.sender_id === user?.id && m.receiver_id === selectedBuddyChat.id) || (m.sender_id === selectedBuddyChat.id && m.receiver_id === user?.id)).map((m, i) => (
@@ -419,7 +453,7 @@ export default function App() {
                     ))}
                   </div>
                   <div className="flex gap-2 pt-2 border-t border-neutral-800">
-                    <input type="text" placeholder="Écris ton message..." value={currentMessageInput} onChange={(e) => setCurrentMessageInput(e.target.value)} className="flex-1 bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white" />
+                    <input type="text" placeholder="Écris ton message..." value={currentMessageInput} onChange={(e) => setCurrentMessageInput(e.target.value)} className="flex-1 bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none" />
                     <button onClick={handleSendMessage} className="bg-orange-600 px-4 py-2 rounded-xl text-xs font-bold text-white">Envoyer</button>
                   </div>
                 </div>
@@ -427,12 +461,15 @@ export default function App() {
                 <div className="space-y-2">
                   <p className="text-xs text-neutral-400">Choisis un partenaire dans la liste pour discuter :</p>
                   {registeredUsers.filter(u => u.id !== user?.id).map(buddy => (
-                    <div key={buddy.id} onClick={() => setSelectedBuddyChat(buddy)} className="bg-neutral-900 border border-neutral-800 p-3 rounded-xl flex items-center justify-between cursor-pointer hover:border-orange-500/50 transition">
-                      <div className="flex items-center gap-2.5">
-                        <img src={buddy.avatar_url || 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=150'} alt="" className="w-8 h-8 rounded-full object-cover" />
-                        <span className="font-bold text-xs text-white">{buddy.username}</span>
+                    <div key={buddy.id} onClick={() => setSelectedBuddyChat(buddy)} className="bg-neutral-900 border border-neutral-800 p-3.5 rounded-2xl flex items-center justify-between cursor-pointer hover:border-orange-500/50 transition">
+                      <div className="flex items-center gap-3">
+                        <img src={buddy.avatar_url || 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=150'} alt="" className="w-9 h-9 rounded-full object-cover" />
+                        <div>
+                          <div className="font-bold text-xs text-white">{buddy.username}</div>
+                          <div className="text-[10px] text-neutral-400">{buddy.home_club}</div>
+                        </div>
                       </div>
-                      <span className="text-xs text-orange-400 font-semibold">Ouvrir le chat 💬</span>
+                      <span className="text-xs text-orange-400 font-bold">Ouvrir le chat 💬</span>
                     </div>
                   ))}
                 </div>
@@ -440,21 +477,23 @@ export default function App() {
             </div>
           )}
 
-          {/* ONGLET PROFIL */}
+          {/* ONGLET PROFIL COMPLET */}
           {currentTab === 'profile' && (
-            <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-6 text-center space-y-4">
-              <img src={currentUserProfile?.avatar_url || 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=150'} alt="" className="w-20 h-20 rounded-full object-cover mx-auto border-2 border-orange-500 shadow-xl" />
-              <div>
-                <h2 className="font-extrabold text-base text-white">{currentUsername}</h2>
-                <p className="text-xs text-orange-400 font-semibold">{currentUserProfile?.home_club || 'Club partenaire'}</p>
+            <div className="space-y-4">
+              <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-6 text-center space-y-4">
+                <img src={currentUserProfile?.avatar_url || 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=150'} alt="" className="w-20 h-20 rounded-full object-cover mx-auto border-2 border-orange-500 shadow-xl" />
+                <div>
+                  <h2 className="font-extrabold text-base text-white">{currentUsername}</h2>
+                  <p className="text-xs text-orange-400 font-semibold">{currentUserProfile?.home_club || 'Club partenaire'}</p>
+                </div>
+                <div className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 text-xs text-left space-y-2">
+                  <p className="text-neutral-300"><strong>Objectif :</strong> {currentUserProfile?.goal || 'Musculation / Force'}</p>
+                  <p className="text-neutral-300"><strong>Points Ligue :</strong> <span className="text-orange-400 font-bold">{currentUserProfile?.points || 0} pts</span></p>
+                </div>
+                <button onClick={async () => { await supabase.auth.signOut(); setUser(null); localStorage.clear(); window.location.reload(); }} className="w-full py-3 bg-neutral-800 hover:bg-neutral-700 text-red-400 font-bold rounded-2xl text-xs transition">
+                  Se déconnecter 🚪
+                </button>
               </div>
-              <div className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 text-xs text-left space-y-2">
-                <p className="text-neutral-300"><strong>Objectif :</strong> {currentUserProfile?.goal || 'Musculation / Force'}</p>
-                <p className="text-neutral-300"><strong>Points Ligue :</strong> <span className="text-orange-400 font-bold">{currentUserProfile?.points || 0} pts</span></p>
-              </div>
-              <button onClick={async () => { await supabase.auth.signOut(); setUser(null); localStorage.clear(); window.location.reload(); }} className="w-full py-3 bg-neutral-800 hover:bg-neutral-700 text-red-400 font-bold rounded-2xl text-xs transition">
-                Se déconnecter 🚪
-              </button>
             </div>
           )}
 
@@ -466,7 +505,7 @@ export default function App() {
                   <Zap className="w-4 h-4" /> Univers CrossFit
                 </div>
                 <h2 className="text-xl font-black">BoxWars Live</h2>
-                <p className="text-xs text-neutral-300 mt-1">Enregistre tes WODs, consulte les scores et partage tes perfs.</p>
+                <p className="text-xs text-neutral-300 mt-1">Enregistre tes WODs, consulte les scores de la box et partage tes perfs en direct.</p>
               </div>
 
               <div className="flex gap-2 border-b border-neutral-800 pb-2">
@@ -487,7 +526,7 @@ export default function App() {
                         <h4 className="font-bold text-xs text-cyan-400">Enregistrer un WOD</h4>
                         <button type="button" onClick={() => setShowWodModal(false)} className="text-neutral-400"><X className="w-4 h-4" /></button>
                       </div>
-                      <input type="text" placeholder="Nom du WOD (ex: Fran, Cindy...)" value={newWodTitle} onChange={e => setNewWodTitle(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white" required />
+                      <input type="text" placeholder="Nom du WOD (ex: Fran)" value={newWodTitle} onChange={e => setNewWodTitle(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white" required />
                       <input type="text" placeholder="Score (ex: 4:15)" value={newWodScore} onChange={e => setNewWodScore(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white" required />
                       <button type="submit" className="w-full py-2.5 bg-cyan-500 text-neutral-950 font-bold rounded-xl text-xs">Valider et publier ⚡</button>
                     </form>
