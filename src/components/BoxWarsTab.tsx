@@ -1,7 +1,7 @@
 import { useState, useEffect, FormEvent } from 'react';
 import { 
   Zap, Flame, Trophy, Plus, X, Dumbbell, Timer, MessageSquareText, Award, 
-  Calendar, Users, ShieldCheck, Play, Pause, RotateCcw, Calculator, Swords 
+  Calendar, Users, ShieldCheck, Play, Pause, RotateCcw, Calculator, Swords, Check 
 } from 'lucide-react';
 import { createClient } from '@supabase/supabase-js';
 
@@ -18,7 +18,7 @@ interface BoxWarsTabProps {
 export default function BoxWarsTab({ currentUserId, currentUsername, registeredUsers }: BoxWarsTabProps) {
   const [boxMainTab, setBoxMainTab] = useState<'training' | 'box' | 'planning'>('training');
   const [trainingSubTab, setTrainingSubTab] = useState<'wods' | 'timer' | 'rm' | 'skills'>('wods');
-  const [boxSubTab, setBoxSubTab] = useState<'leaderboard' | 'feed' | 'chat' | 'friends'>('leaderboard');
+  const [boxSubTab, setBoxSubTab] = useState<'leaderboard' | 'feed' | 'chat' | 'battles'>('leaderboard');
   const [planningSubTab, setPlanningSubTab] = useState<'schedule' | 'coach'>('schedule');
 
   // WODs & PRs
@@ -30,9 +30,10 @@ export default function BoxWarsTab({ currentUserId, currentUsername, registeredU
   const [newWodCategory, setNewWodCategory] = useState('Rx');
   const [showWodModal, setShowWodModal] = useState(false);
 
-  // Timer
+  // Timer d'intervalles (18 min, pauses toutes les 4 min)
   const [timerSeconds, setTimerSeconds] = useState<number>(18 * 60);
   const [isTimerRunning, setIsTimerRunning] = useState<boolean>(false);
+  const [timerMode, setTimerMode] = useState<'work' | 'rest'>('work');
 
   // Calculateur RM
   const [rmWeight, setRmWeight] = useState<number | ''>('');
@@ -41,19 +42,26 @@ export default function BoxWarsTab({ currentUserId, currentUsername, registeredU
   // Skills
   const [selectedSkillCategory, setSelectedSkillCategory] = useState<'gym' | 'halterophilie'>('gym');
 
-  // Chat & Feed Box
-  const [boxMessages, setBoxMessages] = useState<any[]>([]);
+  // Box Chat & Feed
+  const [boxMessages, setBoxMessages] = useState<any[]>([
+    { user: 'Head Coach', text: 'Bienvenue sur le nouveau chat de la Box ! Préparez vos WODs de la semaine 🔥' }
+  ]);
   const [boxChatInput, setBoxChatInput] = useState('');
   const [boxFeedPosts, setBoxFeedPosts] = useState<any[]>([
-    { id: 1, author: 'Head Coach', content: 'Superbe ambiance ce matin sur le WOD Hero ! Bravo à tous.', date: 'Aujourd\'hui', likes: 12 }
+    { id: 1, author: 'Head Coach', content: 'Rappel : Qualifications inter-box ce samedi à 10h ! Préparez vos gilets lestés.', date: 'Aujourd\'hui', likes: 14 }
   ]);
   const [newFeedText, setNewFeedText] = useState('');
 
+  // Battles / Défis
+  const [battles, setBattles] = useState<any[]>([
+    { id: 1, title: 'WOD Challenge : Fran', challenger: 'Antoine', opponent: 'Communauté BoxWars', status: 'Actif ⚡', reward: '50 pts' }
+  ]);
+
   // Planning & Coach
   const [wodSlots, setWodSlots] = useState<any[]>([
-    { id: 1, time: '07:00 - WOD Matin', coach: 'Thomas', spotsLeft: 4, booked: false },
-    { id: 2, time: '12:30 - WOD Entre Midi & Deux', coach: 'Antoine', spotsLeft: 2, booked: true },
-    { id: 3, time: '18:00 - WOD Soir (Rx)', coach: 'Sarah', spotsLeft: 0, booked: false }
+    { id: 1, time: '07:00 - WOD Matin (Endurance)', coach: 'Thomas', spotsLeft: 3, booked: false },
+    { id: 2, time: '12:30 - WOD Flash (Entre Midi & Deux)', coach: 'Antoine', spotsLeft: 1, booked: true },
+    { id: 3, time: '18:00 - WOD Soir (Heavy Day - Rx)', coach: 'Sarah', spotsLeft: 0, booked: false }
   ]);
   const [coachNotes, setCoachNotes] = useState('');
 
@@ -72,11 +80,14 @@ export default function BoxWarsTab({ currentUserId, currentUsername, registeredU
     let interval: any = null;
     if (isTimerRunning && timerSeconds > 0) {
       interval = setInterval(() => {
-        setTimerSeconds(prev => prev - 1);
+        setTimerSeconds(prev => {
+          if (prev === 1) {
+            setIsTimerRunning(false);
+            alert("⏱️ Fin de la session d'entraînement ! Beau travail ! 🔥");
+          }
+          return prev - 1;
+        });
       }, 1000);
-    } else if (timerSeconds === 0) {
-      setIsTimerRunning(false);
-      alert("⏱️ Fin de la session d'entraînement ! 🔥");
     }
     return () => clearInterval(interval);
   }, [isTimerRunning, timerSeconds]);
@@ -104,11 +115,13 @@ export default function BoxWarsTab({ currentUserId, currentUsername, registeredU
       setNewWodScore('');
       setShowWodModal(false);
       fetchBoxWods();
+    } else {
+      alert("Erreur enregistrement WOD : " + error.message);
     }
   };
 
   return (
-    <div className="space-y-4 pb-16">
+    <div className="space-y-4 pb-16 animate-fadeIn">
       <div className="bg-gradient-to-r from-cyan-950/95 to-neutral-900 border border-cyan-500/40 rounded-3xl p-5 text-white shadow-2xl">
         <div className="flex items-center gap-2 text-cyan-400 font-bold text-xs uppercase tracking-wider mb-1">
           <Zap className="w-4 h-4" /> BoxWars Arena Hub
@@ -123,6 +136,7 @@ export default function BoxWarsTab({ currentUserId, currentUsername, registeredU
         <button onClick={() => setBoxMainTab('planning')} className={`py-2.5 rounded-xl text-xs font-black transition ${boxMainTab === 'planning' ? 'bg-cyan-500 text-neutral-950 shadow-lg' : 'text-neutral-400 hover:text-white'}`}>📅 Planning</button>
       </div>
 
+      {/* ================= SECTION TRAINING ================= */}
       {boxMainTab === 'training' && (
         <div className="space-y-4">
           <div className="flex gap-1 overflow-x-auto no-scrollbar border-b border-neutral-800 pb-2">
@@ -147,24 +161,38 @@ export default function BoxWarsTab({ currentUserId, currentUsername, registeredU
                     <h4 className="font-bold text-xs text-cyan-400">Enregistrer une performance</h4>
                     <button type="button" onClick={() => setShowWodModal(false)} className="text-neutral-400"><X className="w-4 h-4" /></button>
                   </div>
-                  <input type="text" placeholder="Nom du WOD (ex: Fran, Murph)" value={newWodTitle} onChange={e => setNewWodTitle(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white" required />
-                  <div className="grid grid-cols-2 gap-2">
-                    <select value={newWodType} onChange={e => setNewWodType(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-2 py-2 text-xs text-white">
-                      <option value="For Time">For Time</option>
-                      <option value="AMRAP">AMRAP</option>
-                      <option value="EMOM">EMOM</option>
-                    </select>
-                    <select value={newWodCategory} onChange={e => setNewWodCategory(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-2 py-2 text-xs text-white">
-                      <option value="Rx">Rx</option>
-                      <option value="Scaled">Scaled</option>
-                    </select>
+                  <div>
+                    <label className="block text-[10px] text-neutral-400 mb-1">Nom du WOD :</label>
+                    <input type="text" placeholder="ex: Fran, Murph, Cindy" value={newWodTitle} onChange={e => setNewWodTitle(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white" required />
                   </div>
-                  <input type="text" placeholder="Score (ex: 4:15)" value={newWodScore} onChange={e => setNewWodScore(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white" required />
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[10px] text-neutral-400 mb-1">Format :</label>
+                      <select value={newWodType} onChange={e => setNewWodType(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-2 py-2 text-xs text-white">
+                        <option value="For Time">For Time</option>
+                        <option value="AMRAP">AMRAP</option>
+                        <option value="EMOM">EMOM</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] text-neutral-400 mb-1">Catégorie :</label>
+                      <select value={newWodCategory} onChange={e => setNewWodCategory(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-2 py-2 text-xs text-white">
+                        <option value="Rx">Rx</option>
+                        <option value="Scaled">Scaled</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] text-neutral-400 mb-1">Score :</label>
+                    <input type="text" placeholder="ex: 4:15 ou 8 rounds" value={newWodScore} onChange={e => setNewWodScore(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white" required />
+                  </div>
                   <button type="submit" className="w-full py-3 bg-cyan-500 text-neutral-950 font-bold rounded-xl text-xs">Enregistrer ⚡</button>
                 </form>
               )}
 
-              {loadingBoxWods ? <p className="text-xs text-neutral-500 text-center py-4">Chargement...</p> : boxWods.map(wod => (
+              {loadingBoxWods ? <p className="text-xs text-neutral-500 text-center py-4">Chargement...</p> : boxWods.length === 0 ? (
+                <p className="text-xs text-neutral-500 text-center py-6 bg-neutral-900 border border-neutral-800 rounded-2xl">Aucun score WOD enregistré. Sois le premier ! 🚀</p>
+              ) : boxWods.map(wod => (
                 <div key={wod.id} className="bg-neutral-900 border border-neutral-800 p-3.5 rounded-2xl flex justify-between items-center shadow">
                   <div>
                     <div className="font-extrabold text-xs text-white">{wod.title} <span className="text-[9px] bg-cyan-500/20 text-cyan-400 px-1.5 py-0.5 rounded font-bold">{wod.category || 'Rx'}</span></div>
@@ -183,7 +211,7 @@ export default function BoxWarsTab({ currentUserId, currentUsername, registeredU
                 <div className={`text-5xl font-black tracking-widest ${isTimerRunning ? 'text-cyan-400 animate-pulse' : 'text-white'}`}>
                   {formatTimer(timerSeconds)}
                 </div>
-                <div className="text-[10px] uppercase font-bold text-neutral-400 mt-2">Bloc 18 min (Pause toutes les 4 min)</div>
+                <div className="text-[10px] uppercase font-bold text-neutral-400 mt-2">Bloc 18 min • Pause programmée toutes les 4 min</div>
               </div>
               <div className="flex justify-center gap-3">
                 {!isTimerRunning ? (
@@ -240,20 +268,21 @@ export default function BoxWarsTab({ currentUserId, currentUsername, registeredU
         </div>
       )}
 
+      {/* ================= SECTION BOX ================= */}
       {boxMainTab === 'box' && (
         <div className="space-y-4">
           <div className="flex gap-1 overflow-x-auto no-scrollbar border-b border-neutral-800 pb-2">
             <button onClick={() => setBoxSubTab('leaderboard')} className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex-shrink-0 ${boxSubTab === 'leaderboard' ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/40' : 'bg-neutral-900 text-neutral-400'}`}>Classement</button>
             <button onClick={() => setBoxSubTab('feed')} className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex-shrink-0 ${boxSubTab === 'feed' ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/40' : 'bg-neutral-900 text-neutral-400'}`}>Feed</button>
             <button onClick={() => setBoxSubTab('chat')} className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex-shrink-0 ${boxSubTab === 'chat' ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/40' : 'bg-neutral-900 text-neutral-400'}`}>Chat Box 💬</button>
-            <button onClick={() => setBoxSubTab('friends')} className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex-shrink-0 ${boxSubTab === 'friends' ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/40' : 'bg-neutral-900 text-neutral-400'}`}>Amis</button>
+            <button onClick={() => setBoxSubTab('battles')} className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex-shrink-0 ${boxSubTab === 'battles' ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/40' : 'bg-neutral-900 text-neutral-400'}`}>Battles ⚔️</button>
           </div>
 
           {boxSubTab === 'leaderboard' && (
             <div className="space-y-2">
               <h3 className="text-xs font-black uppercase tracking-wider text-cyan-400">🏆 Classement Général de la Box</h3>
               {registeredUsers.map((u, idx) => (
-                <div key={u.id} className="bg-neutral-900 border border-neutral-800 p-3 rounded-2xl flex justify-between items-center">
+                <div key={u.id} className="bg-neutral-900 border border-neutral-800 p-3 rounded-2xl flex justify-between items-center shadow">
                   <div className="flex items-center gap-3">
                     <span className="font-black text-xs text-cyan-400">#{idx + 1}</span>
                     <img src={u.avatar_url || 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=150'} alt="" className="w-8 h-8 rounded-full object-cover" />
@@ -284,11 +313,11 @@ export default function BoxWarsTab({ currentUserId, currentUsername, registeredU
           )}
 
           {boxSubTab === 'chat' && (
-            <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-3 flex flex-col h-[50vh] justify-between shadow-xl">
+            <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-3 flex flex-col h-[55vh] justify-between shadow-xl">
               <div className="text-xs font-bold text-cyan-400 border-b border-neutral-800 pb-2">💬 Chat en direct de la Box</div>
-              <div className="flex-1 overflow-y-auto space-y-2 py-2">
-                {boxMessages.length === 0 ? <p className="text-xs text-neutral-500 text-center py-6">Aucun message pour l'instant.</p> : boxMessages.map((m, i) => (
-                  <div key={i} className="bg-neutral-950 p-2.5 rounded-xl text-xs"><strong className="text-cyan-400">{m.user} : </strong>{m.text}</div>
+              <div className="flex-1 overflow-y-auto space-y-2.5 py-2 pr-1">
+                {boxMessages.map((m, i) => (
+                  <div key={i} className="bg-neutral-950 p-3 rounded-xl text-xs space-y-0.5"><strong className="text-cyan-400">{m.user} : </strong><p className="text-neutral-200">{m.text}</p></div>
                 ))}
               </div>
               <div className="flex gap-2 pt-2 border-t border-neutral-800">
@@ -298,19 +327,20 @@ export default function BoxWarsTab({ currentUserId, currentUsername, registeredU
             </div>
           )}
 
-          {boxSubTab === 'friends' && (
-            <div className="space-y-2">
-              <h3 className="text-xs font-black uppercase tracking-wider text-cyan-400">👥 Mes Amis à la Box</h3>
-              {registeredUsers.filter(u => u.id !== currentUserId).map(u => (
-                <div key={u.id} className="bg-neutral-900 border border-neutral-800 p-3 rounded-2xl flex justify-between items-center">
-                  <div className="flex items-center gap-3">
-                    <img src={u.avatar_url || 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=150'} alt="" className="w-9 h-9 rounded-full object-cover" />
-                    <div>
-                      <div className="font-bold text-xs text-white">{u.username}</div>
-                      <div className="text-[10px] text-neutral-400">{u.home_club}</div>
-                    </div>
+          {boxSubTab === 'battles' && (
+            <div className="space-y-3">
+              <h3 className="text-xs font-black uppercase tracking-wider text-cyan-400">⚔️ BoxBattles & Défis inter-athlètes</h3>
+              {battles.map(battle => (
+                <div key={battle.id} className="bg-neutral-900 border border-neutral-800 p-4 rounded-2xl space-y-2 shadow">
+                  <div className="flex justify-between items-center">
+                    <span className="font-extrabold text-xs text-white">{battle.title}</span>
+                    <span className="text-[10px] bg-cyan-500/20 text-cyan-400 px-2 py-0.5 rounded font-bold">{battle.status}</span>
                   </div>
-                  <span className="text-xs text-cyan-400 font-bold">Connecté ✓</span>
+                  <p className="text-xs text-neutral-300">Affrontement : <strong className="text-white">{battle.challenger}</strong> vs <strong className="text-white">{battle.opponent}</strong></p>
+                  <div className="flex justify-between items-center pt-2 text-[10px] text-neutral-400 border-t border-neutral-800">
+                    <span>Prime : <strong className="text-cyan-400">{battle.reward}</strong></span>
+                    <button onClick={() => alert("Tu as rejoint le défi !")} className="bg-cyan-500 text-neutral-950 px-3 py-1 rounded-lg font-bold">Relever le défi 🚀</button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -318,6 +348,7 @@ export default function BoxWarsTab({ currentUserId, currentUsername, registeredU
         </div>
       )}
 
+      {/* ================= SECTION PLANNING ================= */}
       {boxMainTab === 'planning' && (
         <div className="space-y-4">
           <div className="flex gap-2 border-b border-neutral-800 pb-2">
