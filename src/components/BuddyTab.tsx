@@ -341,7 +341,7 @@ export default function BuddyTab({
         </div>
 
         {activeSubTab === 'search' && (
-          <div className="space-y-2.5">
+          <div className="space-y-3">
             <div className="flex gap-2">
               <div className="relative flex-1">
                 <Search className="absolute left-3.5 top-3.5 w-4 h-4 text-neutral-500" />
@@ -359,6 +359,22 @@ export default function BuddyTab({
               >
                 <SlidersHorizontal className="w-4 h-4" /> Filtres {hasActiveFilters && '• Actifs'}
               </button>
+            </div>
+
+            {/* Sélecteur direct de tranche d'âge */}
+            <div>
+              <select 
+                value={filterAgeCategory} 
+                onChange={(e) => setFilterAgeCategory(e.target.value)}
+                className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white"
+              >
+                <option value="Tous">Filtrer par tranche d'âge (Tous)</option>
+                <option value="18-25 ans">18-25 ans</option>
+                <option value="25-35 ans">25-35 ans</option>
+                <option value="35-45 ans">35-45 ans</option>
+                <option value="45-55 ans">45-55 ans</option>
+                <option value="55 ans et +">55 ans et +</option>
+              </select>
             </div>
             
             <p className="text-[11px] text-orange-400 font-semibold flex items-center gap-1 px-1">
