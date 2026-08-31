@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, ChangeEvent, FormEvent } from 'react';
 import {
-  Zap, User, MessageCircle, Home, Users, Plus, X, Camera, Flame, MapPin, ShieldCheck, Award, Info, Trophy, MessageSquareText, Search, Clock, Target
+  Zap, User, MessageCircle, Home, Users, Plus, X, Camera, Flame, MapPin, ShieldCheck, Award, Trophy, MessageSquareText, Search, Clock, Target
 } from 'lucide-react';
 import { createClient, User as SupabaseUser } from '@supabase/supabase-js';
 
@@ -106,13 +106,13 @@ export default function App() {
 
   const [activeCommentPostId, setActiveCommentPostId] = useState<string | null>(null);
 
-  // États de filtres pour l'onglet Buddies (avec option explicite "Entre femmes uniquement")
+  // États de filtres pour l'onglet Buddies
   const [buddySearchQuery, setBuddySearchQuery] = useState('');
   const [onlyWomenMatch, setOnlyWomenMatch] = useState(false);
   const [buddyTimeFilter, setBuddyTimeFilter] = useState('Tous'); 
   const [buddyGoalFilter, setBuddyGoalFilter] = useState('Tous'); 
 
-  // États pour les WODs BoxWars connectés à Supabase
+  // États BoxWars
   const [boxWods, setBoxWods] = useState<any[]>([]);
   const [loadingBoxWods, setLoadingBoxWods] = useState(true);
   const [newWodTitle, setNewWodTitle] = useState('');
@@ -138,17 +138,6 @@ export default function App() {
   });
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  const [newTransNote, setNewTransNote] = useState('');
-  const [newTransWeight, setNewTransWeight] = useState<number | ''>('');
-  const [newTransBefore, setNewTransBefore] = useState<string | null>(null);
-  const [newTransAfter, setNewTransAfter] = useState<string | null>(null);
-  const [newTransIsPrivate, setNewTransIsPrivate] = useState<boolean>(true);
-
-  const [exerciseSearch, setExerciseSearch] = useState('');
-  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>('Tous');
-  const [targetWeight, setTargetWeight] = useState<number | ''>(100);
-  const [barbellWeight, setBarbellWeight] = useState<number>(20);
 
   const fetchCloudPosts = async () => {
     setFeedLoading(true);
@@ -197,6 +186,32 @@ export default function App() {
     if (!error) {
       fetchRealUsers();
     }
+  };
+
+  // Fonction calculateUserStreak ajoutée pour corriger l'erreur de compilation
+  const calculateUserStreak = (targetUserId: string) => {
+    if (!user || !targetUserId) return 0;
+    const convo = allMessages.filter(
+      m => (m.sender_id === user.id && m.receiver_id === targetUserId) ||
+           (m.sender_id === targetUserId && m.receiver_id === user.id)
+    );
+    if (convo.length === 0) return 0;
+
+    const activeDays = new Set<string>();
+    convo.forEach(m => {
+      if (m.created_at) activeDays.add(m.created_at.split('T')[0]);
+    });
+
+    let streak = 0;
+    const today = new Date();
+    for (let i = 0; i < 365; i++) {
+      const checkDate = new Date(today);
+      checkDate.setDate(today.getDate() - i);
+      const dateString = checkDate.toISOString().split('T')[0];
+      if (activeDays.has(dateString)) streak++;
+      else if (i > 0) break;
+    }
+    return streak > 0 ? streak : 1;
   };
 
   useEffect(() => {
@@ -289,19 +304,6 @@ export default function App() {
     }
   };
 
-  const handleFinishLiveWorkout = async () => {
-    if (!user) return;
-    if (liveExercises.length === 0) { alert("Ajoute au moins un exercice !"); return; }
-    const formattedExercises: ExerciseEntry[] = liveExercises.map(ex => ({ name: ex.name, sets: ex.sets.length, reps: ex.sets[0]?.reps || 10, weight: ex.sets[0]?.weight || 50 }));
-    await supabase.from('posts').insert([{ user_id: user.id, username: currentUsername, avatar_url: currentUserProfile?.avatar_url || userAvatarUrl, club_name: selectedClub === '🌐 Tous les clubs (Global)' ? 'Club Tournai (Bastion)' : selectedClub, session_type: liveWorkoutName, caption: "Séance terminée en direct ! 💪 #fitpulse", exercises: formattedExercises, likes_count: 0, liked_by: [], comments_count: 0, comments: [], is_private: false }]);
-    
-    await addPointsToUser(user.id, 10);
-
-    setIsLiveActive(false);
-    handleTabChange('feed');
-    fetchCloudPosts();
-  };
-
   const handleAddBoxWod = async (e: FormEvent) => {
     e.preventDefault();
     if (!newWodTitle || !newWodScore || !user) return;
@@ -326,11 +328,6 @@ export default function App() {
     return isMatchingClub(post.club_name, selectedClub);
   });
 
-  const acceptedFriendIds = friendRequests.filter(req => req.status === 'accepted').map(req => (req.sender_id === user?.id ? req.receiver_id : req.sender_id));
-  const activeChatUsers = registeredUsers.filter((u) => u.id !== user?.id && acceptedFriendIds.includes(u.id));
-  const currentChatMessages = allMessages.filter((m) => selectedBuddyChat && user && ((m.sender_id === user.id && m.receiver_id === selectedBuddyChat.id) || (m.sender_id === selectedBuddyChat.id && m.receiver_id === user.id)));
-
-  // Filtrage avancé des Buddies
   const filteredBuddies = registeredUsers.filter(u => {
     if (u.id === user?.id) return false;
     const matchesSearch = u.username?.toLowerCase().includes(buddySearchQuery.toLowerCase()) || u.home_club?.toLowerCase().includes(buddySearchQuery.toLowerCase());
@@ -475,13 +472,9 @@ export default function App() {
 
         <main className="flex-1 w-full mx-auto px-4 py-3 pb-24">
           
-          {/* ONGLET ACCUEIL / FEED */}
           {currentTab === 'feed' && <FeedTab stories={cloudStories} posts={displayedPosts} registeredUsers={registeredUsers} friendRequests={friendRequests} currentUserId={user?.id} feedLoading={feedLoading} viewedStoryIds={viewedStoryIds} calculateStreak={calculateUserStreak} onOpenStory={() => {}} onCreateStoryClick={() => setIsPostModalOpen(true)} onToggleLike={handleToggleLike} onOpenComments={(id) => setActiveCommentPostId(id)} onReportPost={() => {}} onDeletePost={() => {}} onSelectProfile={(u) => setViewingProfileUser(u)} onStartRestTimer={() => {}} />}
-
-          {/* ONGLET LIGUE (UTILISE LE COMPOSANT EXTERNE OU LE RENDU COMPLET) */}
           {currentTab === 'leaderboard' && <LeaderboardTab registeredUsers={registeredUsers} />}
 
-          {/* ONGLET BUDDIES (AVEC MATCHING & FILTRE FEMMES) */}
           {currentTab === 'buddy' && (
             <div className="space-y-4">
               <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-4 space-y-3">
@@ -555,10 +548,7 @@ export default function App() {
             </div>
           )}
 
-          {/* ONGLET CHAT */}
           {currentTab === 'chat' && <ChatTab currentUserId={user?.id} selectedBuddyChat={selectedBuddyChat} setSelectedBuddyChat={handleOpenChatWithUser} activeChatUsers={activeChatUsers} currentChatMessages={currentChatMessages} currentMessageInput={currentMessageInput} onInputChange={(e) => setCurrentMessageInput(e.target.value)} onSendMessage={handleSendMessage} onSelectBuddy={(f) => handleOpenChatWithUser(f)} onDeleteConversation={() => {}} onReportConversation={() => {}} isOtherUserTyping={isOtherUserTyping} isMessageLimitReached={false} lastReadTimestamps={lastReadTimestamps} messagesEndRef={messagesEndRef} allMessages={allMessages} />}
-
-          {/* ONGLET PROFIL */}
           {currentTab === 'profile' && <ProfileTab user={user} currentUserProfile={currentUserProfile} userAvatarUrl={currentUserProfile?.avatar_url || userAvatarUrl} isAdmin={isAdmin} registeredUsers={registeredUsers} transformations={transformations} newTransBefore={newTransBefore} newTransAfter={newTransAfter} newTransWeight={newTransWeight} newTransNote={newTransNote} newTransIsPrivate={newTransIsPrivate} setNewTransWeight={setNewTransWeight} setNewTransNote={setNewTransNote} setNewTransIsPrivate={setNewTransIsPrivate} onAvatarClick={() => profileAvatarInputRef.current?.click()} onCameraStart={() => {}} onBeforeFileSelect={() => {}} onAfterFileSelect={() => {}} onAddTransformation={async (e) => { e.preventDefault(); if (!user || newTransWeight === '') return; await supabase.from('transformations').insert([{ user_id: user.id, before_url: newTransBefore || '', after_url: newTransAfter || '', date: new Date().toISOString().split('T')[0], weight: Number(newTransWeight), note: newTransNote || 'Évolution', is_private: newTransIsPrivate }]); await addPointsToUser(user.id, 25); fetchTransformations(user.id); setNewTransWeight(''); setNewTransNote(''); }} onShareTransformation={() => {}} onUpdatePasswordSubmit={async (e) => { e.preventDefault(); await supabase.auth.updateUser({}); }} password={password} setPassword={setPassword} confirmPassword={confirmPassword} setConfirmPassword={setConfirmPassword} isPrivateMode={isPrivateMode} setIsPrivateMode={setIsPrivateMode} onSignOut={async () => { await supabase.auth.signOut(); setUser(null); localStorage.clear(); window.location.reload(); }} onToggleVerifyAdmin={async (uId, status) => { await supabase.from('profiles').update({ is_verified: !status }).eq('id', uId); fetchRealUsers(); }} onUpdateProfile={async (updatedData) => { if (!user) return; await supabase.from('profiles').upsert({ id: user.id, ...updatedData }); fetchRealUsers(); }} beforeFileInputRef={beforeFileInputRef} afterFileInputRef={afterFileInputRef} />}
 
           {/* --- ESPACE BOXWARS --- */}
@@ -619,7 +609,7 @@ export default function App() {
 
         </main>
 
-        {/* MODAL DE PUBLICATION DE SÉANCE */}
+        {/* MODAL DE PUBLICATION */}
         {isPostModalOpen && (
           <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4">
             <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-sm w-full p-6 space-y-4 shadow-2xl">
@@ -688,7 +678,7 @@ export default function App() {
 
           <button onClick={() => handleTabChange('chat')} className={`flex flex-col items-center gap-1 transition active:scale-95 ${currentTab === 'chat' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><MessageCircle className="w-5 h-5" /><span className="text-[10px]">Chat</span></button>
 
-          <button onClick={() => handleTabChange('profile')} className={`flex flex-col items-center gap-1 transition active:scale-95 ${currentTab === 'profile' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><User className="w-5 h-5" /><span className="text-[10px]">Profil</span></button>
+          <button onClick={() => handleTabCardChange = () => {}} onClick={() => handleTabChange('profile')} className={`flex flex-col items-center gap-1 transition active:scale-95 ${currentTab === 'profile' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><User className="w-5 h-5" /><span className="text-[10px]">Profil</span></button>
         </nav>
       </div>
     </div>
