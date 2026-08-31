@@ -1,7 +1,6 @@
 import { useState, useEffect, FormEvent } from 'react';
 import { 
-  Zap, Flame, Trophy, Plus, X, Dumbbell, Timer, MessageSquareText, Award, 
-  Calendar, Users, ShieldCheck, Play, Pause, RotateCcw, Calculator, Swords, Check 
+  Zap, Flame, Trophy, Plus, X, Timer, Calculator, Play, Pause, RotateCcw, Settings2, BellRing 
 } from 'lucide-react';
 import { createClient } from '@supabase/supabase-js';
 
@@ -17,7 +16,7 @@ interface BoxWarsTabProps {
 
 export default function BoxWarsTab({ currentUserId, currentUsername, registeredUsers }: BoxWarsTabProps) {
   const [boxMainTab, setBoxMainTab] = useState<'training' | 'box' | 'planning'>('training');
-  const [trainingSubTab, setTrainingSubTab] = useState<'wods' | 'timer' | 'rm' | 'skills'>('wods');
+  const [trainingSubTab, setTrainingSubTab] = useState<'wods' | 'timer' | 'rm' | 'skills'>('timer'); // Par défaut sur Timer pour tester
   const [boxSubTab, setBoxSubTab] = useState<'leaderboard' | 'feed' | 'chat' | 'battles'>('leaderboard');
   const [planningSubTab, setPlanningSubTab] = useState<'schedule' | 'coach'>('schedule');
 
@@ -30,10 +29,17 @@ export default function BoxWarsTab({ currentUserId, currentUsername, registeredU
   const [newWodCategory, setNewWodCategory] = useState('Rx');
   const [showWodModal, setShowWodModal] = useState(false);
 
-  // Timer d'intervalles (18 min, pauses toutes les 4 min)
-  const [timerSeconds, setTimerSeconds] = useState<number>(18 * 60);
-  const [isTimerRunning, setIsTimerRunning] = useState<boolean>(false);
+  // --- PARAMÈTRES PERSONNALISABLES DU CHRONO & INTERVALLES ---
+  const [workMinutes, setWorkMinutes] = useState<number>(3);
+  const [workSeconds, setWorkSeconds] = useState<number>(0);
+  const [restSeconds, setRestSeconds] = useState<number>(60);
+  const [totalRounds, setTotalRounds] = useState<number>(5);
+
+  const [currentRound, setCurrentRound] = useState<number>(1);
   const [timerMode, setTimerMode] = useState<'work' | 'rest'>('work');
+  const [secondsRemaining, setSecondsRemaining] = useState<number>(workMinutes * 60 + workSeconds);
+  const [isTimerRunning, setIsTimerRunning] = useState<boolean>(false);
+  const [showTimerSettings, setShowTimerSettings] = useState<boolean>(false);
 
   // Calculateur RM
   const [rmWeight, setRmWeight] = useState<number | ''>('');
@@ -44,16 +50,16 @@ export default function BoxWarsTab({ currentUserId, currentUsername, registeredU
 
   // Box Chat & Feed
   const [boxMessages, setBoxMessages] = useState<any[]>([
-    { user: 'Head Coach', text: 'Bienvenue sur le nouveau chat de la Box ! Préparez vos WODs de la semaine 🔥' }
+    { user: 'Head Coach', text: 'Bienvenue sur le chat de la Box ! Préparez vos WODs 🔥' }
   ]);
   const [boxChatInput, setBoxChatInput] = useState('');
   const [boxFeedPosts, setBoxFeedPosts] = useState<any[]>([
-    { id: 1, author: 'Head Coach', content: 'Rappel : Qualifications inter-box ce samedi à 10h ! Préparez vos gilets lestés.', date: 'Aujourd\'hui', likes: 14 }
+    { id: 1, author: 'Head Coach', content: 'Rappel : Qualifications inter-box ce samedi à 10h !', date: 'Aujourd\'hui', likes: 14 }
   ]);
   const [newFeedText, setNewFeedText] = useState('');
 
-  // Battles / Défis
-  const [battles, setBattles] = useState<any[]>([
+  // Battles
+  const [battles] = useState<any[]>([
     { id: 1, title: 'WOD Challenge : Fran', challenger: 'Antoine', opponent: 'Communauté BoxWars', status: 'Actif ⚡', reward: '50 pts' }
   ]);
 
@@ -76,21 +82,48 @@ export default function BoxWarsTab({ currentUserId, currentUsername, registeredU
     fetchBoxWods();
   }, []);
 
+  // Logique du Chrono & Intervalles
   useEffect(() => {
     let interval: any = null;
-    if (isTimerRunning && timerSeconds > 0) {
+    if (isTimerRunning && secondsRemaining > 0) {
       interval = setInterval(() => {
-        setTimerSeconds(prev => {
-          if (prev === 1) {
-            setIsTimerRunning(false);
-            alert("⏱️ Fin de la session d'entraînement ! Beau travail ! 🔥");
-          }
-          return prev - 1;
-        });
+        setSecondsRemaining(prev => prev - 1);
       }, 1000);
+    } else if (isTimerRunning && secondsRemaining === 0) {
+      // Fin d'une phase (Effort ou Pause)
+      if (timerMode === 'work') {
+        if (restSeconds > 0) {
+          setTimerMode('rest');
+          setSecondsRemaining(restSeconds);
+        } else {
+          handleNextRoundOrEnd();
+        }
+      } else {
+        handleNextRoundOrEnd();
+      }
     }
     return () => clearInterval(interval);
-  }, [isTimerRunning, timerSeconds]);
+  }, [isTimerRunning, secondsRemaining, timerMode, currentRound, totalRounds, restSeconds]);
+
+  const handleNextRoundOrEnd = () => {
+    if (currentRound < totalRounds) {
+      setCurrentRound(prev => prev + 1);
+      setTimerMode('work');
+      setSecondsRemaining(workMinutes * 60 + workSeconds);
+    } else {
+      setIsTimerRunning(false);
+      alert("🏆 Entraînement terminé avec succès ! Beau boulot ! 🔥");
+    }
+  };
+
+  const applyTimerSettings = (e: FormEvent) => {
+    e.preventDefault();
+    setIsTimerRunning(false);
+    setCurrentRound(1);
+    setTimerMode('work');
+    setSecondsRemaining(workMinutes * 60 + workSeconds);
+    setShowTimerSettings(false);
+  };
 
   const formatTimer = (totalSecs: number) => {
     const mins = Math.floor(totalSecs / 60);
@@ -115,8 +148,6 @@ export default function BoxWarsTab({ currentUserId, currentUsername, registeredU
       setNewWodScore('');
       setShowWodModal(false);
       fetchBoxWods();
-    } else {
-      alert("Erreur enregistrement WOD : " + error.message);
     }
   };
 
@@ -127,7 +158,7 @@ export default function BoxWarsTab({ currentUserId, currentUsername, registeredU
           <Zap className="w-4 h-4" /> BoxWars Arena Hub
         </div>
         <h2 className="text-xl font-black">Centre d'entraînement & Communauté</h2>
-        <p className="text-xs text-neutral-300 mt-1">Gère tes WODs, planifie tes créneaux et échange avec les athlètes de la box.</p>
+        <p className="text-xs text-neutral-300 mt-1">Gère tes WODs, planifie tes créneaux et configure tes intervalles d'entraînement.</p>
       </div>
 
       <div className="grid grid-cols-3 gap-2 bg-neutral-900 p-1.5 rounded-2xl border border-neutral-800">
@@ -163,36 +194,25 @@ export default function BoxWarsTab({ currentUserId, currentUsername, registeredU
                   </div>
                   <div>
                     <label className="block text-[10px] text-neutral-400 mb-1">Nom du WOD :</label>
-                    <input type="text" placeholder="ex: Fran, Murph, Cindy" value={newWodTitle} onChange={e => setNewWodTitle(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white" required />
+                    <input type="text" placeholder="ex: Fran, Murph" value={newWodTitle} onChange={e => setNewWodTitle(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white" required />
                   </div>
                   <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <label className="block text-[10px] text-neutral-400 mb-1">Format :</label>
-                      <select value={newWodType} onChange={e => setNewWodType(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-2 py-2 text-xs text-white">
-                        <option value="For Time">For Time</option>
-                        <option value="AMRAP">AMRAP</option>
-                        <option value="EMOM">EMOM</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-[10px] text-neutral-400 mb-1">Catégorie :</label>
-                      <select value={newWodCategory} onChange={e => setNewWodCategory(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-2 py-2 text-xs text-white">
-                        <option value="Rx">Rx</option>
-                        <option value="Scaled">Scaled</option>
-                      </select>
-                    </div>
+                    <select value={newWodType} onChange={e => setNewWodType(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-2 py-2 text-xs text-white">
+                      <option value="For Time">For Time</option>
+                      <option value="AMRAP">AMRAP</option>
+                      <option value="EMOM">EMOM</option>
+                    </select>
+                    <select value={newWodCategory} onChange={e => setNewWodCategory(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-2 py-2 text-xs text-white">
+                      <option value="Rx">Rx</option>
+                      <option value="Scaled">Scaled</option>
+                    </select>
                   </div>
-                  <div>
-                    <label className="block text-[10px] text-neutral-400 mb-1">Score :</label>
-                    <input type="text" placeholder="ex: 4:15 ou 8 rounds" value={newWodScore} onChange={e => setNewWodScore(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white" required />
-                  </div>
+                  <input type="text" placeholder="Score (ex: 4:15)" value={newWodScore} onChange={e => setNewWodScore(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white" required />
                   <button type="submit" className="w-full py-3 bg-cyan-500 text-neutral-950 font-bold rounded-xl text-xs">Enregistrer ⚡</button>
                 </form>
               )}
 
-              {loadingBoxWods ? <p className="text-xs text-neutral-500 text-center py-4">Chargement...</p> : boxWods.length === 0 ? (
-                <p className="text-xs text-neutral-500 text-center py-6 bg-neutral-900 border border-neutral-800 rounded-2xl">Aucun score WOD enregistré. Sois le premier ! 🚀</p>
-              ) : boxWods.map(wod => (
+              {loadingBoxWods ? <p className="text-xs text-neutral-500 text-center py-4">Chargement...</p> : boxWods.map(wod => (
                 <div key={wod.id} className="bg-neutral-900 border border-neutral-800 p-3.5 rounded-2xl flex justify-between items-center shadow">
                   <div>
                     <div className="font-extrabold text-xs text-white">{wod.title} <span className="text-[9px] bg-cyan-500/20 text-cyan-400 px-1.5 py-0.5 rounded font-bold">{wod.category || 'Rx'}</span></div>
@@ -204,22 +224,66 @@ export default function BoxWarsTab({ currentUserId, currentUsername, registeredU
             </div>
           )}
 
+          {/* --- CHRONO & INTERVALLES PERSONNALISABLES --- */}
           {trainingSubTab === 'timer' && (
             <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4 text-center shadow-xl">
-              <h3 className="text-xs font-black uppercase tracking-wider text-cyan-400">⏱️ Chronomètre & Intervalles</h3>
-              <div className="py-6 bg-neutral-950 border border-neutral-800 rounded-3xl shadow-inner">
-                <div className={`text-5xl font-black tracking-widest ${isTimerRunning ? 'text-cyan-400 animate-pulse' : 'text-white'}`}>
-                  {formatTimer(timerSeconds)}
-                </div>
-                <div className="text-[10px] uppercase font-bold text-neutral-400 mt-2">Bloc 18 min • Pause programmée toutes les 4 min</div>
+              <div className="flex justify-between items-center">
+                <h3 className="text-xs font-black uppercase tracking-wider text-cyan-400 flex items-center gap-1.5"><Timer className="w-4 h-4" /> Chrono & Intervalles</h3>
+                <button 
+                  onClick={() => setShowTimerSettings(!showTimerSettings)} 
+                  className="bg-neutral-800 hover:bg-neutral-700 text-neutral-300 px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 transition"
+                >
+                  <Settings2 className="w-3.5 h-3.5" /> Configurer
+                </button>
               </div>
+
+              {showTimerSettings && (
+                <form onSubmit={applyTimerSettings} className="bg-neutral-950 border border-neutral-800 p-4 rounded-2xl space-y-3 text-left animate-scaleUp">
+                  <h4 className="font-bold text-xs text-cyan-400 border-b border-neutral-800 pb-1.5">Paramétrer vos intervalles</h4>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[10px] text-neutral-400 mb-1">Effort - Minutes :</label>
+                      <input type="number" min="0" value={workMinutes} onChange={e => setWorkMinutes(Math.max(0, Number(e.target.value)))} className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white" />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] text-neutral-400 mb-1">Effort - Secondes :</label>
+                      <input type="number" min="0" max="59" value={workSeconds} onChange={e => setWorkSeconds(Math.max(0, Math.min(59, Number(e.target.value))))} className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white" />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[10px] text-neutral-400 mb-1">Pause (sec) :</label>
+                      <input type="number" min="0" value={restSeconds} onChange={e => setRestSeconds(Math.max(0, Number(e.target.value)))} className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white" />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] text-neutral-400 mb-1">Nombre de rounds :</label>
+                      <input type="number" min="1" value={totalRounds} onChange={e => setTotalRounds(Math.max(1, Number(e.target.value)))} className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white" />
+                    </div>
+                  </div>
+                  <button type="submit" className="w-full py-2.5 bg-cyan-500 text-neutral-950 font-extrabold rounded-xl text-xs">Appliquer la configuration ⚙️</button>
+                </form>
+              )}
+
+              <div className={`py-6 border rounded-3xl shadow-inner transition ${timerMode === 'work' ? 'bg-neutral-950 border-cyan-500/50' : 'bg-amber-950/20 border-amber-500/50'}`}>
+                <div className="flex justify-center items-center gap-2 mb-1">
+                  <span className={`text-xs font-black uppercase tracking-widest px-3 py-0.5 rounded-full ${timerMode === 'work' ? 'bg-cyan-500/20 text-cyan-400' : 'bg-amber-500/20 text-amber-400'}`}>
+                    {timerMode === 'work' ? '🔥 EFFORT' : '⏸️ PAUSE'}
+                  </span>
+                  <span className="text-xs text-neutral-400 font-bold">Round {currentRound} / {totalRounds}</span>
+                </div>
+
+                <div className={`text-5xl font-black tracking-widest my-2 ${isTimerRunning ? (timerMode === 'work' ? 'text-cyan-400 animate-pulse' : 'text-amber-400 animate-pulse') : 'text-white'}`}>
+                  {formatTimer(secondsRemaining)}
+                </div>
+              </div>
+
               <div className="flex justify-center gap-3">
                 {!isTimerRunning ? (
                   <button onClick={() => setIsTimerRunning(true)} className="flex items-center gap-2 px-6 py-3 bg-cyan-500 text-neutral-950 font-extrabold rounded-2xl text-xs"><Play className="w-4 h-4 fill-neutral-950" /> Démarrer</button>
                 ) : (
                   <button onClick={() => setIsTimerRunning(false)} className="flex items-center gap-2 px-6 py-3 bg-amber-500 text-neutral-950 font-extrabold rounded-2xl text-xs"><Pause className="w-4 h-4 fill-neutral-950" /> Pause</button>
                 )}
-                <button onClick={() => { setIsTimerRunning(false); setTimerSeconds(18 * 60); }} className="flex items-center gap-2 px-5 py-3 bg-neutral-800 text-white font-bold rounded-2xl text-xs"><RotateCcw className="w-4 h-4" /> Reset</button>
+                <button onClick={() => { setIsTimerRunning(false; setCurrentRound(1); setTimerMode('work'); setSecondsRemaining(workMinutes * 60 + workSeconds); }} className="flex items-center gap-2 px-5 py-3 bg-neutral-800 text-white font-bold rounded-2xl text-xs"><RotateCcw className="w-4 h-4" /> Reset</button>
               </div>
             </div>
           )}
@@ -254,7 +318,7 @@ export default function BoxWarsTab({ currentUserId, currentUsername, registeredU
                 {selectedSkillCategory === 'gym' ? (
                   <>
                     <h4 className="font-extrabold text-xs text-white">🎯 Progressions Muscle-Up & Handstand</h4>
-                    <p className="text-xs text-neutral-300">Astuces et drills pour déverrouiller vos mouvements gymniques complexes au rig.</p>
+                    <p className="text-xs text-neutral-300">Astuces et drills pour déverrouiller vos mouvements gymniques complexes.</p>
                   </>
                 ) : (
                   <>
