@@ -472,7 +472,7 @@ export default function App() {
             />
           )}
 
-          {currentTab === 'workout' && <LiveTrackerTab />}
+          {/* L'onglet workout est remplacé par BoxWars */}
           {currentTab === 'exercises' && <ExercisesTab />}
           {currentTab === 'calculator' && <CalculatorTab />}
           {currentTab === 'rest_timer' && <RestTimerTab />}
