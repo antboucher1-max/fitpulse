@@ -1,6 +1,6 @@
 import { useState, useEffect, FormEvent } from 'react';
 import { 
-  Zap, Flame, Trophy, Plus, X, Timer, Calculator, Play, Pause, RotateCcw, Settings2, BellRing 
+  Zap, Flame, Trophy, Plus, X, Timer, Calculator, Play, Pause, RotateCcw, Settings2 
 } from 'lucide-react';
 import { createClient } from '@supabase/supabase-js';
 
@@ -16,7 +16,7 @@ interface BoxWarsTabProps {
 
 export default function BoxWarsTab({ currentUserId, currentUsername, registeredUsers }: BoxWarsTabProps) {
   const [boxMainTab, setBoxMainTab] = useState<'training' | 'box' | 'planning'>('training');
-  const [trainingSubTab, setTrainingSubTab] = useState<'wods' | 'timer' | 'rm' | 'skills'>('timer'); // Par défaut sur Timer pour tester
+  const [trainingSubTab, setTrainingSubTab] = useState<'wods' | 'timer' | 'rm' | 'skills'>('timer');
   const [boxSubTab, setBoxSubTab] = useState<'leaderboard' | 'feed' | 'chat' | 'battles'>('leaderboard');
   const [planningSubTab, setPlanningSubTab] = useState<'schedule' | 'coach'>('schedule');
 
@@ -82,7 +82,6 @@ export default function BoxWarsTab({ currentUserId, currentUsername, registeredU
     fetchBoxWods();
   }, []);
 
-  // Logique du Chrono & Intervalles
   useEffect(() => {
     let interval: any = null;
     if (isTimerRunning && secondsRemaining > 0) {
@@ -90,7 +89,6 @@ export default function BoxWarsTab({ currentUserId, currentUsername, registeredU
         setSecondsRemaining(prev => prev - 1);
       }, 1000);
     } else if (isTimerRunning && secondsRemaining === 0) {
-      // Fin d'une phase (Effort ou Pause)
       if (timerMode === 'work') {
         if (restSeconds > 0) {
           setTimerMode('rest');
@@ -167,7 +165,6 @@ export default function BoxWarsTab({ currentUserId, currentUsername, registeredU
         <button onClick={() => setBoxMainTab('planning')} className={`py-2.5 rounded-xl text-xs font-black transition ${boxMainTab === 'planning' ? 'bg-cyan-500 text-neutral-950 shadow-lg' : 'text-neutral-400 hover:text-white'}`}>📅 Planning</button>
       </div>
 
-      {/* ================= SECTION TRAINING ================= */}
       {boxMainTab === 'training' && (
         <div className="space-y-4">
           <div className="flex gap-1 overflow-x-auto no-scrollbar border-b border-neutral-800 pb-2">
@@ -224,7 +221,6 @@ export default function BoxWarsTab({ currentUserId, currentUsername, registeredU
             </div>
           )}
 
-          {/* --- CHRONO & INTERVALLES PERSONNALISABLES --- */}
           {trainingSubTab === 'timer' && (
             <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4 text-center shadow-xl">
               <div className="flex justify-between items-center">
@@ -283,7 +279,7 @@ export default function BoxWarsTab({ currentUserId, currentUsername, registeredU
                 ) : (
                   <button onClick={() => setIsTimerRunning(false)} className="flex items-center gap-2 px-6 py-3 bg-amber-500 text-neutral-950 font-extrabold rounded-2xl text-xs"><Pause className="w-4 h-4 fill-neutral-950" /> Pause</button>
                 )}
-                <button onClick={() => { setIsTimerRunning(false; setCurrentRound(1); setTimerMode('work'); setSecondsRemaining(workMinutes * 60 + workSeconds); }} className="flex items-center gap-2 px-5 py-3 bg-neutral-800 text-white font-bold rounded-2xl text-xs"><RotateCcw className="w-4 h-4" /> Reset</button>
+                <button onClick={() => { setIsTimerRunning(false); setCurrentRound(1); setTimerMode('work'); setSecondsRemaining(workMinutes * 60 + workSeconds); }} className="flex items-center gap-2 px-5 py-3 bg-neutral-800 text-white font-bold rounded-2xl text-xs"><RotateCcw className="w-4 h-4" /> Reset</button>
               </div>
             </div>
           )}
@@ -332,7 +328,6 @@ export default function BoxWarsTab({ currentUserId, currentUsername, registeredU
         </div>
       )}
 
-      {/* ================= SECTION BOX ================= */}
       {boxMainTab === 'box' && (
         <div className="space-y-4">
           <div className="flex gap-1 overflow-x-auto no-scrollbar border-b border-neutral-800 pb-2">
@@ -412,7 +407,6 @@ export default function BoxWarsTab({ currentUserId, currentUsername, registeredU
         </div>
       )}
 
-      {/* ================= SECTION PLANNING ================= */}
       {boxMainTab === 'planning' && (
         <div className="space-y-4">
           <div className="flex gap-2 border-b border-neutral-800 pb-2">
