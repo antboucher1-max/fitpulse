@@ -51,6 +51,7 @@ export default function FeedTab({
   const [selectedHashtags, setSelectedHashtags] = useState<string[]>(['#fitpulse']);
   const [customTagInput, setCustomTagInput] = useState('');
 
+  // Références séparées pour la caméra et la galerie
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
 
@@ -123,9 +124,10 @@ export default function FeedTab({
 
   return (
     <div className="space-y-4 pb-12">
-      {/* Input Caméra (avec capture pour forcer l'appareil photo si souhaité) */}
+      {/* 1. Input Caméra (avec capture pour forcer l'ouverture directe de l'appareil photo) */}
       <input type="file" accept="image/*" capture="environment" ref={cameraInputRef} onChange={handleFileChange} className="hidden" />
-      {/* Input Galerie (ouvre le sélecteur de fichiers standard du téléphone) */}
+      
+      {/* 2. Input Galerie (sans capture pour ouvrir les albums du téléphone) */}
       <input type="file" accept="image/*" ref={galleryInputRef} onChange={handleFileChange} className="hidden" />
 
       <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-4 shadow-xl">
