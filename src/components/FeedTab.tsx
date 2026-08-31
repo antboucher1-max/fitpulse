@@ -123,8 +123,9 @@ export default function FeedTab({
 
   return (
     <div className="space-y-4 pb-12">
-      {/* CORRECTION : Suppression de "capture=environment" pour permettre de choisir dans la galerie du téléphone */}
-      <input type="file" accept="image/*" ref={cameraInputRef} onChange={handleFileChange} className="hidden" />
+      {/* Input Caméra (avec capture pour forcer l'appareil photo si souhaité) */}
+      <input type="file" accept="image/*" capture="environment" ref={cameraInputRef} onChange={handleFileChange} className="hidden" />
+      {/* Input Galerie (ouvre le sélecteur de fichiers standard du téléphone) */}
       <input type="file" accept="image/*" ref={galleryInputRef} onChange={handleFileChange} className="hidden" />
 
       <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-4 shadow-xl">
@@ -142,7 +143,7 @@ export default function FeedTab({
           >
             <div className="relative w-16 h-16 rounded-full bg-gradient-to-tr from-orange-500 to-amber-400 p-[2.5px] shadow-lg">
               <img 
-                src={myStories[0]?.image_url || registeredUsers.find(u => u.id === currentUserId)?.avatar_url || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150"} 
+                src={myStories[0]?.image_url || registeredUsers.find(u => u.id === currentUserId)?.avatar_url || "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=150"} 
                 alt="Ma story" 
                 className="w-full h-full rounded-full object-cover border-2 border-neutral-950" 
               />
