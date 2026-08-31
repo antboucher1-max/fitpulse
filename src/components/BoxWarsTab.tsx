@@ -1,7 +1,7 @@
 import { useState, useEffect, FormEvent } from 'react';
 import { 
   Zap, Flame, Trophy, Plus, X, Dumbbell, Timer, MessageSquareText, Award, 
-  Calendar, Users, UserCheck, ShieldCheck, Play, Pause, RotateCcw, Calculator, BookOpen, Send 
+  Calendar, Users, ShieldCheck, Play, Pause, RotateCcw, Calculator, Swords 
 } from 'lucide-react';
 import { createClient } from '@supabase/supabase-js';
 
@@ -16,19 +16,12 @@ interface BoxWarsTabProps {
 }
 
 export default function BoxWarsTab({ currentUserId, currentUsername, registeredUsers }: BoxWarsTabProps) {
-  // Navigation principale de BoxWars
   const [boxMainTab, setBoxMainTab] = useState<'training' | 'box' | 'planning'>('training');
-
-  // Sous-onglets de TRAINING
   const [trainingSubTab, setTrainingSubTab] = useState<'wods' | 'timer' | 'rm' | 'skills'>('wods');
-  
-  // Sous-onglets de BOX
   const [boxSubTab, setBoxSubTab] = useState<'leaderboard' | 'feed' | 'chat' | 'friends'>('leaderboard');
-
-  // Sous-onglets de PLANNING
   const [planningSubTab, setPlanningSubTab] = useState<'schedule' | 'coach'>('schedule');
 
-  // États WODs / Journal
+  // WODs & PRs
   const [boxWods, setBoxWods] = useState<any[]>([]);
   const [loadingBoxWods, setLoadingBoxWods] = useState(true);
   const [newWodTitle, setNewWodTitle] = useState('');
@@ -37,18 +30,18 @@ export default function BoxWarsTab({ currentUserId, currentUsername, registeredU
   const [newWodCategory, setNewWodCategory] = useState('Rx');
   const [showWodModal, setShowWodModal] = useState(false);
 
-  // États Timer (ex: blocs de travail de 18 min, pauses toutes les 4 min)
+  // Timer
   const [timerSeconds, setTimerSeconds] = useState<number>(18 * 60);
   const [isTimerRunning, setIsTimerRunning] = useState<boolean>(false);
 
-  // États Calculateur RM
+  // Calculateur RM
   const [rmWeight, setRmWeight] = useState<number | ''>('');
   const [rmReps, setRmReps] = useState<number | ''>('');
 
-  // États Skills / Mouvements
-  const [selectedSkillCategory, setSelectedSkillCategory] = useState<'gym' | 'halterophilie' | 'endurance'>('gym');
+  // Skills
+  const [selectedSkillCategory, setSelectedSkillCategory] = useState<'gym' | 'halterophilie'>('gym');
 
-  // États Chat & Feed Box
+  // Chat & Feed Box
   const [boxMessages, setBoxMessages] = useState<any[]>([]);
   const [boxChatInput, setBoxChatInput] = useState('');
   const [boxFeedPosts, setBoxFeedPosts] = useState<any[]>([
@@ -56,7 +49,7 @@ export default function BoxWarsTab({ currentUserId, currentUsername, registeredU
   ]);
   const [newFeedText, setNewFeedText] = useState('');
 
-  // États Planning & Coach
+  // Planning & Coach
   const [wodSlots, setWodSlots] = useState<any[]>([
     { id: 1, time: '07:00 - WOD Matin', coach: 'Thomas', spotsLeft: 4, booked: false },
     { id: 2, time: '12:30 - WOD Entre Midi & Deux', coach: 'Antoine', spotsLeft: 2, booked: true },
@@ -75,7 +68,6 @@ export default function BoxWarsTab({ currentUserId, currentUsername, registeredU
     fetchBoxWods();
   }, []);
 
-  // Gestion du Chrono
   useEffect(() => {
     let interval: any = null;
     if (isTimerRunning && timerSeconds > 0) {
@@ -125,14 +117,12 @@ export default function BoxWarsTab({ currentUserId, currentUsername, registeredU
         <p className="text-xs text-neutral-300 mt-1">Gère tes WODs, planifie tes créneaux et échange avec les athlètes de la box.</p>
       </div>
 
-      {/* Navigation principale de BoxWars (Training, Box, Planning) */}
       <div className="grid grid-cols-3 gap-2 bg-neutral-900 p-1.5 rounded-2xl border border-neutral-800">
         <button onClick={() => setBoxMainTab('training')} className={`py-2.5 rounded-xl text-xs font-black transition ${boxMainTab === 'training' ? 'bg-cyan-500 text-neutral-950 shadow-lg' : 'text-neutral-400 hover:text-white'}`}>🏋️‍♂️ Training</button>
         <button onClick={() => setBoxMainTab('box')} className={`py-2.5 rounded-xl text-xs font-black transition ${boxMainTab === 'box' ? 'bg-cyan-500 text-neutral-950 shadow-lg' : 'text-neutral-400 hover:text-white'}`}>🏛️ Box</button>
         <button onClick={() => setBoxMainTab('planning')} className={`py-2.5 rounded-xl text-xs font-black transition ${boxMainTab === 'planning' ? 'bg-cyan-500 text-neutral-950 shadow-lg' : 'text-neutral-400 hover:text-white'}`}>📅 Planning</button>
       </div>
 
-      {/* ================= SECTION TRAINING ================= */}
       {boxMainTab === 'training' && (
         <div className="space-y-4">
           <div className="flex gap-1 overflow-x-auto no-scrollbar border-b border-neutral-800 pb-2">
@@ -235,13 +225,13 @@ export default function BoxWarsTab({ currentUserId, currentUsername, registeredU
               <div className="bg-neutral-900 border border-neutral-800 p-4 rounded-2xl space-y-2">
                 {selectedSkillCategory === 'gym' ? (
                   <>
-                    <h4 className="font-extrabold text-xs text-white">🎯 Progressions Muscle-Up & Handstand Push-Up</h4>
+                    <h4 className="font-extrabold text-xs text-white">🎯 Progressions Muscle-Up & Handstand</h4>
                     <p className="text-xs text-neutral-300">Astuces et drills pour déverrouiller vos mouvements gymniques complexes au rig.</p>
                   </>
                 ) : (
                   <>
                     <h4 className="font-extrabold text-xs text-white">🏋️ Technique Snatch & Clean & Jerk</h4>
-                    <p className="text-xs text-neutral-300">Rappels biomécaniques sur le double knee bend, l'extension de hanche et la réception sous la barre.</p>
+                    <p className="text-xs text-neutral-300">Rappels biomécaniques sur l'extension de hanche et la réception sous la barre.</p>
                   </>
                 )}
               </div>
@@ -250,7 +240,6 @@ export default function BoxWarsTab({ currentUserId, currentUsername, registeredU
         </div>
       )}
 
-      {/* ================= SECTION BOX ================= */}
       {boxMainTab === 'box' && (
         <div className="space-y-4">
           <div className="flex gap-1 overflow-x-auto no-scrollbar border-b border-neutral-800 pb-2">
@@ -298,7 +287,7 @@ export default function BoxWarsTab({ currentUserId, currentUsername, registeredU
             <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-3 flex flex-col h-[50vh] justify-between shadow-xl">
               <div className="text-xs font-bold text-cyan-400 border-b border-neutral-800 pb-2">💬 Chat en direct de la Box</div>
               <div className="flex-1 overflow-y-auto space-y-2 py-2">
-                {boxMessages.length === 0 ? <p className="text-xs text-neutral-500 text-center py-6">Aucun message pour l'instant. Discute avec les membres !</p> : boxMessages.map((m, i) => (
+                {boxMessages.length === 0 ? <p className="text-xs text-neutral-500 text-center py-6">Aucun message pour l'instant.</p> : boxMessages.map((m, i) => (
                   <div key={i} className="bg-neutral-950 p-2.5 rounded-xl text-xs"><strong className="text-cyan-400">{m.user} : </strong>{m.text}</div>
                 ))}
               </div>
@@ -329,7 +318,6 @@ export default function BoxWarsTab({ currentUserId, currentUsername, registeredU
         </div>
       )}
 
-      {/* ================= SECTION PLANNING ================= */}
       {boxMainTab === 'planning' && (
         <div className="space-y-4">
           <div className="flex gap-2 border-b border-neutral-800 pb-2">
@@ -357,9 +345,8 @@ export default function BoxWarsTab({ currentUserId, currentUsername, registeredU
           {planningSubTab === 'coach' && (
             <div className="bg-neutral-900 border border-neutral-800 p-4 rounded-3xl space-y-3 shadow-xl">
               <h3 className="text-xs font-black uppercase tracking-wider text-cyan-400">🛡️ Espace Réservé aux Coachs</h3>
-              <p className="text-xs text-neutral-300">Publie des consignes de programmation ou des retours de séance pour les athlètes de la box.</p>
               <textarea rows={3} placeholder="Notes de programmation du jour..." value={coachNotes} onChange={e => setCoachNotes(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-xs text-white focus:border-cyan-500" />
-              <button onClick={() => { if (coachNotes.trim()) { alert("✅ Notes de programmation publiées avec succès !"); setCoachNotes(''); } }} className="w-full py-2.5 bg-cyan-500 text-neutral-950 font-bold rounded-xl text-xs">Diffuser aux athlètes 📢</button>
+              <button onClick={() => { if (coachNotes.trim()) { alert("✅ Notes publiées avec succès !"); setCoachNotes(''); } }} className="w-full py-2.5 bg-cyan-500 text-neutral-950 font-bold rounded-xl text-xs">Diffuser aux athlètes 📢</button>
             </div>
           )}
         </div>
