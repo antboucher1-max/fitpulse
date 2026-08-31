@@ -51,7 +51,7 @@ export default function FeedTab({
   const [selectedHashtags, setSelectedHashtags] = useState<string[]>(['#fitpulse']);
   const [customTagInput, setCustomTagInput] = useState('');
 
-  // Input universel unique qui laisse le téléphone proposer le choix Appareil Photo / Galerie
+  // Référence unique pour l'input universel mobile
   const storyInputRef = useRef<HTMLInputElement>(null);
 
   const handleSendComment = (postId: string) => {
@@ -123,7 +123,7 @@ export default function FeedTab({
 
   return (
     <div className="space-y-4 pb-12">
-      {/* Input universel sans capture pour laisser le système mobile proposer Appareil Photo ou Galerie */}
+      {/* Input universel sans attribut 'capture' pour déclencher le menu natif mobile (Appareil photo / Photothèque) */}
       <input type="file" accept="image/*" ref={storyInputRef} onChange={handleFileChange} className="hidden" />
 
       <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-4 shadow-xl">
@@ -245,7 +245,7 @@ export default function FeedTab({
               Publier ma Story 🚀
             </button>
             <button onClick={() => storyInputRef.current?.click()} className="w-full py-3 bg-neutral-900 border border-neutral-800 text-xs font-bold text-neutral-300 rounded-xl flex items-center justify-center gap-2">
-              <Camera className="w-4 h-4 text-orange-500" /> Choisir une photo ou prendre un cliché 📸
+              <Camera className="w-4 h-4 text-orange-500" /> Choisir une photo (Caméra ou Galerie) 📸
             </button>
           </div>
         </div>
