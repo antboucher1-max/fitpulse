@@ -51,8 +51,9 @@ export default function FeedTab({
   const [selectedHashtags, setSelectedHashtags] = useState<string[]>(['#fitpulse']);
   const [customTagInput, setCustomTagInput] = useState('');
 
-  // Référence unique pour l'input universel mobile
-  const storyInputRef = useRef<HTMLInputElement>(null);
+  // Références séparées pour l'appareil photo et la galerie
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
 
   const handleSendComment = (postId: string) => {
     if (!commentInput.trim()) return;
@@ -123,8 +124,11 @@ export default function FeedTab({
 
   return (
     <div className="space-y-4 pb-12">
-      {/* Input universel sans attribut 'capture' pour déclencher le menu natif mobile (Appareil photo / Photothèque) */}
-      <input type="file" accept="image/*" ref={storyInputRef} onChange={handleFileChange} className="hidden" />
+      {/* Input dédié strictement à l'Appareil Photo */}
+      <input type="file" accept="image/*" capture="environment" ref={cameraInputRef} onChange={handleFileChange} className="hidden" />
+      
+      {/* Input dédié strictement à la Galerie du téléphone */}
+      <input type="file" accept="image/*" ref={galleryInputRef} onChange={handleFileChange} className="hidden" />
 
       <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-4 shadow-xl">
         <div className="flex items-center gap-3 overflow-x-auto no-scrollbar pb-1">
@@ -134,7 +138,7 @@ export default function FeedTab({
                 const myIdx = orderedStories.findIndex(s => s.user_id === currentUserId);
                 if (myIdx !== -1) handleOpenStoryViewer(myIdx);
               } else {
-                storyInputRef.current?.click();
+                galleryInputRef.current?.click();
               }
             }} 
             className="flex flex-col items-center gap-1.5 flex-shrink-0 cursor-pointer group"
@@ -146,7 +150,7 @@ export default function FeedTab({
                 className="w-full h-full rounded-full object-cover border-2 border-neutral-950" 
               />
               <button 
-                onClick={(e) => { e.stopPropagation(); storyInputRef.current?.click(); }}
+                onClick={(e) => { e.stopPropagation(); galleryInputRef.current?.click(); }}
                 className="absolute bottom-0 right-0 w-6 h-6 bg-orange-600 hover:bg-orange-500 rounded-full border-2 border-neutral-950 flex items-center justify-center text-white"
               >
                 <Plus className="w-3.5 h-3.5 stroke-[3]" />
@@ -244,9 +248,15 @@ export default function FeedTab({
             >
               Publier ma Story 🚀
             </button>
-            <button onClick={() => storyInputRef.current?.click()} className="w-full py-3 bg-neutral-900 border border-neutral-800 text-xs font-bold text-neutral-300 rounded-xl flex items-center justify-center gap-2">
-              <Camera className="w-4 h-4 text-orange-500" /> Choisir une photo (Caméra ou Galerie) 📸
-            </button>
+            {/* Les deux boutons explicites : Caméra ou Galerie */}
+            <div className="flex gap-2">
+              <button onClick={() => cameraInputRef.current?.click()} className="flex-1 py-3 bg-neutral-900 border border-neutral-800 text-xs font-bold text-neutral-300 rounded-xl flex items-center justify-center gap-2">
+                <Camera className="w-4 h-4 text-orange-500" /> Appareil Photo 📸
+              </button>
+              <button onClick={() => galleryInputRef.current?.click()} className="flex-1 py-3 bg-neutral-900 border border-neutral-800 text-xs font-bold text-neutral-300 rounded-xl flex items-center justify-center gap-2">
+                <ImageIcon className="w-4 h-4 text-orange-500" /> Galerie 🖼️
+              </button>
+            </div>
           </div>
         </div>
       )}
