@@ -1,18 +1,16 @@
 import { useState, useEffect, useRef, ChangeEvent, FormEvent } from 'react';
 import {
-  Zap, Timer, PlusSquare, Calculator, User, MessageCircle, Home, Users, Plus, X, Camera, Flame, MapPin, Hash, Bell, ShieldCheck, Award, Info, Trophy, Sparkles, Clock, Target, Search, MessageSquareText
+  Zap, User, MessageCircle, Home, Users, Plus, X, Camera, Flame, MapPin, Trophy
 } from 'lucide-react';
 import { createClient, User as SupabaseUser } from '@supabase/supabase-js';
 
 import { 
-  ExerciseGuide, TransformationPhoto, ExerciseEntry, Post, Story, RealUser, FriendRequest, DBMessage, LiveWorkoutExercise 
+  TransformationPhoto, Post, Story, RealUser, FriendRequest, DBMessage 
 } from './types';
 
 import FeedTab from './components/FeedTab';
 import BuddyTab from './components/BuddyTab';
-import LiveTrackerTab from './components/LiveTrackerTab';
 import RestTimerTab from './components/RestTimerTab';
-import ExercisesTab from './components/ExercisesTab';
 import ChatTab from './components/ChatTab';
 import CalculatorTab from './components/CalculatorTab';
 import ProfileTab from './components/ProfileTab';
@@ -35,10 +33,6 @@ const CLUBS_LIST = [
   'Club St-Ghislain', 
   'Club Mons', 
   'Club Jurbise'
-];
-
-const EXERCISES_DATABASE: ExerciseGuide[] = [
-  { id: 'ex-1', name: 'Développé couché (Barre / Haltères)', category: 'Pectoraux', equipment: 'Banc & Barre', targetMuscles: 'Pectoraux, Triceps', settings: 'Banc à plat', execution: 'Descendre la barre puis pousser', tips: 'Omoplates serrées', image_url: 'https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?w=800', detailedDescription: 'Exercice roi pour les pecs.' },
 ];
 
 const isMatchingClub = (postClubName?: string, selectedClubName?: string): boolean => {
@@ -66,7 +60,7 @@ export default function App() {
   const [selectedClub, setSelectedClub] = useState<string>('🌐 Tous les clubs (Global)');
   const [posts, setPosts] = useState<Post[]>([]);
   const [feedLoading, setFeedLoading] = useState(false);
-  const [userAvatarUrl, setUserAvatarUrl] = useState<string>('https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=150');
+  const [userAvatarUrl] = useState<string>('https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=150');
   
   const profileAvatarInputRef = useRef<HTMLInputElement>(null);
   const beforeFileInputRef = useRef<HTMLInputElement>(null);
@@ -76,7 +70,7 @@ export default function App() {
   const [isPostModalOpen, setIsPostModalOpen] = useState(false);
   const [postSessionType, setPostSessionType] = useState('Musculation Full Body');
   const [postCaption, setPostCaption] = useState('');
-  const [postHashtags, setPostHashtags] = useState('#fitpulse #workout');
+  const [postHashtags] = useState('#fitpulse #workout');
   const [postImageUrl, setPostImageUrl] = useState<string | null>(null);
 
   const [password, setPassword] = useState('');
@@ -86,23 +80,23 @@ export default function App() {
   const [transformations, setTransformations] = useState<TransformationPhoto[]>([]);
   const [friendRequests, setFriendRequests] = useState<FriendRequest[]>([]);
   const [registeredUsers, setRegisteredUsers] = useState<RealUser[]>([]);
-  const [cloudStories, setCloudStories] = useState<Story[]>([]);
+  const [cloudStories] = useState<Story[]>([]);
   const [allMessages, setAllMessages] = useState<DBMessage[]>([]);
   
-  const [viewedStoryIds, setViewedStoryIds] = useState<string[]>([]);
-  const [viewingProfileUser, setViewingProfileUser] = useState<RealUser | null>(null);
-  const [activeStoryIndex, setActiveStoryIndex] = useState<number | null>(null);
+  const [viewedStoryIds] = useState<string[]>([]);
+  const [, setViewingProfileUser] = useState<RealUser | null>(null);
+  const [, setActiveStoryIndex] = useState<number | null>(null);
   const [selectedBuddyChat, setSelectedBuddyChat] = useState<RealUser | null>(null);
   const [currentMessageInput, setCurrentMessageInput] = useState('');
-  const [isOtherUserTyping, setIsOtherUserTyping] = useState(false);
+  const [isOtherUserTyping] = useState(false);
 
   const [onboardingUsername, setOnboardingUsername] = useState('');
-  const [onboardingAge, setOnboardingAge] = useState<number | ''>('');
+  const [onboardingAge] = useState<number | ''>('');
   const [onboardingClub, setOnboardingClub] = useState(CLUBS_LIST[0]);
-  const [onboardingGoal, setOnboardingGoal] = useState('Prise de masse / Force');
+  const [onboardingGoal] = useState('Prise de masse / Force');
   const [onboardingGender, setOnboardingGender] = useState('Homme');
   const [onboardingTime, setOnboardingTime] = useState('Soir');
-  const [onboardingAvatar, setOnboardingAvatar] = useState<string>('https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=150');
+  const [onboardingAvatar] = useState<string>('https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=150');
   const [onboardingSubmitting, setOnboardingSubmitting] = useState(false);
   
   const [lastReadTimestamps, setLastReadTimestamps] = useState<Record<string, number>>(() => {
@@ -122,7 +116,7 @@ export default function App() {
   const [newTransAfter, setNewTransAfter] = useState<string | null>(null);
   const [newTransIsPrivate, setNewTransIsPrivate] = useState<boolean>(true);
 
-  const [activeCommentPostId, setActiveCommentPostId] = useState<string | null>(null);
+  const [, setActiveCommentPostId] = useState<string | null>(null);
 
   const fetchCloudPosts = async () => {
     setFeedLoading(true);
@@ -449,7 +443,6 @@ export default function App() {
           {currentTab === 'feed' && <FeedTab stories={cloudStories} posts={displayedPosts} registeredUsers={registeredUsers} friendRequests={friendRequests} currentUserId={user?.id} feedLoading={feedLoading} viewedStoryIds={viewedStoryIds} calculateStreak={calculateUserStreak} onOpenStory={(idx) => setActiveStoryIndex(idx)} onCreateStoryClick={() => setIsPostModalOpen(true)} onToggleLike={handleToggleLike} onOpenComments={(id) => setActiveCommentPostId(id)} onReportPost={() => {}} onDeletePost={() => {}} onSelectProfile={(u) => setViewingProfileUser(u)} onStartRestTimer={() => handleTabChange('rest_timer')} />}
           {currentTab === 'leaderboard' && <LeaderboardTab registeredUsers={registeredUsers} />}
           
-          {/* ONGLET BUDDIES INTÉGRÉ */}
           {currentTab === 'buddy' && (
             <BuddyTab 
               currentUserId={user?.id} 
@@ -472,22 +465,17 @@ export default function App() {
             />
           )}
 
-          {/* L'onglet workout est remplacé par BoxWars */}
-          {currentTab === 'exercises' && <ExercisesTab />}
           {currentTab === 'calculator' && <CalculatorTab />}
           {currentTab === 'rest_timer' && <RestTimerTab />}
-
           {currentTab === 'chat' && <ChatTab currentUserId={user?.id} selectedBuddyChat={selectedBuddyChat} setSelectedBuddyChat={handleOpenChatWithUser} activeChatUsers={activeChatUsers} currentChatMessages={currentChatMessages} currentMessageInput={currentMessageInput} onInputChange={(e) => setCurrentMessageInput(e.target.value)} onSendMessage={handleSendMessage} onSelectBuddy={(f) => handleOpenChatWithUser(f)} onDeleteConversation={() => {}} onReportConversation={() => {}} isOtherUserTyping={isOtherUserTyping} isMessageLimitReached={false} lastReadTimestamps={lastReadTimestamps} messagesEndRef={messagesEndRef} allMessages={allMessages} />}
           {currentTab === 'profile' && <ProfileTab user={user} currentUserProfile={currentUserProfile} userAvatarUrl={currentUserProfile?.avatar_url || userAvatarUrl} isAdmin={isAdmin} registeredUsers={registeredUsers} transformations={transformations} newTransBefore={newTransBefore} newTransAfter={newTransAfter} newTransWeight={newTransWeight} newTransNote={newTransNote} newTransIsPrivate={newTransIsPrivate} setNewTransWeight={setNewTransWeight} setNewTransNote={setNewTransNote} setNewTransIsPrivate={setNewTransIsPrivate} onAvatarClick={() => profileAvatarInputRef.current?.click()} onCameraStart={() => {}} onBeforeFileSelect={() => {}} onAfterFileSelect={() => {}} onAddTransformation={async (e) => { e.preventDefault(); if (!user || newTransWeight === '') return; await supabase.from('transformations').insert([{ user_id: user.id, before_url: newTransBefore || '', after_url: newTransAfter || '', date: new Date().toISOString().split('T')[0], weight: Number(newTransWeight), note: newTransNote || 'Évolution', is_private: newTransIsPrivate }]); await addPointsToUser(user.id, 25); fetchTransformations(user.id); setNewTransWeight(''); setNewTransNote(''); }} onShareTransformation={() => {}} onUpdatePasswordSubmit={async (e) => { e.preventDefault(); await supabase.auth.updateUser({}); }} password={password} setPassword={setPassword} confirmPassword={confirmPassword} setConfirmPassword={setConfirmPassword} isPrivateMode={isPrivateMode} setIsPrivateMode={setIsPrivateMode} onSignOut={async () => { await supabase.auth.signOut(); setUser(null); localStorage.clear(); window.location.reload(); }} onToggleVerifyAdmin={async (uId, status) => { await supabase.from('profiles').update({ is_verified: !status }).eq('id', uId); fetchRealUsers(); }} onUpdateProfile={async (updatedData) => { if (!user) return; await supabase.from('profiles').upsert({ id: user.id, ...updatedData }); fetchRealUsers(); }} beforeFileInputRef={beforeFileInputRef} afterFileInputRef={afterFileInputRef} />}
 
-          {/* --- ESPACE BOXWARS --- */}
           {currentTab === 'boxwars' && (
             <BoxWarsTab currentUserId={user?.id} currentUsername={currentUsername} registeredUsers={registeredUsers} />
           )}
 
         </main>
 
-        {/* MODAL DE PUBLICATION */}
         {isPostModalOpen && (
           <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4">
             <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-sm w-full p-6 space-y-4 shadow-2xl">
@@ -538,7 +526,6 @@ export default function App() {
           </div>
         )}
 
-        {/* NAVIGATION DU BAS */}
         <nav className="sticky bottom-0 left-0 right-0 z-40 bg-neutral-950/95 backdrop-blur-xl border-t border-neutral-800 px-2 py-2 flex justify-around items-center">
           <button onClick={() => handleTabChange('feed')} className={`flex flex-col items-center gap-1 transition active:scale-95 ${currentTab === 'feed' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Home className="w-5 h-5" /><span className="text-[10px]">Accueil</span></button>
           <button onClick={() => handleTabChange('leaderboard')} className={`flex flex-col items-center gap-1 transition active:scale-95 ${currentTab === 'leaderboard' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Trophy className="w-5 h-5" /><span className="text-[10px]">Ligue</span></button>
