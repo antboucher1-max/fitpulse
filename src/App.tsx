@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, ChangeEvent, FormEvent } from 'react';
 import {
-  Zap, User, MessageCircle, Home, Users, Plus, X, Camera, Flame, MapPin, Hash, ShieldCheck, Award, Info, Trophy, MessageSquareText, ArrowLeft
+  Zap, User, MessageCircle, Home, Users, Plus, X, Camera, Flame, MapPin, Hash, ShieldCheck, Award, Info, Trophy, MessageSquareText
 } from 'lucide-react';
 import { createClient, User as SupabaseUser } from '@supabase/supabase-js';
 
@@ -52,8 +52,7 @@ const isMatchingClub = (postClubName?: string, selectedClubName?: string): boole
 export default function App() {
   const [user, setUser] = useState<SupabaseUser | null>(null);
   
-  // Mode de l'application : 'fitpulse' ou 'boxwars'
-  const [appMode, setAppMode] = useState<'fitpulse' | 'boxwars'>('fitpulse');
+  // Sous-onglets pour l'espace BoxWars
   const [boxSubTab, setBoxSubTab] = useState<'wods' | 'feed'>('wods');
 
   const [authEmail, setAuthEmail] = useState('');
@@ -64,7 +63,8 @@ export default function App() {
 
   const [showWelcomeGuide, setShowWelcomeGuide] = useState(false);
 
-  const [currentTab, setCurrentTab] = useState<'feed' | 'buddy' | 'workout' | 'exercises' | 'chat' | 'profile' | 'calculator' | 'live_tracker' | 'rest_timer' | 'notifications' | 'leaderboard'>(() => {
+  // Ajout de 'boxwars' dans les onglets de navigation principaux
+  const [currentTab, setCurrentTab] = useState<'feed' | 'buddy' | 'workout' | 'exercises' | 'chat' | 'profile' | 'calculator' | 'live_tracker' | 'rest_timer' | 'notifications' | 'leaderboard' | 'boxwars'>(() => {
     const savedTab = localStorage.getItem('fitpulse_active_tab');
     return (savedTab as any) || 'feed';
   });
@@ -106,7 +106,6 @@ export default function App() {
   const [currentMessageInput, setCurrentMessageInput] = useState('');
   const [isOtherUserTyping] = useState(false);
 
-  // Correction ajoutée ici : déclaration de l'état manquant
   const [activeCommentPostId, setActiveCommentPostId] = useState<string | null>(null);
 
   // États pour les WODs BoxWars connectés à Supabase
@@ -416,11 +415,6 @@ export default function App() {
             </div>
             <h1 className="text-xl font-black text-white tracking-tight">FitPulse</h1>
             <p className="text-xs text-orange-400 font-semibold">La Ligue des Clubs & Suivi d'Entraînement</p>
-            <p className="text-xs text-neutral-400 px-2 pt-1">
-              {isSignUpMode 
-                ? "Crée ton compte pour partager tes séances, suivre ton club et échanger avec tes partenaires de musculation !" 
-                : "Connecte-toi pour retrouver ton fil d'actualité et tes entraînements en cours."}
-            </p>
           </div>
 
           <form onSubmit={async (e) => {
@@ -491,7 +485,7 @@ export default function App() {
                   className="mt-0.5 w-4 h-4 rounded accent-orange-500 cursor-pointer"
                 />
                 <label htmlFor="cgu" className="text-xs text-neutral-300 select-none leading-relaxed">
-                  J'accepte les <button type="button" onClick={() => setShowCguModal(true)} className="text-orange-400 underline font-semibold">Conditions Générales d'Utilisation (CGU)</button> et le partage de mes performances au sein de mon club.
+                  J'accepte les <button type="button" onClick={() => setShowCguModal(true)} className="text-orange-400 underline font-semibold">Conditions Générales d'Utilisation (CGU)</button>.
                 </label>
               </div>
             )}
@@ -522,10 +516,7 @@ export default function App() {
                 </button>
               </div>
               <div className="flex-1 overflow-y-auto text-xs text-neutral-300 space-y-3 pr-1">
-                <p><strong>1. Objet :</strong> FitPulse est une application de suivi d'entraînement de musculation et de mise en relation inter-clubs.</p>
-                <p><strong>2. Respect et Bienveillance :</strong> La communauté repose sur l'entraide sportive. Tout comportement inapproprié ou publication injurieuse entraînera la suppression immédiate du compte.</p>
-                <p><strong>3. Données personnelles :</strong> Vos données de séances, photos d'évolution et messages sont stockés de manière sécurisée et ne sont partagés qu'au sein de votre cercle de partenaires et clubs sélectionnés.</p>
-                <p><strong>4. Utilisation :</strong> L'utilisation de l'application se fait sous votre propre responsabilité lors de la pratique des exercices physiques.</p>
+                <p><strong>1. Objet :</strong> FitPulse est une application de suivi d'entraînement de musculation.</p>
               </div>
               <button 
                 onClick={() => { setAcceptCgu(true); setShowCguModal(false); }}
@@ -553,31 +544,14 @@ export default function App() {
             <p className="text-xs text-neutral-400">Configure ta fiche athlète pour rejoindre ton club.</p>
           </div>
 
-          <div className="bg-neutral-950/80 border border-orange-500/30 rounded-2xl p-3.5 space-y-1.5 text-left">
-            <div className="flex items-center gap-1.5 text-orange-400 font-bold text-xs">
-              <Info className="w-4 h-4 flex-shrink-0" />
-              <span>Le Concours Inter-Clubs & La Ligue</span>
-            </div>
-            <p className="text-[11px] text-neutral-300 leading-relaxed">
-              En rejoignant FitPulse, tu représentes ton club (Tournai, Antoing, Péruwelz, etc.) dans la **Ligue des Salles**. Tes entraînements et performances font gagner des points à ton club et te classent selon ta catégorie d'âge !
-            </p>
-          </div>
-
           <form onSubmit={async (e) => {
             e.preventDefault();
-            if (!onboardingUsername.trim()) {
-              alert("Veuillez entrer un pseudo valide.");
-              return;
-            }
-            if (onboardingAge === '' || Number(onboardingAge) <= 0) {
-              alert("Veuillez indiquer un âge valide pour la catégorisation.");
-              return;
-            }
+            if (!onboardingUsername.trim()) { alert("Veuillez entrer un pseudo."); return; }
             setOnboardingSubmitting(true);
             const { error } = await supabase.from('profiles').upsert({
               id: user.id,
               username: onboardingUsername.trim(),
-              age: Number(onboardingAge),
+              age: Number(onboardingAge) || 25,
               home_club: onboardingClub,
               goal: onboardingGoal,
               preferred_time: onboardingTime,
@@ -587,84 +561,20 @@ export default function App() {
               is_verified: false
             });
             setOnboardingSubmitting(false);
-            if (error) {
-              alert("Erreur lors de la création du profil : " + error.message);
-            } else {
-              fetchRealUsers();
-              setShowWelcomeGuide(true);
-            }
+            if (!error) { fetchRealUsers(); setShowWelcomeGuide(true); }
           }} className="space-y-3">
-            
-            <div className="text-center space-y-1.5 pt-1">
-              <div className="relative w-14 h-14 mx-auto group cursor-pointer" onClick={() => onboardingAvatarInputRef.current?.click()}>
-                <img src={onboardingAvatar} alt="Avatar" className="w-full h-full rounded-full object-cover border-2 border-orange-500 shadow-md" />
-                <div className="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition">
-                  <Camera className="w-4 h-4 text-white" />
-                </div>
-              </div>
-              <div>
-                <button type="button" onClick={() => onboardingAvatarInputRef.current?.click()} className="text-xs text-orange-400 hover:underline font-semibold">
-                  Ajouter une photo de profil <span className="text-neutral-500 font-normal">(facultatif)</span>
-                </button>
-                <input type="file" accept="image/*" ref={onboardingAvatarInputRef} onChange={handleOnboardingAvatarSelect} className="hidden" />
-              </div>
-            </div>
-
             <div>
               <label className="block text-xs font-semibold text-neutral-400 mb-1">Ton Pseudo / Nom d'athlète :</label>
-              <input 
-                type="text" 
-                required
-                placeholder="ex: Antoine_Fit" 
-                value={onboardingUsername} 
-                onChange={(e) => setOnboardingUsername(e.target.value)} 
-                className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-2.5 text-sm text-white focus:border-orange-500 focus:outline-none" 
-              />
+              <input type="text" required placeholder="ex: Antoine_Fit" value={onboardingUsername} onChange={(e) => setOnboardingUsername(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none" />
             </div>
-
             <div>
-              <label className="block text-xs font-semibold text-neutral-400 mb-1">Ton Âge (pour la catégorisation) :</label>
-              <input 
-                type="number" 
-                required
-                min="10"
-                max="100"
-                placeholder="ex: 28" 
-                value={onboardingAge} 
-                onChange={(e) => setOnboardingAge(e.target.value === '' ? '' : Number(e.target.value))} 
-                className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-2.5 text-sm text-white focus:border-orange-500 focus:outline-none" 
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-neutral-400 mb-1">Ton Club de rattachement :</label>
-              <select 
-                value={onboardingClub} 
-                onChange={(e) => setOnboardingClub(e.target.value)} 
-                className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-2.5 text-sm text-white focus:border-orange-500 focus:outline-none cursor-pointer"
-              >
-                {CLUBS_LIST.map((club) => (
-                  <option key={club} value={club}>{club}</option>
-                ))}
+              <label className="block text-xs font-semibold text-neutral-400 mb-1">Ton Club :</label>
+              <select value={onboardingClub} onChange={(e) => setOnboardingClub(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-2.5 text-sm text-white cursor-pointer">
+                {CLUBS_LIST.map((club) => <option key={club} value={club}>{club}</option>)}
               </select>
             </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-neutral-400 mb-1">Ton Objectif principal :</label>
-              <input 
-                type="text" 
-                value={onboardingGoal} 
-                onChange={(e) => setOnboardingGoal(e.target.value)} 
-                className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-2.5 text-sm text-white focus:border-orange-500 focus:outline-none" 
-              />
-            </div>
-
-            <button 
-              type="submit" 
-              disabled={onboardingSubmitting}
-              className="w-full py-3.5 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-2xl text-sm shadow-xl transition active:scale-95 disabled:opacity-50 mt-1"
-            >
-              {onboardingSubmitting ? "Enregistrement..." : "Valider et découvrir l'app 🚀"}
+            <button type="submit" disabled={onboardingSubmitting} className="w-full py-3.5 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-2xl text-sm shadow-xl transition">
+              Valider et découvrir l'app 🚀
             </button>
           </form>
         </div>
@@ -682,33 +592,10 @@ export default function App() {
               <div className="w-12 h-12 rounded-2xl bg-orange-500/20 flex items-center justify-center text-orange-500 mx-auto">
                 <Trophy className="w-6 h-6" />
               </div>
-              <h2 className="text-base font-extrabold text-white">Guide des Onglets & Concours</h2>
-              <p className="text-xs text-orange-400 font-semibold">Comment utiliser FitPulse au max ?</p>
+              <h2 className="text-base font-extrabold text-white">Guide des Onglets</h2>
             </div>
-
-            <div className="space-y-3 text-xs text-neutral-300">
-              <div className="flex items-start gap-2.5">
-                <span className="w-6 h-6 rounded-lg bg-orange-500/20 text-orange-500 flex items-center justify-center font-bold flex-shrink-0">🏠</span>
-                <div><strong className="text-white">Accueil (Feed) :</strong> Le fil d'actualité où tu partages tes séances, tes photos et vois les perfs.</div>
-              </div>
-              <div className="flex items-start gap-2.5">
-                <span className="w-6 h-6 rounded-lg bg-orange-500/20 text-orange-500 flex items-center justify-center font-bold flex-shrink-0">🏆</span>
-                <div><strong className="text-white">Classement (Ligue) :</strong> Suis les scores en direct des clubs et des athlètes par catégorie d'âge !</div>
-              </div>
-              <div className="flex items-start gap-2.5">
-                <span className="w-6 h-6 rounded-lg bg-orange-500/20 text-orange-500 flex items-center justify-center font-bold flex-shrink-0">👥</span>
-                <div><strong className="text-white">Buddies :</strong> Retrouve tes partenaires d'entraînement et ajoute des amis.</div>
-              </div>
-            </div>
-
-            <button 
-              onClick={() => {
-                setShowWelcomeGuide(false);
-                window.location.reload();
-              }}
-              className="w-full py-3.5 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-2xl text-xs shadow-lg transition active:scale-95 mt-2"
-            >
-              C'est compris, allons soulever de la fonte ! 💪🔥
+            <button onClick={() => { setShowWelcomeGuide(false); window.location.reload(); }} className="w-full py-3.5 bg-orange-600 text-white font-bold rounded-2xl text-xs">
+              C'est compris ! 💪
             </button>
           </div>
         </div>
@@ -717,131 +604,43 @@ export default function App() {
       <div className="w-full max-w-md mx-auto min-h-screen bg-neutral-950 flex flex-col shadow-2xl sm:border-x sm:border-neutral-900 relative">
         <header className="sticky top-0 z-40 bg-neutral-950/80 backdrop-blur-md border-b border-neutral-900 px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className={`w-8 h-8 rounded-xl ${appMode === 'boxwars' ? 'bg-cyan-500/20 text-cyan-400' : 'bg-orange-500/20 text-orange-500'} flex items-center justify-center`}>
+            <div className={`w-8 h-8 rounded-xl ${currentTab === 'boxwars' ? 'bg-cyan-500/20 text-cyan-400' : 'bg-orange-500/20 text-orange-500'} flex items-center justify-center`}>
               <Zap className="w-5 h-5" />
             </div>
             <h1 className="text-base font-black tracking-tight leading-none text-white">
-              {appMode === 'boxwars' ? 'BOXWARS' : 'FitPulse'}
+              {currentTab === 'boxwars' ? 'BOXWARS' : 'FitPulse'}
             </h1>
           </div>
 
-          <div className="flex items-center gap-2">
-            {appMode === 'fitpulse' ? (
-              <button 
-                onClick={() => setAppMode('boxwars')}
-                className="bg-cyan-500/20 border border-cyan-500/40 text-cyan-400 hover:bg-cyan-500/30 text-xs font-bold px-3 py-1.5 rounded-xl flex items-center gap-1.5 transition active:scale-95 shadow-sm"
+          {currentTab !== 'boxwars' && (
+            <div className="relative flex items-center bg-neutral-900 border border-neutral-800 rounded-xl px-2.5 py-1.5">
+              <MapPin className="w-3.5 h-3.5 text-orange-500 mr-1.5 flex-shrink-0" />
+              <select 
+                value={selectedClub} 
+                onChange={(e) => setSelectedClub(e.target.value)} 
+                className="bg-transparent text-xs font-bold text-orange-400 focus:outline-none cursor-pointer pr-1"
               >
-                <Zap className="w-3.5 h-3.5" /> BoxWars ⚡
-              </button>
-            ) : (
-              <button 
-                onClick={() => setAppMode('fitpulse')}
-                className="bg-neutral-900 border border-neutral-800 text-neutral-300 hover:text-white text-xs font-bold px-3 py-1.5 rounded-xl flex items-center gap-1.5 transition active:scale-95 shadow-sm"
-              >
-                <ArrowLeft className="w-3.5 h-3.5" /> Retour FitPulse
-              </button>
-            )}
-
-            {appMode === 'fitpulse' && (
-              <div className="relative flex items-center bg-neutral-900 border border-neutral-800 rounded-xl px-2.5 py-1.5">
-                <MapPin className="w-3.5 h-3.5 text-orange-500 mr-1.5 flex-shrink-0" />
-                <select 
-                  value={selectedClub} 
-                  onChange={(e) => setSelectedClub(e.target.value)} 
-                  className="bg-transparent text-xs font-bold text-orange-400 focus:outline-none cursor-pointer pr-1"
-                >
-                  <option value="🌐 Tous les clubs (Global)">🌐 Tous les clubs (Global)</option>
-                  {CLUBS_LIST.map((club) => (
-                    <option key={club} value={club} className="bg-neutral-900 text-white">{club}</option>
-                  ))}
-                </select>
-              </div>
-            )}
-          </div>
+                <option value="🌐 Tous les clubs (Global)">🌐 Tous les clubs (Global)</option>
+                {CLUBS_LIST.map((club) => (
+                  <option key={club} value={club} className="bg-neutral-900 text-white">{club}</option>
+                ))}
+              </select>
+            </div>
+          )}
         </header>
 
         <main className="flex-1 w-full mx-auto px-4 py-3 pb-24">
-          {appMode === 'fitpulse' ? (
-            <>
-              {currentTab === 'feed' && <FeedTab stories={cloudStories} posts={displayedPosts} registeredUsers={registeredUsers} friendRequests={friendRequests} currentUserId={user?.id} feedLoading={feedLoading} viewedStoryIds={viewedStoryIds} calculateStreak={calculateUserStreak} onOpenStory={() => {}} onCreateStoryClick={() => setIsPostModalOpen(true)} onToggleLike={handleToggleLike} onOpenComments={(id) => setActiveCommentPostId(id)} onReportPost={() => {}} onDeletePost={() => {}} onSelectProfile={(u) => setViewingProfileUser(u)} onStartRestTimer={() => {}} />}
-              {currentTab === 'leaderboard' && <LeaderboardTab registeredUsers={registeredUsers} />}
-              {currentTab === 'buddy' && <BuddyTab currentUserId={user?.id} registeredUsers={registeredUsers} friendRequests={friendRequests} posts={posts} onSendFriendRequest={async (rId) => { if (!user) return; await supabase.from('friend_requests').insert([{ sender_id: user.id, receiver_id: rId, status: 'pending' }]); fetchFriendRequests(user.id); }} onAcceptFriendRequest={async (reqId) => { await supabase.from('friend_requests').update({ status: 'accepted' }).eq('id', reqId); if (user) fetchFriendRequests(user.id); }} onSelectBuddyProfile={(u) => setViewingProfileUser(u)} />}
-              {currentTab === 'rest_timer' && <RestTimerTab />}
-              {currentTab === 'exercises' && <ExercisesTab exercises={EXERCISES_DATABASE} exerciseSearch={exerciseSearch} setExerciseSearch={setExerciseSearch} selectedCategoryFilter={selectedCategoryFilter} setSelectedCategoryFilter={setSelectedCategoryFilter} onSelectExercise={() => {}} />}
-              {currentTab === 'calculator' && <CalculatorTab targetWeight={targetWeight} setTargetWeight={setTargetWeight} barbellWeight={barbellWeight} setBarbellWeight={setBarbellWeight} plateBreakdown={plateBreakdown} />}
-              {currentTab === 'live_tracker' && <LiveTrackerTab liveWorkoutName={liveWorkoutName} setLiveWorkoutName={setLiveWorkoutName} liveElapsedSeconds={0} liveExercises={liveExercises} selectedExToAdd={selectedExToAdd} setSelectedExToAdd={setSelectedExToAdd} exercisesDatabase={EXERCISES_DATABASE} onAddExercise={() => setLiveExercises([...liveExercises, { id: 'lex-' + Date.now(), name: selectedExToAdd, sets: [{ setNumber: 1, weight: 50, reps: 10, completed: false }] }])} onAddSet={(exId) => setLiveExercises(liveExercises.map(ex => ex.id === exId ? { ...ex, sets: [...ex.sets, { setNumber: ex.sets.length + 1, weight: 50, reps: 10, completed: false }] } : ex))} onToggleSet={(exId, sIdx) => setLiveExercises(liveExercises.map(ex => ex.id === exId ? { ...ex, sets: ex.sets.map((s, i) => i === sIdx ? { ...s, completed: !s.completed } : s) } : ex))} onUpdateWeight={(exId, sIdx, val) => setLiveExercises(liveExercises.map(item => item.id === exId ? { ...item, sets: item.sets.map((s, i) => i === sIdx ? { ...s, weight: val } : s) } : item))} onUpdateReps={(exId, sIdx, val) => setLiveExercises(liveExercises.map(item => item.id === exId ? { ...item, sets: item.sets.map((s, i) => i === sIdx ? { ...s, reps: val } : s) } : item))} onFinishWorkout={handleFinishLiveWorkout} onQuitLive={() => setIsLiveActive(false)} />}
-              {currentTab === 'chat' && <ChatTab currentUserId={user?.id} selectedBuddyChat={selectedBuddyChat} setSelectedBuddyChat={handleOpenChatWithUser} activeChatUsers={activeChatUsers} currentChatMessages={currentChatMessages} currentMessageInput={currentMessageInput} onInputChange={(e) => setCurrentMessageInput(e.target.value)} onSendMessage={handleSendMessage} onSelectBuddy={(f) => handleOpenChatWithUser(f)} onDeleteConversation={() => {}} onReportConversation={() => {}} isOtherUserTyping={isOtherUserTyping} isMessageLimitReached={false} lastReadTimestamps={lastReadTimestamps} messagesEndRef={messagesEndRef} allMessages={allMessages} />}
-              {currentTab === 'profile' && (
-                <ProfileTab 
-                  user={user} 
-                  currentUserProfile={currentUserProfile} 
-                  userAvatarUrl={currentUserProfile?.avatar_url || userAvatarUrl} 
-                  isAdmin={isAdmin} 
-                  registeredUsers={registeredUsers} 
-                  transformations={transformations} 
-                  newTransBefore={newTransBefore}
-                  newTransAfter={newTransAfter}
-                  newTransWeight={newTransWeight} 
-                  newTransNote={newTransNote} 
-                  newTransIsPrivate={newTransIsPrivate}
-                  setNewTransWeight={setNewTransWeight} 
-                  setNewTransNote={setNewTransNote} 
-                  setNewTransIsPrivate={setNewTransIsPrivate}
-                  onAvatarClick={() => profileAvatarInputRef.current?.click()} 
-                  onCameraStart={() => {}} 
-                  onBeforeFileSelect={() => {}} 
-                  onAfterFileSelect={() => {}} 
-                  onAddTransformation={async (e) => { 
-                    e.preventDefault(); 
-                    if (!user || newTransWeight === '') return; 
-                    await supabase.from('transformations').insert([{ 
-                      user_id: user.id, 
-                      before_url: newTransBefore || 'https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?w=400', 
-                      after_url: newTransAfter || 'https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?w=400', 
-                      date: new Date().toISOString().split('T')[0], 
-                      weight: Number(newTransWeight), 
-                      note: newTransNote || 'Évolution', 
-                      is_private: newTransIsPrivate 
-                    }]); 
-
-                    await addPointsToUser(user.id, 25);
-
-                    fetchTransformations(user.id); 
-                    setNewTransWeight(''); 
-                    setNewTransNote(''); 
-                    setNewTransBefore(null);
-                    setNewTransAfter(null);
-                  }} 
-                  onShareTransformation={() => {}} 
-                  onUpdatePasswordSubmit={async (e) => { e.preventDefault(); await supabase.auth.updateUser({}); }} 
-                  password={password} 
-                  setPassword={setPassword} 
-                  confirmPassword={confirmPassword} 
-                  setConfirmPassword={setConfirmPassword} 
-                  isPrivateMode={isPrivateMode} 
-                  setIsPrivateMode={setIsPrivateMode} 
-                  onSignOut={async () => {
-                    await supabase.auth.signOut();
-                    setUser(null);
-                    localStorage.clear();
-                    window.location.reload();
-                  }} 
-                  onToggleVerifyAdmin={async (uId, status) => { await supabase.from('profiles').update({ is_verified: !status }).eq('id', uId); fetchRealUsers(); }} 
-                  onUpdateProfile={async (updatedData) => {
-                    if (!user) return;
-                    await supabase.from('profiles').upsert({
-                      id: user.id,
-                      ...updatedData
-                    });
-                    fetchRealUsers();
-                  }}
-                  beforeFileInputRef={beforeFileInputRef} 
-                  afterFileInputRef={afterFileInputRef} 
-                />
-              )}
-            </>
-          ) : (
-            /* --- ESPACE BOXWARS (CrossFit & Cloud Supabase) --- */
+          {currentTab === 'feed' && <FeedTab stories={cloudStories} posts={displayedPosts} registeredUsers={registeredUsers} friendRequests={friendRequests} currentUserId={user?.id} feedLoading={feedLoading} viewedStoryIds={viewedStoryIds} calculateStreak={calculateUserStreak} onOpenStory={() => {}} onCreateStoryClick={() => setIsPostModalOpen(true)} onToggleLike={handleToggleLike} onOpenComments={(id) => setActiveCommentPostId(id)} onReportPost={() => {}} onDeletePost={() => {}} onSelectProfile={(u) => setViewingProfileUser(u)} onStartRestTimer={() => {}} />}
+          {currentTab === 'leaderboard' && <LeaderboardTab registeredUsers={registeredUsers} />}
+          {currentTab === 'buddy' && <BuddyTab currentUserId={user?.id} registeredUsers={registeredUsers} friendRequests={friendRequests} posts={posts} onSendFriendRequest={async (rId) => { if (!user) return; await supabase.from('friend_requests').insert([{ sender_id: user.id, receiver_id: rId, status: 'pending' }]); fetchFriendRequests(user.id); }} onAcceptFriendRequest={async (reqId) => { await supabase.from('friend_requests').update({ status: 'accepted' }).eq('id', reqId); if (user) fetchFriendRequests(user.id); }} onSelectBuddyProfile={(u) => setViewingProfileUser(u)} />}
+          {currentTab === 'rest_timer' && <RestTimerTab />}
+          {currentTab === 'exercises' && <ExercisesTab exercises={EXERCISES_DATABASE} exerciseSearch={exerciseSearch} setExerciseSearch={setExerciseSearch} selectedCategoryFilter={selectedCategoryFilter} setSelectedCategoryFilter={setSelectedCategoryFilter} onSelectExercise={() => {}} />}
+          {currentTab === 'calculator' && <CalculatorTab targetWeight={targetWeight} setTargetWeight={setTargetWeight} barbellWeight={barbellWeight} setBarbellWeight={setBarbellWeight} plateBreakdown={plateBreakdown} />}
+          {currentTab === 'live_tracker' && <LiveTrackerTab liveWorkoutName={liveWorkoutName} setLiveWorkoutName={setLiveWorkoutName} liveElapsedSeconds={0} liveExercises={liveExercises} selectedExToAdd={selectedExToAdd} setSelectedExToAdd={setSelectedExToAdd} exercisesDatabase={EXERCISES_DATABASE} onAddExercise={() => setLiveExercises([...liveExercises, { id: 'lex-' + Date.now(), name: selectedExToAdd, sets: [{ setNumber: 1, weight: 50, reps: 10, completed: false }] }])} onAddSet={(exId) => setLiveExercises(liveExercises.map(ex => ex.id === exId ? { ...ex, sets: [...ex.sets, { setNumber: ex.sets.length + 1, weight: 50, reps: 10, completed: false }] } : ex))} onToggleSet={(exId, sIdx) => setLiveExercises(liveExercises.map(ex => ex.id === exId ? { ...ex, sets: ex.sets.map((s, i) => i === sIdx ? { ...s, completed: !s.completed } : s) } : ex))} onUpdateWeight={(exId, sIdx, val) => setLiveExercises(liveExercises.map(item => item.id === exId ? { ...item, sets: item.sets.map((s, i) => i === sIdx ? { ...s, weight: val } : s) } : item))} onUpdateReps={(exId, sIdx, val) => setLiveExercises(liveExercises.map(item => item.id === exId ? { ...item, sets: item.sets.map((s, i) => i === sIdx ? { ...s, reps: val } : s) } : item))} onFinishWorkout={handleFinishLiveWorkout} onQuitLive={() => setIsLiveActive(false)} />}
+          {currentTab === 'chat' && <ChatTab currentUserId={user?.id} selectedBuddyChat={selectedBuddyChat} setSelectedBuddyChat={handleOpenChatWithUser} activeChatUsers={activeChatUsers} currentChatMessages={currentChatMessages} currentMessageInput={currentMessageInput} onInputChange={(e) => setCurrentMessageInput(e.target.value)} onSendMessage={handleSendMessage} onSelectBuddy={(f) => handleOpenChatWithUser(f)} onDeleteConversation={() => {}} onReportConversation={() => {}} isOtherUserTyping={isOtherUserTyping} isMessageLimitReached={false} lastReadTimestamps={lastReadTimestamps} messagesEndRef={messagesEndRef} allMessages={allMessages} />}
+          
+          {/* --- ESPACE BOXWARS (CrossFit & Cloud Supabase) --- */}
+          {currentTab === 'boxwars' && (
             <div className="space-y-4">
               <div className="bg-gradient-to-r from-cyan-900/60 to-neutral-900 border border-cyan-500/30 rounded-3xl p-5 text-white">
                 <div className="flex items-center gap-2 text-cyan-400 font-bold text-xs uppercase tracking-wider mb-1">
@@ -886,22 +685,8 @@ export default function App() {
                         <h4 className="font-bold text-xs text-cyan-400">Enregistrer un WOD</h4>
                         <button type="button" onClick={() => setShowWodModal(false)} className="text-neutral-400"><X className="w-4 h-4" /></button>
                       </div>
-                      <input 
-                        type="text" 
-                        placeholder="Nom du WOD (ex: Fran, Cindy...)" 
-                        value={newWodTitle} 
-                        onChange={e => setNewWodTitle(e.target.value)} 
-                        className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white" 
-                        required 
-                      />
-                      <input 
-                        type="text" 
-                        placeholder="Score (ex: 4:15 ou 12 rounds)" 
-                        value={newWodScore} 
-                        onChange={e => setNewWodScore(e.target.value)} 
-                        className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white" 
-                        required 
-                      />
+                      <input type="text" placeholder="Nom du WOD (ex: Fran, Cindy...)" value={newWodTitle} onChange={e => setNewWodTitle(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white" required />
+                      <input type="text" placeholder="Score (ex: 4:15 ou 12 rounds)" value={newWodScore} onChange={e => setNewWodScore(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white" required />
                       <button type="submit" className="w-full py-2.5 bg-cyan-500 text-neutral-950 font-bold rounded-xl text-xs">
                         Valider et publier ⚡
                       </button>
@@ -911,7 +696,7 @@ export default function App() {
                   {loadingBoxWods ? (
                     <p className="text-xs text-neutral-500 text-center py-4">Chargement des WODs...</p>
                   ) : boxWods.length === 0 ? (
-                    <p className="text-xs text-neutral-500 text-center py-4">Aucun WOD enregistré pour l'instant.</p>
+                    <p className="text-xs text-neutral-500 text-center py-4">Aucun WOD enregistré.</p>
                   ) : (
                     <div className="space-y-2">
                       {boxWods.map(wod => (
@@ -935,56 +720,122 @@ export default function App() {
                   <div className="flex items-center gap-2 text-xs font-bold text-cyan-400">
                     <MessageSquareText className="w-4 h-4" /> Annonce de la Box
                   </div>
-                  <p className="text-xs text-neutral-300">Rappel : Compétition inter-box ce week-end ! Venez nombreux encourager l'équipe et valider vos PRs. 🏆🔥</p>
+                  <p className="text-xs text-neutral-300">Rappel : Compétition inter-box ce week-end ! Venez nombreux. 🏆🔥</p>
                 </div>
               )}
             </div>
           )}
+
+          {currentTab === 'profile' && (
+            <ProfileTab 
+              user={user} 
+              currentUserProfile={currentUserProfile} 
+              userAvatarUrl={currentUserProfile?.avatar_url || userAvatarUrl} 
+              isAdmin={isAdmin} 
+              registeredUsers={registeredUsers} 
+              transformations={transformations} 
+              newTransBefore={newTransBefore}
+              newTransAfter={newTransAfter}
+              newTransWeight={newTransWeight} 
+              newTransNote={newTransNote} 
+              newTransIsPrivate={newTransIsPrivate}
+              setNewTransWeight={setNewTransWeight} 
+              setNewTransNote={setNewTransNote} 
+              setNewTransIsPrivate={setNewTransIsPrivate}
+              onAvatarClick={() => profileAvatarInputRef.current?.click()} 
+              onCameraStart={() => {}} 
+              onBeforeFileSelect={() => {}} 
+              onAfterFileSelect={() => {}} 
+              onAddTransformation={async (e) => { 
+                e.preventDefault(); 
+                if (!user || newTransWeight === '') return; 
+                await supabase.from('transformations').insert([{ 
+                  user_id: user.id, 
+                  before_url: newTransBefore || 'https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?w=400', 
+                  after_url: newTransAfter || 'https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?w=400', 
+                  date: new Date().toISOString().split('T')[0], 
+                  weight: Number(newTransWeight), 
+                  note: newTransNote || 'Évolution', 
+                  is_private: newTransIsPrivate 
+                }]); 
+                await addPointsToUser(user.id, 25);
+                fetchTransformations(user.id); 
+                setNewTransWeight(''); 
+                setNewTransNote(''); 
+              }} 
+              onShareTransformation={() => {}} 
+              onUpdatePasswordSubmit={async (e) => { e.preventDefault(); await supabase.auth.updateUser({}); }} 
+              password={password} 
+              setPassword={setPassword} 
+              confirmPassword={confirmPassword} 
+              setConfirmPassword={setConfirmPassword} 
+              isPrivateMode={isPrivateMode} 
+              setIsPrivateMode={setIsPrivateMode} 
+              onSignOut={async () => {
+                await supabase.auth.signOut();
+                setUser(null);
+                localStorage.clear();
+                window.location.reload();
+              }} 
+              onToggleVerifyAdmin={async (uId, status) => { await supabase.from('profiles').update({ is_verified: !status }).eq('id', uId); fetchRealUsers(); }} 
+              onUpdateProfile={async (updatedData) => {
+                if (!user) return;
+                await supabase.from('profiles').upsert({ id: user.id, ...updatedData });
+                fetchRealUsers();
+              }}
+              beforeFileInputRef={beforeFileInputRef} 
+              afterFileInputRef={afterFileInputRef} 
+            />
+          )}
         </main>
 
-        {/* NAVIGATION DU BAS FITPULSE */}
-        {appMode === 'fitpulse' && (
-          <nav className="sticky bottom-0 left-0 right-0 z-40 bg-neutral-950/95 backdrop-blur-xl border-t border-neutral-800 px-2 py-2 flex justify-around items-center">
-            <button onClick={() => handleTabChange('feed')} className={`flex flex-col items-center gap-1 transition active:scale-95 ${currentTab === 'feed' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Home className="w-5 h-5" /><span className="text-[10px]">Accueil</span></button>
-            <button onClick={() => handleTabChange('leaderboard')} className={`flex flex-col items-center gap-1 transition active:scale-95 ${currentTab === 'leaderboard' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Trophy className="w-5 h-5" /><span className="text-[10px]">Ligue</span></button>
-            
-            <button onClick={() => setIsPostModalOpen(true)} className="flex flex-col items-center justify-center w-12 h-12 rounded-full bg-orange-600 hover:bg-orange-500 text-white shadow-lg transition transform hover:scale-105 active:scale-95 -mt-3">
-              <Plus className="w-6 h-6 stroke-[3]" />
-            </button>
+        {/* NAVIGATION DU BAS (AVEC BOXWARS INTÉGRÉ PROPREMENT) */}
+        <nav className="sticky bottom-0 left-0 right-0 z-40 bg-neutral-950/95 backdrop-blur-xl border-t border-neutral-800 px-2 py-2 flex justify-around items-center">
+          <button onClick={() => handleTabChange('feed')} className={`flex flex-col items-center gap-1 transition active:scale-95 ${currentTab === 'feed' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Home className="w-5 h-5" /><span className="text-[10px]">Accueil</span></button>
+          <button onClick={() => handleTabChange('leaderboard')} className={`flex flex-col items-center gap-1 transition active:scale-95 ${currentTab === 'leaderboard' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Trophy className="w-5 h-5" /><span className="text-[10px]">Ligue</span></button>
+          
+          <button onClick={() => setIsPostModalOpen(true)} className="flex flex-col items-center justify-center w-12 h-12 rounded-full bg-orange-600 hover:bg-orange-500 text-white shadow-lg transition transform hover:scale-105 active:scale-95 -mt-3">
+            <Plus className="w-6 h-6 stroke-[3]" />
+          </button>
 
-            <button onClick={() => handleTabChange('buddy')} className={`flex flex-col items-center gap-1 transition active:scale-95 ${currentTab === 'buddy' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Users className="w-5 h-5" /><span className="text-[10px]">Buddies</span></button>
+          {/* Bouton BoxWars direct dans la barre du bas */}
+          <button onClick={() => handleTabChange('boxwars')} className={`flex flex-col items-center gap-1 transition active:scale-95 ${currentTab === 'boxwars' ? 'text-cyan-400 font-bold' : 'text-neutral-500'}`}>
+            <Zap className="w-5 h-5" />
+            <span className="text-[10px]">BoxWars</span>
+          </button>
 
-            {(() => {
-              const unreadCount = activeChatUsers.filter(buddy => {
-                const lastRead = lastReadTimestamps[buddy.id] || 0;
-                const buddyMessages = allMessages.filter(m => (m.sender_id === buddy.id && m.receiver_id === user?.id));
-                const lastMsg = buddyMessages[buddyMessages.length - 1];
-                return lastMsg && lastMsg.sender_id !== user?.id && new Date(lastMsg.created_at || Date.now()).getTime() > lastRead;
-              }).length;
+          <button onClick={() => handleTabChange('buddy')} className={`flex flex-col items-center gap-1 transition active:scale-95 ${currentTab === 'buddy' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Users className="w-5 h-5" /><span className="text-[10px]">Buddies</span></button>
 
-              return (
-                <button onClick={() => { 
-                  handleTabChange('chat'); 
-                  setSelectedBuddyChat(null); 
-                  const nowTimestamps: Record<string, number> = { ...lastReadTimestamps };
-                  activeChatUsers.forEach(b => { nowTimestamps[b.id] = Date.now(); });
-                  setLastReadTimestamps(nowTimestamps);
-                  localStorage.setItem('fitpulse_read_timestamps', JSON.stringify(nowTimestamps));
-                }} className={`relative flex flex-col items-center gap-1 transition active:scale-95 ${currentTab === 'chat' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}>
-                  <MessageCircle className="w-5 h-5" />
-                  <span className="text-[10px]">Chat</span>
-                  {unreadCount > 0 && (
-                    <span className="absolute -top-1 right-2 bg-red-600 text-white text-[9px] font-black w-4 h-4 rounded-full flex items-center justify-center shadow-lg border border-neutral-950 animate-pulse">
-                      {unreadCount}
-                    </span>
-                  )}
-                </button>
-              );
-            })()}
+          {(() => {
+            const unreadCount = activeChatUsers.filter(buddy => {
+              const lastRead = lastReadTimestamps[buddy.id] || 0;
+              const buddyMessages = allMessages.filter(m => (m.sender_id === buddy.id && m.receiver_id === user?.id));
+              const lastMsg = buddyMessages[buddyMessages.length - 1];
+              return lastMsg && lastMsg.sender_id !== user?.id && new Date(lastMsg.created_at || Date.now()).getTime() > lastRead;
+            }).length;
 
-            <button onClick={() => handleTabChange('profile')} className={`flex flex-col items-center gap-1 transition active:scale-95 ${currentTab === 'profile' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><User className="w-5 h-5" /><span className="text-[10px]">Profil</span></button>
-          </nav>
-        )}
+            return (
+              <button onClick={() => { 
+                handleTabChange('chat'); 
+                setSelectedBuddyChat(null); 
+                const nowTimestamps: Record<string, number> = { ...lastReadTimestamps };
+                activeChatUsers.forEach(b => { nowTimestamps[b.id] = Date.now(); });
+                setLastReadTimestamps(nowTimestamps);
+                localStorage.setItem('fitpulse_read_timestamps', JSON.stringify(nowTimestamps));
+              }} className={`relative flex flex-col items-center gap-1 transition active:scale-95 ${currentTab === 'chat' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}>
+                <MessageCircle className="w-5 h-5" />
+                <span className="text-[10px]">Chat</span>
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 right-2 bg-red-600 text-white text-[9px] font-black w-4 h-4 rounded-full flex items-center justify-center shadow-lg border border-neutral-950 animate-pulse">
+                    {unreadCount}
+                  </span>
+                )}
+              </button>
+            );
+          })()}
+
+          <button onClick={() => handleTabChange('profile')} className={`flex flex-col items-center gap-1 transition active:scale-95 ${currentTab === 'profile' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><User className="w-5 h-5" /><span className="text-[10px]">Profil</span></button>
+        </nav>
       </div>
     </div>
   );
