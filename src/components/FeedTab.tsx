@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Heart, MessageCircle, ShieldCheck, MapPin, Send, Plus, X, Camera, Image as ImageIcon, Hash, Flag, Flame } from 'lucide-react';
+import { Heart, MessageCircle, ShieldCheck, MapPin, Send, Plus, X, Camera, Image as ImageIcon, Hash, Flag, Flame, Sparkles } from 'lucide-react';
 import { Post, Story, RealUser, FriendRequest } from '../types';
 
 interface FeedTabProps {
@@ -125,6 +125,37 @@ export default function FeedTab({
     <div className="space-y-4 pb-12">
       <input type="file" accept="image/*" capture="environment" ref={cameraInputRef} onChange={handleFileChange} className="hidden" />
       <input type="file" accept="image/*" ref={galleryInputRef} onChange={handleFileChange} className="hidden" />
+
+      {/* --- BANNIÈRE ANNONCE FITBOT AI --- */}
+      <div className="bg-gradient-to-r from-orange-600/20 via-neutral-900 to-cyan-950/40 border border-orange-500/30 rounded-3xl p-4 shadow-xl space-y-2 relative overflow-hidden">
+        <div className="absolute top-0 right-0 transform translate-x-3 -translate-y-3 w-20 h-20 bg-orange-500/10 rounded-full blur-xl pointer-events-none" />
+        
+        <div className="flex items-center justify-between">
+          <span className="text-[10px] font-black tracking-wider uppercase bg-orange-500/20 text-orange-400 px-2.5 py-1 rounded-full border border-orange-500/30 flex items-center gap-1">
+            <Sparkles className="w-3 h-3" /> Prochaine mise à jour 🚀
+          </span>
+          <span className="text-[10px] text-neutral-400 font-semibold">Bientôt disponible</span>
+        </div>
+
+        <div className="space-y-1">
+          <h3 className="text-sm font-extrabold text-white flex items-center gap-1.5">
+            🤖 Arrivée imminente de FitBot AI !
+          </h3>
+          <p className="text-xs text-neutral-300 leading-relaxed">
+            Ton coach virtuel intelligent débarque bientôt dans FitPulse. Pose-lui toutes tes questions sur tes programmes, analyse tes performances en direct et reçois des conseils personnalisés pour exploser tes PRs !
+          </p>
+        </div>
+
+        <div className="pt-1 flex items-center gap-2">
+          <span className="text-[10px] bg-neutral-950 text-cyan-400 font-bold px-2.5 py-1 rounded-xl border border-neutral-800">
+            ⚡ Analyse de WODs
+          </span>
+          <span className="text-[10px] bg-neutral-950 text-orange-400 font-bold px-2.5 py-1 rounded-xl border border-neutral-800">
+            📈 Conseils nutrition & force
+          </span>
+        </div>
+      </div>
+      {/* ---------------------------------- */}
 
       <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-4 shadow-xl">
         <div className="flex items-center gap-3 overflow-x-auto no-scrollbar pb-1">
