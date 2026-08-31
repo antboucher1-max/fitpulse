@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, ChangeEvent, FormEvent } from 'react';
 import {
-  Zap, User, MessageCircle, Home, Users, Plus, X, Camera, Flame, MapPin, ShieldCheck, Award, Info, Trophy, MessageSquareText, Sparkles, Check
+  Zap, User, MessageCircle, Home, Users, Plus, X, Camera, Flame, MapPin, ShieldCheck, Award, Trophy, MessageSquareText, Search, Filter, Target, Clock
 } from 'lucide-react';
 import { createClient, User as SupabaseUser } from '@supabase/supabase-js';
 
@@ -35,6 +35,7 @@ export default function App() {
 
   const [showWelcomeGuide, setShowWelcomeGuide] = useState(false);
 
+  // Ajout de 'buddy' dans les onglets principaux
   const [currentTab, setCurrentTab] = useState<'feed' | 'buddy' | 'chat' | 'profile' | 'leaderboard' | 'boxwars'>(() => {
     const savedTab = localStorage.getItem('fitpulse_active_tab');
     return (savedTab as any) || 'feed';
@@ -47,7 +48,6 @@ export default function App() {
   const [allMessages, setAllMessages] = useState<any[]>([]);
   
   const postImageFileInputRef = useRef<HTMLInputElement>(null);
-  const onboardingAvatarInputRef = useRef<HTMLInputElement>(null);
 
   const [isPostModalOpen, setIsPostModalOpen] = useState(false);
   const [postSessionType, setPostSessionType] = useState('Musculation Full Body');
@@ -57,6 +57,12 @@ export default function App() {
 
   const [selectedBuddyChat, setSelectedBuddyChat] = useState<any | null>(null);
   const [currentMessageInput, setCurrentMessageInput] = useState('');
+
+  // États de filtres pour l'onglet Buddies
+  const [buddySearchQuery, setBuddySearchQuery] = useState('');
+  const [buddyGenderFilter, setBuddyGenderFilter] = useState('Tous'); // 'Tous' | 'Femme' | 'Homme'
+  const [buddyTimeFilter, setBuddyTimeFilter] = useState('Tous'); // 'Tous' | 'Matin' | 'Midi' | 'Soir'
+  const [buddyGoalFilter, setBuddyGoalFilter] = useState('Tous'); // 'Tous' | 'Musculation' | 'Cardio / HIIT' | 'Force'
 
   // États pour les WODs BoxWars
   const [boxWods, setBoxWods] = useState<any[]>([]);
@@ -69,6 +75,8 @@ export default function App() {
   const [onboardingAge, setOnboardingAge] = useState<number | ''>('');
   const [onboardingClub, setOnboardingClub] = useState(CLUBS_LIST[0]);
   const [onboardingGoal, setOnboardingGoal] = useState('Prise de masse / Force');
+  const [onboardingGender, setOnboardingGender] = useState('Homme');
+  const [onboardingTime, setOnboardingTime] = useState('Soir');
   const [onboardingAvatar, setOnboardingAvatar] = useState<string>('https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=150');
   const [onboardingSubmitting, setOnboardingSubmitting] = useState(false);
 
@@ -215,6 +223,16 @@ export default function App() {
   });
   const sortedClubs = Object.entries(clubScores).sort((a, b) => b[1] - a[1]);
 
+  // Filtrage des Buddies
+  const filteredBuddies = registeredUsers.filter(u => {
+    if (u.id === user?.id) return false;
+    const matchesSearch = u.username?.toLowerCase().includes(buddySearchQuery.toLowerCase()) || u.home_club?.toLowerCase().includes(buddySearchQuery.toLowerCase());
+    const matchesGender = buddyGenderFilter === 'Tous' || u.gender === buddyGenderFilter;
+    const matchesTime = buddyTimeFilter === 'Tous' || u.preferred_time === buddyTimeFilter;
+    const matchesGoal = buddyGoalFilter === 'Tous' || u.goal?.toLowerCase().includes(buddyGoalFilter.toLowerCase());
+    return matchesSearch && matchesGender && matchesTime && matchesGoal;
+  });
+
   if (!user) {
     return (
       <div className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col items-center justify-center font-sans p-4 select-none">
@@ -281,12 +299,29 @@ export default function App() {
             setOnboardingSubmitting(true);
             await supabase.from('profiles').upsert({
               id: user.id, username: onboardingUsername.trim(), age: Number(onboardingAge) || 25,
-              home_club: onboardingClub, goal: onboardingGoal, avatar_url: onboardingAvatar, points: 0, is_admin: user.email === 'antboucher@hotmail.fr'
+              home_club: onboardingClub, goal: onboardingGoal, gender: onboardingGender, preferred_time: onboardingTime,
+              avatar_url: onboardingAvatar, points: 0, is_admin: user.email === 'antboucher@hotmail.fr'
             });
             setOnboardingSubmitting(false);
             fetchRealUsers(); setShowWelcomeGuide(true);
           }} className="space-y-3">
             <input type="text" required placeholder="Ton Pseudo" value={onboardingUsername} onChange={(e) => setOnboardingUsername(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-2.5 text-sm text-white" />
+            <div>
+              <label className="block text-xs text-neutral-400 mb-1">Genre :</label>
+              <select value={onboardingGender} onChange={(e) => setOnboardingGender(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-2.5 text-sm text-white">
+                <option value="Homme">Homme</option>
+                <option value="Femme">Femme</option>
+                <option value="Autre">Autre</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs text-neutral-400 mb-1">Créneau horaire habituel :</label>
+              <select value={onboardingTime} onChange={(e) => setOnboardingTime(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-2.5 text-sm text-white">
+                <option value="Matin">Matin</option>
+                <option value="Midi">Midi</option>
+                <option value="Soir">Soir</option>
+              </select>
+            </div>
             <select value={onboardingClub} onChange={(e) => setOnboardingClub(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-2.5 text-sm text-white">
               {CLUBS_LIST.map((club) => <option key={club} value={club}>{club}</option>)}
             </select>
@@ -379,7 +414,7 @@ export default function App() {
             </div>
           )}
 
-          {/* ONGLET LIGUE (CLASSEMENT CLUBS & INDIVIDUEL COMPLET) */}
+          {/* ONGLET LIGUE */}
           {currentTab === 'leaderboard' && (
             <div className="space-y-5">
               <div className="bg-gradient-to-r from-orange-950/60 to-neutral-900 border border-orange-500/30 rounded-3xl p-5 text-center space-y-2">
@@ -388,7 +423,6 @@ export default function App() {
                 <p className="text-xs text-neutral-300">Classement inter-clubs en direct. Chaque séance partagée rapporte 10 points à votre salle !</p>
               </div>
 
-              {/* Classement des Clubs */}
               <div className="space-y-2.5">
                 <h3 className="text-xs font-black uppercase tracking-wider text-orange-400 px-1">🏛️ Classement des Clubs</h3>
                 {sortedClubs.map(([clubName, totalPoints], idx) => (
@@ -406,27 +440,75 @@ export default function App() {
                   </div>
                 ))}
               </div>
+            </div>
+          )}
 
-              {/* Classement Individuel */}
-              <div className="space-y-2.5 pt-2">
-                <h3 className="text-xs font-black uppercase tracking-wider text-orange-400 px-1">🔥 Top Athlètes Individuels</h3>
-                <div className="space-y-2">
-                  {registeredUsers.sort((a, b) => (b.points || 0) - (a.points || 0)).map((u, idx) => (
-                    <div key={u.id} className="bg-neutral-900 border border-neutral-800 p-3.5 rounded-2xl flex items-center justify-between">
+          {/* ONGLET BUDDIES (AVEC FILTRES DE RECHERCHE AVANCÉS) */}
+          {currentTab === 'buddy' && (
+            <div className="space-y-4">
+              <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-4 space-y-3">
+                <h2 className="font-extrabold text-sm text-white flex items-center gap-2">
+                  <Users className="w-4 h-4 text-orange-500" /> Trouver un Partenaire d'Entraînement
+                </h2>
+                
+                <div className="relative">
+                  <Search className="absolute left-3 top-3 w-4 h-4 text-neutral-500" />
+                  <input type="text" placeholder="Rechercher par pseudo ou club..." value={buddySearchQuery} onChange={(e) => setBuddySearchQuery(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl pl-9 pr-3 py-2 text-xs text-white focus:outline-none" />
+                </div>
+
+                <div className="grid grid-cols-3 gap-2 pt-1">
+                  <div>
+                    <label className="block text-[10px] font-semibold text-neutral-400 mb-1">Genre :</label>
+                    <select value={buddyGenderFilter} onChange={(e) => setBuddyGenderFilter(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-2 py-1.5 text-xs text-white">
+                      <option value="Tous">Tous</option>
+                      <option value="Femme">Femme</option>
+                      <option value="Homme">Homme</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-semibold text-neutral-400 mb-1">Créneau :</label>
+                    <select value={buddyTimeFilter} onChange={(e) => setBuddyTimeFilter(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-2 py-1.5 text-xs text-white">
+                      <option value="Tous">Tous</option>
+                      <option value="Matin">Matin</option>
+                      <option value="Midi">Midi</option>
+                      <option value="Soir">Soir</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-semibold text-neutral-400 mb-1">Objectif :</label>
+                    <select value={buddyGoalFilter} onChange={(e) => setBuddyGoalFilter(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-2 py-1.5 text-xs text-white">
+                      <option value="Tous">Tous</option>
+                      <option value="Musculation">Muscu</option>
+                      <option value="Cardio">Cardio/HIIT</option>
+                      <option value="Force">Force</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                {filteredBuddies.length === 0 ? (
+                  <p className="text-xs text-neutral-500 text-center py-8">Aucun partenaire trouvé avec ces filtres.</p>
+                ) : (
+                  filteredBuddies.map(buddy => (
+                    <div key={buddy.id} className="bg-neutral-900 border border-neutral-800 p-3.5 rounded-2xl flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <span className="font-black text-xs text-orange-500 w-5">#{idx + 1}</span>
-                        <img src={u.avatar_url || 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=150'} alt="" className="w-9 h-9 rounded-full object-cover border border-orange-500/30" />
+                        <img src={buddy.avatar_url || 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=150'} alt="" className="w-10 h-10 rounded-full object-cover border border-orange-500/30" />
                         <div>
-                          <div className="font-bold text-xs text-white flex items-center gap-1">
-                            {u.username} {u.is_verified && <span className="text-orange-500 text-[10px]">✓</span>}
+                          <div className="font-bold text-xs text-white">{buddy.username} <span className="text-[10px] font-normal text-neutral-400">({buddy.gender || 'Mixte'})</span></div>
+                          <div className="text-[10px] text-orange-400">{buddy.home_club}</div>
+                          <div className="text-[10px] text-neutral-400 flex items-center gap-2 mt-0.5">
+                            <span className="flex items-center gap-0.5"><Clock className="w-3 h-3" /> {buddy.preferred_time || 'Soir'}</span>
+                            <span className="flex items-center gap-0.5"><Target className="w-3 h-3" /> {buddy.goal || 'Musculation'}</span>
                           </div>
-                          <div className="text-[10px] text-neutral-400">{u.home_club || 'Club Tournai'}</div>
                         </div>
                       </div>
-                      <span className="text-xs font-black text-orange-400 bg-orange-500/10 px-3 py-1.5 rounded-xl">{u.points || 0} pts</span>
+                      <button onClick={() => { setSelectedBuddyChat(buddy); handleTabChange('chat'); }} className="bg-orange-600 hover:bg-orange-500 text-white px-3 py-1.5 rounded-xl text-xs font-bold transition">
+                        Chat 💬
+                      </button>
                     </div>
-                  ))}
-                </div>
+                  ))
+                )}
               </div>
             </div>
           )}
@@ -477,7 +559,7 @@ export default function App() {
             </div>
           )}
 
-          {/* ONGLET PROFIL COMPLET */}
+          {/* ONGLET PROFIL */}
           {currentTab === 'profile' && (
             <div className="space-y-4">
               <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-6 text-center space-y-4">
@@ -487,6 +569,8 @@ export default function App() {
                   <p className="text-xs text-orange-400 font-semibold">{currentUserProfile?.home_club || 'Club partenaire'}</p>
                 </div>
                 <div className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 text-xs text-left space-y-2">
+                  <p className="text-neutral-300"><strong>Genre :</strong> {currentUserProfile?.gender || 'Non renseigné'}</p>
+                  <p className="text-neutral-300"><strong>Créneau :</strong> {currentUserProfile?.preferred_time || 'Soir'}</p>
                   <p className="text-neutral-300"><strong>Objectif :</strong> {currentUserProfile?.goal || 'Musculation / Force'}</p>
                   <p className="text-neutral-300"><strong>Points Ligue :</strong> <span className="text-orange-400 font-bold">{currentUserProfile?.points || 0} pts</span></p>
                 </div>
@@ -606,7 +690,7 @@ export default function App() {
           </div>
         )}
 
-        {/* NAVIGATION DU BAS */}
+        {/* NAVIGATION DU BAS (AVEC BUDDIES ET FILTRES) */}
         <nav className="sticky bottom-0 left-0 right-0 z-40 bg-neutral-950/95 backdrop-blur-xl border-t border-neutral-800 px-2 py-2 flex justify-around items-center">
           <button onClick={() => handleTabChange('feed')} className={`flex flex-col items-center gap-1 transition active:scale-95 ${currentTab === 'feed' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Home className="w-5 h-5" /><span className="text-[10px]">Accueil</span></button>
           <button onClick={() => handleTabChange('leaderboard')} className={`flex flex-col items-center gap-1 transition active:scale-95 ${currentTab === 'leaderboard' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Trophy className="w-5 h-5" /><span className="text-[10px]">Ligue</span></button>
@@ -619,6 +703,8 @@ export default function App() {
             <Zap className="w-5 h-5" />
             <span className="text-[10px]">BoxWars</span>
           </button>
+
+          <button onClick={() => handleTabChange('buddy')} className={`flex flex-col items-center gap-1 transition active:scale-95 ${currentTab === 'buddy' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Users className="w-5 h-5" /><span className="text-[10px]">Buddies</span></button>
 
           <button onClick={() => handleTabChange('chat')} className={`flex flex-col items-center gap-1 transition active:scale-95 ${currentTab === 'chat' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><MessageCircle className="w-5 h-5" /><span className="text-[10px]">Chat</span></button>
 
