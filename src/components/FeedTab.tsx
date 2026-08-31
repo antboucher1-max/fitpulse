@@ -51,7 +51,7 @@ export default function FeedTab({
   const [selectedHashtags, setSelectedHashtags] = useState<string[]>(['#fitpulse']);
   const [customTagInput, setCustomTagInput] = useState('');
 
-  // Références séparées pour l'appareil photo et la galerie
+  // Références séparées pour cibler précisément l'appareil photo ou la galerie
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
 
@@ -124,10 +124,10 @@ export default function FeedTab({
 
   return (
     <div className="space-y-4 pb-12">
-      {/* Input dédié strictement à l'Appareil Photo */}
+      {/* Input dédié à l'appareil photo instantané (avec capture) */}
       <input type="file" accept="image/*" capture="environment" ref={cameraInputRef} onChange={handleFileChange} className="hidden" />
       
-      {/* Input dédié strictement à la Galerie du téléphone */}
+      {/* Input dédié à la galerie du téléphone (sans capture) */}
       <input type="file" accept="image/*" ref={galleryInputRef} onChange={handleFileChange} className="hidden" />
 
       <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-4 shadow-xl">
@@ -248,7 +248,6 @@ export default function FeedTab({
             >
               Publier ma Story 🚀
             </button>
-            {/* Les deux boutons explicites : Caméra ou Galerie */}
             <div className="flex gap-2">
               <button onClick={() => cameraInputRef.current?.click()} className="flex-1 py-3 bg-neutral-900 border border-neutral-800 text-xs font-bold text-neutral-300 rounded-xl flex items-center justify-center gap-2">
                 <Camera className="w-4 h-4 text-orange-500" /> Appareil Photo 📸
