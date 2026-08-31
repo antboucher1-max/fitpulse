@@ -2,10 +2,6 @@ import { useState, useEffect, useRef, ChangeEvent, FormEvent } from 'react';
 import {
   Zap, Timer, PlusSquare, Calculator, User, MessageCircle, Home, Users, Plus, X, Camera, Flame, MapPin, Hash, Bell, ShieldCheck, Award, Info, Trophy, Sparkles, Clock, Target, Search, MessageSquareText
 } from 'lucide-react';
-import { useState, useEffect, useRef, ChangeEvent, FormEvent } from 'react';
-import {
-  Zap, Timer, PlusSquare, Calculator, User, MessageCircle, Home, Users, Plus, X, Camera, Flame, MapPin, Hash, Bell, ShieldCheck, Award, Info, Trophy, Sparkles, Clock, Target, Search
-} from 'lucide-react';
 import { createClient, User as SupabaseUser } from '@supabase/supabase-js';
 
 import { 
