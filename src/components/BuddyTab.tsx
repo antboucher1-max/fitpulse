@@ -114,11 +114,13 @@ export default function BuddyTab({
 
   const currentUser = registeredUsers.find(u => u.id === currentUserId);
 
-  const acceptedFriendIds = useMemo(() => {
-    return friendRequests
-      .filter(req => (req.sender_id === currentUserId || req.receiver_id === currentUserId) && req.status === 'accepted')
-      .map(req => (req.sender_id === currentUserId ? req.receiver_id : req.sender_id));
+  const acceptedFriendRequests = useMemo(() => {
+    return friendRequests.filter(req => (req.sender_id === currentUserId || req.receiver_id === currentUserId) && req.status === 'accepted');
   }, [friendRequests, currentUserId]);
+
+  const acceptedFriendIds = useMemo(() => {
+    return acceptedFriendRequests.map(req => (req.sender_id === currentUserId ? req.receiver_id : req.sender_id));
+  }, [acceptedFriendRequests, currentUserId]);
 
   const myBuddies = registeredUsers.filter(u => acceptedFriendIds.includes(u.id));
 
@@ -347,7 +349,6 @@ export default function BuddyTab({
           ) : (
             myBuddies.map(buddy => {
               const ageCategory = getAgeCategory(buddy.birth_date);
-              const req = acceptedFriendRequests(buddy.id); // correction interne sécurisée
 
               return (
                 <div 
