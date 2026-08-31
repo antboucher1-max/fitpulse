@@ -472,7 +472,7 @@ export default function App() {
             />
           )}
 
-          {currentTab === 'workout' && <LiveTrackerTab currentUserId={user?.id} />}
+          {currentTab === 'workout' && <LiveTrackerTab />}
           {currentTab === 'exercises' && <ExercisesTab />}
           {currentTab === 'calculator' && <CalculatorTab />}
           {currentTab === 'rest_timer' && <RestTimerTab />}
