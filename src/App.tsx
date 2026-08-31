@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, ChangeEvent, FormEvent } from 'react';
 import {
-  Zap, PlusSquare, User, MessageCircle, Home, Users, Plus, X, Camera, Flame, MapPin, Hash, ShieldCheck, Award, Info, Trophy, MessageSquareText, ArrowLeft
+  Zap, User, MessageCircle, Home, Users, Plus, X, Camera, Flame, MapPin, Hash, ShieldCheck, Award, Info, Trophy, MessageSquareText, ArrowLeft
 } from 'lucide-react';
 import { createClient, User as SupabaseUser } from '@supabase/supabase-js';
 
@@ -105,6 +105,9 @@ export default function App() {
   const [selectedBuddyChat, setSelectedBuddyChat] = useState<RealUser | null>(null);
   const [currentMessageInput, setCurrentMessageInput] = useState('');
   const [isOtherUserTyping] = useState(false);
+
+  // Correction ajoutée ici : déclaration de l'état manquant
+  const [activeCommentPostId, setActiveCommentPostId] = useState<string | null>(null);
 
   // États pour les WODs BoxWars connectés à Supabase
   const [boxWods, setBoxWods] = useState<any[]>([]);
@@ -715,7 +718,7 @@ export default function App() {
         <header className="sticky top-0 z-40 bg-neutral-950/80 backdrop-blur-md border-b border-neutral-900 px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <div className={`w-8 h-8 rounded-xl ${appMode === 'boxwars' ? 'bg-cyan-500/20 text-cyan-400' : 'bg-orange-500/20 text-orange-500'} flex items-center justify-center`}>
-              {appMode === 'boxwars' ? <Zap className="w-5 h-5" /> : <Zap className="w-5 h-5" />}
+              <Zap className="w-5 h-5" />
             </div>
             <h1 className="text-base font-black tracking-tight leading-none text-white">
               {appMode === 'boxwars' ? 'BOXWARS' : 'FitPulse'}
