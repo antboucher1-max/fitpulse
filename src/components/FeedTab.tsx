@@ -123,7 +123,8 @@ export default function FeedTab({
 
   return (
     <div className="space-y-4 pb-12">
-      <input type="file" accept="image/*" capture="environment" ref={cameraInputRef} onChange={handleFileChange} className="hidden" />
+      {/* CORRECTION : Suppression de "capture=environment" pour permettre de choisir dans la galerie du téléphone */}
+      <input type="file" accept="image/*" ref={cameraInputRef} onChange={handleFileChange} className="hidden" />
       <input type="file" accept="image/*" ref={galleryInputRef} onChange={handleFileChange} className="hidden" />
 
       <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-4 shadow-xl">
@@ -134,7 +135,7 @@ export default function FeedTab({
                 const myIdx = orderedStories.findIndex(s => s.user_id === currentUserId);
                 if (myIdx !== -1) handleOpenStoryViewer(myIdx);
               } else {
-                cameraInputRef.current?.click();
+                galleryInputRef.current?.click();
               }
             }} 
             className="flex flex-col items-center gap-1.5 flex-shrink-0 cursor-pointer group"
@@ -146,7 +147,7 @@ export default function FeedTab({
                 className="w-full h-full rounded-full object-cover border-2 border-neutral-950" 
               />
               <button 
-                onClick={(e) => { e.stopPropagation(); cameraInputRef.current?.click(); }}
+                onClick={(e) => { e.stopPropagation(); galleryInputRef.current?.click(); }}
                 className="absolute bottom-0 right-0 w-6 h-6 bg-orange-600 hover:bg-orange-500 rounded-full border-2 border-neutral-950 flex items-center justify-center text-white"
               >
                 <Plus className="w-3.5 h-3.5 stroke-[3]" />
