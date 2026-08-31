@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, ChangeEvent, FormEvent } from 'react';
 import {
-  Zap, User, MessageCircle, Home, Users, Plus, X, Camera, Flame, MapPin, ShieldCheck, Award, Trophy, MessageSquareText, Search, Filter, Target, Clock
+  Zap, User, MessageCircle, Home, Users, Plus, X, Camera, Flame, MapPin, ShieldCheck, Award, Trophy, MessageSquareText, Search, Clock, Target
 } from 'lucide-react';
 import { createClient, User as SupabaseUser } from '@supabase/supabase-js';
 
@@ -35,7 +35,6 @@ export default function App() {
 
   const [showWelcomeGuide, setShowWelcomeGuide] = useState(false);
 
-  // Ajout de 'buddy' dans les onglets principaux
   const [currentTab, setCurrentTab] = useState<'feed' | 'buddy' | 'chat' | 'profile' | 'leaderboard' | 'boxwars'>(() => {
     const savedTab = localStorage.getItem('fitpulse_active_tab');
     return (savedTab as any) || 'feed';
@@ -58,11 +57,11 @@ export default function App() {
   const [selectedBuddyChat, setSelectedBuddyChat] = useState<any | null>(null);
   const [currentMessageInput, setCurrentMessageInput] = useState('');
 
-  // États de filtres pour l'onglet Buddies
+  // États de filtres pour l'onglet Buddies (avec option explicite "Entre femmes uniquement")
   const [buddySearchQuery, setBuddySearchQuery] = useState('');
-  const [buddyGenderFilter, setBuddyGenderFilter] = useState('Tous'); // 'Tous' | 'Femme' | 'Homme'
-  const [buddyTimeFilter, setBuddyTimeFilter] = useState('Tous'); // 'Tous' | 'Matin' | 'Midi' | 'Soir'
-  const [buddyGoalFilter, setBuddyGoalFilter] = useState('Tous'); // 'Tous' | 'Musculation' | 'Cardio / HIIT' | 'Force'
+  const [onlyWomenMatch, setOnlyWomenMatch] = useState(false); // Le critère prioritaire demandé
+  const [buddyTimeFilter, setBuddyTimeFilter] = useState('Tous'); 
+  const [buddyGoalFilter, setBuddyGoalFilter] = useState('Tous'); 
 
   // États pour les WODs BoxWars
   const [boxWods, setBoxWods] = useState<any[]>([]);
@@ -215,7 +214,6 @@ export default function App() {
     return post.club_name === selectedClub;
   });
 
-  // Calcul du classement des clubs pour la Ligue
   const clubScores: Record<string, number> = {};
   registeredUsers.forEach(u => {
     const club = u.home_club || 'Club Tournai (Bastion)';
@@ -223,11 +221,14 @@ export default function App() {
   });
   const sortedClubs = Object.entries(clubScores).sort((a, b) => b[1] - a[1]);
 
-  // Filtrage des Buddies
+  // Filtrage avancé des Buddies avec l'option "Entre femmes uniquement"
   const filteredBuddies = registeredUsers.filter(u => {
     if (u.id === user?.id) return false;
     const matchesSearch = u.username?.toLowerCase().includes(buddySearchQuery.toLowerCase()) || u.home_club?.toLowerCase().includes(buddySearchQuery.toLowerCase());
-    const matchesGender = buddyGenderFilter === 'Tous' || u.gender === buddyGenderFilter;
+    
+    // Critère strict "Entre femmes uniquement"
+    const matchesGender = !onlyWomenMatch || u.gender === 'Femme';
+    
     const matchesTime = buddyTimeFilter === 'Tous' || u.preferred_time === buddyTimeFilter;
     const matchesGoal = buddyGoalFilter === 'Tous' || u.goal?.toLowerCase().includes(buddyGoalFilter.toLowerCase());
     return matchesSearch && matchesGender && matchesTime && matchesGoal;
@@ -443,7 +444,7 @@ export default function App() {
             </div>
           )}
 
-          {/* ONGLET BUDDIES (AVEC FILTRES DE RECHERCHE AVANCÉS) */}
+          {/* ONGLET BUDDIES (AVEC FILTRE "ENTRE FEMMES UNIQUEMENT") */}
           {currentTab === 'buddy' && (
             <div className="space-y-4">
               <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-4 space-y-3">
@@ -456,18 +457,18 @@ export default function App() {
                   <input type="text" placeholder="Rechercher par pseudo ou club..." value={buddySearchQuery} onChange={(e) => setBuddySearchQuery(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl pl-9 pr-3 py-2 text-xs text-white focus:outline-none" />
                 </div>
 
-                <div className="grid grid-cols-3 gap-2 pt-1">
-                  <div>
-                    <label className="block text-[10px] font-semibold text-neutral-400 mb-1">Genre :</label>
-                    <select value={buddyGenderFilter} onChange={(e) => setBuddyGenderFilter(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-2 py-1.5 text-xs text-white">
-                      <option value="Tous">Tous</option>
-                      <option value="Femme">Femme</option>
-                      <option value="Homme">Homme</option>
-                    </select>
-                  </div>
+                {/* BOUTON MATCH EXCLUSIF "ENTRE FEMMES UNIQUEMENT" */}
+                <div className="pt-1">
+                  <label className={`flex items-center gap-2.5 p-3 rounded-xl border cursor-pointer transition ${onlyWomenMatch ? 'bg-pink-500/10 border-pink-500/50 text-pink-300' : 'bg-neutral-950 border-neutral-800 text-neutral-300'}`}>
+                    <input type="checkbox" checked={onlyWomenMatch} onChange={(e) => setOnlyWomenMatch(e.target.checked)} className="w-4 h-4 rounded accent-pink-500 cursor-pointer" />
+                    <span className="text-xs font-bold">🌸 Filtrer entre femmes uniquement</span>
+                  </label>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 pt-1">
                   <div>
                     <label className="block text-[10px] font-semibold text-neutral-400 mb-1">Créneau :</label>
-                    <select value={buddyTimeFilter} onChange={(e) => setBuddyTimeFilter(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-2 py-1.5 text-xs text-white">
+                    <select value={buddyTimeFilter} onChange={(e) => setBuddyTimeFilter(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-2.5 py-2 text-xs text-white">
                       <option value="Tous">Tous</option>
                       <option value="Matin">Matin</option>
                       <option value="Midi">Midi</option>
@@ -476,10 +477,10 @@ export default function App() {
                   </div>
                   <div>
                     <label className="block text-[10px] font-semibold text-neutral-400 mb-1">Objectif :</label>
-                    <select value={buddyGoalFilter} onChange={(e) => setBuddyGoalFilter(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-2 py-1.5 text-xs text-white">
+                    <select value={buddyGoalFilter} onChange={(e) => setBuddyGoalFilter(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-2.5 py-2 text-xs text-white">
                       <option value="Tous">Tous</option>
                       <option value="Musculation">Muscu</option>
-                      <option value="Cardio">Cardio/HIIT</option>
+                      <option value="Cardio">Cardio / HIIT</option>
                       <option value="Force">Force</option>
                     </select>
                   </div>
@@ -488,14 +489,19 @@ export default function App() {
 
               <div className="space-y-2">
                 {filteredBuddies.length === 0 ? (
-                  <p className="text-xs text-neutral-500 text-center py-8">Aucun partenaire trouvé avec ces filtres.</p>
+                  <p className="text-xs text-neutral-500 text-center py-8">Aucun partenaire trouvé avec ces critères de recherche.</p>
                 ) : (
                   filteredBuddies.map(buddy => (
                     <div key={buddy.id} className="bg-neutral-900 border border-neutral-800 p-3.5 rounded-2xl flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <img src={buddy.avatar_url || 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=150'} alt="" className="w-10 h-10 rounded-full object-cover border border-orange-500/30" />
                         <div>
-                          <div className="font-bold text-xs text-white">{buddy.username} <span className="text-[10px] font-normal text-neutral-400">({buddy.gender || 'Mixte'})</span></div>
+                          <div className="font-bold text-xs text-white flex items-center gap-1.5">
+                            {buddy.username} 
+                            <span className={`text-[9px] px-1.5 py-0.5 rounded font-semibold ${buddy.gender === 'Femme' ? 'bg-pink-500/20 text-pink-400' : 'bg-blue-500/20 text-blue-400'}`}>
+                              {buddy.gender || 'Mixte'}
+                            </span>
+                          </div>
                           <div className="text-[10px] text-orange-400">{buddy.home_club}</div>
                           <div className="text-[10px] text-neutral-400 flex items-center gap-2 mt-0.5">
                             <span className="flex items-center gap-0.5"><Clock className="w-3 h-3" /> {buddy.preferred_time || 'Soir'}</span>
@@ -690,7 +696,7 @@ export default function App() {
           </div>
         )}
 
-        {/* NAVIGATION DU BAS (AVEC BUDDIES ET FILTRES) */}
+        {/* NAVIGATION DU BAS (AVEC L'ONGLET BUDDIES INTÉGRÉ) */}
         <nav className="sticky bottom-0 left-0 right-0 z-40 bg-neutral-950/95 backdrop-blur-xl border-t border-neutral-800 px-2 py-2 flex justify-around items-center">
           <button onClick={() => handleTabChange('feed')} className={`flex flex-col items-center gap-1 transition active:scale-95 ${currentTab === 'feed' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Home className="w-5 h-5" /><span className="text-[10px]">Accueil</span></button>
           <button onClick={() => handleTabChange('leaderboard')} className={`flex flex-col items-center gap-1 transition active:scale-95 ${currentTab === 'leaderboard' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Trophy className="w-5 h-5" /><span className="text-[10px]">Ligue</span></button>
