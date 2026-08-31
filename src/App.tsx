@@ -1,12 +1,13 @@
 import { useState, useEffect, useRef, ChangeEvent, FormEvent } from 'react';
 import {
-  Zap, User, MessageCircle, Home, Users, Plus, X, Camera, Flame, MapPin, ShieldCheck, Award, Trophy, MessageSquareText, Search, Clock, Target
+  Zap, Timer, PlusSquare, Calculator, User, MessageCircle, Home, Users, Plus, X, Camera, Flame, MapPin, Hash, Bell, ShieldCheck, Award, Info, Trophy, Sparkles, Clock, Target
 } from 'lucide-react';
 import { createClient, User as SupabaseUser } from '@supabase/supabase-js';
 
 import { 
-  ExerciseGuide, TransformationPhoto, ExerciseEntry, Post, Story, RealUser, FriendRequest, DBMessage, LiveWorkoutExercise 
+  ExerciseGuide, TransformationPhoto, ExerciseEntry, Post, Story, RealUser, FriendRequest, DBMessage, LiveWorkoutExercise, AIChatMessage 
 } from './types';
+import { askFitBotAI } from './services/gemini';
 
 import FeedTab from './components/FeedTab';
 import BuddyTab from './components/BuddyTab';
@@ -52,8 +53,6 @@ const isMatchingClub = (postClubName?: string, selectedClubName?: string): boole
 export default function App() {
   const [user, setUser] = useState<SupabaseUser | null>(null);
   
-  const [boxSubTab, setBoxSubTab] = useState<'wods' | 'feed'>('wods');
-
   const [authEmail, setAuthEmail] = useState('');
   const [authPassword, setAuthPassword] = useState('');
   const [isSignUpMode, setIsSignUpMode] = useState(false);
@@ -62,6 +61,7 @@ export default function App() {
 
   const [showWelcomeGuide, setShowWelcomeGuide] = useState(false);
 
+  // Ajout de 'boxwars' dans les onglets possibles
   const [currentTab, setCurrentTab] = useState<'feed' | 'buddy' | 'workout' | 'exercises' | 'chat' | 'profile' | 'calculator' | 'live_tracker' | 'rest_timer' | 'notifications' | 'leaderboard' | 'boxwars'>(() => {
     const savedTab = localStorage.getItem('fitpulse_active_tab');
     return (savedTab as any) || 'feed';
@@ -98,26 +98,25 @@ export default function App() {
   const [cloudStories, setCloudStories] = useState<Story[]>([]);
   const [allMessages, setAllMessages] = useState<DBMessage[]>([]);
   
-  const [viewedStoryIds] = useState<string[]>([]);
+  const [viewedStoryIds, setViewedStoryIds] = useState<string[]>([]);
   const [viewingProfileUser, setViewingProfileUser] = useState<RealUser | null>(null);
+  const [activeStoryIndex, setActiveStoryIndex] = useState<number | null>(null);
   const [selectedBuddyChat, setSelectedBuddyChat] = useState<RealUser | null>(null);
   const [currentMessageInput, setCurrentMessageInput] = useState('');
-  const [isOtherUserTyping] = useState(false);
+  const [isOtherUserTyping, setIsOtherUserTyping] = useState(false);
 
-  const [activeCommentPostId, setActiveCommentPostId] = useState<string | null>(null);
-
-  // États de filtres pour l'onglet Buddies
+  // États filtres Buddies & BoxWars
   const [buddySearchQuery, setBuddySearchQuery] = useState('');
   const [onlyWomenMatch, setOnlyWomenMatch] = useState(false);
-  const [buddyTimeFilter, setBuddyTimeFilter] = useState('Tous'); 
-  const [buddyGoalFilter, setBuddyGoalFilter] = useState('Tous'); 
+  const [buddyTimeFilter, setBuddyTimeFilter] = useState('Tous');
+  const [buddyGoalFilter, setBuddyGoalFilter] = useState('Tous');
 
-  // États BoxWars
   const [boxWods, setBoxWods] = useState<any[]>([]);
   const [loadingBoxWods, setLoadingBoxWods] = useState(true);
   const [newWodTitle, setNewWodTitle] = useState('');
   const [newWodScore, setNewWodScore] = useState('');
   const [showWodModal, setShowWodModal] = useState(false);
+  const [boxSubTab, setBoxSubTab] = useState<'wods' | 'feed'>('wods');
 
   const [onboardingUsername, setOnboardingUsername] = useState('');
   const [onboardingAge, setOnboardingAge] = useState<number | ''>('');
@@ -138,6 +137,19 @@ export default function App() {
   });
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const [newTransNote, setNewTransNote] = useState('');
+  const [newTransWeight, setNewTransWeight] = useState<number | ''>('');
+  const [newTransBefore, setNewTransBefore] = useState<string | null>(null);
+  const [newTransAfter, setNewTransAfter] = useState<string | null>(null);
+  const [newTransIsPrivate, setNewTransIsPrivate] = useState<boolean>(true);
+
+  const [activeCommentPostId, setActiveCommentPostId] = useState<string | null>(null);
+  const [exerciseSearch, setExerciseSearch] = useState('');
+  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>('Tous');
+  const [selectedExerciseDetail, setSelectedExerciseDetail] = useState<ExerciseGuide | null>(null);
+  const [targetWeight, setTargetWeight] = useState<number | ''>(100);
+  const [barbellWeight, setBarbellWeight] = useState<number>(20);
 
   const fetchCloudPosts = async () => {
     setFeedLoading(true);
@@ -188,7 +200,6 @@ export default function App() {
     }
   };
 
-  // Fonction calculateUserStreak ajoutée pour corriger l'erreur de compilation
   const calculateUserStreak = (targetUserId: string) => {
     if (!user || !targetUserId) return 0;
     const convo = allMessages.filter(
@@ -227,6 +238,37 @@ export default function App() {
     fetchRealUsers();
     fetchAllMessages();
     fetchBoxWods();
+
+    const postsChannel = supabase
+      .channel('public:posts')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'posts' }, (payload) => {
+        if (payload.eventType === 'UPDATE') {
+          setPosts(prev => prev.map(p => p.id === payload.new.id ? (payload.new as Post) : p));
+        } else if (payload.eventType === 'INSERT') {
+          setPosts(prev => [payload.new as Post, ...prev]);
+        }
+      })
+      .subscribe();
+
+    const messagesChannel = supabase
+      .channel('public:direct_messages')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'direct_messages' }, (payload) => {
+        setAllMessages(prev => [...prev, payload.new as DBMessage]);
+      })
+      .subscribe();
+
+    const profilesChannel = supabase
+      .channel('public:profiles')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => {
+        fetchRealUsers();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(postsChannel);
+      supabase.removeChannel(messagesChannel);
+      supabase.removeChannel(profilesChannel);
+    };
   }, []);
 
   const handleTabChange = (tab: any) => { 
@@ -248,7 +290,6 @@ export default function App() {
     if (!currentMessageInput.trim() || !selectedBuddyChat || !user) return;
     const text = currentMessageInput.trim(); setCurrentMessageInput('');
     await supabase.from('direct_messages').insert([{ sender_id: user.id, receiver_id: selectedBuddyChat.id, sender_name: currentUsername, text }]);
-    fetchAllMessages();
   };
 
   const handleToggleLike = async (postId: string) => {
@@ -269,6 +310,15 @@ export default function App() {
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => { setPostImageUrl(reader.result as string); };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleOnboardingAvatarSelect = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => { setOnboardingAvatar(reader.result as string); };
       reader.readAsDataURL(file);
     }
   };
@@ -300,8 +350,21 @@ export default function App() {
       setPostImageUrl(null);
       fetchCloudPosts();
     } else {
-      alert("Erreur publication : " + error?.message);
+      alert("Erreur lors de la publication : " + error?.message);
     }
+  };
+
+  const handleFinishLiveWorkout = async () => {
+    if (!user) return;
+    if (liveExercises.length === 0) { alert("Ajoute au moins un exercice !"); return; }
+    const formattedExercises: ExerciseEntry[] = liveExercises.map(ex => ({ name: ex.name, sets: ex.sets.length, reps: ex.sets[0]?.reps || 10, weight: ex.sets[0]?.weight || 50 }));
+    await supabase.from('posts').insert([{ user_id: user.id, username: currentUsername, avatar_url: currentUserProfile?.avatar_url || userAvatarUrl, club_name: selectedClub === '🌐 Tous les clubs (Global)' ? 'Club Tournai (Bastion)' : selectedClub, session_type: liveWorkoutName, caption: "Séance terminée en direct ! 💪 #fitpulse", exercises: formattedExercises, likes_count: 0, liked_by: [], comments_count: 0, comments: [], is_private: false }]);
+    
+    await addPointsToUser(user.id, 10);
+
+    setIsLiveActive(false);
+    handleTabChange('feed');
+    fetchCloudPosts();
   };
 
   const handleAddBoxWod = async (e: FormEvent) => {
@@ -323,11 +386,17 @@ export default function App() {
     }
   };
 
+  const acceptedFriendIds = friendRequests.filter(req => req.status === 'accepted').map(req => (req.sender_id === user?.id ? req.receiver_id : req.sender_id));
+  const activeChatUsers = registeredUsers.filter((u) => u.id !== user?.id && acceptedFriendIds.includes(u.id));
+  
   const displayedPosts = posts.filter((post) => {
     if (selectedClub === '🌐 Tous les clubs (Global)') return true;
     return isMatchingClub(post.club_name, selectedClub);
   });
 
+  const currentChatMessages = allMessages.filter((m) => selectedBuddyChat && user && ((m.sender_id === user.id && m.receiver_id === selectedBuddyChat.id) || (m.sender_id === selectedBuddyChat.id && m.receiver_id === user.id)));
+
+  // Filtrage avancé Buddies avec le filtre "Entre femmes uniquement"
   const filteredBuddies = registeredUsers.filter(u => {
     if (u.id === user?.id) return false;
     const matchesSearch = u.username?.toLowerCase().includes(buddySearchQuery.toLowerCase()) || u.home_club?.toLowerCase().includes(buddySearchQuery.toLowerCase());
@@ -337,6 +406,21 @@ export default function App() {
     return matchesSearch && matchesGender && matchesTime && matchesGoal;
   });
 
+  const availablePlates = [25, 20, 15, 10, 5, 2.5, 1.25];
+  const calculatePlates = (target: number | '', bar: number) => {
+    if (target === '' || target <= bar) return [];
+    let remaining = (target - bar) / 2;
+    const result: { weight: number; count: number }[] = [];
+    for (const plate of availablePlates) {
+      if (remaining <= 0) break;
+      const count = Math.floor(remaining / plate);
+      if (count > 0) { result.push({ weight: plate, count }); remaining = Number((remaining - count * plate).toFixed(2)); }
+    }
+    return result;
+  };
+  const plateBreakdown = targetWeight !== '' ? calculatePlates(targetWeight, barbellWeight) : [];
+  const isAdmin = currentUserProfile?.is_admin || user?.email === 'antboucher@hotmail.fr';
+
   if (!user) {
     return (
       <div className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col items-center justify-center font-sans p-4 select-none">
@@ -345,8 +429,8 @@ export default function App() {
             <div className="w-12 h-12 rounded-2xl bg-orange-500/20 flex items-center justify-center text-orange-500 mx-auto">
               <Zap className="w-6 h-6" />
             </div>
-            <h1 className="text-xl font-black text-white tracking-tight">FitPulse & BoxWars</h1>
-            <p className="text-xs text-orange-400 font-semibold">La Ligue des Salles & Suivi d'Entraînement</p>
+            <h1 className="text-xl font-black text-white tracking-tight">FitPulse</h1>
+            <p className="text-xs text-orange-400 font-semibold">La Ligue des Clubs & Suivi d'Entraînement</p>
           </div>
 
           <form onSubmit={async (e) => {
@@ -438,18 +522,8 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col font-sans select-none antialiased relative">
-      
-      {showWelcomeGuide && (
-        <div className="absolute inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-neutral-900 border border-orange-500/40 rounded-3xl max-w-sm w-full p-6 space-y-4 text-center">
-            <h2 className="text-base font-extrabold text-white">Bienvenue dans l'aventure !</h2>
-            <button onClick={() => { setShowWelcomeGuide(false); window.location.reload(); }} className="w-full py-3 bg-orange-600 text-white font-bold rounded-2xl text-xs">C'est parti ! 💪</button>
-          </div>
-        </div>
-      )}
-
       <div className="w-full max-w-md mx-auto min-h-screen bg-neutral-950 flex flex-col shadow-2xl sm:border-x sm:border-neutral-900 relative">
-        <header className="sticky top-0 z-40 bg-neutral-950/85 backdrop-blur-md border-b border-neutral-900 px-4 py-3 flex items-center justify-between">
+        <header className="sticky top-0 z-40 bg-neutral-950/80 backdrop-blur-md border-b border-neutral-900 px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <div className={`w-8 h-8 rounded-xl ${currentTab === 'boxwars' ? 'bg-cyan-500/20 text-cyan-400' : 'bg-orange-500/20 text-orange-500'} flex items-center justify-center`}>
               <Zap className="w-5 h-5" />
@@ -471,10 +545,10 @@ export default function App() {
         </header>
 
         <main className="flex-1 w-full mx-auto px-4 py-3 pb-24">
-          
-          {currentTab === 'feed' && <FeedTab stories={cloudStories} posts={displayedPosts} registeredUsers={registeredUsers} friendRequests={friendRequests} currentUserId={user?.id} feedLoading={feedLoading} viewedStoryIds={viewedStoryIds} calculateStreak={calculateUserStreak} onOpenStory={() => {}} onCreateStoryClick={() => setIsPostModalOpen(true)} onToggleLike={handleToggleLike} onOpenComments={(id) => setActiveCommentPostId(id)} onReportPost={() => {}} onDeletePost={() => {}} onSelectProfile={(u) => setViewingProfileUser(u)} onStartRestTimer={() => {}} />}
+          {currentTab === 'feed' && <FeedTab stories={cloudStories} posts={displayedPosts} registeredUsers={registeredUsers} friendRequests={friendRequests} currentUserId={user?.id} feedLoading={feedLoading} viewedStoryIds={viewedStoryIds} calculateStreak={calculateUserStreak} onOpenStory={(idx) => setActiveStoryIndex(idx)} onCreateStoryClick={() => setIsPostModalOpen(true)} onToggleLike={handleToggleLike} onOpenComments={(id) => setActiveCommentPostId(id)} onReportPost={() => {}} onDeletePost={() => {}} onSelectProfile={(u) => setViewingProfileUser(u)} onStartRestTimer={() => {}} />}
           {currentTab === 'leaderboard' && <LeaderboardTab registeredUsers={registeredUsers} />}
-
+          
+          {/* ONGLET BUDDIES INTÉGRÉ AVEC LE FILTRE FEMMES */}
           {currentTab === 'buddy' && (
             <div className="space-y-4">
               <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-4 space-y-3">
@@ -678,7 +752,7 @@ export default function App() {
 
           <button onClick={() => handleTabChange('chat')} className={`flex flex-col items-center gap-1 transition active:scale-95 ${currentTab === 'chat' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><MessageCircle className="w-5 h-5" /><span className="text-[10px]">Chat</span></button>
 
-          <button onClick={() => handleTabCardChange = () => {}} onClick={() => handleTabChange('profile')} className={`flex flex-col items-center gap-1 transition active:scale-95 ${currentTab === 'profile' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><User className="w-5 h-5" /><span className="text-[10px]">Profil</span></button>
+          <button onClick={() => handleTabChange('profile')} className={`flex flex-col items-center gap-1 transition active:scale-95 ${currentTab === 'profile' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><User className="w-5 h-5" /><span className="text-[10px]">Profil</span></button>
         </nav>
       </div>
     </div>
