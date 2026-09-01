@@ -658,7 +658,68 @@ export default function App() {
           )}
 
           {currentTab === 'chat' && <ChatTab currentUserId={user?.id} selectedBuddyChat={selectedBuddyChat} setSelectedBuddyChat={handleOpenChatWithUser} activeChatUsers={activeChatUsers} currentChatMessages={currentChatMessages} currentMessageInput={currentMessageInput} onInputChange={(e) => setCurrentMessageInput(e.target.value)} onSendMessage={handleSendMessage} onSelectBuddy={(f) => handleOpenChatWithUser(f)} onDeleteConversation={() => {}} onReportConversation={() => {}} isOtherUserTyping={isOtherUserTyping} isMessageLimitReached={false} lastReadTimestamps={lastReadTimestamps} messagesEndRef={messagesEndRef} allMessages={allMessages} />}
-          {currentTab === 'profile' && <ProfileTab user={user} currentUserProfile={currentUserProfile} userAvatarUrl={currentUserProfile?.avatar_url || userAvatarUrl} isAdmin={isAdmin} registeredUsers={registeredUsers} transformations={transformations} newTransBefore={newTransBefore} newTransAfter={newTransAfter} newTransWeight={newTransWeight} newTransNote={newTransNote} newTransIsPrivate={newTransIsPrivate} setNewTransWeight={setNewTransWeight} setNewTransNote={setNewTransNote} setNewTransIsPrivate={setNewTransIsPrivate} onAvatarClick={() => profileAvatarInputRef.current?.click()} onCameraStart={() => {}} onBeforeFileSelect={() => {}} onAfterFileSelect={() => {}} onAddTransformation={async (e) => { e.preventDefault(); if (!user || newTransWeight === '') return; await supabase.from('transformations').insert([{ user_id: user.id, before_url: newTransBefore || '', after_url: newTransAfter || '', date: new Date().toISOString().split('T')[0], weight: Number(newTransWeight), note: newTransNote || 'Évolution', is_private: newTransIsPrivate }]); await addPointsToUser(user.id, 25); fetchTransformations(user.id); setNewTransWeight(''); setNewTransNote(''); }} onShareTransformation={() => {}} onUpdatePasswordSubmit={async (e) => { e.preventDefault(); await supabase.auth.updateUser({}); }} password={password} setPassword={setPassword} confirmPassword={confirmPassword} setConfirmPassword={setConfirmPassword} isPrivateMode={isPrivateMode} setIsPrivateMode={setIsPrivateMode} onSignOut={async () => { await supabase.auth.signOut(); setUser(null); localStorage.clear(); window.location.reload(); }} onToggleVerifyAdmin={async (uId, status) => { await supabase.from('profiles').update({ is_verified: !status }).eq('id', uId); fetchRealUsers(); }} onUpdateProfile={async (updatedData) => { if (!user) return; await supabase.from('profiles').upsert({ id: user.id, ...updatedData }); fetchRealUsers(); }} beforeFileInputRef={beforeFileInputRef} afterFileInputRef={afterFileInputRef} />}
+          
+          {/* Passage de la prop posts dans ProfileTab pour les Badges */}
+          {currentTab === 'profile' && (
+            <ProfileTab 
+              user={user} 
+              currentUserProfile={currentUserProfile} 
+              userAvatarUrl={currentUserProfile?.avatar_url || userAvatarUrl} 
+              isAdmin={isAdmin} 
+              registeredUsers={registeredUsers} 
+              transformations={transformations} 
+              posts={posts}
+              newTransBefore={newTransBefore} 
+              newTransAfter={newTransAfter} 
+              newTransWeight={newTransWeight} 
+              newTransNote={newTransNote} 
+              newTransIsPrivate={newTransIsPrivate} 
+              setNewTransWeight={setNewTransWeight} 
+              setNewTransNote={setNewTransNote} 
+              setNewTransIsPrivate={setNewTransIsPrivate} 
+              onAvatarClick={() => profileAvatarInputRef.current?.click()} 
+              onCameraStart={() => {}} 
+              onBeforeFileSelect={() => {}} 
+              onAfterFileSelect={() => {}} 
+              onAddTransformation={async (e) => { 
+                e.preventDefault(); 
+                if (!user || newTransWeight === '') return; 
+                await supabase.from('transformations').insert([{ user_id: user.id, before_url: newTransBefore || '', after_url: newTransAfter || '', date: new Date().toISOString().split('T')[0], weight: Number(newTransWeight), note: newTransNote || 'Évolution', is_private: newTransIsPrivate }]); 
+                await addPointsToUser(user.id, 25); 
+                fetchTransformations(user.id); 
+                setNewTransWeight(''); 
+                setNewTransNote(''); 
+              }} 
+              onShareTransformation={() => {}} 
+              onUpdatePasswordSubmit={async (e) => { 
+                e.preventDefault(); 
+                await supabase.auth.updateUser({}); 
+              }} 
+              password={password} 
+              setPassword={setPassword} 
+              confirmPassword={confirmPassword} 
+              setConfirmPassword={setConfirmPassword} 
+              isPrivateMode={isPrivateMode} 
+              setIsPrivateMode={setIsPrivateMode} 
+              onSignOut={async () => { 
+                await supabase.auth.signOut(); 
+                setUser(null); 
+                localStorage.clear(); 
+                window.location.reload(); 
+              }} 
+              onToggleVerifyAdmin={async (uId, status) => { 
+                await supabase.from('profiles').update({ is_verified: !status }).eq('id', uId); 
+                fetchRealUsers(); 
+              }} 
+              onUpdateProfile={async (updatedData) => { 
+                if (!user) return; 
+                await supabase.from('profiles').upsert({ id: user.id, ...updatedData }); 
+                fetchRealUsers(); 
+              }} 
+              beforeFileInputRef={beforeFileInputRef} 
+              afterFileInputRef={afterFileInputRef} 
+            />
+          )}
 
           {currentTab === 'boxwars' && (
             <BoxWarsTab currentUserId={user?.id} currentUsername={currentUsername} registeredUsers={registeredUsers} posts={posts} />
