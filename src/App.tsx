@@ -17,6 +17,7 @@ import ProfileTab from './components/ProfileTab';
 import LeaderboardTab from './components/LeaderboardTab';
 import BoxWarsTab from './components/BoxWarsTab';
 import RunningTab from './components/RunningTab';
+import ReadinessCheckin from './components/ReadinessCheckin'; // <-- NOUVEAU : Import du module de fatigue
 
 const supabaseUrl = 'https://obtahwmcoqrcauscpksv.supabase.co';
 const supabaseAnonKey = 'sb_publishable_O8CKhUtzgq9nO9lKavNE9A__fAdRWoB';
@@ -54,7 +55,7 @@ export default function App() {
   const [isSignUpMode, setIsSignUpMode] = useState(false);
   const [acceptCgu, setAcceptCgu] = useState(false);
 
-  const [currentTab, setCurrentTab] = useState<'feed' | 'buddy' | 'workout' | 'exercises' | 'chat' | 'profile' | 'calculator' | 'live_tracker' | 'rest_timer' | 'notifications' | 'leaderboard' | 'boxwars' | 'running'>(() => {
+  const [currentTab, setCurrentTab] = useState<'feed' | 'buddy' | 'workout' | 'exercises' | 'chat' | 'profile' | 'calculator' | 'live_tracker' | 'rest_timer' | 'notifications' | 'leaderboard' | 'boxwars' | 'running' | 'readiness'>(() => {
     const savedTab = localStorage.getItem('fitpulse_active_tab');
     return (savedTab as any) || 'feed';
   });
@@ -401,7 +402,6 @@ export default function App() {
       <div className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col items-center justify-center font-sans p-4 select-none">
         <div className="w-full max-w-sm bg-neutral-900 border border-neutral-800 rounded-3xl p-6 space-y-4 shadow-2xl relative">
           
-          {/* Bouton retour en arrière / déconnexion */}
           <button 
             type="button" 
             onClick={async () => {
@@ -425,12 +425,10 @@ export default function App() {
               const { error } = await supabase.from('profiles').upsert({
                 id: user.id, 
                 username: onboardingUsername.trim(), 
-                // age: onboardingAgeGroup,  // <-- COMMENTÉ POUR DÉBLOQUER
                 home_club: onboardingClub, 
                 goal: onboardingGoal, 
                 gender: onboardingGender, 
                 preferred_time: onboardingTime,
-                // discipline: onboardingDiscipline, // <-- COMMENTÉ POUR DÉBLOQUER
                 avatar_url: onboardingAvatar, 
                 points: 0, 
                 is_admin: user.email === 'antboucher@hotmail.fr'
@@ -516,7 +514,6 @@ export default function App() {
           </div>
 
           <div className="flex items-center gap-2">
-            {/* Bouton rapide 1RM */}
             <button 
               onClick={() => handleTabChange('calculator')}
               className={`p-2 rounded-xl text-xs font-bold transition ${currentTab === 'calculator' ? 'bg-orange-500 text-neutral-950' : 'bg-neutral-900 text-orange-400 border border-orange-500/30'}`}
@@ -525,7 +522,15 @@ export default function App() {
               1RM
             </button>
 
-            {/* Bouton rapide pour basculer vers Running */}
+            {/* Bouton pour accéder au module de gestion de fatigue (Readiness) */}
+            <button 
+              onClick={() => handleTabChange('readiness')}
+              className={`p-2 rounded-xl text-xs font-bold transition ${currentTab === 'readiness' ? 'bg-emerald-500 text-neutral-950' : 'bg-neutral-900 text-emerald-400 border border-emerald-500/30'}`}
+              title="Suivi de Forme"
+            >
+              ⚡ Forme
+            </button>
+
             <button 
               onClick={() => handleTabChange(currentTab === 'running' ? 'feed' : 'running')}
               className={`p-2 rounded-xl text-xs font-bold flex items-center gap-1 transition ${currentTab === 'running' ? 'bg-emerald-500 text-neutral-950' : 'bg-neutral-900 text-emerald-400 border border-emerald-500/30'}`}
@@ -534,7 +539,7 @@ export default function App() {
               <Navigation className="w-4 h-4" />
             </button>
 
-            {currentTab !== 'boxwars' && currentTab !== 'running' && (
+            {currentTab !== 'boxwars' && currentTab !== 'running' && currentTab !== 'readiness' && (
               <div className="relative flex items-center bg-neutral-900 border border-neutral-800 rounded-xl px-2.5 py-1.5">
                 <MapPin className="w-3.5 h-3.5 text-orange-500 mr-1.5 flex-shrink-0" />
                 <select value={selectedClub} onChange={(e) => setSelectedClub(e.target.value)} className="bg-transparent text-xs font-bold text-orange-400 focus:outline-none cursor-pointer pr-1">
@@ -574,6 +579,14 @@ export default function App() {
 
           {currentTab === 'rest_timer' && <WodTimerTab />}
           {currentTab === 'calculator' && <CalculatorTab />}
+          
+          {/* Rendu du composant d'auto-régulation de la fatigue */}
+          {currentTab === 'readiness' && (
+            <ReadinessCheckin 
+              currentUserId={user?.id} 
+              onUpdatePlan={(rec) => alert(rec)} 
+            />
+          )}
 
           {currentTab === 'chat' && <ChatTab currentUserId={user?.id} selectedBuddyChat={selectedBuddyChat} setSelectedBuddyChat={handleOpenChatWithUser} activeChatUsers={activeChatUsers} currentChatMessages={currentChatMessages} currentMessageInput={currentMessageInput} onInputChange={(e) => setCurrentMessageInput(e.target.value)} onSendMessage={handleSendMessage} onSelectBuddy={(f) => handleOpenChatWithUser(f)} onDeleteConversation={() => {}} onReportConversation={() => {}} isOtherUserTyping={isOtherUserTyping} isMessageLimitReached={false} lastReadTimestamps={lastReadTimestamps} messagesEndRef={messagesEndRef} allMessages={allMessages} />}
           {currentTab === 'profile' && <ProfileTab user={user} currentUserProfile={currentUserProfile} userAvatarUrl={currentUserProfile?.avatar_url || userAvatarUrl} isAdmin={isAdmin} registeredUsers={registeredUsers} transformations={transformations} newTransBefore={newTransBefore} newTransAfter={newTransAfter} newTransWeight={newTransWeight} newTransNote={newTransNote} newTransIsPrivate={newTransIsPrivate} setNewTransWeight={setNewTransWeight} setNewTransNote={setNewTransNote} setNewTransIsPrivate={setNewTransIsPrivate} onAvatarClick={() => profileAvatarInputRef.current?.click()} onCameraStart={() => {}} onBeforeFileSelect={() => {}} onAfterFileSelect={() => {}} onAddTransformation={async (e) => { e.preventDefault(); if (!user || newTransWeight === '') return; await supabase.from('transformations').insert([{ user_id: user.id, before_url: newTransBefore || '', after_url: newTransAfter || '', date: new Date().toISOString().split('T')[0], weight: Number(newTransWeight), note: newTransNote || 'Évolution', is_private: newTransIsPrivate }]); await addPointsToUser(user.id, 25); fetchTransformations(user.id); setNewTransWeight(''); setNewTransNote(''); }} onShareTransformation={() => {}} onUpdatePasswordSubmit={async (e) => { e.preventDefault(); await supabase.auth.updateUser({}); }} password={password} setPassword={setPassword} confirmPassword={confirmPassword} setConfirmPassword={setConfirmPassword} isPrivateMode={isPrivateMode} setIsPrivateMode={setIsPrivateMode} onSignOut={async () => { await supabase.auth.signOut(); setUser(null); localStorage.clear(); window.location.reload(); }} onToggleVerifyAdmin={async (uId, status) => { await supabase.from('profiles').update({ is_verified: !status }).eq('id', uId); fetchRealUsers(); }} onUpdateProfile={async (updatedData) => { if (!user) return; await supabase.from('profiles').upsert({ id: user.id, ...updatedData }); fetchRealUsers(); }} beforeFileInputRef={beforeFileInputRef} afterFileInputRef={afterFileInputRef} />}
@@ -666,7 +679,6 @@ export default function App() {
                 const scoreInput = (formElement.elements[1] as HTMLInputElement).value;
                 const noteInput = (formElement.elements[2] as HTMLTextAreaElement).value;
                 
-                // On récupère la valeur du bouton radio RX ou SCALED
                 const scaleMode = (formElement.elements.namedItem('scaleMode') as RadioNodeList).value;
 
                 if (!scoreInput.trim()) {
@@ -674,7 +686,6 @@ export default function App() {
                   return;
                 }
 
-                // On ajoute [RX] ou [SCALED] dans la légende pour le filtre
                 const fullCaption = `⚡ [BOXWARS] [${scaleMode}] ${selectWodType} : ${scoreInput} ${noteInput ? `- ${noteInput}` : ''}`.trim();
 
                 const { error } = await supabase.from('posts').insert([{
@@ -730,7 +741,6 @@ export default function App() {
                   <textarea rows={2} placeholder="Comment s'est passé le wod ?" className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-sm text-white focus:outline-none" />
                 </div>
 
-                {/* Boutons radio pour choisir RX ou SCALED */}
                 <div className="flex items-center gap-3 bg-neutral-950 border border-neutral-800 rounded-xl p-3">
                   <input type="radio" name="scaleMode" value="RX" id="rxMode" defaultChecked className="accent-cyan-500 w-4 h-4" />
                   <label htmlFor="rxMode" className="text-xs text-white font-bold mr-4">RX</label>
