@@ -13,7 +13,7 @@ interface FeedTabProps {
   calculateStreak?: (targetUserId: string) => number;
   onCreateStoryClick?: () => void;
   onToggleLike?: (postId: string, likedBy: string[]) => void;
-  onAddComment: (postId: string, commentText: string) => void;
+  onAddComment?: (postId: string, commentText: string) => void;
   onOpenComments?: (postId: string) => void;
   onReportPost?: (postId: string) => void;
   onDeletePost?: (postId: string) => void;
@@ -45,7 +45,9 @@ export default function FeedTab({
   const handleCommentSubmit = (e: FormEvent, postId: string) => {
     e.preventDefault();
     if (!commentInput.trim()) return;
-    onAddComment(postId, commentInput.trim());
+    if (onAddComment) {
+      onAddComment(postId, commentInput.trim());
+    }
     setCommentInput('');
   };
 
