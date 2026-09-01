@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, ChangeEvent, FormEvent } from 'react';
 import {
-  Zap, User, MessageCircle, Home, Users, Plus, X, Camera, Flame, MapPin, Trophy
+  Zap, User, MessageCircle, Home, Users, Plus, X, Camera, Flame, MapPin, Trophy, Navigation
 } from 'lucide-react';
 import { createClient, User as SupabaseUser } from '@supabase/supabase-js';
 
@@ -15,6 +15,7 @@ import ChatTab from './components/ChatTab';
 import ProfileTab from './components/ProfileTab';
 import LeaderboardTab from './components/LeaderboardTab';
 import BoxWarsTab from './components/BoxWarsTab';
+import RunningTab from './components/RunningTab';
 
 const supabaseUrl = 'https://obtahwmcoqrcauscpksv.supabase.co';
 const supabaseAnonKey = 'sb_publishable_O8CKhUtzgq9nO9lKavNE9A__fAdRWoB';
@@ -52,7 +53,7 @@ export default function App() {
   const [isSignUpMode, setIsSignUpMode] = useState(false);
   const [acceptCgu, setAcceptCgu] = useState(false);
 
-  const [currentTab, setCurrentTab] = useState<'feed' | 'buddy' | 'workout' | 'exercises' | 'chat' | 'profile' | 'calculator' | 'live_tracker' | 'rest_timer' | 'notifications' | 'leaderboard' | 'boxwars'>(() => {
+  const [currentTab, setCurrentTab] = useState<'feed' | 'buddy' | 'workout' | 'exercises' | 'chat' | 'profile' | 'calculator' | 'live_tracker' | 'rest_timer' | 'notifications' | 'leaderboard' | 'boxwars' | 'running'>(() => {
     const savedTab = localStorage.getItem('fitpulse_active_tab');
     return (savedTab as any) || 'feed';
   });
@@ -432,23 +433,34 @@ export default function App() {
       <div className="w-full max-w-md mx-auto min-h-screen bg-neutral-950 flex flex-col shadow-2xl sm:border-x sm:border-neutral-900 relative">
         <header className="sticky top-0 z-40 bg-neutral-950/80 backdrop-blur-md border-b border-neutral-900 px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className={`w-8 h-8 rounded-xl ${currentTab === 'boxwars' ? 'bg-cyan-500/20 text-cyan-400' : 'bg-orange-500/20 text-orange-500'} flex items-center justify-center`}>
+            <div className={`w-8 h-8 rounded-xl ${currentTab === 'boxwars' ? 'bg-cyan-500/20 text-cyan-400' : currentTab === 'running' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-orange-500/20 text-orange-500'} flex items-center justify-center`}>
               <Zap className="w-5 h-5" />
             </div>
             <h1 className="text-base font-black tracking-tight leading-none text-white">
-              {currentTab === 'boxwars' ? 'BOXWARS' : 'FitPulse'}
+              {currentTab === 'boxwars' ? 'BOXWARS' : currentTab === 'running' ? 'RUNNING' : 'FitPulse'}
             </h1>
           </div>
 
-          {currentTab !== 'boxwars' && (
-            <div className="relative flex items-center bg-neutral-900 border border-neutral-800 rounded-xl px-2.5 py-1.5">
-              <MapPin className="w-3.5 h-3.5 text-orange-500 mr-1.5 flex-shrink-0" />
-              <select value={selectedClub} onChange={(e) => setSelectedClub(e.target.value)} className="bg-transparent text-xs font-bold text-orange-400 focus:outline-none cursor-pointer pr-1">
-                <option value="🌐 Tous les clubs (Global)">🌐 Tous les clubs (Global)</option>
-                {CLUBS_LIST.map((club) => <option key={club} value={club} className="bg-neutral-900 text-white">{club}</option>)}
-              </select>
-            </div>
-          )}
+          <div className="flex items-center gap-2">
+            {/* Bouton rapide pour basculer vers Running */}
+            <button 
+              onClick={() => handleTabChange(currentTab === 'running' ? 'feed' : 'running')}
+              className={`p-2 rounded-xl text-xs font-bold flex items-center gap-1 transition ${currentTab === 'running' ? 'bg-emerald-500 text-neutral-950' : 'bg-neutral-900 text-emerald-400 border border-emerald-500/30'}`}
+              title="Mode Running"
+            >
+              <Navigation className="w-4 h-4" />
+            </button>
+
+            {currentTab !== 'boxwars' && currentTab !== 'running' && (
+              <div className="relative flex items-center bg-neutral-900 border border-neutral-800 rounded-xl px-2.5 py-1.5">
+                <MapPin className="w-3.5 h-3.5 text-orange-500 mr-1.5 flex-shrink-0" />
+                <select value={selectedClub} onChange={(e) => setSelectedClub(e.target.value)} className="bg-transparent text-xs font-bold text-orange-400 focus:outline-none cursor-pointer pr-1">
+                  <option value="🌐 Tous les clubs (Global)">🌐 Tous les clubs (Global)</option>
+                  {CLUBS_LIST.map((club) => <option key={club} value={club} className="bg-neutral-900 text-white">{club}</option>)}
+                </select>
+              </div>
+            )}
+          </div>
         </header>
 
         <main className="flex-1 w-full mx-auto px-4 py-3 pb-24">
@@ -483,6 +495,17 @@ export default function App() {
 
           {currentTab === 'boxwars' && (
             <BoxWarsTab currentUserId={user?.id} currentUsername={currentUsername} registeredUsers={registeredUsers} />
+          )}
+
+          {currentTab === 'running' && (
+            <RunningTab 
+              currentUserId={user?.id} 
+              currentUsername={currentUsername} 
+              selectedClub={selectedClub} 
+              currentUserProfile={currentUserProfile} 
+              userAvatarUrl={userAvatarUrl} 
+              onRefreshFeed={fetchCloudPosts} 
+            />
           )}
 
         </main>
@@ -759,6 +782,9 @@ export default function App() {
             onClick={() => {
               if (currentTab === 'boxwars') {
                 setIsBoxWarsModalOpen(true);
+              } else if (currentTab === 'running') {
+                // Action spécifique running si besoin ou modal post classique
+                setIsPostModalOpen(true);
               } else {
                 setIsPostModalOpen(true);
               }
