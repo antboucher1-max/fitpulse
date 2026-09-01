@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, FormEvent } from 'react';
-import { Play, Pause, Square, MapPin, Flame, X, Compass } from 'lucide-react';
+import { Play, Pause, Square, MapPin, Flame, X, Compass, RotateCcw } from 'lucide-react';
 import { createClient } from '@supabase/supabase-js';
 import { MapContainer, TileLayer, Polyline, CircleMarker, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -21,7 +21,7 @@ interface RunningTabProps {
 function MapRecenterAndFix({ position }: { position: [number, number] }) {
   const map = useMap();
   useEffect(() => {
-    map.invalidateSize(); // Force Leaflet à recalculer la taille pour supprimer le carré noir
+    map.invalidateSize();
     map.setView(position, map.getZoom(), { animate: true });
   }, [position, map]);
   return null;
@@ -45,6 +45,7 @@ export default function RunningTab({
   const [currentPosition, setCurrentPosition] = useState<[number, number]>([50.6053, 3.3888]); // Tournai par défaut
   const [runCaption, setRunCaption] = useState('');
   const [showSaveModal, setShowSaveModal] = useState(false);
+  const [hasFinished, setHasFinished] = useState(false); // État pour indiquer qu'une course est terminée
 
   const watchIdRef = useRef<number | null>(null);
   const simIntervalRef = useRef<any>(null);
@@ -178,6 +179,17 @@ export default function RunningTab({
     setShowSaveModal(true);
   };
 
+  const handleResetRun = () => {
+    setIsRunning(false);
+    setIsSimulating(false);
+    setSeconds(0);
+    setDistanceMeters(0);
+    setPathCoordinates([[50.6053, 3.3888]]);
+    setCurrentPosition([50.6053, 3.3888]);
+    setRunCaption('');
+    setHasFinished(false);
+  };
+
   const publishRunToFeed = async (e: FormEvent) => {
     e.preventDefault();
     if (!currentUserId) return;
@@ -205,10 +217,7 @@ export default function RunningTab({
       await supabase.from('profiles').update({ points: (currentUserProfile?.points || 0) + pointsToAdd }).eq('id', currentUserId);
 
       setShowSaveModal(false);
-      setSeconds(0);
-      setDistanceMeters(0);
-      setPathCoordinates([[50.6053, 3.3888]]);
-      setRunCaption('');
+      setHasFinished(true); // Marque la course comme publiée/terminée
       onRefreshFeed();
       alert("✅ Sortie publiée avec succès sur le fil FitPulse ! (+ " + pointsToAdd + " pts ⚡)");
     } else {
@@ -226,7 +235,7 @@ export default function RunningTab({
         <p className="text-xs text-neutral-300 mt-1">La carte se fige et suit automatiquement ta position en direct.</p>
       </div>
 
-      {/* Mini-Carte Interactive avec correction de rendu intégrée */}
+      {/* Mini-Carte Interactive Figée et Centrée en Direct */}
       <div className="w-full h-60 rounded-3xl overflow-hidden border border-neutral-800 shadow-xl relative z-10 bg-neutral-950">
         <MapContainer 
           center={currentPosition} 
@@ -271,7 +280,7 @@ export default function RunningTab({
 
         <div className="flex flex-col gap-3 pt-2">
           <div className="flex justify-center gap-3">
-            {!isRunning && !isSimulating ? (
+            {!isRunning && !isSimulating && !hasFinished ? (
               <>
                 <button 
                   onClick={() => setIsRunning(true)} 
@@ -286,17 +295,26 @@ export default function RunningTab({
                   <Compass className="w-4 h-4" /> Simuler un run 🗺️
                 </button>
               </>
-            ) : (
+            ) : isRunning || isSimulating ? (
               <button 
                 onClick={() => { setIsRunning(false); setIsSimulating(false); }} 
                 className="flex items-center gap-2 px-6 py-4 bg-amber-600 hover:bg-amber-500 text-white font-black rounded-2xl text-sm shadow-xl transition transform active:scale-95"
               >
                 <Pause className="w-5 h-5 fill-white" /> Pause
               </button>
+            ) : null}
+
+            {hasFinished && (
+              <button 
+                onClick={handleResetRun} 
+                className="w-full flex items-center justify-center gap-2 py-4 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-2xl text-sm shadow-xl transition transform active:scale-95"
+              >
+                <RotateCcw className="w-5 h-5" /> Nouvelle course 🔄
+              </button>
             )}
           </div>
 
-          {seconds > 0 && !isRunning && !isSimulating && (
+          {seconds > 0 && !isRunning && !isSimulating && !hasFinished && (
             <button 
               onClick={handleFinishRun} 
               className="w-full flex items-center justify-center gap-2 py-4 bg-cyan-600 hover:bg-cyan-500 text-white font-black rounded-2xl text-sm shadow-xl transition transform active:scale-95"
