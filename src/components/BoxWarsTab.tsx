@@ -1,6 +1,6 @@
 import { useState, useEffect, FormEvent } from 'react';
 import { 
-  Zap, Flame, Trophy, Plus, X, Timer, Calculator, Play, Pause, RotateCcw, Settings2 
+  Zap, Flame, Trophy, Plus, X, Timer, Calculator, Play, Pause, RotateCcw, Settings2, ShieldCheck 
 } from 'lucide-react';
 import { createClient } from '@supabase/supabase-js';
 
@@ -12,13 +12,23 @@ interface BoxWarsTabProps {
   currentUserId?: string;
   currentUsername: string;
   registeredUsers: any[];
+  posts: any[]; // <-- NOUVEAU : On récupère les posts du fil d'actualité
 }
 
-export default function BoxWarsTab({ currentUserId, currentUsername, registeredUsers }: BoxWarsTabProps) {
+export default function BoxWarsTab({ currentUserId, currentUsername, registeredUsers, posts }: BoxWarsTabProps) {
   const [boxMainTab, setBoxMainTab] = useState<'training' | 'box' | 'planning'>('training');
   const [trainingSubTab, setTrainingSubTab] = useState<'wods' | 'timer' | 'rm' | 'skills'>('timer');
   const [boxSubTab, setBoxSubTab] = useState<'leaderboard' | 'feed' | 'chat' | 'battles'>('leaderboard');
   const [planningSubTab, setPlanningSubTab] = useState<'schedule' | 'coach'>('schedule');
+
+  // --- NOUVEAU : Filtre Leaderboard RX vs SCALED ---
+  const [scaleFilter, setScaleFilter] = useState<'RX' | 'SCALED'>('RX');
+
+  const wodPosts = (posts || []).filter((p: any) => p.session_type === 'BoxWars / WOD');
+  const filteredLeaderboard = wodPosts.filter((p: any) => 
+    scaleFilter === 'RX' ? p.caption.includes('[RX]') : p.caption.includes('[SCALED]')
+  );
+  // -------------------------------------------------
 
   // WODs & PRs
   const [boxWods, setBoxWods] = useState<any[]>([]);
@@ -348,21 +358,47 @@ export default function BoxWarsTab({ currentUserId, currentUsername, registeredU
             <button onClick={() => setBoxSubTab('battles')} className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex-shrink-0 ${boxSubTab === 'battles' ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/40' : 'bg-neutral-900 text-neutral-400'}`}>Battles ⚔️</button>
           </div>
 
+          {/* --- NOUVEAU LEADERBOARD FILTRABLE --- */}
           {boxSubTab === 'leaderboard' && (
-            <div className="space-y-2">
-              <h3 className="text-xs font-black uppercase tracking-wider text-cyan-400">🏆 Classement Général de la Box</h3>
-              {registeredUsers.map((u, idx) => (
-                <div key={u.id} className="bg-neutral-900 border border-neutral-800 p-3 rounded-2xl flex justify-between items-center shadow">
-                  <div className="flex items-center gap-3">
-                    <span className="font-black text-xs text-cyan-400">#{idx + 1}</span>
-                    <img src={u.avatar_url || 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=150'} alt="" className="w-8 h-8 rounded-full object-cover" />
-                    <span className="font-bold text-xs text-white">{u.username}</span>
-                  </div>
-                  <span className="text-xs font-black text-cyan-400">{u.points || 0} pts</span>
-                </div>
-              ))}
+            <div className="space-y-4 animate-fadeIn">
+              <h3 className="text-xs font-black uppercase tracking-wider text-cyan-400">🏆 WOD du Jour : Leaderboard</h3>
+              
+              <div className="flex bg-neutral-900 p-1.5 rounded-2xl border border-neutral-800">
+                <button onClick={() => setScaleFilter('RX')} className={`flex-1 py-2 text-xs font-bold rounded-xl transition ${scaleFilter === 'RX' ? 'bg-cyan-600 text-white shadow-md' : 'text-neutral-400 hover:text-white'}`}>Classement Rx</button>
+                <button onClick={() => setScaleFilter('SCALED')} className={`flex-1 py-2 text-xs font-bold rounded-xl transition ${scaleFilter === 'SCALED' ? 'bg-neutral-800 text-white shadow-md' : 'text-neutral-400 hover:text-white'}`}>Classement Scaled</button>
+              </div>
+
+              <div className="space-y-2.5">
+                {filteredLeaderboard.length === 0 ? (
+                  <div className="text-center py-10 text-neutral-500 text-xs">Aucun score {scaleFilter} enregistré pour le moment.</div>
+                ) : (
+                  filteredLeaderboard.map((score: any, idx: number) => {
+                    const author = registeredUsers.find((u: any) => u.id === score.user_id);
+                    const rawScore = score.caption.split(':')[1]?.split('-')[0]?.trim() || "Score inconnu";
+
+                    return (
+                      <div key={score.id} className="flex items-center justify-between bg-neutral-900 p-4 rounded-2xl border border-neutral-800 shadow-lg">
+                        <div className="flex items-center gap-3">
+                          <div className={`w-6 text-center font-black ${idx === 0 ? 'text-amber-400' : idx === 1 ? 'text-gray-300' : idx === 2 ? 'text-amber-700' : 'text-neutral-600'}`}>{idx + 1}</div>
+                          <img src={author?.avatar_url || "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=150"} className="w-10 h-10 rounded-full object-cover border border-neutral-800" alt="" />
+                          <div>
+                            <span className="font-bold text-white text-sm flex items-center gap-1">
+                              {score.username} {author?.is_verified && <ShieldCheck className="w-3 h-3 text-cyan-500" />}
+                            </span>
+                            <span className="text-[10px] text-neutral-400">{score.club_name}</span>
+                          </div>
+                        </div>
+                        <div className="font-black text-cyan-400 text-lg">
+                          {rawScore}
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
             </div>
           )}
+          {/* --------------------------------------- */}
 
           {boxSubTab === 'feed' && (
             <div className="space-y-3">
