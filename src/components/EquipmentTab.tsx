@@ -21,7 +21,7 @@ export default function EquipmentTab({ currentUserId }: { currentUserId?: string
     fetchEquipment();
   }, [currentUserId]);
 
-  const handleAddShoe = async (e: React.FormEvent) => {
+  const handleAddShoe = async (e: FormEvent) => {
     e.preventDefault();
     if (!currentUserId || !modelName.trim()) return;
 
