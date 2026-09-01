@@ -20,7 +20,7 @@ import BoxWarsTab from './components/BoxWarsTab';
 import RunningTab from './components/RunningTab';
 import ReadinessCheckin from './components/ReadinessCheckin';
 import TrainingPlanTab from './components/TrainingPlanTab';
-import RoadbookTab from './components/RoadbookTab'; // <-- IMPORTATION DU ROADBOOK
+import RoadbookTab from './components/RoadbookTab';
 
 const supabaseUrl = 'https://obtahwmcoqrcauscpksv.supabase.co';
 const supabaseAnonKey = 'sb_publishable_O8CKhUtzgq9nO9lKavNE9A__fAdRWoB';
@@ -58,10 +58,23 @@ export default function App() {
   const [isSignUpMode, setIsSignUpMode] = useState(false);
   const [acceptCgu, setAcceptCgu] = useState(false);
 
+  const [activeUniverse, setActiveUniverse] = useState<'muscu' | 'crossfit' | 'running'>(() => {
+    const saved = localStorage.getItem('fitpulse_universe');
+    return (saved as any) || 'muscu';
+  });
+
   const [currentTab, setCurrentTab] = useState<'feed' | 'buddy' | 'workout' | 'exercises' | 'chat' | 'profile' | 'calculator' | 'paces' | 'live_tracker' | 'rest_timer' | 'notifications' | 'leaderboard' | 'boxwars' | 'running' | 'readiness'>(() => {
     const savedTab = localStorage.getItem('fitpulse_active_tab');
     return (savedTab as any) || 'feed';
   });
+
+  const handleUniverseChange = (universe: 'muscu' | 'crossfit' | 'running') => {
+    setActiveUniverse(universe);
+    localStorage.setItem('fitpulse_universe', universe);
+    if (universe === 'muscu') handleTabChange('feed');
+    if (universe === 'crossfit') handleTabChange('boxwars');
+    if (universe === 'running') handleTabChange('running');
+  };
 
   const [selectedClub, setSelectedClub] = useState<string>('🌐 Tous les clubs (Global)');
   const [posts, setPosts] = useState<Post[]>([]);
@@ -508,58 +521,60 @@ export default function App() {
       <div className="w-full max-w-md mx-auto min-h-screen bg-neutral-950 flex flex-col shadow-2xl sm:border-x sm:border-neutral-900 relative">
         <header className="sticky top-0 z-40 bg-neutral-950/80 backdrop-blur-md border-b border-neutral-900 px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className={`w-8 h-8 rounded-xl ${currentTab === 'boxwars' ? 'bg-cyan-500/20 text-cyan-400' : currentTab === 'running' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-orange-500/20 text-orange-500'} flex items-center justify-center`}>
+            <div className={`w-8 h-8 rounded-xl ${activeUniverse === 'crossfit' ? 'bg-cyan-500/20 text-cyan-400' : activeUniverse === 'running' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-orange-500/20 text-orange-500'} flex items-center justify-center`}>
               <Zap className="w-5 h-5" />
             </div>
             <h1 className="text-base font-black tracking-tight leading-none text-white">
-              {currentTab === 'boxwars' ? 'BOXWARS' : currentTab === 'running' ? 'RUNNING' : 'FitPulse'}
+              {activeUniverse === 'crossfit' ? 'BOXWARS' : activeUniverse === 'running' ? 'RUNNING' : 'FitPulse'}
             </h1>
           </div>
 
           <div className="flex items-center gap-2">
-            <button 
-              onClick={() => handleTabChange('calculator')}
-              className={`p-2 rounded-xl text-xs font-bold transition ${currentTab === 'calculator' ? 'bg-orange-500 text-neutral-950' : 'bg-neutral-900 text-orange-400 border border-orange-500/30'}`}
-              title="Calculateur 1RM"
-            >
-              1RM
-            </button>
-
-            <button 
-              onClick={() => handleTabChange('paces')}
-              className={`p-2 rounded-xl text-xs font-bold transition ${currentTab === 'paces' ? 'bg-emerald-500 text-neutral-950' : 'bg-neutral-900 text-emerald-400 border border-emerald-500/30'}`}
-              title="Calculateur VMA"
-            >
-              VMA
-            </button>
-
-            <button 
-              onClick={() => handleTabChange('readiness')}
-              className={`p-2 rounded-xl text-xs font-bold transition ${currentTab === 'readiness' ? 'bg-emerald-500 text-neutral-950' : 'bg-neutral-900 text-emerald-400 border border-emerald-500/30'}`}
-              title="Plan & Roadbook"
-            >
-              📅 Plan
-            </button>
-
-            <button 
-              onClick={() => handleTabChange(currentTab === 'running' ? 'feed' : 'running')}
-              className={`p-2 rounded-xl text-xs font-bold flex items-center gap-1 transition ${currentTab === 'running' ? 'bg-emerald-500 text-neutral-950' : 'bg-neutral-900 text-emerald-400 border border-emerald-500/30'}`}
-              title="Mode Running"
-            >
-              <Navigation className="w-4 h-4" />
-            </button>
-
-            {currentTab !== 'boxwars' && currentTab !== 'running' && currentTab !== 'readiness' && currentTab !== 'paces' && (
-              <div className="relative flex items-center bg-neutral-900 border border-neutral-800 rounded-xl px-2.5 py-1.5">
-                <MapPin className="w-3.5 h-3.5 text-orange-500 mr-1.5 flex-shrink-0" />
-                <select value={selectedClub} onChange={(e) => setSelectedClub(e.target.value)} className="bg-transparent text-xs font-bold text-orange-400 focus:outline-none cursor-pointer pr-1">
-                  <option value="🌐 Tous les clubs (Global)">🌐 Tous les clubs (Global)</option>
-                  {CLUBS_LIST.map((club) => <option key={club} value={club} className="bg-neutral-900 text-white">{club}</option>)}
-                </select>
-              </div>
-            )}
+            <div className="relative flex items-center bg-neutral-900 border border-neutral-800 rounded-xl px-2.5 py-1.5">
+              <MapPin className="w-3.5 h-3.5 text-orange-500 mr-1.5 flex-shrink-0" />
+              <select value={selectedClub} onChange={(e) => setSelectedClub(e.target.value)} className="bg-transparent text-xs font-bold text-orange-400 focus:outline-none cursor-pointer pr-1">
+                <option value="🌐 Tous les clubs (Global)">🌐 Tous les clubs (Global)</option>
+                {CLUBS_LIST.map((club) => <option key={club} value={club} className="bg-neutral-900 text-white">{club}</option>)}
+              </select>
+            </div>
           </div>
         </header>
+
+        {/* SÉLECTEUR D'UNIVERS */}
+        <div className="bg-neutral-900/90 border-b border-neutral-800 px-3 py-2 flex items-center justify-between gap-1">
+          <button
+            onClick={() => handleUniverseChange('muscu')}
+            className={`flex-1 py-2 px-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 ${
+              activeUniverse === 'muscu'
+                ? 'bg-orange-600 text-white shadow-lg'
+                : 'text-neutral-400 hover:text-white bg-neutral-950/50'
+            }`}
+          >
+            💪 Muscu
+          </button>
+          
+          <button
+            onClick={() => handleUniverseChange('crossfit')}
+            className={`flex-1 py-2 px-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 ${
+              activeUniverse === 'crossfit'
+                ? 'bg-cyan-600 text-white shadow-lg'
+                : 'text-neutral-400 hover:text-white bg-neutral-950/50'
+            }`}
+          >
+            ⚡ Crossfit
+          </button>
+
+          <button
+            onClick={() => handleUniverseChange('running')}
+            className={`flex-1 py-2 px-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 ${
+              activeUniverse === 'running'
+                ? 'bg-emerald-600 text-white shadow-lg'
+                : 'text-neutral-400 hover:text-white bg-neutral-950/50'
+            }`}
+          >
+            🏃‍♂️ Running
+          </button>
+        </div>
 
         <main className="flex-1 w-full mx-auto px-4 py-3 pb-24">
           {currentTab === 'feed' && <FeedTab stories={cloudStories} posts={displayedPosts} registeredUsers={registeredUsers} friendRequests={friendRequests} currentUserId={user?.id} userDiscipline={currentUserProfile?.discipline} feedLoading={feedLoading} viewedStoryIds={viewedStoryIds} calculateStreak={calculateUserStreak} onOpenStory={(idx) => setActiveStoryIndex(idx)} onCreateStoryClick={() => setIsPostModalOpen(true)} onToggleLike={handleToggleLike} onOpenComments={(id) => setActiveCommentPostId(id)} onReportPost={() => {}} onDeletePost={() => {}} onSelectProfile={(u) => setViewingProfileUser(u)} onStartRestTimer={() => handleTabChange('rest_timer')} />}
@@ -905,31 +920,34 @@ export default function App() {
         })()}
 
         <nav className="sticky bottom-0 left-0 right-0 z-40 bg-neutral-950/95 backdrop-blur-xl border-t border-neutral-800 px-2 py-2 flex justify-around items-center">
-          <button onClick={() => handleTabChange('feed')} className={`flex flex-col items-center gap-1 transition active:scale-95 ${currentTab === 'feed' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Home className="w-5 h-5" /><span className="text-[10px]">Accueil</span></button>
-          <button onClick={() => handleTabChange('leaderboard')} className={`flex flex-col items-center gap-1 transition active:scale-95 ${currentTab === 'leaderboard' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Trophy className="w-5 h-5" /><span className="text-[10px]">Ligue</span></button>
-          <button onClick={() => handleTabChange('boxwars')} className={`flex flex-col items-center gap-1 transition active:scale-95 ${currentTab === 'boxwars' ? 'text-cyan-400 font-bold' : 'text-neutral-500'}`}>
-            <Zap className="w-5 h-5" />
-            <span className="text-[10px]">BoxWars</span>
-          </button>
-           
-          <button 
-            onClick={() => {
-              if (currentTab === 'boxwars') {
-                setIsBoxWarsModalOpen(true);
-              } else if (currentTab === 'running') {
-                setIsPostModalOpen(true);
-              } else {
-                setIsPostModalOpen(true);
-              }
-            }} 
-            className="flex flex-col items-center justify-center w-12 h-12 rounded-full bg-orange-600 hover:bg-orange-500 text-white shadow-lg transition transform hover:scale-105 active:scale-95 -mt-3"
-          >
-            <Plus className="w-6 h-6 stroke-[3]" />
-          </button>
+          {activeUniverse === 'muscu' && (
+            <>
+              <button onClick={() => handleTabChange('feed')} className={`flex flex-col items-center gap-1 transition active:scale-95 ${currentTab === 'feed' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Home className="w-5 h-5" /><span className="text-[10px]">Accueil</span></button>
+              <button onClick={() => handleTabChange('calculator')} className={`flex flex-col items-center gap-1 transition active:scale-95 ${currentTab === 'calculator' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><span className="text-xs font-black">1RM</span><span className="text-[10px]">Calculs</span></button>
+              <button onClick={() => setIsPostModalOpen(true)} className="flex flex-col items-center justify-center w-12 h-12 rounded-full bg-orange-600 hover:bg-orange-500 text-white shadow-lg transition transform hover:scale-105 active:scale-95 -mt-3"><Plus className="w-6 h-6 stroke-[3]" /></button>
+              <button onClick={() => handleTabChange('buddy')} className={`flex flex-col items-center gap-1 transition active:scale-95 ${currentTab === 'buddy' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Users className="w-5 h-5" /><span className="text-[10px]">Buddies</span></button>
+              <button onClick={() => handleTabChange('profile')} className={`flex flex-col items-center gap-1 transition active:scale-95 ${currentTab === 'profile' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><User className="w-5 h-5" /><span className="text-[10px]">Profil</span></button>
+            </>
+          )}
 
-          <button onClick={() => handleTabChange('buddy')} className={`flex flex-col items-center gap-1 transition active:scale-95 ${currentTab === 'buddy' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Users className="w-5 h-5" /><span className="text-[10px]">Buddies</span></button>
-          <button onClick={() => handleTabChange('chat')} className={`flex flex-col items-center gap-1 transition active:scale-95 ${currentTab === 'chat' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><MessageCircle className="w-5 h-5" /><span className="text-[10px]" data-testid="chat-label">Chat</span></button>
-          <button onClick={() => handleTabChange('profile')} className={`flex flex-col items-center gap-1 transition active:scale-95 ${currentTab === 'profile' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><User className="w-5 h-5" /><span className="text-[10px]">Profil</span></button>
+          {activeUniverse === 'crossfit' && (
+            <>
+              <button onClick={() => handleTabChange('boxwars')} className={`flex flex-col items-center gap-1 transition active:scale-95 ${currentTab === 'boxwars' ? 'text-cyan-400 font-bold' : 'text-neutral-500'}`}><Zap className="w-5 h-5" /><span className="text-[10px]">BoxWars</span></button>
+              <button onClick={() => handleTabChange('rest_timer')} className={`flex flex-col items-center gap-1 transition active:scale-95 ${currentTab === 'rest_timer' ? 'text-cyan-400 font-bold' : 'text-neutral-500'}`}><Home className="w-5 h-5" /><span className="text-[10px]">Chrono</span></button>
+              <button onClick={() => setIsBoxWarsModalOpen(true)} className="flex flex-col items-center justify-center w-12 h-12 rounded-full bg-cyan-600 hover:bg-cyan-500 text-white shadow-lg transition transform hover:scale-105 active:scale-95 -mt-3"><Plus className="w-6 h-6 stroke-[3]" /></button>
+              <button onClick={() => handleTabChange('leaderboard')} className={`flex flex-col items-center gap-1 transition active:scale-95 ${currentTab === 'leaderboard' ? 'text-cyan-400 font-bold' : 'text-neutral-500'}`}><Trophy className="w-5 h-5" /><span className="text-[10px]">Ligue</span></button>
+              <button onClick={() => handleTabChange('chat')} className={`flex flex-col items-center gap-1 transition active:scale-95 ${currentTab === 'chat' ? 'text-cyan-400 font-bold' : 'text-neutral-500'}`}><MessageCircle className="w-5 h-5" /><span className="text-[10px]">Chat</span></button>
+            </>
+          )}
+
+          {activeUniverse === 'running' && (
+            <>
+              <button onClick={() => handleTabChange('running')} className={`flex flex-col items-center gap-1 transition active:scale-95 ${currentTab === 'running' ? 'text-emerald-400 font-bold' : 'text-neutral-500'}`}><Navigation className="w-5 h-5" /><span className="text-[10px]">GPS Suivi</span></button>
+              <button onClick={() => handleTabChange('paces')} className={`flex flex-col items-center gap-1 transition active:scale-95 ${currentTab === 'paces' ? 'text-emerald-400 font-bold' : 'text-neutral-500'}`}><span className="text-xs font-black">VMA</span><span className="text-[10px]">Allures</span></button>
+              <button onClick={() => handleTabChange('readiness')} className={`flex flex-col items-center gap-1 transition active:scale-95 ${currentTab === 'readiness' ? 'text-emerald-400 font-bold' : 'text-neutral-500'}`}><Calendar className="w-5 h-5" /><span className="text-[10px]">Plan & Roadbook</span></button>
+              <button onClick={() => handleTabChange('profile')} className={`flex flex-col items-center gap-1 transition active:scale-95 ${currentTab === 'profile' ? 'text-emerald-400 font-bold' : 'text-neutral-500'}`}><User className="w-5 h-5" /><span className="text-[10px]">Profil</span></button>
+            </>
+          )}
         </nav>
       </div>
     </div>
