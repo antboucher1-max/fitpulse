@@ -19,7 +19,8 @@ import LeaderboardTab from './components/LeaderboardTab';
 import BoxWarsTab from './components/BoxWarsTab';
 import RunningTab from './components/RunningTab';
 import ReadinessCheckin from './components/ReadinessCheckin';
-import TrainingPlanTab from './components/TrainingPlanTab'; // <-- IMPORTATION DU PLAN D'ENTRAÎNEMENT
+import TrainingPlanTab from './components/TrainingPlanTab';
+import RoadbookTab from './components/RoadbookTab'; // <-- IMPORTATION DU ROADBOOK
 
 const supabaseUrl = 'https://obtahwmcoqrcauscpksv.supabase.co';
 const supabaseAnonKey = 'sb_publishable_O8CKhUtzgq9nO9lKavNE9A__fAdRWoB';
@@ -535,7 +536,7 @@ export default function App() {
             <button 
               onClick={() => handleTabChange('readiness')}
               className={`p-2 rounded-xl text-xs font-bold transition ${currentTab === 'readiness' ? 'bg-emerald-500 text-neutral-950' : 'bg-neutral-900 text-emerald-400 border border-emerald-500/30'}`}
-              title="Plan d'Entraînement"
+              title="Plan & Roadbook"
             >
               📅 Plan
             </button>
@@ -591,10 +592,11 @@ export default function App() {
            
           {currentTab === 'paces' && <PaceCalculatorTab />}
 
-          {/* INTÉGRATION DU COMPOSANT PLAN D'ENTRAÎNEMENT & CHECK-IN */}
+          {/* INTÉGRATION DU PLAN D'ENTRAÎNEMENT, ROADBOOK & CHECK-IN */}
           {currentTab === 'readiness' && (
             <div className="space-y-4">
               <TrainingPlanTab currentUserId={user?.id} />
+              <RoadbookTab currentUserId={user?.id} />
               <ReadinessCheckin 
                 currentUserId={user?.id} 
                 onUpdatePlan={(rec) => alert(rec)} 
