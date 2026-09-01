@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { BarChart3, TrendingUp } from 'lucide-react';
 import GearTrackerSection from './GearTrackerSection';
 import TrainingLoadWidget from './TrainingLoadWidget';
+import ReadinessWidget from './ReadinessWidget';
 
 interface ProgressTabProps {
   posts: any[];
@@ -50,6 +51,9 @@ export default function ProgressTab({
 
   return (
     <div className="space-y-5 animate-fadeIn pb-20">
+      {/* Score de Récupération (Readiness) intégré tout en haut */}
+      <ReadinessWidget recentLoadScore={totalSessions * 40} />
+
       {/* Widget de Charge d'Entraînement Globale (Fatigue unifiée Course + Muscu + Crossfit) */}
       <TrainingLoadWidget posts={posts} />
 
