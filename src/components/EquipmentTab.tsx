@@ -9,7 +9,7 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey);
 export default function EquipmentTab({ currentUserId }: { currentUserId?: string }) {
   const [shoes, setShoes] = useState<any[]>([]);
   const [modelName, setModelName] = useState('');
-  const [maxKm, setMaxKm] = useState(800); // Seuil d'usure conseillé (ex: 800km)
+  const [maxKm, setMaxKm] = useState(800);
 
   const fetchEquipment = async () => {
     if (!currentUserId) return;
@@ -21,7 +21,7 @@ export default function EquipmentTab({ currentUserId }: { currentUserId?: string
     fetchEquipment();
   }, [currentUserId]);
 
-  const handleAddShoe = async (e: FormEvent) => {
+  const handleAddShoe = async (e: any) => {
     e.preventDefault();
     if (!currentUserId || !modelName.trim()) return;
 
@@ -91,7 +91,6 @@ export default function EquipmentTab({ currentUserId }: { currentUserId?: string
                   </span>
                 </div>
                 
-                {/* Barre de progression d'usure */}
                 <div className="w-full bg-neutral-900 h-2 rounded-full overflow-hidden">
                   <div 
                     className={`h-full transition-all ${isWornOut ? 'bg-red-500' : wearPercentage > 60 ? 'bg-amber-500' : 'bg-emerald-500'}`} 
