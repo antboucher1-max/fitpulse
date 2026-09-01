@@ -3,14 +3,24 @@ import {
   Play, Pause, Square, MapPin, Volume2, VolumeX, 
   Compass, Apple, Droplet, Zap, Navigation, LocateFixed 
 } from 'lucide-react';
-import { MapContainer, TileLayer, Polyline, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Polyline, Marker, useMap } from 'react-leaflet';
+import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import GearTrackerSection from './GearTrackerSection';
 
-function MapController({ center }: { center: [number, number] }) {
+// Icône personnalisée pour le point GPS de l'athlète
+const runnerIcon = L.divIcon({
+  className: 'custom-runner-marker',
+  html: `<div style="width: 16px; height: 16px; background: #10b981; border: 3px solid #ffffff; border-radius: 50%; box-shadow: 0 0 12px #10b981;"></div>`,
+  iconSize: [16, 16],
+  iconAnchor: [8, 8]
+});
+
+// Contrôleur pour suivre automatiquement la position GPS de l'utilisateur
+function MapAutoFollow({ center }: { center: [number, number] }) {
   const map = useMap();
   useEffect(() => {
-    map.setView(center, map.getZoom(), { animate: true });
+    map.setView(center, 16, { animate: true });
   }, [center, map]);
   return null;
 }
@@ -42,6 +52,7 @@ export default function RunningTab({
   const [distanceKm, setDistanceKm] = useState(0);
   const [audioCoaching, setAudioCoaching] = useState(true);
 
+  // Position par défaut sur ta région (Brunehaut/Tournai)
   const [currentPosition, setCurrentPosition] = useState<[number, number]>([50.505, 3.325]);
   const [routePositions, setRoutePositions] = useState<Array<[number, number]>>([
     [50.505, 3.325]
@@ -52,7 +63,8 @@ export default function RunningTab({
   const [intensity, setIntensity] = useState<'modere' | 'soutenu' | 'maximal'>('soutenu');
   const [bodyWeight, setBodyWeight] = useState<number>(70);
 
-  const centerOnUserGps = () => {
+  // Récupération initiale de la position GPS réelle
+  const updateGpsPosition = () => {
     if ('geolocation' in navigator) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
@@ -62,18 +74,17 @@ export default function RunningTab({
           setCurrentPosition(newCoord);
           setRoutePositions(prev => [...prev, newCoord]);
         },
-        (error) => {
-          console.warn("Erreur de géolocalisation :", error.message);
-        },
+        (error) => console.warn("GPS non disponible :", error.message),
         { enableHighAccuracy: true }
       );
     }
   };
 
   useEffect(() => {
-    centerOnUserGps();
+    updateGpsPosition();
   }, []);
 
+  // Suivi continu du GPS pendant la course
   useEffect(() => {
     let interval: any = null;
     let watchId: number | null = null;
@@ -94,7 +105,7 @@ export default function RunningTab({
             setRoutePositions(prev => [...prev, newPos]);
           },
           (error) => console.error(error),
-          { enableHighAccuracy: true, maximumAge: 10000, timeout: 5000 }
+          { enableHighAccuracy: true, maximumAge: 5000, timeout: 5000 }
         );
       }
     }
@@ -121,12 +132,10 @@ export default function RunningTab({
     setIsPaused(false);
     setSeconds(0);
     setDistanceKm(0);
-    centerOnUserGps();
+    updateGpsPosition();
   };
 
-  const handlePauseRun = () => {
-    setIsPaused(!isPaused);
-  };
+  const handlePauseRun = () => setIsPaused(!isPaused);
 
   const handleStopRun = () => {
     setIsRunning(false);
@@ -165,11 +174,10 @@ export default function RunningTab({
             <h2 className="text-xl font-black text-white tracking-tight">GPS, Carte Live & Nutrition</h2>
           </div>
           <button 
-            onClick={centerOnUserGps}
+            onClick={updateGpsPosition}
             className="flex items-center gap-1.5 text-xs font-bold bg-neutral-950/90 border border-neutral-800 px-3.5 py-2 rounded-xl text-emerald-400 hover:bg-neutral-800 transition shadow-inner cursor-pointer"
-            title="Centrer sur ma position"
           >
-            <LocateFixed className="w-4 h-4 animate-pulse" /> Centrer GPS
+            <LocateFixed className="w-4 h-4 animate-pulse" /> Ma Position
           </button>
         </div>
       </div>
@@ -180,18 +188,18 @@ export default function RunningTab({
             <Navigation className="w-4 h-4 text-emerald-400 animate-pulse" /> Carte Live & Tracé Route
           </h3>
           <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1 rounded-full">
-            {isRunning ? 'GPS Actif (Enregistrement...)' : 'Prêt à démarrer'}
+            {isRunning ? 'GPS Actif (Suivi Auto...)' : 'Prêt à démarrer'}
           </span>
         </div>
 
         <div className="w-full h-80 rounded-2xl overflow-hidden border border-neutral-800 relative z-0">
           <MapContainer 
             center={currentPosition} 
-            zoom={15} 
+            zoom={16} 
             scrollWheelZoom={true}
             style={{ width: '100%', height: '100%', background: '#0a0a0a' }}
           >
-            <MapController center={currentPosition} />
+            <MapAutoFollow center={currentPosition} />
             <TileLayer
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -201,6 +209,7 @@ export default function RunningTab({
               positions={routePositions} 
               pathOptions={{ color: '#10b981', weight: 5, opacity: 0.9 }} 
             />
+            <Marker position={currentPosition} icon={runnerIcon} />
           </MapContainer>
         </div>
       </div>
