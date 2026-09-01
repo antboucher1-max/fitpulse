@@ -297,11 +297,21 @@ export default function App() {
     }]);
 
     if (!error) {
-      await addPointsToUser(user.id, 10);
+      const pointsToAdd = 10;
+      const currentMuscuPts = currentUserProfile?.points_muscu || 0;
+      const currentGlobalPts = currentUserProfile?.points_global || currentUserProfile?.points || 0;
+
+      await supabase.from('profiles').update({ 
+        points_muscu: currentMuscuPts + pointsToAdd,
+        points_global: currentGlobalPts + pointsToAdd,
+        points: currentGlobalPts + pointsToAdd 
+      }).eq('id', user.id);
+
       setIsPostModalOpen(false);
       setPostCaption('');
       setPostImageUrl(null);
       fetchCloudPosts();
+      fetchRealUsers();
     } else {
       alert("Erreur lors de la publication : " + error?.message);
     }
@@ -605,9 +615,19 @@ export default function App() {
                 }]);
 
                 if (!error) {
-                  await addPointsToUser(user.id, 15);
+                  const pointsToAdd = 15;
+                  const currentMuscuPts = currentUserProfile?.points_muscu || 0;
+                  const currentGlobalPts = currentUserProfile?.points_global || currentUserProfile?.points || 0;
+
+                  await supabase.from('profiles').update({ 
+                    points_muscu: currentMuscuPts + pointsToAdd,
+                    points_global: currentGlobalPts + pointsToAdd,
+                    points: currentGlobalPts + pointsToAdd 
+                  }).eq('id', user.id);
+
                   setIsBoxWarsModalOpen(false);
                   fetchCloudPosts();
+                  fetchRealUsers();
                 } else {
                   alert("Erreur lors de la publication du score : " + error?.message);
                 }
@@ -783,7 +803,6 @@ export default function App() {
               if (currentTab === 'boxwars') {
                 setIsBoxWarsModalOpen(true);
               } else if (currentTab === 'running') {
-                // Action spécifique running si besoin ou modal post classique
                 setIsPostModalOpen(true);
               } else {
                 setIsPostModalOpen(true);
