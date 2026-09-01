@@ -10,7 +10,6 @@ import {
 
 import FeedTab from './components/FeedTab';
 import BuddyTab from './components/BuddyTab';
-// On remplace RestTimerTab par nos nouveaux composants
 import WodTimerTab from './components/WodTimerTab';
 import CalculatorTab from './components/CalculatorTab';
 import ChatTab from './components/ChatTab';
