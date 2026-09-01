@@ -114,6 +114,13 @@ export default function RunningTab({
 
   return (
     <div className="space-y-6 pb-24 animate-fadeIn">
+      {/* Style CSS intégré pour basculer les tuiles OpenStreetMap en mode sombre */}
+      <style>{`
+        .map-tiles-dark {
+          filter: brightness(0.6) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3);
+        }
+      `}</style>
+
       {/* En-tête de section moderne */}
       <div className="bg-gradient-to-r from-neutral-900 via-neutral-900 to-orange-950/35 border border-neutral-800 rounded-3xl p-6 shadow-2xl relative overflow-hidden">
         <div className="absolute -right-6 -bottom-6 w-32 h-32 bg-orange-500/10 rounded-full blur-3xl pointer-events-none" />
@@ -130,7 +137,7 @@ export default function RunningTab({
         </div>
       </div>
 
-      {/* Vraie Carte GPS Interactive avec Tracé Vert (Leaflet) */}
+      {/* Vraie Carte GPS Interactive avec Tracé Vert (Leaflet + OSM Dark Mode) */}
       <div className="bg-neutral-900 border border-neutral-800/80 rounded-3xl p-6 space-y-4 shadow-xl">
         <div className="flex items-center justify-between">
           <h3 className="text-xs font-black text-white flex items-center gap-2 uppercase tracking-wider">
@@ -150,8 +157,9 @@ export default function RunningTab({
             style={{ width: '100%', height: '100%', background: '#0a0a0a' }}
           >
             <TileLayer
-              attribution='&copy; <a href="https://carto.com/">CARTO</a>'
-              url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              className="map-tiles-dark"
             />
             <Polyline 
               positions={routePositions} 
