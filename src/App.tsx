@@ -26,23 +26,19 @@ const supabaseUrl = 'https://obtahwmcoqrcauscpksv.supabase.co';
 const supabaseAnonKey = 'sb_publishable_O8CKhUtzgq9nO9lKavNE9A__fAdRWoB';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-const CLUBS_LIST = [
-  'Club Tournai (Bastion)', 
-  'Club Tournai (les jeunesses)', 
-  'Club Antoing', 
-  'Club Péruwelz',
-  'Club Leuze', 
-  'Club Ath', 
-  'Club Mouscron', 
-  'Club Ronse', 
-  'Club St-Ghislain', 
-  'Club Mons', 
-  'Club Jurbise'
+const SPOTS_LIST = [
+  'Quais de l’Escaut (Tournai)',
+  'Canal de Blaton',
+  'Boucles de Brunehaut & Environs',
+  'Parc de Burcy',
+  'Complexe Sportif Antoing',
+  'Salle / Box de Crossfit Régionale',
+  'Autre Spot Libre'
 ];
 
 const isMatchingClub = (postClubName?: string, selectedClubName?: string): boolean => {
   if (!postClubName || !selectedClubName) return false;
-  if (selectedClubName.includes('Tous les clubs')) return true;
+  if (selectedClubName.includes('Tous les spots')) return true;
   if (postClubName === selectedClubName) return true;
   const normalize = (str: string) => str.toLowerCase().replace(/[()]/g, '').trim();
   const p = normalize(postClubName); const s = normalize(selectedClubName);
@@ -63,7 +59,7 @@ export default function App() {
     return (savedTab as any) || 'feed';
   });
 
-  const [selectedClub, setSelectedClub] = useState<string>('🌐 Tous les clubs (Global)');
+  const [selectedClub, setSelectedClub] = useState<string>('🌐 Tous les spots (Global)');
   const [posts, setPosts] = useState<Post[]>([]);
   const [feedLoading, setFeedLoading] = useState(false);
   const [userAvatarUrl] = useState<string>('https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=150');
@@ -96,7 +92,7 @@ export default function App() {
 
   const [onboardingUsername, setOnboardingUsername] = useState('');
   const [onboardingAgeGroup, setOnboardingAgeGroup] = useState('26-35 ans');
-  const [onboardingClub, setOnboardingClub] = useState(CLUBS_LIST[0]);
+  const [onboardingSpot, setOnboardingSpot] = useState(SPOTS_LIST[0]);
   const [onboardingGoal] = useState('Prise de masse / Force');
   const [onboardingGender, setOnboardingGender] = useState('Homme');
   const [onboardingTime, setOnboardingTime] = useState('Soir');
@@ -287,7 +283,7 @@ export default function App() {
       user_id: user.id,
       username: currentUsername,
       avatar_url: currentUserProfile?.avatar_url || userAvatarUrl,
-      club_name: selectedClub === '🌐 Tous les clubs (Global)' ? 'Club Tournai (Bastion)' : selectedClub,
+      club_name: selectedClub === '🌐 Tous les spots (Global)' ? 'Quais de l’Escaut (Tournai)' : selectedClub,
       session_type: postSessionType,
       caption: fullCaption,
       image_url: postImageUrl,
@@ -324,7 +320,7 @@ export default function App() {
   const activeChatUsers = registeredUsers.filter((u) => u.id !== user?.id && acceptedFriendIds.includes(u.id));
    
   const displayedPosts = posts.filter((post) => {
-    if (selectedClub === '🌐 Tous les clubs (Global)') return true;
+    if (selectedClub === '🌐 Tous les spots (Global)') return true;
     return isMatchingClub(post.club_name, selectedClub);
   });
 
@@ -351,7 +347,7 @@ export default function App() {
               <Zap className="w-6 h-6" />
             </div>
             <h1 className="text-xl font-black text-white tracking-tight">FitPulse</h1>
-            <p className="text-xs text-orange-400 font-semibold">La Ligue des Clubs & Suivi d'Entraînement</p>
+            <p className="text-xs text-orange-400 font-semibold">Trouve tes partenaires & Spots d'entraînement</p>
           </div>
 
           <form onSubmit={async (e) => {
@@ -413,7 +409,10 @@ export default function App() {
             ← Retour à la connexion
           </button>
 
-          <h1 className="text-lg font-black text-white text-center">Bienvenue sur FitPulse !</h1>
+          <div className="text-center space-y-1">
+            <h1 className="text-lg font-black text-white">Crée ton profil sportif</h1>
+            <p className="text-xs text-neutral-400">Pour trouver tes partenaires de training.</p>
+          </div>
            
           <form onSubmit={async (e) => {
             e.preventDefault();
@@ -424,7 +423,7 @@ export default function App() {
               const { error } = await supabase.from('profiles').upsert({
                 id: user.id, 
                 username: onboardingUsername.trim(), 
-                home_club: onboardingClub, 
+                home_club: onboardingSpot, 
                 goal: onboardingGoal, 
                 gender: onboardingGender, 
                 preferred_time: onboardingTime,
@@ -445,7 +444,10 @@ export default function App() {
               setOnboardingSubmitting(false);
             }
           }} className="space-y-3">
-            <input type="text" required placeholder="Ton Pseudo" value={onboardingUsername} onChange={(e) => setOnboardingUsername(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-2.5 text-sm text-white" />
+            <div>
+              <label className="block text-xs text-neutral-400 mb-1">Pseudo / Prénom :</label>
+              <input type="text" required placeholder="Ex: Antoine" value={onboardingUsername} onChange={(e) => setOnboardingUsername(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-2.5 text-sm text-white" />
+            </div>
              
             <div>
               <label className="block text-xs text-neutral-400 mb-1">Discipline principale :</label>
@@ -478,20 +480,23 @@ export default function App() {
             </div>
 
             <div>
-              <label className="block text-xs text-neutral-400 mb-1">Créneau horaire habituel :</label>
+              <label className="block text-xs text-neutral-400 mb-1">Créneau horaire de Match (Dispo) :</label>
               <select value={onboardingTime} onChange={(e) => setOnboardingTime(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-2.5 text-sm text-white">
-                <option value="Matin">Matin</option>
-                <option value="Midi">Midi</option>
-                <option value="Soir">Soir</option>
+                <option value="Matin">🌅 Matin</option>
+                <option value="Midi">☀️ Midi</option>
+                <option value="Soir">🌙 Soir</option>
               </select>
             </div>
 
-            <select value={onboardingClub} onChange={(e) => setSelectedClub(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-2.5 text-sm text-white">
-              {CLUBS_LIST.map((club) => <option key={club} value={club}>{club}</option>)}
-            </select>
+            <div>
+              <label className="block text-xs text-neutral-400 mb-1">Spot d'entraînement principal :</label>
+              <select value={onboardingSpot} onChange={(e) => setOnboardingSpot(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-2.5 text-sm text-white">
+                {SPOTS_LIST.map((spot) => <option key={spot} value={spot}>{spot}</option>)}
+              </select>
+            </div>
 
-            <button type="submit" disabled={onboardingSubmitting} className="w-full py-3 bg-orange-600 text-white font-bold rounded-2xl text-sm">
-              {onboardingSubmitting ? "Validation en cours..." : "Valider 🚀"}
+            <button type="submit" disabled={onboardingSubmitting} className="w-full py-3 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-2xl text-sm transition">
+              {onboardingSubmitting ? "Validation..." : "Rejoindre la communauté 🚀"}
             </button>
           </form>
         </div>
@@ -549,8 +554,8 @@ export default function App() {
               <div className="relative flex items-center bg-neutral-900 border border-neutral-800 rounded-xl px-2.5 py-1.5">
                 <MapPin className="w-3.5 h-3.5 text-orange-500 mr-1.5 flex-shrink-0" />
                 <select value={selectedClub} onChange={(e) => setSelectedClub(e.target.value)} className="bg-transparent text-xs font-bold text-orange-400 focus:outline-none cursor-pointer pr-1">
-                  <option value="🌐 Tous les clubs (Global)">🌐 Tous les clubs (Global)</option>
-                  {CLUBS_LIST.map((club) => <option key={club} value={club} className="bg-neutral-900 text-white">{club}</option>)}
+                  <option value="🌐 Tous les spots (Global)">🌐 Tous les spots (Global)</option>
+                  {SPOTS_LIST.map((spot) => <option key={spot} value={spot} className="bg-neutral-900 text-white">{spot}</option>)}
                 </select>
               </div>
             )}
@@ -704,7 +709,7 @@ export default function App() {
                   user_id: user.id,
                   username: currentUsername,
                   avatar_url: currentUserProfile?.avatar_url || userAvatarUrl,
-                  club_name: selectedClub === '🌐 Tous les clubs (Global)' ? 'Club Tournai (Bastion)' : selectedClub,
+                  club_name: selectedClub === '🌐 Tous les spots (Global)' ? 'Quais de l’Escaut (Tournai)' : selectedClub,
                   session_type: 'BoxWars / WOD',
                   caption: fullCaption,
                   image_url: null,
@@ -808,7 +813,7 @@ export default function App() {
                     />
                     <div className="flex-1 text-center sm:text-left pt-2">
                       <h2 className="text-lg font-black text-white">{viewingProfileUser.username}</h2>
-                      <p className="text-xs text-orange-400 font-semibold">{viewingProfileUser.home_club || 'Club non renseigné'}</p>
+                      <p className="text-xs text-orange-400 font-semibold">{viewingProfileUser.home_club || 'Spot non renseigné'}</p>
                       <div className="flex justify-center sm:justify-start gap-3 mt-2 text-[11px] text-neutral-400 font-bold">
                         <span>Objectif : <strong className="text-white">{viewingProfileUser.goal || 'Muscu'}</strong></span>
                         <span>•</span>
