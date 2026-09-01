@@ -98,6 +98,7 @@ export default function App() {
   const [onboardingGoal] = useState('Prise de masse / Force');
   const [onboardingGender, setOnboardingGender] = useState('Homme');
   const [onboardingTime, setOnboardingTime] = useState('Soir');
+  const [onboardingDiscipline, setOnboardingDiscipline] = useState('Fitness / Musculation'); // <--- Ajout discipline principale
   const [onboardingAvatar] = useState<string>('https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=150');
   const [onboardingSubmitting, setOnboardingSubmitting] = useState(false);
   
@@ -406,12 +407,21 @@ export default function App() {
             await supabase.from('profiles').upsert({
               id: user.id, username: onboardingUsername.trim(), age: Number(onboardingAge) || 25,
               home_club: onboardingClub, goal: onboardingGoal, gender: onboardingGender, preferred_time: onboardingTime,
+              discipline: onboardingDiscipline, // <--- Enregistrement de la discipline principale
               avatar_url: onboardingAvatar, points: 0, is_admin: user.email === 'antboucher@hotmail.fr'
             });
             setOnboardingSubmitting(false);
             fetchRealUsers();
           }} className="space-y-3">
             <input type="text" required placeholder="Ton Pseudo" value={onboardingUsername} onChange={(e) => setOnboardingUsername(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-2.5 text-sm text-white" />
+            <div>
+              <label className="block text-xs text-neutral-400 mb-1">Discipline principale :</label>
+              <select value={onboardingDiscipline} onChange={(e) => setOnboardingDiscipline(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-2.5 text-sm text-white">
+                <option value="Fitness / Musculation">💪 Fitness / Musculation</option>
+                <option value="Course à pied">🏃‍♂️ Course à pied</option>
+                <option value="Crossfit">⚡ Crossfit</option>
+              </select>
+            </div>
             <div>
               <label className="block text-xs text-neutral-400 mb-1">Genre :</label>
               <select value={onboardingGender} onChange={(e) => setOnboardingGender(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-2.5 text-sm text-white">
