@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef, FormEvent } from 'react';
-import { Play, Pause, Square, MapPin, Flame, X, Compass, RotateCcw, Volume2, VolumeX, CloudSun } from 'lucide-react';
+import { useState, useEffect, useRef, FormEvent, ChangeEvent } from 'react';
+import { Play, Pause, Square, MapPin, Flame, X, Compass, RotateCcw, Volume2, VolumeX, CloudSun, Upload } from 'lucide-react';
 import { createClient } from '@supabase/supabase-js';
 import { MapContainer, TileLayer, Polyline, CircleMarker, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -83,7 +83,7 @@ export default function RunningTab({
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [hasFinished, setHasFinished] = useState(false);
 
-  // Nouveaux états pour le carnet météo & typologie de terrain
+  // Carnet météo & typologie de terrain
   const [runWeather, setRunWeather] = useState('☀️ Ensoleillé');
   const [runTerrain, setRunTerrain] = useState('🌊 Berges / Canal');
   const [runWind, setRunWind] = useState('🍃 Vent léger');
@@ -109,6 +109,55 @@ export default function RunningTab({
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
     return R * c;
+  };
+
+  // Import de traces GPX externes
+  const handleGpxUpload = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const gpxText = event.target?.result as string;
+      if (!gpxText) return;
+
+      const parser = new DOMParser();
+      const xmlDoc = parser.parseFromString(gpxText, 'text/xml');
+      const trackPoints = xmlDoc.getElementsByTagName('trkpt');
+
+      if (trackPoints.length === 0) {
+        alert("Aucun point de trace (trkpt) trouvé dans ce fichier GPX.");
+        return;
+      }
+
+      const coords: [number, number][] = [];
+      let totalDist = 0;
+
+      for (let i = 0; i < trackPoints.length; i++) {
+        const lat = parseFloat(trackPoints[i].getAttribute('lat') || '0');
+        const lon = parseFloat(trackPoints[i].getAttribute('lon') || '0');
+        if (lat && lon) {
+          coords.push([lat, lon]);
+          if (coords.length > 1) {
+            const prev = coords[coords.length - 2];
+            totalDist += calculateDistance(prev[0], prev[1], lat, lon);
+          }
+        }
+      }
+
+      if (coords.length > 0) {
+        setPathCoordinates(coords);
+        setCurrentPosition(coords[0]);
+        setDistanceMeters(totalDist);
+        setSeconds(coords.length * 2); // Estimation basée sur les points de trace
+        setHasFinished(true);
+        setShowSaveModal(true);
+        if (audioEnabled) {
+          audioCoach.speak("Trace GPX importée avec succès.");
+        }
+      }
+    };
+    reader.readAsText(file);
   };
 
   // Chrono général et annonces audio périodiques (toutes les 30 secondes)
@@ -309,7 +358,7 @@ export default function RunningTab({
     e.preventDefault();
     if (!currentUserId) return;
 
-    // Inclusion du contexte météo et typologie de terrain dans le message partagé
+    // Inclusion du contexte météo, terrain et de la trace GPX
     const fullCaption = `🏃‍♂️ Sortie Running : ${distanceKm} km en ${formatTime(seconds)} (Vitesse : ${speedKmh} km/h)
 📍 Terrain: ${runTerrain} | Météo: ${runWeather} | Vent: ${runWind}
 ${runCaption ? `- ${runCaption}` : ''}`.trim();
@@ -404,7 +453,7 @@ ${runCaption ? `- ${runCaption}` : ''}`.trim();
         ) : (
           <div className="text-center p-6 space-y-2">
             <MapPin className="w-8 h-8 text-emerald-500 mx-auto animate-bounce" />
-            <p className="text-xs text-neutral-400 font-medium">Prêt à courir. Active le GPS ou lance la simulation.</p>
+            <p className="text-xs text-neutral-400 font-medium">Prêt à courir. Active le GPS, lance la simulation ou importe un GPX.</p>
           </div>
         )}
       </div>
@@ -430,7 +479,7 @@ ${runCaption ? `- ${runCaption}` : ''}`.trim();
         </div>
 
         <div className="flex flex-col gap-3 pt-2">
-          <div className="flex justify-center gap-3">
+          <div className="flex justify-center gap-3 flex-wrap">
             {!isRunning && !isSimulating && !hasFinished ? (
               <>
                 <button 
@@ -438,16 +487,23 @@ ${runCaption ? `- ${runCaption}` : ''}`.trim();
                     setIsRunning(true);
                     if (audioEnabled) audioCoach.speak("Sortie GPS démarrée. C'est parti !");
                   }} 
-                  className="flex items-center gap-2 px-5 py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-2xl text-xs shadow-xl transition transform active:scale-95"
+                  className="flex items-center gap-2 px-4 py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-2xl text-xs shadow-xl transition transform active:scale-95"
                 >
                   <Play className="w-4 h-4 fill-white" /> Vrai GPS
                 </button>
+
                 <button 
                   onClick={startCleanSimulation} 
-                  className="flex items-center gap-2 px-5 py-3.5 bg-indigo-600 hover:bg-indigo-500 text-white font-black rounded-2xl text-xs shadow-xl transition transform active:scale-95"
+                  className="flex items-center gap-2 px-4 py-3.5 bg-indigo-600 hover:bg-indigo-500 text-white font-black rounded-2xl text-xs shadow-xl transition transform active:scale-95"
                 >
-                  <Compass className="w-4 h-4" /> Simuler un run 🗺️
+                  <Compass className="w-4 h-4" /> Simuler 🗺️
                 </button>
+
+                {/* Bouton d'import GPX montre connectée */}
+                <label className="flex items-center gap-2 px-4 py-3.5 bg-neutral-800 hover:bg-neutral-700 text-emerald-400 font-black rounded-2xl text-xs shadow-xl transition cursor-pointer border border-emerald-500/30">
+                  <Upload className="w-4 h-4" /> Importer GPX ⌚
+                  <input type="file" accept=".gpx" onChange={handleGpxUpload} className="hidden" />
+                </label>
               </>
             ) : isRunning || isSimulating ? (
               <button 
