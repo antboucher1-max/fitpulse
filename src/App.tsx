@@ -549,10 +549,45 @@ export default function App() {
                 </button>
               </div>
 
-              <form onSubmit={(e) => {
+              <form onSubmit={async (e) => {
                 e.preventDefault();
-                alert("Score BoxWars enregistré !");
-                setIsBoxWarsModalOpen(false);
+                if (!user) return;
+
+                const formElement = e.currentTarget as HTMLFormElement;
+                const selectWodType = (formElement.elements[0] as HTMLSelectElement).value;
+                const scoreInput = (formElement.elements[1] as HTMLInputElement).value;
+                const noteInput = (formElement.elements[2] as HTMLTextAreaElement).value;
+
+                if (!scoreInput.trim()) {
+                  alert("Veuillez indiquer un score ou un temps !");
+                  return;
+                }
+
+                const fullCaption = `⚡ [BOXWARS] ${selectWodType} : ${scoreInput} ${noteInput ? `- ${noteInput}` : ''}`.trim();
+
+                const { error } = await supabase.from('posts').insert([{
+                  user_id: user.id,
+                  username: currentUsername,
+                  avatar_url: currentUserProfile?.avatar_url || userAvatarUrl,
+                  club_name: selectedClub === '🌐 Tous les clubs (Global)' ? 'Club Tournai (Bastion)' : selectedClub,
+                  session_type: 'BoxWars / WOD',
+                  caption: fullCaption,
+                  image_url: null,
+                  exercises: [],
+                  likes_count: 0,
+                  liked_by: [],
+                  comments_count: 0,
+                  comments: [],
+                  is_private: false
+                }]);
+
+                if (!error) {
+                  await addPointsToUser(user.id, 15);
+                  setIsBoxWarsModalOpen(false);
+                  fetchCloudPosts();
+                } else {
+                  alert("Erreur lors de la publication du score : " + error?.message);
+                }
               }} className="space-y-4">
                 <div>
                   <label className="block text-xs font-semibold text-neutral-400 mb-1">Type de WOD / Challenge :</label>
@@ -574,7 +609,7 @@ export default function App() {
                 </div>
 
                 <button type="submit" className="w-full py-3.5 bg-cyan-600 hover:bg-cyan-500 text-white font-bold rounded-2xl text-sm shadow-xl">
-                  Valider le score BoxWars ⚡
+                  Publier sur le fil BoxWars (+15 pts ⚡)
                 </button>
               </form>
             </div>
