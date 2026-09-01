@@ -85,7 +85,7 @@ export default function App() {
   const [allMessages, setAllMessages] = useState<DBMessage[]>([]);
   
   const [viewedStoryIds] = useState<string[]>([]);
-  const [, setViewingProfileUser] = useState<RealUser | null>(null);
+  const [viewingProfileUser, setViewingProfileUser] = useState<RealUser | null>(null);
   const [, setActiveStoryIndex] = useState<number | null>(null);
   const [selectedBuddyChat, setSelectedBuddyChat] = useState<RealUser | null>(null);
   const [currentMessageInput, setCurrentMessageInput] = useState('');
@@ -616,6 +616,48 @@ export default function App() {
           </div>
         )}
 
+        {viewingProfileUser && (
+          <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4">
+            <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-sm w-full p-6 space-y-4 shadow-2xl animate-scaleUp">
+              <div className="flex items-center justify-between border-b border-neutral-800 pb-3">
+                <div className="flex items-center gap-3">
+                  <img src={viewingProfileUser.avatar_url || 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=150'} alt="" className="w-10 h-10 rounded-full object-cover border border-orange-500/40" />
+                  <div>
+                    <h3 className="font-extrabold text-base text-white">{viewingProfileUser.username}</h3>
+                    <span className="text-[10px] text-orange-400 font-bold">{viewingProfileUser.home_club || 'Club non renseigné'}</span>
+                  </div>
+                </div>
+                <button type="button" onClick={() => setViewingProfileUser(null)} className="p-2 text-neutral-400 hover:text-white rounded-xl">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="space-y-3 py-2 text-xs">
+                <div className="flex justify-between bg-neutral-950 p-3 rounded-xl border border-neutral-800">
+                  <span className="text-neutral-400">Objectif :</span>
+                  <span className="font-bold text-white">{viewingProfileUser.goal || 'Non spécifié'}</span>
+                </div>
+                <div className="flex justify-between bg-neutral-950 p-3 rounded-xl border border-neutral-800">
+                  <span className="text-neutral-400">Créneau habituel :</span>
+                  <span className="font-bold text-white">{viewingProfileUser.preferred_time || 'Non spécifié'}</span>
+                </div>
+                <div className="flex justify-between bg-neutral-950 p-3 rounded-xl border border-neutral-800">
+                  <span className="text-neutral-400">Points Ligue :</span>
+                  <span className="font-bold text-orange-400">{viewingProfileUser.points || 0} pts ⚡</span>
+                </div>
+              </div>
+
+              <button 
+                type="button" 
+                onClick={() => setViewingProfileUser(null)} 
+                className="w-full py-3 bg-neutral-800 hover:bg-neutral-700 text-white font-bold rounded-2xl text-xs transition"
+              >
+                Fermer
+              </button>
+            </div>
+          </div>
+        )}
+
         <nav className="sticky bottom-0 left-0 right-0 z-40 bg-neutral-950/95 backdrop-blur-xl border-t border-neutral-800 px-2 py-2 flex justify-around items-center">
           <button onClick={() => handleTabChange('feed')} className={`flex flex-col items-center gap-1 transition active:scale-95 ${currentTab === 'feed' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Home className="w-5 h-5" /><span className="text-[10px]">Accueil</span></button>
           <button onClick={() => handleTabChange('leaderboard')} className={`flex flex-col items-center gap-1 transition active:scale-95 ${currentTab === 'leaderboard' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Trophy className="w-5 h-5" /><span className="text-[10px]">Ligue</span></button>
@@ -639,7 +681,7 @@ export default function App() {
 
           <button onClick={() => handleTabChange('buddy')} className={`flex flex-col items-center gap-1 transition active:scale-95 ${currentTab === 'buddy' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Users className="w-5 h-5" /><span className="text-[10px]">Buddies</span></button>
           <button onClick={() => handleTabChange('chat')} className={`flex flex-col items-center gap-1 transition active:scale-95 ${currentTab === 'chat' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><MessageCircle className="w-5 h-5" /><span className="text-[10px]" data-testid="chat-label">Chat</span></button>
-          <button onClick={() => handleTabChange('profile')} className={`flex flex-col items-center gap-1 transition active:scale-95 ${currentTab === 'profile' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><User className="w-5 h-5" /><span className="text-[10px]">Profil</span></button>
+          <button onClick={() => handleTabChange('profile')} className=`flex flex-col items-center gap-1 transition active:scale-95 ${currentTab === 'profile' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><User className="w-5 h-5" /><span className="text-[10px]">Profil</span></button>
         </nav>
       </div>
     </div>
