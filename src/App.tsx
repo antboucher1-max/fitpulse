@@ -12,12 +12,13 @@ import FeedTab from './components/FeedTab';
 import BuddyTab from './components/BuddyTab';
 import WodTimerTab from './components/WodTimerTab';
 import CalculatorTab from './components/CalculatorTab';
+import PaceCalculatorTab from './components/PaceCalculatorTab'; // <-- NOUVEAU : Import du calculateur VMA
 import ChatTab from './components/ChatTab';
 import ProfileTab from './components/ProfileTab';
 import LeaderboardTab from './components/LeaderboardTab';
 import BoxWarsTab from './components/BoxWarsTab';
 import RunningTab from './components/RunningTab';
-import ReadinessCheckin from './components/ReadinessCheckin'; // <-- NOUVEAU : Import du module de fatigue
+import ReadinessCheckin from './components/ReadinessCheckin';
 
 const supabaseUrl = 'https://obtahwmcoqrcauscpksv.supabase.co';
 const supabaseAnonKey = 'sb_publishable_O8CKhUtzgq9nO9lKavNE9A__fAdRWoB';
@@ -55,7 +56,7 @@ export default function App() {
   const [isSignUpMode, setIsSignUpMode] = useState(false);
   const [acceptCgu, setAcceptCgu] = useState(false);
 
-  const [currentTab, setCurrentTab] = useState<'feed' | 'buddy' | 'workout' | 'exercises' | 'chat' | 'profile' | 'calculator' | 'live_tracker' | 'rest_timer' | 'notifications' | 'leaderboard' | 'boxwars' | 'running' | 'readiness'>(() => {
+  const [currentTab, setCurrentTab] = useState<'feed' | 'buddy' | 'workout' | 'exercises' | 'chat' | 'profile' | 'calculator' | 'paces' | 'live_tracker' | 'rest_timer' | 'notifications' | 'leaderboard' | 'boxwars' | 'running' | 'readiness'>(() => {
     const savedTab = localStorage.getItem('fitpulse_active_tab');
     return (savedTab as any) || 'feed';
   });
@@ -522,7 +523,15 @@ export default function App() {
               1RM
             </button>
 
-            {/* Bouton pour accéder au module de gestion de fatigue (Readiness) */}
+            {/* Bouton pour accéder au calculateur VMA */}
+            <button 
+              onClick={() => handleTabChange('paces')}
+              className={`p-2 rounded-xl text-xs font-bold transition ${currentTab === 'paces' ? 'bg-emerald-500 text-neutral-950' : 'bg-neutral-900 text-emerald-400 border border-emerald-500/30'}`}
+              title="Calculateur VMA"
+            >
+              VMA
+            </button>
+
             <button 
               onClick={() => handleTabChange('readiness')}
               className={`p-2 rounded-xl text-xs font-bold transition ${currentTab === 'readiness' ? 'bg-emerald-500 text-neutral-950' : 'bg-neutral-900 text-emerald-400 border border-emerald-500/30'}`}
@@ -539,7 +548,7 @@ export default function App() {
               <Navigation className="w-4 h-4" />
             </button>
 
-            {currentTab !== 'boxwars' && currentTab !== 'running' && currentTab !== 'readiness' && (
+            {currentTab !== 'boxwars' && currentTab !== 'running' && currentTab !== 'readiness' && currentTab !== 'paces' && (
               <div className="relative flex items-center bg-neutral-900 border border-neutral-800 rounded-xl px-2.5 py-1.5">
                 <MapPin className="w-3.5 h-3.5 text-orange-500 mr-1.5 flex-shrink-0" />
                 <select value={selectedClub} onChange={(e) => setSelectedClub(e.target.value)} className="bg-transparent text-xs font-bold text-orange-400 focus:outline-none cursor-pointer pr-1">
@@ -580,7 +589,9 @@ export default function App() {
           {currentTab === 'rest_timer' && <WodTimerTab />}
           {currentTab === 'calculator' && <CalculatorTab />}
           
-          {/* Rendu du composant d'auto-régulation de la fatigue */}
+          {/* Rendu du calculateur d'allures VMA */}
+          {currentTab === 'paces' && <PaceCalculatorTab />}
+
           {currentTab === 'readiness' && (
             <ReadinessCheckin 
               currentUserId={user?.id} 
