@@ -62,6 +62,27 @@ export default function SmartCoachTab({ currentUserId }: { currentUserId?: strin
 
       if (feedbackError) throw feedbackError;
 
+      // 4. Adaptation automatique du plan d'entraînement si fatigue critique
+      if (fatigue >= 4 || sleep <= 2) {
+        const { data: nextSession } = await supabase
+          .from('training_sessions')
+          .select('id')
+          .eq('status', 'À faire')
+          .limit(1)
+          .single();
+
+        if (nextSession) {
+          await supabase
+            .from('training_sessions')
+            .update({ 
+              session_type: 'Récupération Active', 
+              description: 'Footing très souple de 30 min ou Repos (Ajusté automatiquement par le Coach)',
+              status: 'Adaptée'
+            })
+            .eq('id', nextSession.id);
+        }
+      }
+
       setSaved(true);
     } catch (err: any) {
       console.error("Erreur lors de l'enregistrement :", err.message);
@@ -134,7 +155,7 @@ export default function SmartCoachTab({ currentUserId }: { currentUserId?: strin
             <span className="text-[10px] text-cyan-400 font-bold uppercase tracking-wider">Le mot du Coach</span>
             {saved && (
               <span className="text-[10px] text-emerald-400 flex items-center gap-1 font-semibold">
-                <CheckCircle2 className="w-3.5 h-3.5" /> Enregistré
+                <CheckCircle2 className="w-3.5 h-3.5" /> Enregistré & Plan ajusté
               </span>
             )}
           </div>
