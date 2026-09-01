@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, ChangeEvent, FormEvent } from 'react';
 import {
-  Zap, User, MessageCircle, Home, Plus, X, Camera, Flame, MapPin, Trophy, Navigation, Calendar, Activity, BarChart2
+  Zap, User, MessageCircle, Home, Users, Plus, X, Camera, Flame, MapPin, Trophy, Navigation, Calendar
 } from 'lucide-react';
 import { createClient, User as SupabaseUser } from '@supabase/supabase-js';
 
@@ -58,14 +58,10 @@ export default function App() {
   const [isSignUpMode, setIsSignUpMode] = useState(false);
   const [acceptCgu, setAcceptCgu] = useState(false);
 
-  // Navigation simplifiée : 'today' (Dashboard), 'training' (Plan, Roadbook, Outils), 'community' (Feed/Ligue)
-  const [currentTab, setCurrentTab] = useState<'today' | 'training' | 'community' | 'profile' | 'chat'>(() => {
+  const [currentTab, setCurrentTab] = useState<'feed' | 'buddy' | 'workout' | 'exercises' | 'chat' | 'profile' | 'calculator' | 'paces' | 'live_tracker' | 'rest_timer' | 'notifications' | 'leaderboard' | 'boxwars' | 'running' | 'readiness'>(() => {
     const savedTab = localStorage.getItem('fitpulse_active_tab');
-    return (savedTab as any) || 'today';
+    return (savedTab as any) || 'feed';
   });
-
-  // Sous-onglet pour la section "Entraînement" (Plan vs Outils/Calculateurs)
-  const [trainingSubTab, setTrainingSubTab] = useState<'plan' | 'roadbook' | 'calculators' | 'running'>('plan');
 
   const [selectedClub, setSelectedClub] = useState<string>('🌐 Tous les clubs (Global)');
   const [posts, setPosts] = useState<Post[]>([]);
@@ -78,9 +74,10 @@ export default function App() {
   const postImageFileInputRef = useRef<HTMLInputElement>(null);
 
   const [isPostModalOpen, setIsPostModalOpen] = useState(false);
-  const [postSessionType, setPostSessionType] = useState('Musculation / Course');
+  const [isBoxWarsModalOpen, setIsBoxWarsModalOpen] = useState(false);
+  const [postSessionType, setPostSessionType] = useState('Musculation Full Body');
   const [postCaption, setPostCaption] = useState('');
-  const [postHashtags] = useState('#fitpulse');
+  const [postHashtags] = useState('#fitpulse #workout');
   const [postImageUrl, setPostImageUrl] = useState<string | null>(null);
 
   const [password, setPassword] = useState('');
@@ -407,6 +404,7 @@ export default function App() {
     return (
       <div className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col items-center justify-center font-sans p-4 select-none">
         <div className="w-full max-w-sm bg-neutral-900 border border-neutral-800 rounded-3xl p-6 space-y-4 shadow-2xl relative">
+           
           <button 
             type="button" 
             onClick={async () => {
@@ -508,46 +506,97 @@ export default function App() {
   return (
     <div className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col font-sans select-none antialiased relative">
       <div className="w-full max-w-md mx-auto min-h-screen bg-neutral-950 flex flex-col shadow-2xl sm:border-x sm:border-neutral-900 relative">
-        
-        {/* HEADER ÉPURÉ */}
-        <header className="sticky top-0 z-40 bg-neutral-950/90 backdrop-blur-md border-b border-neutral-900 px-4 py-3 flex items-center justify-between">
+        <header className="sticky top-0 z-40 bg-neutral-950/80 backdrop-blur-md border-b border-neutral-900 px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-orange-500/20 text-orange-500 flex items-center justify-center">
+            <div className={`w-8 h-8 rounded-xl ${currentTab === 'boxwars' ? 'bg-cyan-500/20 text-cyan-400' : currentTab === 'running' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-orange-500/20 text-orange-500'} flex items-center justify-center`}>
               <Zap className="w-5 h-5" />
             </div>
-            <h1 className="text-base font-black tracking-tight leading-none text-white">FitPulse</h1>
+            <h1 className="text-base font-black tracking-tight leading-none text-white">
+              {currentTab === 'boxwars' ? 'BOXWARS' : currentTab === 'running' ? 'RUNNING' : 'FitPulse'}
+            </h1>
           </div>
 
           <div className="flex items-center gap-2">
-            <div className="relative flex items-center bg-neutral-900 border border-neutral-800 rounded-xl px-2.5 py-1.5">
-              <MapPin className="w-3.5 h-3.5 text-orange-500 mr-1.5 flex-shrink-0" />
-              <select value={selectedClub} onChange={(e) => setSelectedClub(e.target.value)} className="bg-transparent text-xs font-bold text-orange-400 focus:outline-none cursor-pointer pr-1">
-                <option value="🌐 Tous les clubs (Global)">🌐 Tous les clubs (Global)</option>
-                {CLUBS_LIST.map((club) => <option key={club} value={club} className="bg-neutral-900 text-white">{club}</option>)}
-              </select>
-            </div>
-            <button onClick={() => handleTabChange('chat')} className="p-2 rounded-xl bg-neutral-900 border border-neutral-800 text-neutral-300 hover:text-white">
-              <MessageCircle className="w-4 h-4" />
+            <button 
+              onClick={() => handleTabChange('calculator')}
+              className={`p-2 rounded-xl text-xs font-bold transition ${currentTab === 'calculator' ? 'bg-orange-500 text-neutral-950' : 'bg-neutral-900 text-orange-400 border border-orange-500/30'}`}
+              title="Calculateur 1RM"
+            >
+              1RM
             </button>
+
+            <button 
+              onClick={() => handleTabChange('paces')}
+              className={`p-2 rounded-xl text-xs font-bold transition ${currentTab === 'paces' ? 'bg-emerald-500 text-neutral-950' : 'bg-neutral-900 text-emerald-400 border border-emerald-500/30'}`}
+              title="Calculateur VMA"
+            >
+              VMA
+            </button>
+
+            <button 
+              onClick={() => handleTabChange('readiness')}
+              className={`p-2 rounded-xl text-xs font-bold transition ${currentTab === 'readiness' ? 'bg-emerald-500 text-neutral-950' : 'bg-neutral-900 text-emerald-400 border border-emerald-500/30'}`}
+              title="Plan & Roadbook"
+            >
+              📅 Plan
+            </button>
+
+            <button 
+              onClick={() => handleTabChange(currentTab === 'running' ? 'feed' : 'running')}
+              className={`p-2 rounded-xl text-xs font-bold flex items-center gap-1 transition ${currentTab === 'running' ? 'bg-emerald-500 text-neutral-950' : 'bg-neutral-900 text-emerald-400 border border-emerald-500/30'}`}
+              title="Mode Running"
+            >
+              <Navigation className="w-4 h-4" />
+            </button>
+
+            {currentTab !== 'boxwars' && currentTab !== 'running' && currentTab !== 'readiness' && currentTab !== 'paces' && (
+              <div className="relative flex items-center bg-neutral-900 border border-neutral-800 rounded-xl px-2.5 py-1.5">
+                <MapPin className="w-3.5 h-3.5 text-orange-500 mr-1.5 flex-shrink-0" />
+                <select value={selectedClub} onChange={(e) => setSelectedClub(e.target.value)} className="bg-transparent text-xs font-bold text-orange-400 focus:outline-none cursor-pointer pr-1">
+                  <option value="🌐 Tous les clubs (Global)">🌐 Tous les clubs (Global)</option>
+                  {CLUBS_LIST.map((club) => <option key={club} value={club} className="bg-neutral-900 text-white">{club}</option>)}
+                </select>
+              </div>
+            )}
           </div>
         </header>
 
-        {/* CONTENU PRINCIPAL SELON L'ONGLET ACTIF */}
-        <main className="flex-1 w-full mx-auto px-4 py-3 pb-24 space-y-4">
-          
-          {/* 1. ONGLET "AUJOURD'HUI" (Dashboard central & Check-in de forme) */}
-          {currentTab === 'today' && (
-            <div className="space-y-4 animate-fadeIn">
-              <div className="bg-gradient-to-br from-orange-500/10 via-neutral-900 to-neutral-900 border border-orange-500/20 rounded-3xl p-5 space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">⚡ Statut de forme</span>
-                  <span className="text-xs text-neutral-400">{new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}</span>
-                </div>
-                <h2 className="text-lg font-black text-white">Bonjour, {currentUsername} !</h2>
-                <p className="text-xs text-neutral-300">Remplis ton check-in matinal pour ajuster dynamiquement ta charge d'entraînement du jour.</p>
-              </div>
+        <main className="flex-1 w-full mx-auto px-4 py-3 pb-24">
+          {currentTab === 'feed' && <FeedTab stories={cloudStories} posts={displayedPosts} registeredUsers={registeredUsers} friendRequests={friendRequests} currentUserId={user?.id} userDiscipline={currentUserProfile?.discipline} feedLoading={feedLoading} viewedStoryIds={viewedStoryIds} calculateStreak={calculateUserStreak} onOpenStory={(idx) => setActiveStoryIndex(idx)} onCreateStoryClick={() => setIsPostModalOpen(true)} onToggleLike={handleToggleLike} onOpenComments={(id) => setActiveCommentPostId(id)} onReportPost={() => {}} onDeletePost={() => {}} onSelectProfile={(u) => setViewingProfileUser(u)} onStartRestTimer={() => handleTabChange('rest_timer')} />}
+          {currentTab === 'leaderboard' && <LeaderboardTab registeredUsers={registeredUsers} />}
+           
+          {currentTab === 'buddy' && (
+            <BuddyTab 
+              currentUserId={user?.id} 
+              registeredUsers={registeredUsers} 
+              friendRequests={friendRequests} 
+              onSendFriendRequest={async (receiverId) => {
+                if (!user) return;
+                await supabase.from('friend_requests').insert([{ sender_id: user.id, receiver_id: receiverId, status: 'pending' }]);
+                fetchFriendRequests(user.id);
+              }} 
+              onAcceptFriendRequest={async (reqId) => {
+                await supabase.from('friend_requests').update({ status: 'accepted' }).eq('id', reqId);
+                if (user) fetchFriendRequests(user.id);
+              }}
+              onRemoveFriend={async (reqId) => {
+                await supabase.from('friend_requests').delete().eq('id', reqId);
+                if (user) fetchFriendRequests(user.id);
+              }}
+              onSelectBuddyProfile={(u) => setViewingProfileUser(u)} 
+            />
+          )}
 
-              {/* Check-in de forme intégré directement sur le dashboard */}
+          {currentTab === 'rest_timer' && <WodTimerTab />}
+          {currentTab === 'calculator' && <CalculatorTab />}
+           
+          {currentTab === 'paces' && <PaceCalculatorTab />}
+
+          {/* INTÉGRATION DU PLAN D'ENTRAÎNEMENT, ROADBOOK & CHECK-IN */}
+          {currentTab === 'readiness' && (
+            <div className="space-y-4">
+              <TrainingPlanTab currentUserId={user?.id} />
+              <RoadbookTab currentUserId={user?.id} />
               <ReadinessCheckin 
                 currentUserId={user?.id} 
                 onUpdatePlan={(rec) => alert(rec)} 
@@ -555,150 +604,26 @@ export default function App() {
             </div>
           )}
 
-          {/* 2. ONGLET "ENTRAÎNEMENT & PROGRÈS" (Plan, Roadbook, Calculateurs VMA/1RM) */}
-          {currentTab === 'training' && (
-            <div className="space-y-4 animate-fadeIn">
-              {/* Sous-navigation interne pour trier les outils d'entraînement */}
-              <div className="grid grid-cols-4 gap-1.5 bg-neutral-900 p-1.5 rounded-2xl border border-neutral-800 text-center">
-                <button 
-                  onClick={() => setTrainingSubTab('plan')}
-                  className={`py-2 rounded-xl text-[11px] font-bold transition ${trainingSubTab === 'plan' ? 'bg-orange-600 text-white' : 'text-neutral-400 hover:text-white'}`}
-                >
-                  Plan
-                </button>
-                <button 
-                  onClick={() => setTrainingSubTab('roadbook')}
-                  className={`py-2 rounded-xl text-[11px] font-bold transition ${trainingSubTab === 'roadbook' ? 'bg-emerald-600 text-white' : 'text-neutral-400 hover:text-white'}`}
-                >
-                  Roadbook
-                </button>
-                <button 
-                  onClick={() => setTrainingSubTab('running')}
-                  className={`py-2 rounded-xl text-[11px] font-bold transition ${trainingSubTab === 'running' ? 'bg-emerald-600 text-white' : 'text-neutral-400 hover:text-white'}`}
-                >
-                  GPS
-                </button>
-                <button 
-                  onClick={() => setTrainingSubTab('calculators')}
-                  className={`py-2 rounded-xl text-[11px] font-bold transition ${trainingSubTab === 'calculators' ? 'bg-cyan-600 text-white' : 'text-neutral-400 hover:text-white'}`}
-                >
-                  Outils
-                </button>
-              </div>
+          {currentTab === 'chat' && <ChatTab currentUserId={user?.id} selectedBuddyChat={selectedBuddyChat} setSelectedBuddyChat={handleOpenChatWithUser} activeChatUsers={activeChatUsers} currentChatMessages={currentChatMessages} currentMessageInput={currentMessageInput} onInputChange={(e) => setCurrentMessageInput(e.target.value)} onSendMessage={handleSendMessage} onSelectBuddy={(f) => handleOpenChatWithUser(f)} onDeleteConversation={() => {}} onReportConversation={() => {}} isOtherUserTyping={isOtherUserTyping} isMessageLimitReached={false} lastReadTimestamps={lastReadTimestamps} messagesEndRef={messagesEndRef} allMessages={allMessages} />}
+          {currentTab === 'profile' && <ProfileTab user={user} currentUserProfile={currentUserProfile} userAvatarUrl={currentUserProfile?.avatar_url || userAvatarUrl} isAdmin={isAdmin} registeredUsers={registeredUsers} transformations={transformations} newTransBefore={newTransBefore} newTransAfter={newTransAfter} newTransWeight={newTransWeight} newTransNote={newTransNote} newTransIsPrivate={newTransIsPrivate} setNewTransWeight={setNewTransWeight} setNewTransNote={setNewTransNote} setNewTransIsPrivate={setNewTransIsPrivate} onAvatarClick={() => profileAvatarInputRef.current?.click()} onCameraStart={() => {}} onBeforeFileSelect={() => {}} onAfterFileSelect={() => {}} onAddTransformation={async (e) => { e.preventDefault(); if (!user || newTransWeight === '') return; await supabase.from('transformations').insert([{ user_id: user.id, before_url: newTransBefore || '', after_url: newTransAfter || '', date: new Date().toISOString().split('T')[0], weight: Number(newTransWeight), note: newTransNote || 'Évolution', is_private: newTransIsPrivate }]); await addPointsToUser(user.id, 25); fetchTransformations(user.id); setNewTransWeight(''); setNewTransNote(''); }} onShareTransformation={() => {}} onUpdatePasswordSubmit={async (e) => { e.preventDefault(); await supabase.auth.updateUser({}); }} password={password} setPassword={setPassword} confirmPassword={confirmPassword} setConfirmPassword={setConfirmPassword} isPrivateMode={isPrivateMode} setIsPrivateMode={setIsPrivateMode} onSignOut={async () => { await supabase.auth.signOut(); setUser(null); localStorage.clear(); window.location.reload(); }} onToggleVerifyAdmin={async (uId, status) => { await supabase.from('profiles').update({ is_verified: !status }).eq('id', uId); fetchRealUsers(); }} onUpdateProfile={async (updatedData) => { if (!user) return; await supabase.from('profiles').upsert({ id: user.id, ...updatedData }); fetchRealUsers(); }} beforeFileInputRef={beforeFileInputRef} afterFileInputRef={afterFileInputRef} />}
 
-              {trainingSubTab === 'plan' && <TrainingPlanTab currentUserId={user?.id} />}
-              {trainingSubTab === 'roadbook' && <RoadbookTab currentUserId={user?.id} />}
-              {trainingSubTab === 'running' && (
-                <RunningTab 
-                  currentUserId={user?.id} 
-                  currentUsername={currentUsername} 
-                  selectedClub={selectedClub} 
-                  currentUserProfile={currentUserProfile} 
-                  userAvatarUrl={userAvatarUrl} 
-                  onRefreshFeed={fetchCloudPosts} 
-                />
-              )}
-              {trainingSubTab === 'calculators' && (
-                <div className="space-y-4">
-                  <CalculatorTab />
-                  <PaceCalculatorTab />
-                </div>
-              )}
-            </div>
+          {currentTab === 'boxwars' && (
+            <BoxWarsTab currentUserId={user?.id} currentUsername={currentUsername} registeredUsers={registeredUsers} posts={posts} />
           )}
 
-          {/* 3. ONGLET "COMMUNAUTÉ & LIGUE" (Feed social, BoxWars, Classement) */}
-          {currentTab === 'community' && (
-            <div className="space-y-4 animate-fadeIn">
-              <div className="flex items-center justify-between bg-neutral-900 border border-neutral-800 p-3 rounded-2xl">
-                <button onClick={() => setCurrentTab('community')} className="text-xs font-bold text-orange-400">📢 Fil d'actualité</button>
-                <button onClick={() => setCurrentTab('profile')} className="text-xs font-bold text-neutral-400 hover:text-white">🏆 Ligue & Classement</button>
-              </div>
-              <FeedTab 
-                stories={cloudStories} 
-                posts={displayedPosts} 
-                registeredUsers={registeredUsers} 
-                friendRequests={friendRequests} 
-                currentUserId={user?.id} 
-                userDiscipline={currentUserProfile?.discipline} 
-                feedLoading={feedLoading} 
-                viewedStoryIds={viewedStoryIds} 
-                calculateStreak={calculateUserStreak} 
-                onOpenStory={(idx) => setActiveStoryIndex(idx)} 
-                onCreateStoryClick={() => setIsPostModalOpen(true)} 
-                onToggleLike={handleToggleLike} 
-                onOpenComments={(id) => setActiveCommentPostId(id)} 
-                onReportPost={() => {}} 
-                onDeletePost={() => {}} 
-                onSelectProfile={(u) => setViewingProfileUser(u)} 
-                onStartRestTimer={() => {}} 
-              />
-            </div>
-          )}
-
-          {/* 4. ONGLET "PROFIL & STATS" */}
-          {currentTab === 'profile' && (
-            <ProfileTab 
-              user={user} 
-              currentUserProfile={currentUserProfile} 
-              userAvatarUrl={currentUserProfile?.avatar_url || userAvatarUrl} 
-              isAdmin={isAdmin} 
-              registeredUsers={registeredUsers} 
-              transformations={transformations} 
-              newTransBefore={newTransBefore} 
-              newTransAfter={newTransAfter} 
-              newTransWeight={newTransWeight} 
-              newTransNote={newTransNote} 
-              newTransIsPrivate={newTransIsPrivate} 
-              setNewTransWeight={setNewTransWeight} 
-              setNewTransNote={setNewTransNote} 
-              setNewTransIsPrivate={setNewTransIsPrivate} 
-              onAvatarClick={() => profileAvatarInputRef.current?.click()} 
-              onCameraStart={() => {}} 
-              onBeforeFileSelect={() => {}} 
-              onAfterFileSelect={() => {}} 
-              onAddTransformation={async (e) => { e.preventDefault(); if (!user || newTransWeight === '') return; await supabase.from('transformations').insert([{ user_id: user.id, before_url: newTransBefore || '', after_url: newTransAfter || '', date: new Date().toISOString().split('T')[0], weight: Number(newTransWeight), note: newTransNote || 'Évolution', is_private: newTransIsPrivate }]); await addPointsToUser(user.id, 25); fetchTransformations(user.id); setNewTransWeight(''); setNewTransNote(''); }} 
-              onShareTransformation={() => {}} 
-              onUpdatePasswordSubmit={async (e) => { e.preventDefault(); await supabase.auth.updateUser({}); }} 
-              password={password} 
-              setPassword={setPassword} 
-              confirmPassword={confirmPassword} 
-              setConfirmPassword={setConfirmPassword} 
-              isPrivateMode={isPrivateMode} 
-              setIsPrivateMode={setIsPrivateMode} 
-              onSignOut={async () => { await supabase.auth.signOut(); setUser(null); localStorage.clear(); window.location.reload(); }} 
-              onToggleVerifyAdmin={async (uId, status) => { await supabase.from('profiles').update({ is_verified: !status }).eq('id', uId); fetchRealUsers(); }} 
-              onUpdateProfile={async (updatedData) => { if (!user) return; await supabase.from('profiles').upsert({ id: user.id, ...updatedData }); fetchRealUsers(); }} 
-              beforeFileInputRef={beforeFileInputRef} 
-              afterFileInputRef={afterFileInputRef} 
-            />
-          )}
-
-          {/* CHAT DÉDIÉ */}
-          {currentTab === 'chat' && (
-            <ChatTab 
+          {currentTab === 'running' && (
+            <RunningTab 
               currentUserId={user?.id} 
-              selectedBuddyChat={selectedBuddyChat} 
-              setSelectedBuddyChat={handleOpenChatWithUser} 
-              activeChatUsers={activeChatUsers} 
-              currentChatMessages={currentChatMessages} 
-              currentMessageInput={currentMessageInput} 
-              onInputChange={(e) => setCurrentMessageInput(e.target.value)} 
-              onSendMessage={handleSendMessage} 
-              onSelectBuddy={(f) => handleOpenChatWithUser(f)} 
-              onDeleteConversation={() => {}} 
-              onReportConversation={() => {}} 
-              isOtherUserTyping={isOtherUserTyping} 
-              isMessageLimitReached={false} 
-              lastReadTimestamps={lastReadTimestamps} 
-              messagesEndRef={messagesEndRef} 
-              allMessages={allMessages} 
+              currentUsername={currentUsername} 
+              selectedClub={selectedClub} 
+              currentUserProfile={currentUserProfile} 
+              userAvatarUrl={userAvatarUrl} 
+              onRefreshFeed={fetchCloudPosts} 
             />
           )}
 
         </main>
 
-        {/* MODALE DE PUBLICATION DE SÉANCE RAPIDE */}
         {isPostModalOpen && (
           <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4">
             <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-sm w-full p-6 space-y-4 shadow-2xl">
@@ -714,9 +639,10 @@ export default function App() {
                   <label className="block text-xs font-semibold text-neutral-400 mb-1">Type de séance :</label>
                   <select value={postSessionType} onChange={(e) => setPostSessionType(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3.5 py-3 text-sm text-white">
                     <option value="Musculation Full Body">Musculation Full Body</option>
-                    <option value="Course à pied / Sortie longue">Course à pied / Sortie longue</option>
-                    <option value="Fractionné / VMA">Fractionné / VMA</option>
-                    <option value="Crossfit / WOD">Crossfit / WOD</option>
+                    <option value="Pectoraux / Triceps">Pectoraux / Triceps</option>
+                    <option value="Dos / Biceps">Dos / Biceps</option>
+                    <option value="Jambes / Abdos">Jambes / Abdos</option>
+                    <option value="Cardio / HIIT">Cardio / HIIT</option>
                   </select>
                 </div>
 
@@ -726,7 +652,7 @@ export default function App() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-neutral-400 mb-1">Photo :</label>
+                  <label className="block text-xs font-semibold text-neutral-400 mb-1">Photo (Galerie ou Appareil) :</label>
                   <button type="button" onClick={() => postImageFileInputRef.current?.click()} className="w-full py-3 bg-neutral-950 border border-neutral-800 hover:border-orange-500 rounded-xl text-xs font-bold text-neutral-200 flex items-center justify-center gap-2">
                     <Camera className="w-4 h-4 text-orange-500" /> Choisir une image
                   </button>
@@ -748,50 +674,263 @@ export default function App() {
           </div>
         )}
 
-        {/* BARRE DE NAVIGATION INFÉRIEURE ÉPURÉE (3 ONGLES MAJEURS + BOUTON ACTION) */}
-        <nav className="sticky bottom-0 left-0 right-0 z-40 bg-neutral-950/95 backdrop-blur-xl border-t border-neutral-800 px-4 py-2 flex justify-around items-center">
-          <button 
-            onClick={() => handleTabChange('today')} 
-            className={`flex flex-col items-center gap-1 transition active:scale-95 ${currentTab === 'today' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}
-          >
-            <Home className="w-5 h-5" />
-            <span className="text-[10px]">Aujourd'hui</span>
-          </button>
+        {isBoxWarsModalOpen && (
+          <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4">
+            <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-sm w-full p-6 space-y-4 shadow-2xl">
+              <div className="flex items-center justify-between">
+                <h3 className="font-extrabold text-base text-white flex items-center gap-2">
+                  <Zap className="w-5 h-5 text-cyan-400" /> Enregistrer un score BoxWars
+                </h3>
+                <button type="button" onClick={() => setIsBoxWarsModalOpen(false)} className="p-2 text-neutral-400 hover:text-white rounded-xl">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
 
-          <button 
-            onClick={() => handleTabChange('training')} 
-            className={`flex flex-col items-center gap-1 transition active:scale-95 ${currentTab === 'training' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}
-          >
-            <Activity className="w-5 h-5" />
-            <span className="text-[10px]">Entraînement</span>
-          </button>
+              <form onSubmit={async (e) => {
+                e.preventDefault();
+                if (!user) return;
 
-          {/* BOUTON CENTRAL D'ACTION RAPIDE (+) */}
+                const formElement = e.currentTarget as HTMLFormElement;
+                const selectWodType = (formElement.elements[0] as HTMLSelectElement).value;
+                const scoreInput = (formElement.elements[1] as HTMLInputElement).value;
+                const noteInput = (formElement.elements[2] as HTMLTextAreaElement).value;
+                 
+                const scaleMode = (formElement.elements.namedItem('scaleMode') as RadioNodeList).value;
+
+                if (!scoreInput.trim()) {
+                  alert("Veuillez indiquer un score ou un temps !");
+                  return;
+                }
+
+                const fullCaption = `⚡ [BOXWARS] [${scaleMode}] ${selectWodType} : ${scoreInput} ${noteInput ? `- ${noteInput}` : ''}`.trim();
+
+                const { error } = await supabase.from('posts').insert([{
+                  user_id: user.id,
+                  username: currentUsername,
+                  avatar_url: currentUserProfile?.avatar_url || userAvatarUrl,
+                  club_name: selectedClub === '🌐 Tous les clubs (Global)' ? 'Club Tournai (Bastion)' : selectedClub,
+                  session_type: 'BoxWars / WOD',
+                  caption: fullCaption,
+                  image_url: null,
+                  exercises: [],
+                  likes_count: 0,
+                  liked_by: [],
+                  comments_count: 0,
+                  comments: [],
+                  is_private: false
+                }]);
+
+                if (!error) {
+                  const pointsToAdd = 15;
+                  const currentMuscuPts = currentUserProfile?.points_muscu || 0;
+                  const currentGlobalPts = currentUserProfile?.points_global || currentUserProfile?.points || 0;
+
+                  await supabase.from('profiles').update({ 
+                    points_muscu: currentMuscuPts + pointsToAdd,
+                    points_global: currentGlobalPts + pointsToAdd,
+                    points: currentGlobalPts + pointsToAdd 
+                  }).eq('id', user.id);
+
+                  setIsBoxWarsModalOpen(false);
+                  fetchCloudPosts();
+                  fetchRealUsers();
+                } else {
+                  alert("Erreur lors de la publication du score : " + error?.message);
+                }
+              }} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold text-neutral-400 mb-1">Type de WOD / Challenge :</label>
+                  <select className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3.5 py-3 text-sm text-white">
+                    <option value="WOD du jour">WOD du jour</option>
+                    <option value="Max Reps / Max Load">Max Reps / Max Load</option>
+                    <option value="Challenge Libre">Challenge Libre</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-neutral-400 mb-1">Score / Temps réalisé :</label>
+                  <input type="text" placeholder="Ex: 8 rounds + 5 reps / 4:12" className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-sm text-white focus:outline-none" />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-neutral-400 mb-1">Notes / Remarques :</label>
+                  <textarea rows={2} placeholder="Comment s'est passé le wod ?" className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-sm text-white focus:outline-none" />
+                </div>
+
+                <div className="flex items-center gap-3 bg-neutral-950 border border-neutral-800 rounded-xl p-3">
+                  <input type="radio" name="scaleMode" value="RX" id="rxMode" defaultChecked className="accent-cyan-500 w-4 h-4" />
+                  <label htmlFor="rxMode" className="text-xs text-white font-bold mr-4">RX</label>
+                   
+                  <input type="radio" name="scaleMode" value="SCALED" id="scaledMode" className="accent-neutral-500 w-4 h-4" />
+                  <label htmlFor="scaledMode" className="text-xs text-white font-bold">Scaled</label>
+                </div>
+
+                <button type="submit" className="w-full py-3.5 bg-cyan-600 hover:bg-cyan-500 text-white font-bold rounded-2xl text-sm shadow-xl">
+                  Publier sur le fil BoxWars (+15 pts ⚡)
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {viewingProfileUser && (() => {
+          const targetUserId = viewingProfileUser.id;
+          const isSelf = user?.id === targetUserId;
+           
+          const friendship = friendRequests.find(
+            req => (req.sender_id === user?.id && req.receiver_id === targetUserId) ||
+                   (req.sender_id === targetUserId && req.receiver_id === user?.id)
+          );
+
+          const isAlreadyFriends = friendship?.status === 'accepted';
+          const isPendingSent = friendship?.status === 'pending' && friendship.sender_id === user?.id;
+          const isPendingReceived = friendship?.status === 'pending' && friendship.receiver_id === user?.id;
+
+          const userProfilePosts = posts.filter(p => p.user_id === targetUserId);
+
+          return (
+            <div className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
+              <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-md w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden animate-scaleUp">
+                 
+                <div className="relative h-32 bg-gradient-to-r from-orange-600 via-neutral-800 to-cyan-600 flex-shrink-0">
+                  <button 
+                    type="button" 
+                    onClick={() => setViewingProfileUser(null)} 
+                    className="absolute top-3 right-3 p-2 bg-black/60 hover:bg-black text-white rounded-full z-10 transition"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+
+                <div className="px-5 pb-5 -mt-12 flex-1 overflow-y-auto space-y-4">
+                   
+                  <div className="flex flex-col items-center sm:items-start sm:flex-row gap-4">
+                    <img 
+                      src={viewingProfileUser.avatar_url || 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=150'} 
+                      alt={viewingProfileUser.username} 
+                      className="w-24 h-24 rounded-full object-cover border-4 border-neutral-900 shadow-xl bg-neutral-800"
+                    />
+                    <div className="flex-1 text-center sm:text-left pt-2">
+                      <h2 className="text-lg font-black text-white">{viewingProfileUser.username}</h2>
+                      <p className="text-xs text-orange-400 font-semibold">{viewingProfileUser.home_club || 'Club non renseigné'}</p>
+                      <div className="flex justify-center sm:justify-start gap-3 mt-2 text-[11px] text-neutral-400 font-bold">
+                        <span>Objectif : <strong className="text-white">{viewingProfileUser.goal || 'Muscu'}</strong></span>
+                        <span>•</span>
+                        <span>Ligue : <strong className="text-cyan-400">{viewingProfileUser.points || 0} pts ⚡</strong></span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {!isSelf && (
+                    <div className="flex gap-2 pt-1">
+                      {!friendship ? (
+                        <button 
+                          onClick={async () => {
+                            if (!user) return;
+                            await supabase.from('friend_requests').insert([{ sender_id: user.id, receiver_id: targetUserId, status: 'pending' }]);
+                            fetchFriendRequests(user.id);
+                          }}
+                          className="flex-1 py-2.5 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-xl text-xs shadow-lg transition"
+                        >
+                          Ajouter en ami 🤝
+                        </button>
+                      ) : isAlreadyFriends ? (
+                        <button 
+                          onClick={async () => {
+                            await supabase.from('friend_requests').delete().eq('id', friendship.id);
+                            if (user) fetchFriendRequests(user.id);
+                          }}
+                          className="flex-1 py-2.5 bg-neutral-800 hover:bg-red-500/20 hover:text-red-400 text-neutral-300 font-bold rounded-2xl text-xs border border-neutral-700 transition"
+                        >
+                          Retirer des amis ✓
+                        </button>
+                      ) : isPendingSent ? (
+                        <button disabled className="flex-1 py-2.5 bg-neutral-800 text-neutral-400 font-bold rounded-2xl text-xs cursor-not-allowed">
+                          Demande envoyée ⏳
+                        </button>
+                      ) : isPendingReceived ? (
+                        <button 
+                          onClick={async () => {
+                            await supabase.from('friend_requests').update({ status: 'accepted' }).eq('id', friendship.id);
+                            if (user) fetchFriendRequests(user.id);
+                          }}
+                          className="flex-1 py-2.5 bg-green-600 hover:bg-green-500 text-white font-bold rounded-2xl text-xs shadow-lg transition"
+                        >
+                          Accepter la demande ✅
+                        </button>
+                      ) : null}
+
+                      <button 
+                        onClick={() => {
+                          setViewingProfileUser(null);
+                          handleOpenChatWithUser(viewingProfileUser);
+                          handleTabChange('chat');
+                        }}
+                        className="px-4 py-2.5 bg-neutral-800 hover:bg-neutral-700 text-white font-bold rounded-2xl text-xs border border-neutral-700 transition"
+                      >
+                        Message 💬
+                      </button>
+                    </div>
+                  )}
+
+                  <div className="space-y-3 pt-2">
+                    <h4 className="text-xs font-black uppercase tracking-wider text-neutral-400 border-b border-neutral-800 pb-2">
+                      Publications de {viewingProfileUser.username} ({userProfilePosts.length})
+                    </h4>
+
+                    {userProfilePosts.length === 0 ? (
+                      <p className="text-xs text-neutral-500 text-center py-6">Aucune publication pour le moment.</p>
+                    ) : (
+                      userProfilePosts.map(post => (
+                        <div key={post.id} className="bg-neutral-950 border border-neutral-800 p-3.5 rounded-2xl space-y-2">
+                          <div className="flex items-center justify-between text-[11px] text-neutral-400">
+                            <span className="font-bold text-orange-400">{post.session_type}</span>
+                            <span>{new Date(post.created_at).toLocaleDateString()}</span>
+                          </div>
+                          <p className="text-xs text-neutral-200">{post.caption}</p>
+                          {post.image_url && (
+                            <div className="rounded-xl overflow-hidden h-36 border border-neutral-800">
+                              <img src={post.image_url} alt="" className="w-full h-full object-cover" />
+                            </div>
+                          )}
+                        </div>
+                      ))
+                    )}
+                  </div>
+
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
+        <nav className="sticky bottom-0 left-0 right-0 z-40 bg-neutral-950/95 backdrop-blur-xl border-t border-neutral-800 px-2 py-2 flex justify-around items-center">
+          <button onClick={() => handleTabChange('feed')} className={`flex flex-col items-center gap-1 transition active:scale-95 ${currentTab === 'feed' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Home className="w-5 h-5" /><span className="text-[10px]">Accueil</span></button>
+          <button onClick={() => handleTabChange('leaderboard')} className={`flex flex-col items-center gap-1 transition active:scale-95 ${currentTab === 'leaderboard' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Trophy className="w-5 h-5" /><span className="text-[10px]">Ligue</span></button>
+          <button onClick={() => handleTabChange('boxwars')} className={`flex flex-col items-center gap-1 transition active:scale-95 ${currentTab === 'boxwars' ? 'text-cyan-400 font-bold' : 'text-neutral-500'}`}>
+            <Zap className="w-5 h-5" />
+            <span className="text-[10px]">BoxWars</span>
+          </button>
+           
           <button 
-            onClick={() => setIsPostModalOpen(true)} 
+            onClick={() => {
+              if (currentTab === 'boxwars') {
+                setIsBoxWarsModalOpen(true);
+              } else if (currentTab === 'running') {
+                setIsPostModalOpen(true);
+              } else {
+                setIsPostModalOpen(true);
+              }
+            }} 
             className="flex flex-col items-center justify-center w-12 h-12 rounded-full bg-orange-600 hover:bg-orange-500 text-white shadow-lg transition transform hover:scale-105 active:scale-95 -mt-3"
-            title="Publier une séance"
           >
             <Plus className="w-6 h-6 stroke-[3]" />
           </button>
 
-          <button 
-            onClick={() => handleTabChange('community')} 
-            className={`flex flex-col items-center gap-1 transition active:scale-95 ${currentTab === 'community' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}
-          >
-            <Trophy className="w-5 h-5" />
-            <span className="text-[10px]">Ligue</span>
-          </button>
-
-          <button 
-            onClick={() => handleTabChange('profile')} 
-            className={`flex flex-col items-center gap-1 transition active:scale-95 ${currentTab === 'profile' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}
-          >
-            <User className="w-5 h-5" />
-            <span className="text-[10px]">Profil</span>
-          </button>
+          <button onClick={() => handleTabChange('buddy')} className={`flex flex-col items-center gap-1 transition active:scale-95 ${currentTab === 'buddy' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Users className="w-5 h-5" /><span className="text-[10px]">Buddies</span></button>
+          <button onClick={() => handleTabChange('chat')} className={`flex flex-col items-center gap-1 transition active:scale-95 ${currentTab === 'chat' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><MessageCircle className="w-5 h-5" /><span className="text-[10px]" data-testid="chat-label">Chat</span></button>
+          <button onClick={() => handleTabChange('profile')} className={`flex flex-col items-center gap-1 transition active:scale-95 ${currentTab === 'profile' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><User className="w-5 h-5" /><span className="text-[10px]">Profil</span></button>
         </nav>
-
       </div>
     </div>
   );
