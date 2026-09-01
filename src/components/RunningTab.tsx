@@ -1,11 +1,17 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   Play, Pause, Square, MapPin, Volume2, VolumeX, 
-  Settings, Flame, Compass, ArrowRight, Apple, Droplet, Zap, CheckCircle2 
+  Flame, Compass, Apple, Droplet, Zap 
 } from 'lucide-react';
 import GearTrackerSection from './GearTrackerSection';
 
 interface RunningTabProps {
+  currentUserId?: string;
+  currentUsername?: string;
+  selectedClub?: string;
+  currentUserProfile?: any;
+  userAvatarUrl?: string;
+  onRefreshFeed?: () => void;
   shoes?: any[];
   onAddShoe?: (brand: string, model: string, maxKm: number) => void;
   onDeleteShoe?: (shoeId: string) => void;
@@ -26,7 +32,6 @@ export default function RunningTab({
   const [seconds, setSeconds] = useState(0);
   const [distanceKm, setDistanceKm] = useState(0);
   const [audioCoaching, setAudioCoaching] = useState(true);
-  const [targetPace, setTargetPace] = useState(5.30); // min/km
 
   // États du Planificateur de Ravitaillement (Nutrition)
   const [durationHours, setDurationHours] = useState<number>(2);
