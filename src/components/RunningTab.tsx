@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef, FormEvent } from 'react';
 import { Play, Pause, Square, MapPin, Flame, X } from 'lucide-react';
 import { createClient } from '@supabase/supabase-js';
+import { MapContainer, TileLayer, Polyline, CircleMarker } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
 
 const supabaseUrl = 'https://obtahwmcoqrcauscpksv.supabase.co';
 const supabaseAnonKey = 'sb_publishable_O8CKhUtzgq9nO9lKavNE9A__fAdRWoB';
@@ -26,7 +28,8 @@ export default function RunningTab({
   const [isRunning, setIsRunning] = useState(false);
   const [seconds, setSeconds] = useState(0);
   const [distanceMeters, setDistanceMeters] = useState(0);
-  const [lastPosition, setLastPosition] = useState<{ lat: number; lng: number } | null>(null);
+  const [pathCoordinates, setPathCoordinates] = useState<[number, number][]>([]);
+  const [currentPosition, setCurrentPosition] = useState<[number, number]>([50.6053, 3.3888]); // Tournai par défaut
   const [runCaption, setRunCaption] = useState('');
   const [showSaveModal, setShowSaveModal] = useState(false);
 
@@ -68,20 +71,27 @@ export default function RunningTab({
       watchIdRef.current = navigator.geolocation.watchPosition(
         (position) => {
           const { latitude, longitude } = position.coords;
-          const currentPos = { lat: latitude, lng: longitude };
+          const newPos: [number, number] = [latitude, longitude];
 
-          if (lastPosition) {
-            const dist = calculateDistance(lastPosition.lat, lastPosition.lng, currentPos.lat, currentPos.lng);
-            if (dist > 2 && dist < 100) {
-              setDistanceMeters(prev => prev + dist);
+          setCurrentPosition(newPos);
+
+          setPathCoordinates(prev => {
+            if (prev.length > 0) {
+              const last = prev[prev.length - 1];
+              const dist = calculateDistance(last[0], last[1], latitude, longitude);
+              if (dist > 2 && dist < 100) {
+                setDistanceMeters(m => m + dist);
+                return [...prev, newPos];
+              }
+              return prev;
             }
-          }
-          setLastPosition(currentPos);
+            return [newPos];
+          });
         },
         (error) => {
           console.error("Erreur GPS :", error);
         },
-        { enableHighAccuracy: true, maximumAge: 10000, timeout: 5000 }
+        { enableHighAccuracy: true, maximumAge: 5000, timeout: 5000 }
       );
     } else {
       if (watchIdRef.current !== null) {
@@ -95,7 +105,7 @@ export default function RunningTab({
         navigator.geolocation.clearWatch(watchIdRef.current);
       }
     };
-  }, [isRunning, lastPosition]);
+  }, [isRunning]);
 
   const formatTime = (totalSecs: number) => {
     const mins = Math.floor(totalSecs / 60);
@@ -152,6 +162,7 @@ export default function RunningTab({
       setShowSaveModal(false);
       setSeconds(0);
       setDistanceMeters(0);
+      setPathCoordinates([]);
       setRunCaption('');
       onRefreshFeed();
       alert("✅ Sortie publiée avec succès sur le fil FitPulse ! (+ " + pointsToAdd + " pts ⚡)");
@@ -166,10 +177,28 @@ export default function RunningTab({
         <div className="flex items-center gap-2 text-emerald-400 font-bold text-xs uppercase tracking-wider mb-1">
           <MapPin className="w-4 h-4" /> FitPulse Running Tracker
         </div>
-        <h2 className="text-xl font-black">Traceur GPS & Performances</h2>
-        <p className="text-xs text-neutral-300 mt-1">Enregistre tes footings, calcule ton allure en direct et partage tes runs avec la communauté.</p>
+        <h2 className="text-xl font-black">Traceur GPS & Mini-Map</h2>
+        <p className="text-xs text-neutral-300 mt-1">Suivi en direct de votre parcours sur carte interactive.</p>
       </div>
 
+      {/* Mini-Carte Interactive */}
+      <div className="w-full h-56 rounded-3xl overflow-hidden border border-neutral-800 shadow-xl relative z-10">
+        <MapContainer 
+          center={currentPosition} 
+          zoom={15} 
+          zoomControl={false}
+          attributionControl={false}
+          style={{ width: '100%', height: '100%', background: '#0a0a0a' }}
+        >
+          <TileLayer url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" />
+          {pathCoordinates.length > 0 && (
+            <Polyline positions={pathCoordinates} color="#10b981" weight={4} />
+          )}
+          <CircleMarker center={currentPosition} radius={6} fillColor="#10b981" color="#ffffff" weight={2} fillOpacity={1} />
+        </MapContainer>
+      </div>
+
+      {/* Tableau de bord */}
       <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-6 text-center space-y-6 shadow-xl">
         <div className="grid grid-cols-2 gap-4 border-b border-neutral-800 pb-5">
           <div className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800">
