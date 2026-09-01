@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Flag, Navigation, Plus, Trash2 } from 'lucide-react';
+import { useState, useEffect, FormEvent } from 'react';
+import { Flag, Trash2 } from 'lucide-react';
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = 'https://obtahwmcoqrcauscpksv.supabase.co';
@@ -28,7 +28,7 @@ export default function RoadbookTab({ currentUserId }: { currentUserId?: string 
     fetchRoadbooks();
   }, [currentUserId]);
 
-  const handleCreateRoadbook = async (e: React.FormEvent) => {
+  const handleCreateRoadbook = async (e: FormEvent) => {
     e.preventDefault();
     if (!currentUserId) return;
 
@@ -53,7 +53,6 @@ export default function RoadbookTab({ currentUserId }: { currentUserId?: string 
     }
   };
 
-  // Générateur de tableau de marche kilomètre par kilomètre
   const generateSplits = (totalDist: number, paceSec: number) => {
     const splits = [];
     let cumulativeTime = 0;
