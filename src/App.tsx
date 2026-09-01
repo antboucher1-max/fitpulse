@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, ChangeEvent, FormEvent } from 'react';
 import {
-  Zap, User, MessageCircle, Home, Users, Plus, X, Camera, Flame, MapPin, Trophy, Navigation
+  Zap, User, MessageCircle, Home, Users, Plus, X, Camera, Flame, MapPin, Trophy, Navigation, Calendar
 } from 'lucide-react';
 import { createClient, User as SupabaseUser } from '@supabase/supabase-js';
 
@@ -12,13 +12,14 @@ import FeedTab from './components/FeedTab';
 import BuddyTab from './components/BuddyTab';
 import WodTimerTab from './components/WodTimerTab';
 import CalculatorTab from './components/CalculatorTab';
-import PaceCalculatorTab from './components/PaceCalculatorTab'; // <-- NOUVEAU : Import du calculateur VMA
+import PaceCalculatorTab from './components/PaceCalculatorTab';
 import ChatTab from './components/ChatTab';
 import ProfileTab from './components/ProfileTab';
 import LeaderboardTab from './components/LeaderboardTab';
 import BoxWarsTab from './components/BoxWarsTab';
 import RunningTab from './components/RunningTab';
 import ReadinessCheckin from './components/ReadinessCheckin';
+import TrainingPlanTab from './components/TrainingPlanTab'; // <-- IMPORTATION DU PLAN D'ENTRAÎNEMENT
 
 const supabaseUrl = 'https://obtahwmcoqrcauscpksv.supabase.co';
 const supabaseAnonKey = 'sb_publishable_O8CKhUtzgq9nO9lKavNE9A__fAdRWoB';
@@ -50,7 +51,7 @@ const isMatchingClub = (postClubName?: string, selectedClubName?: string): boole
 export default function App() {
   const [user, setUser] = useState<SupabaseUser | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
-  
+   
   const [authEmail, setAuthEmail] = useState('');
   const [authPassword, setAuthPassword] = useState('');
   const [isSignUpMode, setIsSignUpMode] = useState(false);
@@ -65,7 +66,7 @@ export default function App() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [feedLoading, setFeedLoading] = useState(false);
   const [userAvatarUrl] = useState<string>('https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=150');
-  
+   
   const profileAvatarInputRef = useRef<HTMLInputElement>(null);
   const beforeFileInputRef = useRef<HTMLInputElement>(null);
   const afterFileInputRef = useRef<HTMLInputElement>(null);
@@ -87,7 +88,7 @@ export default function App() {
   const [registeredUsers, setRegisteredUsers] = useState<RealUser[]>([]);
   const [cloudStories] = useState<Story[]>([]);
   const [allMessages, setAllMessages] = useState<DBMessage[]>([]);
-  
+   
   const [viewedStoryIds] = useState<string[]>([]);
   const [viewingProfileUser, setViewingProfileUser] = useState<RealUser | null>(null);
   const [, setActiveStoryIndex] = useState<number | null>(null);
@@ -104,7 +105,7 @@ export default function App() {
   const [onboardingDiscipline, setOnboardingDiscipline] = useState('Fitness / Musculation');
   const [onboardingAvatar] = useState<string>('https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=150');
   const [onboardingSubmitting, setOnboardingSubmitting] = useState(false);
-  
+   
   const [lastReadTimestamps, setLastReadTimestamps] = useState<Record<string, number>>(() => {
     try {
       const saved = localStorage.getItem('fitpulse_read_timestamps');
@@ -266,7 +267,7 @@ export default function App() {
     const hasLiked = likedByList.includes(user.id);
     const updatedLikedBy = hasLiked ? likedByList.filter(id => id !== user.id) : [...likedByList, user.id];
     const newCount = hasLiked ? Math.max(0, post.likes_count - 1) : post.likes_count + 1;
-    
+     
     setPosts(prev => prev.map(p => p.id === postId ? { ...p, likes_count: newCount, liked_by: updatedLikedBy } : p));
     await supabase.from('posts').update({ likes_count: newCount, liked_by: updatedLikedBy }).eq('id', postId);
   };
@@ -323,7 +324,7 @@ export default function App() {
 
   const acceptedFriendIds = friendRequests.filter(req => req.status === 'accepted').map(req => (req.sender_id === user?.id ? req.receiver_id : req.sender_id));
   const activeChatUsers = registeredUsers.filter((u) => u.id !== user?.id && acceptedFriendIds.includes(u.id));
-  
+   
   const displayedPosts = posts.filter((post) => {
     if (selectedClub === '🌐 Tous les clubs (Global)') return true;
     return isMatchingClub(post.club_name, selectedClub);
@@ -402,7 +403,7 @@ export default function App() {
     return (
       <div className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col items-center justify-center font-sans p-4 select-none">
         <div className="w-full max-w-sm bg-neutral-900 border border-neutral-800 rounded-3xl p-6 space-y-4 shadow-2xl relative">
-          
+           
           <button 
             type="button" 
             onClick={async () => {
@@ -416,12 +417,12 @@ export default function App() {
           </button>
 
           <h1 className="text-lg font-black text-white text-center">Bienvenue sur FitPulse !</h1>
-          
+           
           <form onSubmit={async (e) => {
             e.preventDefault();
             if (!onboardingUsername.trim()) { alert("Pseudo requis"); return; }
             setOnboardingSubmitting(true);
-            
+             
             try {
               const { error } = await supabase.from('profiles').upsert({
                 id: user.id, 
@@ -448,7 +449,7 @@ export default function App() {
             }
           }} className="space-y-3">
             <input type="text" required placeholder="Ton Pseudo" value={onboardingUsername} onChange={(e) => setOnboardingUsername(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-2.5 text-sm text-white" />
-            
+             
             <div>
               <label className="block text-xs text-neutral-400 mb-1">Discipline principale :</label>
               <select value={onboardingDiscipline} onChange={(e) => setOnboardingDiscipline(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-2.5 text-sm text-white">
@@ -523,7 +524,6 @@ export default function App() {
               1RM
             </button>
 
-            {/* Bouton pour accéder au calculateur VMA */}
             <button 
               onClick={() => handleTabChange('paces')}
               className={`p-2 rounded-xl text-xs font-bold transition ${currentTab === 'paces' ? 'bg-emerald-500 text-neutral-950' : 'bg-neutral-900 text-emerald-400 border border-emerald-500/30'}`}
@@ -535,9 +535,9 @@ export default function App() {
             <button 
               onClick={() => handleTabChange('readiness')}
               className={`p-2 rounded-xl text-xs font-bold transition ${currentTab === 'readiness' ? 'bg-emerald-500 text-neutral-950' : 'bg-neutral-900 text-emerald-400 border border-emerald-500/30'}`}
-              title="Suivi de Forme"
+              title="Plan d'Entraînement"
             >
-              ⚡ Forme
+              📅 Plan
             </button>
 
             <button 
@@ -563,7 +563,7 @@ export default function App() {
         <main className="flex-1 w-full mx-auto px-4 py-3 pb-24">
           {currentTab === 'feed' && <FeedTab stories={cloudStories} posts={displayedPosts} registeredUsers={registeredUsers} friendRequests={friendRequests} currentUserId={user?.id} userDiscipline={currentUserProfile?.discipline} feedLoading={feedLoading} viewedStoryIds={viewedStoryIds} calculateStreak={calculateUserStreak} onOpenStory={(idx) => setActiveStoryIndex(idx)} onCreateStoryClick={() => setIsPostModalOpen(true)} onToggleLike={handleToggleLike} onOpenComments={(id) => setActiveCommentPostId(id)} onReportPost={() => {}} onDeletePost={() => {}} onSelectProfile={(u) => setViewingProfileUser(u)} onStartRestTimer={() => handleTabChange('rest_timer')} />}
           {currentTab === 'leaderboard' && <LeaderboardTab registeredUsers={registeredUsers} />}
-          
+           
           {currentTab === 'buddy' && (
             <BuddyTab 
               currentUserId={user?.id} 
@@ -588,15 +588,18 @@ export default function App() {
 
           {currentTab === 'rest_timer' && <WodTimerTab />}
           {currentTab === 'calculator' && <CalculatorTab />}
-          
-          {/* Rendu du calculateur d'allures VMA */}
+           
           {currentTab === 'paces' && <PaceCalculatorTab />}
 
+          {/* INTÉGRATION DU COMPOSANT PLAN D'ENTRAÎNEMENT & CHECK-IN */}
           {currentTab === 'readiness' && (
-            <ReadinessCheckin 
-              currentUserId={user?.id} 
-              onUpdatePlan={(rec) => alert(rec)} 
-            />
+            <div className="space-y-4">
+              <TrainingPlanTab currentUserId={user?.id} />
+              <ReadinessCheckin 
+                currentUserId={user?.id} 
+                onUpdatePlan={(rec) => alert(rec)} 
+              />
+            </div>
           )}
 
           {currentTab === 'chat' && <ChatTab currentUserId={user?.id} selectedBuddyChat={selectedBuddyChat} setSelectedBuddyChat={handleOpenChatWithUser} activeChatUsers={activeChatUsers} currentChatMessages={currentChatMessages} currentMessageInput={currentMessageInput} onInputChange={(e) => setCurrentMessageInput(e.target.value)} onSendMessage={handleSendMessage} onSelectBuddy={(f) => handleOpenChatWithUser(f)} onDeleteConversation={() => {}} onReportConversation={() => {}} isOtherUserTyping={isOtherUserTyping} isMessageLimitReached={false} lastReadTimestamps={lastReadTimestamps} messagesEndRef={messagesEndRef} allMessages={allMessages} />}
@@ -689,7 +692,7 @@ export default function App() {
                 const selectWodType = (formElement.elements[0] as HTMLSelectElement).value;
                 const scoreInput = (formElement.elements[1] as HTMLInputElement).value;
                 const noteInput = (formElement.elements[2] as HTMLTextAreaElement).value;
-                
+                 
                 const scaleMode = (formElement.elements.namedItem('scaleMode') as RadioNodeList).value;
 
                 if (!scoreInput.trim()) {
@@ -755,7 +758,7 @@ export default function App() {
                 <div className="flex items-center gap-3 bg-neutral-950 border border-neutral-800 rounded-xl p-3">
                   <input type="radio" name="scaleMode" value="RX" id="rxMode" defaultChecked className="accent-cyan-500 w-4 h-4" />
                   <label htmlFor="rxMode" className="text-xs text-white font-bold mr-4">RX</label>
-                  
+                   
                   <input type="radio" name="scaleMode" value="SCALED" id="scaledMode" className="accent-neutral-500 w-4 h-4" />
                   <label htmlFor="scaledMode" className="text-xs text-white font-bold">Scaled</label>
                 </div>
@@ -771,7 +774,7 @@ export default function App() {
         {viewingProfileUser && (() => {
           const targetUserId = viewingProfileUser.id;
           const isSelf = user?.id === targetUserId;
-          
+           
           const friendship = friendRequests.find(
             req => (req.sender_id === user?.id && req.receiver_id === targetUserId) ||
                    (req.sender_id === targetUserId && req.receiver_id === user?.id)
@@ -786,7 +789,7 @@ export default function App() {
           return (
             <div className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
               <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-md w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden animate-scaleUp">
-                
+                 
                 <div className="relative h-32 bg-gradient-to-r from-orange-600 via-neutral-800 to-cyan-600 flex-shrink-0">
                   <button 
                     type="button" 
@@ -798,7 +801,7 @@ export default function App() {
                 </div>
 
                 <div className="px-5 pb-5 -mt-12 flex-1 overflow-y-auto space-y-4">
-                  
+                   
                   <div className="flex flex-col items-center sm:items-start sm:flex-row gap-4">
                     <img 
                       src={viewingProfileUser.avatar_url || 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=150'} 
@@ -906,7 +909,7 @@ export default function App() {
             <Zap className="w-5 h-5" />
             <span className="text-[10px]">BoxWars</span>
           </button>
-          
+           
           <button 
             onClick={() => {
               if (currentTab === 'boxwars') {
