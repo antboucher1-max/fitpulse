@@ -45,6 +45,7 @@ const isMatchingClub = (postClubName?: string, selectedClubName?: string): boole
 
 export default function App() {
   const [user, setUser] = useState<SupabaseUser | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
   
   const [authEmail, setAuthEmail] = useState('');
   const [authPassword, setAuthPassword] = useState('');
@@ -191,6 +192,7 @@ export default function App() {
         fetchTransformations(session.user.id);
         fetchFriendRequests(session.user.id);
       }
+      setAuthLoading(false);
     });
 
     fetchCloudPosts();
@@ -314,6 +316,16 @@ export default function App() {
   const currentChatMessages = allMessages.filter((m) => selectedBuddyChat && user && ((m.sender_id === user.id && m.receiver_id === selectedBuddyChat.id) || (m.sender_id === selectedBuddyChat.id && m.receiver_id === user.id)));
 
   const isAdmin = currentUserProfile?.is_admin || user?.email === 'antboucher@hotmail.fr';
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-neutral-950 flex items-center justify-center">
+        <div className="w-8 h-8 rounded-xl bg-orange-500/20 text-orange-500 flex items-center justify-center animate-pulse">
+          ⚡
+        </div>
+      </div>
+    );
+  }
 
   if (!user) {
     return (
@@ -535,7 +547,7 @@ export default function App() {
             <Plus className="w-6 h-6 stroke-[3]" />
           </button>
           <button onClick={() => handleTabChange('buddy')} className={`flex flex-col items-center gap-1 transition active:scale-95 ${currentTab === 'buddy' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Users className="w-5 h-5" /><span className="text-[10px]">Buddies</span></button>
-          <button onClick={() => handleTabChange('chat')} className={`flex flex-col items-center gap-1 transition active:scale-95 ${currentTab === 'chat' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><MessageCircle className="w-5 h-5" /><span className="text-[10px]">Chat</span></button>
+          <button onClick={() => handleTabChange('chat')} className={`flex flex-col items-center gap-1 transition active:scale-95 ${currentTab === 'chat' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><MessageCircle className="w-5 h-5" /><span className="text-[10px]" data-testid="chat-label">Chat</span></button>
           <button onClick={() => handleTabChange('profile')} className={`flex flex-col items-center gap-1 transition active:scale-95 ${currentTab === 'profile' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><User className="w-5 h-5" /><span className="text-[10px]">Profil</span></button>
         </nav>
       </div>
