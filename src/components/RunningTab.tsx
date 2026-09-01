@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, FormEvent } from 'react';
 import { Play, Pause, Square, MapPin, Flame, X, Compass } from 'lucide-react';
 import { createClient } from '@supabase/supabase-js';
-import { MapContainer, TileLayer, Polyline, CircleMarker } from 'react-leaflet';
+import { MapContainer, TileLayer, Polyline, CircleMarker, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 
 const supabaseUrl = 'https://obtahwmcoqrcauscpksv.supabase.co';
@@ -15,6 +15,15 @@ interface RunningTabProps {
   currentUserProfile?: any;
   userAvatarUrl: string;
   onRefreshFeed: () => void;
+}
+
+// Composant interne pour recentrer automatiquement et figer la vue sur l'athlète
+function MapRecenter({ position }: { position: [number, number] }) {
+  const map = useMap();
+  useEffect(() => {
+    map.setView(position, map.getZoom(), { animate: true });
+  }, [position, map]);
+  return null;
 }
 
 export default function RunningTab({ 
@@ -114,18 +123,16 @@ export default function RunningTab({
   // Mode Simulation (Boucle de déplacement fictif autour de Tournai)
   useEffect(() => {
     if (isSimulating) {
-      // Point de départ de la simulation (Centre de Tournai)
       let simLat = 50.6053;
       let simLng = 3.3888;
       
       simIntervalRef.current = setInterval(() => {
-        // On fait avancer légèrement les coordonnées GPS à chaque seconde (simulation d'une foulée)
         simLat += 0.00015;
         simLng += 0.0002;
         const newPos: [number, number] = [simLat, simLng];
 
         setCurrentPosition(newPos);
-        setDistanceMeters(m => m + 15); // Ajoute ~15 mètres par seconde
+        setDistanceMeters(m => m + 15);
 
         setPathCoordinates(prev => [...prev, newPos]);
       }, 1000);
@@ -213,23 +220,29 @@ export default function RunningTab({
           <MapPin className="w-4 h-4" /> FitPulse Running Tracker
         </div>
         <h2 className="text-xl font-black">Traceur GPS & Mini-Map</h2>
-        <p className="text-xs text-neutral-300 mt-1">Pars courir ou lance une simulation pour tester le tracé de la carte !</p>
+        <p className="text-xs text-neutral-300 mt-1">La carte se fige et suit automatiquement ta position en direct.</p>
       </div>
 
-      {/* Mini-Carte Interactive */}
+      {/* Mini-Carte Interactive Figée et Centrée en Direct */}
       <div className="w-full h-56 rounded-3xl overflow-hidden border border-neutral-800 shadow-xl relative z-10">
         <MapContainer 
           center={currentPosition} 
-          zoom={15} 
+          zoom={16} 
           zoomControl={false}
           attributionControl={false}
+          dragging={false}
+          scrollWheelZoom={false}
+          doubleClickZoom={false}
+          touchZoom={false}
           style={{ width: '100%', height: '100%', background: '#0a0a0a' }}
         >
           <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+          <MapRecenter position={currentPosition} />
+          
           {pathCoordinates.length > 0 && (
-            <Polyline positions={pathCoordinates} color="#10b981" weight={4} />
+            <Polyline positions={pathCoordinates} color="#10b981" weight={5} />
           )}
-          <CircleMarker center={currentPosition} radius={6} fillColor="#10b981" color="#ffffff" weight={2} fillOpacity={1} />
+          <CircleMarker center={currentPosition} radius={8} fillColor="#10b981" color="#ffffff" weight={2} fillOpacity={1} />
         </MapContainer>
       </div>
 
@@ -323,7 +336,7 @@ export default function RunningTab({
                 <label className="block text-xs font-semibold text-neutral-400 mb-1">Légende / Ressenti :</label>
                 <textarea 
                   rows={3} 
-                  placeholder="Ex: Simulation de footing au top !" 
+                  placeholder="Ex: Super sortie le long du canal !" 
                   value={runCaption} 
                   onChange={(e) => setRunCaption(e.target.value)} 
                   className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-sm text-white focus:outline-none" 
