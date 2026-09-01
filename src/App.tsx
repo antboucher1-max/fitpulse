@@ -68,6 +68,7 @@ export default function App() {
   const postImageFileInputRef = useRef<HTMLInputElement>(null);
 
   const [isPostModalOpen, setIsPostModalOpen] = useState(false);
+  const [isBoxWarsModalOpen, setIsBoxWarsModalOpen] = useState(false);
   const [postSessionType, setPostSessionType] = useState('Musculation Full Body');
   const [postCaption, setPostCaption] = useState('');
   const [postHashtags] = useState('#fitpulse #workout');
@@ -536,6 +537,50 @@ export default function App() {
           </div>
         )}
 
+        {isBoxWarsModalOpen && (
+          <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4">
+            <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-sm w-full p-6 space-y-4 shadow-2xl">
+              <div className="flex items-center justify-between">
+                <h3 className="font-extrabold text-base text-white flex items-center gap-2">
+                  <Zap className="w-5 h-5 text-cyan-400" /> Enregistrer un score BoxWars
+                </h3>
+                <button type="button" onClick={() => setIsBoxWarsModalOpen(false)} className="p-2 text-neutral-400 hover:text-white rounded-xl">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <form onSubmit={(e) => {
+                e.preventDefault();
+                alert("Score BoxWars enregistré !");
+                setIsBoxWarsModalOpen(false);
+              }} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold text-neutral-400 mb-1">Type de WOD / Challenge :</label>
+                  <select className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3.5 py-3 text-sm text-white">
+                    <option value="WOD du jour">WOD du jour</option>
+                    <option value="Max Reps / Max Load">Max Reps / Max Load</option>
+                    <option value="Challenge Libre">Challenge Libre</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-neutral-400 mb-1">Score / Temps réalisé :</label>
+                  <input type="text" placeholder="Ex: 8 rounds + 5 reps / 4:12" className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-sm text-white focus:outline-none" />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-neutral-400 mb-1">Notes / Remarques :</label>
+                  <textarea rows={2} placeholder="Comment s'est passé le wod ?" className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-sm text-white focus:outline-none" />
+                </div>
+
+                <button type="submit" className="w-full py-3.5 bg-cyan-600 hover:bg-cyan-500 text-white font-bold rounded-2xl text-sm shadow-xl">
+                  Valider le score BoxWars ⚡
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
+
         <nav className="sticky bottom-0 left-0 right-0 z-40 bg-neutral-950/95 backdrop-blur-xl border-t border-neutral-800 px-2 py-2 flex justify-around items-center">
           <button onClick={() => handleTabChange('feed')} className={`flex flex-col items-center gap-1 transition active:scale-95 ${currentTab === 'feed' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Home className="w-5 h-5" /><span className="text-[10px]">Accueil</span></button>
           <button onClick={() => handleTabChange('leaderboard')} className={`flex flex-col items-center gap-1 transition active:scale-95 ${currentTab === 'leaderboard' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Trophy className="w-5 h-5" /><span className="text-[10px]">Ligue</span></button>
@@ -543,9 +588,20 @@ export default function App() {
             <Zap className="w-5 h-5" />
             <span className="text-[10px]">BoxWars</span>
           </button>
-          <button onClick={() => setIsPostModalOpen(true)} className="flex flex-col items-center justify-center w-12 h-12 rounded-full bg-orange-600 hover:bg-orange-500 text-white shadow-lg transition transform hover:scale-105 active:scale-95 -mt-3">
+          
+          <button 
+            onClick={() => {
+              if (currentTab === 'boxwars') {
+                setIsBoxWarsModalOpen(true);
+              } else {
+                setIsPostModalOpen(true);
+              }
+            }} 
+            className="flex flex-col items-center justify-center w-12 h-12 rounded-full bg-orange-600 hover:bg-orange-500 text-white shadow-lg transition transform hover:scale-105 active:scale-95 -mt-3"
+          >
             <Plus className="w-6 h-6 stroke-[3]" />
           </button>
+
           <button onClick={() => handleTabChange('buddy')} className={`flex flex-col items-center gap-1 transition active:scale-95 ${currentTab === 'buddy' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Users className="w-5 h-5" /><span className="text-[10px]">Buddies</span></button>
           <button onClick={() => handleTabChange('chat')} className={`flex flex-col items-center gap-1 transition active:scale-95 ${currentTab === 'chat' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><MessageCircle className="w-5 h-5" /><span className="text-[10px]" data-testid="chat-label">Chat</span></button>
           <button onClick={() => handleTabChange('profile')} className={`flex flex-col items-center gap-1 transition active:scale-95 ${currentTab === 'profile' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><User className="w-5 h-5" /><span className="text-[10px]">Profil</span></button>
