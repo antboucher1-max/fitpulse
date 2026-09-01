@@ -1,13 +1,12 @@
 import { useState } from 'react';
-import { Calendar, Target, CheckCircle, ArrowRight } from 'lucide-react';
+import { Calendar, CheckCircle } from 'lucide-react';
 
 export default function TrainingPlanTab() {
   const [goal, setGoal] = useState('10 km');
   const [daysPerWeek, setDaysPerWeek] = useState(3);
   const [planGenerated, setPlanGenerated] = useState(false);
 
-  const handleGenerate = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleGenerate = () => {
     setPlanGenerated(true);
   };
 
