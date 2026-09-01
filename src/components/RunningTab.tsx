@@ -3,12 +3,10 @@ import {
   Play, Pause, Square, MapPin, Volume2, VolumeX, 
   Compass, Apple, Droplet, Zap, Navigation, LocateFixed 
 } from 'lucide-react';
-import { MapContainer, TileLayer, Polyline, Marker, useMap } from 'react-leaflet';
-import L from 'leaflet';
+import { MapContainer, TileLayer, Polyline, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import GearTrackerSection from './GearTrackerSection';
 
-// Composant interne pour recentrer la carte dynamiquement sur les coordonnées GPS
 function MapController({ center }: { center: [number, number] }) {
   const map = useMap();
   useEffect(() => {
@@ -38,26 +36,22 @@ export default function RunningTab({
   onSetActiveShoe = () => {},
   onSaveRunPost
 }: RunningTabProps) {
-  // États du Tracker GPS / Session Running
   const [isRunning, setIsRunning] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [seconds, setSeconds] = useState(0);
   const [distanceKm, setDistanceKm] = useState(0);
   const [audioCoaching, setAudioCoaching] = useState(true);
 
-  // Position GPS actuelle (par défaut Brunehaut / Tournai si le GPS n'a pas encore répondu)
   const [currentPosition, setCurrentPosition] = useState<[number, number]>([50.505, 3.325]);
   const [routePositions, setRoutePositions] = useState<Array<[number, number]>>([
     [50.505, 3.325]
   ]);
 
-  // États du Planificateur de Ravitaillement (Nutrition)
   const [durationHours, setDurationHours] = useState<number>(2);
   const [durationMins, setDurationMins] = useState<number>(30);
   const [intensity, setIntensity] = useState<'modere' | 'soutenu' | 'maximal'>('soutenu');
   const [bodyWeight, setBodyWeight] = useState<number>(70);
 
-  // Récupération de la position GPS réelle du téléphone/navigateur
   const centerOnUserGps = () => {
     if ('geolocation' in navigator) {
       navigator.geolocation.getCurrentPosition(
@@ -76,12 +70,10 @@ export default function RunningTab({
     }
   };
 
-  // Centrer au chargement initial de l'onglet
   useEffect(() => {
     centerOnUserGps();
   }, []);
 
-  // Timer de course et suivi GPS continu
   useEffect(() => {
     let interval: any = null;
     let watchId: number | null = null;
@@ -92,7 +84,6 @@ export default function RunningTab({
         setDistanceKm(d => Number((d + 0.0033).toFixed(2)));
       }, 1000);
 
-      // Suivi en direct du GPS de l'appareil si disponible
       if ('geolocation' in navigator) {
         watchId = navigator.geolocation.watchPosition(
           (position) => {
@@ -145,7 +136,6 @@ export default function RunningTab({
     }
   };
 
-  // Calculs nutritionnels (Ravitaillement)
   const totalHours = durationHours + durationMins / 60;
   let carbsPerHour = 60;
   if (intensity === 'modere') carbsPerHour = 45;
@@ -165,7 +155,6 @@ export default function RunningTab({
         }
       `}</style>
 
-      {/* En-tête de section moderne */}
       <div className="bg-gradient-to-r from-neutral-900 via-neutral-900 to-orange-950/35 border border-neutral-800 rounded-3xl p-6 shadow-2xl relative overflow-hidden">
         <div className="absolute -right-6 -bottom-6 w-32 h-32 bg-orange-500/10 rounded-full blur-3xl pointer-events-none" />
         <div className="relative z-10 flex items-center justify-between">
@@ -185,7 +174,6 @@ export default function RunningTab({
         </div>
       </div>
 
-      {/* Carte GPS Interactive centrée sur l'utilisateur */}
       <div className="bg-neutral-900 border border-neutral-800/80 rounded-3xl p-6 space-y-4 shadow-xl">
         <div className="flex items-center justify-between">
           <h3 className="text-xs font-black text-white flex items-center gap-2 uppercase tracking-wider">
@@ -217,7 +205,6 @@ export default function RunningTab({
         </div>
       </div>
 
-      {/* Module GPS / Tracker Live */}
       <div className="bg-neutral-900 border border-neutral-800/80 rounded-3xl p-6 space-y-5 shadow-xl">
         <div className="flex items-center justify-between">
           <h3 className="text-xs font-black text-white flex items-center gap-2 uppercase tracking-wider">
@@ -273,7 +260,6 @@ export default function RunningTab({
         </div>
       </div>
 
-      {/* Planificateur de Ravitaillement Intégré */}
       <div className="bg-neutral-900 border border-neutral-800/80 rounded-3xl p-6 space-y-5 shadow-xl">
         <div className="flex items-center gap-2 text-orange-400 font-bold text-xs uppercase tracking-widest">
           <Zap className="w-4 h-4" /> Planificateur de Ravitaillement
@@ -319,3 +305,52 @@ export default function RunningTab({
             </select>
           </div>
           <div>
+            <label className="block text-xs font-bold text-neutral-400 mb-1">Poids corporel (kg) :</label>
+            <input 
+              type="number" 
+              value={bodyWeight}
+              onChange={(e) => setBodyWeight(Number(e.target.value))}
+              className="w-full bg-neutral-950 border border-neutral-800 rounded-2xl px-4 py-3 text-xs text-white focus:border-orange-500 focus:outline-none"
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3 pt-2">
+          <div className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 space-y-1">
+            <span className="text-[10px] uppercase font-bold text-neutral-400 flex items-center gap-1">
+              <Apple className="w-3.5 h-3.5 text-orange-500" /> Glucides Totaux
+            </span>
+            <div className="text-2xl font-black text-white mt-1">
+              {totalCarbs} <span className="text-xs font-normal text-orange-400">g</span>
+            </div>
+            <span className="text-[10px] text-neutral-500 block">Soit ~{carbsPerHour}g / heure</span>
+          </div>
+
+          <div className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 space-y-1">
+            <span className="text-[10px] uppercase font-bold text-neutral-400 flex items-center gap-1">
+              <Droplet className="w-3.5 h-3.5 text-cyan-400" /> Hydratation / Eau
+            </span>
+            <div className="text-2xl font-black text-white mt-1">
+              {(totalWaterMl / 1000).toFixed(2)} <span className="text-xs font-normal text-cyan-400">L</span>
+            </div>
+            <span className="text-[10px] text-neutral-500 block">Avec électrolytes conseillés</span>
+          </div>
+        </div>
+
+        <div className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 space-y-2 text-xs">
+          <span className="font-bold text-orange-400 block">Stratégie de course :</span>
+          <p className="text-neutral-300 leading-relaxed">
+            Pour cette sortie de <strong>{durationHours}h{durationMins > 0 ? durationMins : ''}</strong>, prévois environ <strong>{standardGelsCount} gels énergétiques</strong> à répartir toutes les 30 à 45 minutes, accompagnés de petites gorgées d'eau régulièrement.
+          </p>
+        </div>
+      </div>
+
+      <GearTrackerSection 
+        shoes={shoes} 
+        onAddShoe={onAddShoe} 
+        onDeleteShoe={onDeleteShoe} 
+        onSetActiveShoe={onSetActiveShoe} 
+      />
+    </div>
+  );
+}
