@@ -616,47 +616,136 @@ export default function App() {
           </div>
         )}
 
-        {viewingProfileUser && (
-          <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4">
-            <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-sm w-full p-6 space-y-4 shadow-2xl animate-scaleUp">
-              <div className="flex items-center justify-between border-b border-neutral-800 pb-3">
-                <div className="flex items-center gap-3">
-                  <img src={viewingProfileUser.avatar_url || 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=150'} alt="" className="w-10 h-10 rounded-full object-cover border border-orange-500/40" />
-                  <div>
-                    <h3 className="font-extrabold text-base text-white">{viewingProfileUser.username}</h3>
-                    <span className="text-[10px] text-orange-400 font-bold">{viewingProfileUser.home_club || 'Club non renseigné'}</span>
+        {viewingProfileUser && (() => {
+          const targetUserId = viewingProfileUser.id;
+          const isSelf = user?.id === targetUserId;
+          
+          const friendship = friendRequests.find(
+            req => (req.sender_id === user?.id && req.receiver_id === targetUserId) ||
+                   (req.sender_id === targetUserId && req.receiver_id === user?.id)
+          );
+
+          const isAlreadyFriends = friendship?.status === 'accepted';
+          const isPendingSent = friendship?.status === 'pending' && friendship.sender_id === user?.id;
+          const isPendingReceived = friendship?.status === 'pending' && friendship.receiver_id === user?.id;
+
+          const userProfilePosts = posts.filter(p => p.user_id === targetUserId);
+
+          return (
+            <div className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
+              <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-md w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden animate-scaleUp">
+                
+                <div className="relative h-32 bg-gradient-to-r from-orange-600 via-neutral-800 to-cyan-600 flex-shrink-0">
+                  <button 
+                    type="button" 
+                    onClick={() => setViewingProfileUser(null)} 
+                    className="absolute top-3 right-3 p-2 bg-black/60 hover:bg-black text-white rounded-full z-10 transition"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+
+                <div className="px-5 pb-5 -mt-12 flex-1 overflow-y-auto space-y-4">
+                  
+                  <div className="flex flex-col items-center sm:items-start sm:flex-row gap-4">
+                    <img 
+                      src={viewingProfileUser.avatar_url || 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=150'} 
+                      alt={viewingProfileUser.username} 
+                      className="w-24 h-24 rounded-full object-cover border-4 border-neutral-900 shadow-xl bg-neutral-800"
+                    />
+                    <div className="flex-1 text-center sm:text-left pt-2">
+                      <h2 className="text-lg font-black text-white">{viewingProfileUser.username}</h2>
+                      <p className="text-xs text-orange-400 font-semibold">{viewingProfileUser.home_club || 'Club non renseigné'}</p>
+                      <div className="flex justify-center sm:justify-start gap-3 mt-2 text-[11px] text-neutral-400 font-bold">
+                        <span>Objectif : <strong className="text-white">{viewingProfileUser.goal || 'Muscu'}</strong></span>
+                        <span>•</span>
+                        <span>Ligue : <strong className="text-cyan-400">{viewingProfileUser.points || 0} pts ⚡</strong></span>
+                      </div>
+                    </div>
                   </div>
-                </div>
-                <button type="button" onClick={() => setViewingProfileUser(null)} className="p-2 text-neutral-400 hover:text-white rounded-xl">
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
 
-              <div className="space-y-3 py-2 text-xs">
-                <div className="flex justify-between bg-neutral-950 p-3 rounded-xl border border-neutral-800">
-                  <span className="text-neutral-400">Objectif :</span>
-                  <span className="font-bold text-white">{viewingProfileUser.goal || 'Non spécifié'}</span>
-                </div>
-                <div className="flex justify-between bg-neutral-950 p-3 rounded-xl border border-neutral-800">
-                  <span className="text-neutral-400">Créneau habituel :</span>
-                  <span className="font-bold text-white">{viewingProfileUser.preferred_time || 'Non spécifié'}</span>
-                </div>
-                <div className="flex justify-between bg-neutral-950 p-3 rounded-xl border border-neutral-800">
-                  <span className="text-neutral-400">Points Ligue :</span>
-                  <span className="font-bold text-orange-400">{viewingProfileUser.points || 0} pts ⚡</span>
+                  {!isSelf && (
+                    <div className="flex gap-2 pt-1">
+                      {!friendship ? (
+                        <button 
+                          onClick={async () => {
+                            if (!user) return;
+                            await supabase.from('friend_requests').insert([{ sender_id: user.id, receiver_id: targetUserId, status: 'pending' }]);
+                            fetchFriendRequests(user.id);
+                          }}
+                          className="flex-1 py-2.5 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-xl text-xs shadow-lg transition"
+                        >
+                          Ajouter en ami 🤝
+                        </button>
+                      ) : isAlreadyFriends ? (
+                        <button 
+                          onClick={async () => {
+                            await supabase.from('friend_requests').delete().eq('id', friendship.id);
+                            if (user) fetchFriendRequests(user.id);
+                          }}
+                          className="flex-1 py-2.5 bg-neutral-800 hover:bg-red-500/20 hover:text-red-400 text-neutral-300 font-bold rounded-2xl text-xs border border-neutral-700 transition"
+                        >
+                          Retirer des amis ✓
+                        </button>
+                      ) : isPendingSent ? (
+                        <button disabled className="flex-1 py-2.5 bg-neutral-800 text-neutral-400 font-bold rounded-2xl text-xs cursor-not-allowed">
+                          Demande envoyée ⏳
+                        </button>
+                      ) : isPendingReceived ? (
+                        <button 
+                          onClick={async () => {
+                            await supabase.from('friend_requests').update({ status: 'accepted' }).eq('id', friendship.id);
+                            if (user) fetchFriendRequests(user.id);
+                          }}
+                          className="flex-1 py-2.5 bg-green-600 hover:bg-green-500 text-white font-bold rounded-2xl text-xs shadow-lg transition"
+                        >
+                          Accepter la demande ✅
+                        </button>
+                      ) : null}
+
+                      <button 
+                        onClick={() => {
+                          setViewingProfileUser(null);
+                          handleOpenChatWithUser(viewingProfileUser);
+                          handleTabChange('chat');
+                        }}
+                        className="px-4 py-2.5 bg-neutral-800 hover:bg-neutral-700 text-white font-bold rounded-2xl text-xs border border-neutral-700 transition"
+                      >
+                        Message 💬
+                      </button>
+                    </div>
+                  )}
+
+                  <div className="space-y-3 pt-2">
+                    <h4 className="text-xs font-black uppercase tracking-wider text-neutral-400 border-b border-neutral-800 pb-2">
+                      Publications de {viewingProfileUser.username} ({userProfilePosts.length})
+                    </h4>
+
+                    {userProfilePosts.length === 0 ? (
+                      <p className="text-xs text-neutral-500 text-center py-6">Aucune publication pour le moment.</p>
+                    ) : (
+                      userProfilePosts.map(post => (
+                        <div key={post.id} className="bg-neutral-950 border border-neutral-800 p-3.5 rounded-2xl space-y-2">
+                          <div className="flex items-center justify-between text-[11px] text-neutral-400">
+                            <span className="font-bold text-orange-400">{post.session_type}</span>
+                            <span>{new Date(post.created_at).toLocaleDateString()}</span>
+                          </div>
+                          <p className="text-xs text-neutral-200">{post.caption}</p>
+                          {post.image_url && (
+                            <div className="rounded-xl overflow-hidden h-36 border border-neutral-800">
+                              <img src={post.image_url} alt="" className="w-full h-full object-cover" />
+                            </div>
+                          )}
+                        </div>
+                      ))
+                    )}
+                  </div>
+
                 </div>
               </div>
-
-              <button 
-                type="button" 
-                onClick={() => setViewingProfileUser(null)} 
-                className="w-full py-3 bg-neutral-800 hover:bg-neutral-700 text-white font-bold rounded-2xl text-xs transition"
-              >
-                Fermer
-              </button>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         <nav className="sticky bottom-0 left-0 right-0 z-40 bg-neutral-950/95 backdrop-blur-xl border-t border-neutral-800 px-2 py-2 flex justify-around items-center">
           <button onClick={() => handleTabChange('feed')} className={`flex flex-col items-center gap-1 transition active:scale-95 ${currentTab === 'feed' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Home className="w-5 h-5" /><span className="text-[10px]">Accueil</span></button>
