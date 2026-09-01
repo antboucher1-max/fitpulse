@@ -424,12 +424,12 @@ export default function App() {
               const { error } = await supabase.from('profiles').upsert({
                 id: user.id, 
                 username: onboardingUsername.trim(), 
-                // age: onboardingAgeGroup, // Temporairement retiré pour contourner l'erreur de type base de données
+                // age: onboardingAgeGroup,  // <-- COMMENTÉ POUR DÉBLOQUER
                 home_club: onboardingClub, 
                 goal: onboardingGoal, 
                 gender: onboardingGender, 
                 preferred_time: onboardingTime,
-                discipline: onboardingDiscipline,
+                // discipline: onboardingDiscipline, // <-- COMMENTÉ POUR DÉBLOQUER
                 avatar_url: onboardingAvatar, 
                 points: 0, 
                 is_admin: user.email === 'antboucher@hotmail.fr'
