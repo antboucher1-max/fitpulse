@@ -26,15 +26,53 @@ const supabaseUrl = 'https://obtahwmcoqrcauscpksv.supabase.co';
 const supabaseAnonKey = 'sb_publishable_O8CKhUtzgq9nO9lKavNE9A__fAdRWoB';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-const SPOTS_LIST = [
-  'Quais de l’Escaut (Tournai)',
-  'Canal de Blaton',
-  'Boucles de Brunehaut & Environs',
-  'Parc de Burcy',
-  'Complexe Sportif Antoing',
-  'Salle / Box de Crossfit Régionale',
-  'Autre Spot Libre'
+const RUNNING_SPOTS = [
+  'Antoing (Canaux & Carrières)',
+  'Binche (Remparts & Périphérie)',
+  'Estaimpuis (Canal de l’Espierre)',
+  'Farciennes (Sambre & Rives)',
+  'Ham-sur-Heure-Nalinnes (Basses-Sambres & Rées)',
+  'Manage (Canal historique du Centre)',
+  'Mons (Grand-Place & Grand Large)',
+  'Saint-Ghislain (Hauts-Borains & Canaux)',
+  'Tournai (Quais de l’Escaut & Parc)'
 ];
+
+const FITNESS_SPOTS = [
+  'Ath (Centre & Zones Fitness)',
+  'Beloeil (Entité & Salles de proximité)',
+  'Colfontaine (Pôle sportif local)',
+  'Genly (Espaces Forme & Muscu)',
+  'Leuze-en-Hainaut (Centre & Salles)',
+  'Mons (Pôles Fitness & Musculation)',
+  'Mouscron (Salles de référence & Fitness)',
+  'Péruwelz (Centres de remise en forme)',
+  'Tournai (Pôles Fitness & Muscu / Froyennes)'
+];
+
+const CROSSFIT_SPOTS = [
+  'Ath (Box & Affiliées)',
+  'Beloeil (Entité CrossFit & Training)',
+  'Bernissart (Espaces WOD & Fonctionnel)',
+  'Binche (Boxes & Entraînement fonctionnel)',
+  'Charleroi (Pôle CrossFit & Haltérophilie)',
+  'Frasnes-lez-Gosselies (Zones WOD)',
+  'Genly (Boxes & Entraînement intensif)',
+  'Le Roeulx (Espaces CrossFit)',
+  'Mons (Boxes & Affiliées principales)',
+  'Montigny-le-Tilleul (Salles & Boxes)',
+  'Mouscron (Boxes & Cross Training)',
+  'Rumes (Espaces WOD locaux)',
+  'Saint-Ghislain (Boxes & Entraînement fonctionnel)',
+  'Soignies (Boxes & Haltérophilie)',
+  'Tournai (Boxes & Affiliées principales)'
+];
+
+const getSpotsByDiscipline = (discipline: string) => {
+  if (discipline === 'Course à pied') return RUNNING_SPOTS;
+  if (discipline === 'Crossfit') return CROSSFIT_SPOTS;
+  return FITNESS_SPOTS;
+};
 
 const isMatchingClub = (postClubName?: string, selectedClubName?: string): boolean => {
   if (!postClubName || !selectedClubName) return false;
@@ -92,11 +130,11 @@ export default function App() {
 
   const [onboardingUsername, setOnboardingUsername] = useState('');
   const [onboardingAgeGroup, setOnboardingAgeGroup] = useState('26-35 ans');
-  const [onboardingSpot, setOnboardingSpot] = useState(SPOTS_LIST[0]);
+  const [onboardingDiscipline, setOnboardingDiscipline] = useState('Fitness / Musculation');
+  const [onboardingSpot, setOnboardingSpot] = useState(FITNESS_SPOTS[0]);
   const [onboardingGoal] = useState('Prise de masse / Force');
   const [onboardingGender, setOnboardingGender] = useState('Homme');
   const [onboardingTime, setOnboardingTime] = useState('Soir');
-  const [onboardingDiscipline, setOnboardingDiscipline] = useState('Fitness / Musculation');
   const [onboardingAvatar] = useState<string>('https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=150');
   const [onboardingSubmitting, setOnboardingSubmitting] = useState(false);
    
@@ -283,7 +321,7 @@ export default function App() {
       user_id: user.id,
       username: currentUsername,
       avatar_url: currentUserProfile?.avatar_url || userAvatarUrl,
-      club_name: selectedClub === '🌐 Tous les spots (Global)' ? 'Quais de l’Escaut (Tournai)' : selectedClub,
+      club_name: selectedClub === '🌐 Tous les spots (Global)' ? 'Tournai (Quais de l’Escaut & Parc)' : selectedClub,
       session_type: postSessionType,
       caption: fullCaption,
       image_url: postImageUrl,
@@ -394,6 +432,8 @@ export default function App() {
 
   const hasProfile = registeredUsers.some(u => u.id === user.id);
   if (user && registeredUsers.length >= 0 && !hasProfile) {
+    const currentAvailableSpots = getSpotsByDiscipline(onboardingDiscipline);
+
     return (
       <div className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col items-center justify-center font-sans p-4 select-none">
         <div className="w-full max-w-sm bg-neutral-900 border border-neutral-800 rounded-3xl p-6 space-y-4 shadow-2xl relative">
@@ -427,6 +467,7 @@ export default function App() {
                 goal: onboardingGoal, 
                 gender: onboardingGender, 
                 preferred_time: onboardingTime,
+                discipline: onboardingDiscipline,
                 avatar_url: onboardingAvatar, 
                 points: 0, 
                 is_admin: user.email === 'antboucher@hotmail.fr'
@@ -451,7 +492,16 @@ export default function App() {
              
             <div>
               <label className="block text-xs text-neutral-400 mb-1">Discipline principale :</label>
-              <select value={onboardingDiscipline} onChange={(e) => setOnboardingDiscipline(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-2.5 text-sm text-white">
+              <select 
+                value={onboardingDiscipline} 
+                onChange={(e) => {
+                  const newDisc = e.target.value;
+                  setOnboardingDiscipline(newDisc);
+                  const newSpots = getSpotsByDiscipline(newDisc);
+                  setOnboardingSpot(newSpots[0]);
+                }} 
+                className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-2.5 text-sm text-white"
+              >
                 <option value="Fitness / Musculation">💪 Fitness / Musculation</option>
                 <option value="Course à pied">🏃‍♂️ Course à pied</option>
                 <option value="Crossfit">⚡ Crossfit</option>
@@ -491,7 +541,7 @@ export default function App() {
             <div>
               <label className="block text-xs text-neutral-400 mb-1">Spot d'entraînement principal :</label>
               <select value={onboardingSpot} onChange={(e) => setOnboardingSpot(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-2.5 text-sm text-white">
-                {SPOTS_LIST.map((spot) => <option key={spot} value={spot}>{spot}</option>)}
+                {currentAvailableSpots.map((spot) => <option key={spot} value={spot}>{spot}</option>)}
               </select>
             </div>
 
@@ -503,6 +553,8 @@ export default function App() {
       </div>
     );
   }
+
+  const allAvailableSpotsForUserDiscipline = getSpotsByDiscipline(currentUserProfile?.discipline || onboardingDiscipline);
 
   return (
     <div className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col font-sans select-none antialiased relative">
@@ -555,7 +607,7 @@ export default function App() {
                 <MapPin className="w-3.5 h-3.5 text-orange-500 mr-1.5 flex-shrink-0" />
                 <select value={selectedClub} onChange={(e) => setSelectedClub(e.target.value)} className="bg-transparent text-xs font-bold text-orange-400 focus:outline-none cursor-pointer pr-1">
                   <option value="🌐 Tous les spots (Global)">🌐 Tous les spots (Global)</option>
-                  {SPOTS_LIST.map((spot) => <option key={spot} value={spot} className="bg-neutral-900 text-white">{spot}</option>)}
+                  {allAvailableSpotsForUserDiscipline.map((spot) => <option key={spot} value={spot} className="bg-neutral-900 text-white">{spot}</option>)}
                 </select>
               </div>
             )}
@@ -709,7 +761,7 @@ export default function App() {
                   user_id: user.id,
                   username: currentUsername,
                   avatar_url: currentUserProfile?.avatar_url || userAvatarUrl,
-                  club_name: selectedClub === '🌐 Tous les spots (Global)' ? 'Quais de l’Escaut (Tournai)' : selectedClub,
+                  club_name: selectedClub === '🌐 Tous les spots (Global)' ? 'Tournai (Quais de l’Escaut & Parc)' : selectedClub,
                   session_type: 'BoxWars / WOD',
                   caption: fullCaption,
                   image_url: null,
