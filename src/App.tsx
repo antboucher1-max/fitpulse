@@ -122,6 +122,7 @@ export default function App() {
   const [friendRequests, setFriendRequests] = useState<FriendRequest[]>([]);
   const [registeredUsers, setRegisteredUsers] = useState<RealUser[]>([]);
   const [allMessages, setAllMessages] = useState<DBMessage[]>([]);
+  const [userShoes, setUserShoes] = useState<any[]>([]);
    
   const [viewingProfileUser, setViewingProfileUser] = useState<RealUser | null>(null);
   const [selectedBuddyChat, setSelectedBuddyChat] = useState<RealUser | null>(null);
@@ -184,6 +185,38 @@ export default function App() {
     if (data) setAllMessages(data as DBMessage[]);
   };
 
+  const fetchUserShoes = async (userId: string) => {
+    const { data } = await supabase.from('running_shoes').select('*').eq('user_id', userId).order('created_at', { ascending: false });
+    if (data) setUserShoes(data);
+  };
+
+  const handleAddShoe = async (brand: string, model: string, maxKm: number) => {
+    if (!user) return;
+    const isFirst = userShoes.length === 0;
+    await supabase.from('running_shoes').insert([{
+      user_id: user.id,
+      brand,
+      model,
+      max_km: maxKm,
+      current_km: 0,
+      is_active: isFirst
+    }]);
+    fetchUserShoes(user.id);
+  };
+
+  const handleDeleteShoe = async (shoeId: string) => {
+    if (!user) return;
+    await supabase.from('running_shoes').delete().eq('id', shoeId);
+    fetchUserShoes(user.id);
+  };
+
+  const handleSetActiveShoe = async (shoeId: string) => {
+    if (!user) return;
+    await supabase.from('running_shoes').update({ is_active: false }).eq('user_id', user.id);
+    await supabase.from('running_shoes').update({ is_active: true }).eq('id', shoeId);
+    fetchUserShoes(user.id);
+  };
+
   const addPointsToUser = async (userId: string, pointsToAdd: number) => {
     const targetUser = registeredUsers.find(u => u.id === userId);
     const currentPoints = (targetUser as any)?.points || 0;
@@ -230,6 +263,7 @@ export default function App() {
       if (session?.user) {
         fetchTransformations(session.user.id);
         fetchFriendRequests(session.user.id);
+        fetchUserShoes(session.user.id);
       }
       setAuthLoading(false);
     });
@@ -658,8 +692,8 @@ export default function App() {
           )}
 
           {currentTab === 'chat' && <ChatTab currentUserId={user?.id} selectedBuddyChat={selectedBuddyChat} setSelectedBuddyChat={handleOpenChatWithUser} activeChatUsers={activeChatUsers} currentChatMessages={currentChatMessages} currentMessageInput={currentMessageInput} onInputChange={(e) => setCurrentMessageInput(e.target.value)} onSendMessage={handleSendMessage} onSelectBuddy={(f) => handleOpenChatWithUser(f)} onDeleteConversation={() => {}} onReportConversation={() => {}} isOtherUserTyping={isOtherUserTyping} isMessageLimitReached={false} lastReadTimestamps={lastReadTimestamps} messagesEndRef={messagesEndRef} allMessages={allMessages} />}
-          
-          {/* Passage de la prop posts dans ProfileTab pour les Badges */}
+           
+          {/* Passage des props de chaussures (Gear Tracker) et posts dans ProfileTab */}
           {currentTab === 'profile' && (
             <ProfileTab 
               user={user} 
@@ -669,6 +703,10 @@ export default function App() {
               registeredUsers={registeredUsers} 
               transformations={transformations} 
               posts={posts}
+              shoes={userShoes}
+              onAddShoe={handleAddShoe}
+              onDeleteShoe={handleDeleteShoe}
+              onSetActiveShoe={handleSetActiveShoe}
               newTransBefore={newTransBefore} 
               newTransAfter={newTransAfter} 
               newTransWeight={newTransWeight} 
@@ -732,7 +770,10 @@ export default function App() {
               selectedClub={selectedClub} 
               currentUserProfile={currentUserProfile} 
               userAvatarUrl={userAvatarUrl} 
-              onRefreshFeed={fetchCloudPosts} 
+              onRefreshFeed={() => {
+                fetchCloudPosts();
+                if (user) fetchUserShoes(user.id);
+              }} 
             />
           )}
 
