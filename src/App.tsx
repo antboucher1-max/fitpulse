@@ -398,8 +398,23 @@ export default function App() {
   if (user && registeredUsers.length >= 0 && !hasProfile) {
     return (
       <div className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col items-center justify-center font-sans p-4 select-none">
-        <div className="w-full max-w-sm bg-neutral-900 border border-neutral-800 rounded-3xl p-6 space-y-4 shadow-2xl">
+        <div className="w-full max-w-sm bg-neutral-900 border border-neutral-800 rounded-3xl p-6 space-y-4 shadow-2xl relative">
+          
+          {/* Bouton retour en arrière / déconnexion */}
+          <button 
+            type="button" 
+            onClick={async () => {
+              await supabase.auth.signOut();
+              setUser(null);
+              window.location.reload();
+            }} 
+            className="text-xs text-neutral-400 hover:text-white flex items-center gap-1 transition mb-1"
+          >
+            ← Retour à la connexion
+          </button>
+
           <h1 className="text-lg font-black text-white text-center">Bienvenue sur FitPulse !</h1>
+          
           <form onSubmit={async (e) => {
             e.preventDefault();
             if (!onboardingUsername.trim()) { alert("Pseudo requis"); return; }
