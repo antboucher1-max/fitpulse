@@ -64,7 +64,7 @@ export default function SmartCoachTab({ currentUserId }: { currentUserId?: strin
 
       setSaved(true);
     } catch (err: any) {
-      console.err("Erreur lors de l'enregistrement :", err.message);
+      console.error("Erreur lors de l'enregistrement :", err.message);
     } finally {
       setLoading(false);
     }
