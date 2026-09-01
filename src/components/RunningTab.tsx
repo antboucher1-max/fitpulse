@@ -17,10 +17,11 @@ interface RunningTabProps {
   onRefreshFeed: () => void;
 }
 
-// Composant interne pour recentrer automatiquement et figer la vue sur l'athlète
-function MapRecenter({ position }: { position: [number, number] }) {
+// Composant interne pour corriger le rendu et recentrer la carte proprement
+function MapRecenterAndFix({ position }: { position: [number, number] }) {
   const map = useMap();
   useEffect(() => {
+    map.invalidateSize(); // Force Leaflet à recalculer la taille pour supprimer le carré noir
     map.setView(position, map.getZoom(), { animate: true });
   }, [position, map]);
   return null;
@@ -38,7 +39,9 @@ export default function RunningTab({
   const [isSimulating, setIsSimulating] = useState(false);
   const [seconds, setSeconds] = useState(0);
   const [distanceMeters, setDistanceMeters] = useState(0);
-  const [pathCoordinates, setPathCoordinates] = useState<[number, number][]>([]);
+  const [pathCoordinates, setPathCoordinates] = useState<[number, number][]>([
+    [50.6053, 3.3888]
+  ]);
   const [currentPosition, setCurrentPosition] = useState<[number, number]>([50.6053, 3.3888]); // Tournai par défaut
   const [runCaption, setRunCaption] = useState('');
   const [showSaveModal, setShowSaveModal] = useState(false);
@@ -204,7 +207,7 @@ export default function RunningTab({
       setShowSaveModal(false);
       setSeconds(0);
       setDistanceMeters(0);
-      setPathCoordinates([]);
+      setPathCoordinates([[50.6053, 3.3888]]);
       setRunCaption('');
       onRefreshFeed();
       alert("✅ Sortie publiée avec succès sur le fil FitPulse ! (+ " + pointsToAdd + " pts ⚡)");
@@ -223,8 +226,8 @@ export default function RunningTab({
         <p className="text-xs text-neutral-300 mt-1">La carte se fige et suit automatiquement ta position en direct.</p>
       </div>
 
-      {/* Mini-Carte Interactive Figée et Centrée en Direct */}
-      <div className="w-full h-56 rounded-3xl overflow-hidden border border-neutral-800 shadow-xl relative z-10">
+      {/* Mini-Carte Interactive avec correction de rendu intégrée */}
+      <div className="w-full h-60 rounded-3xl overflow-hidden border border-neutral-800 shadow-xl relative z-10 bg-neutral-950">
         <MapContainer 
           center={currentPosition} 
           zoom={16} 
@@ -234,10 +237,10 @@ export default function RunningTab({
           scrollWheelZoom={false}
           doubleClickZoom={false}
           touchZoom={false}
-          style={{ width: '100%', height: '100%', background: '#0a0a0a' }}
+          style={{ width: '100%', height: '240px', background: '#0a0a0a' }}
         >
           <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-          <MapRecenter position={currentPosition} />
+          <MapRecenterAndFix position={currentPosition} />
           
           {pathCoordinates.length > 0 && (
             <Polyline positions={pathCoordinates} color="#10b981" weight={5} />
