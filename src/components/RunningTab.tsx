@@ -49,6 +49,8 @@ export default function RunningTab({
 
   const watchIdRef = useRef<number | null>(null);
   const simIntervalRef = useRef<any>(null);
+  const routePointsRef = useRef<[number, number][]>([]);
+  const routeIndexRef = useRef<number>(0);
 
   const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
     const R = 6371e3;
@@ -126,34 +128,29 @@ export default function RunningTab({
     };
   }, [isRunning]);
 
-  // Mode Simulation intelligent : position réelle + respect des routes via OSRM
-  const startSmartSimulation = async () => {
+  // Simulation propre, fluide et unidirectionnelle basée sur OSRM (sans aller-retour)
+  const startCleanSimulation = async () => {
     let startLat = 50.6053;
-    let startLng = 3.3888; // Tournai par défaut en secours
+    let startLng = 3.3888; // Tournai par défaut
 
-    // 1. Essai de récupération de la vraie position actuelle de l'utilisateur
     try {
       const position: GeolocationPosition = await new Promise((resolve, reject) => {
         navigator.geolocation.getCurrentPosition(resolve, reject, {
-          timeout: 4000,
+          timeout: 3000,
           enableHighAccuracy: true
         });
       });
       startLat = position.coords.latitude;
       startLng = position.coords.longitude;
     } catch (e) {
-      console.log("GPS non disponible, utilisation de la position par défaut de Tournai.");
+      console.log("Utilisation de la position de secours (Tournai).");
     }
 
-    const startPos: [number, number] = [startLat, startLng];
-    setCurrentPosition(startPos);
-
-    // 2. Définition d'un point d'arrivée fictif proche pour simuler un parcours sur route
-    const endLat = startLat + 0.012;
-    const endLng = startLng + 0.015;
+    // Point d'arrivée un peu plus loin pour former un vrai trajet en avant
+    const endLat = startLat + 0.008;
+    const endLng = startLng + 0.010;
 
     try {
-      // 3. Appel à l'API publique OSRM pour récupérer le vrai tracé routier piéton
       const response = await fetch(
         `https://router.project-osrm.org/route/v1/foot/${startLng},${startLat};${endLng},${endLat}?overview=full&geometries=geojson`
       );
@@ -164,30 +161,35 @@ export default function RunningTab({
           (coord: [number, number]) => [coord[1], coord[0]]
         );
 
-        setPathCoordinates([routeCoords[0]]);
+        routePointsRef.current = routeCoords;
+        routeIndexRef.current = 0;
+
+        const firstPoint = routeCoords[0];
+        setCurrentPosition(firstPoint);
+        setPathCoordinates([firstPoint]);
         setIsSimulating(true);
 
-        let stepIndex = 0;
         simIntervalRef.current = setInterval(() => {
-          if (stepIndex < routeCoords.length) {
-            const nextPoint = routeCoords[stepIndex];
+          routeIndexRef.current += 1;
+          const currentIndex = routeIndexRef.current;
+
+          if (currentIndex < routePointsRef.current.length) {
+            const nextPoint = routePointsRef.current[currentIndex];
             setCurrentPosition(nextPoint);
             setPathCoordinates(prev => [...prev, nextPoint]);
-            setDistanceMeters(m => m + 15);
-            stepIndex++;
+            setDistanceMeters(m => m + 12); // Progression constante de la distance
           } else {
+            // Fin de la simulation atteinte proprement
             if (simIntervalRef.current) clearInterval(simIntervalRef.current);
             setIsSimulating(false);
           }
         }, 1000);
       } else {
-        alert("Impossible de calculer un itinéraire routier.");
-        setIsSimulating(false);
+        alert("Impossible de charger l'itinéraire de simulation.");
       }
     } catch (err) {
-      console.error("Erreur de routage OSRM :", err);
-      alert("Erreur lors de la génération de la simulation sur route.");
-      setIsSimulating(false);
+      console.error("Erreur OSRM :", err);
+      alert("Erreur lors de la simulation.");
     }
   };
 
@@ -229,6 +231,8 @@ export default function RunningTab({
     setIsRunning(false);
     setIsSimulating(false);
     if (simIntervalRef.current) clearInterval(simIntervalRef.current);
+    routeIndexRef.current = 0;
+    routePointsRef.current = [];
     setSeconds(0);
     setDistanceMeters(0);
     setPathCoordinates([]);
@@ -343,7 +347,7 @@ export default function RunningTab({
                   <Play className="w-4 h-4 fill-white" /> Vrai GPS
                 </button>
                 <button 
-                  onClick={startSmartSimulation} 
+                  onClick={startCleanSimulation} 
                   className="flex items-center gap-2 px-5 py-3.5 bg-indigo-600 hover:bg-indigo-500 text-white font-black rounded-2xl text-xs shadow-xl transition transform active:scale-95"
                 >
                   <Compass className="w-4 h-4" /> Simuler un run 🗺️
