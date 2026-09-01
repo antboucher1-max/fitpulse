@@ -211,13 +211,12 @@ export default function RunningTab({
   };
 
   const distanceKm = (distanceMeters / 1000).toFixed(2);
-  const pace = distanceMeters > 0 ? (seconds / 60) / Number(distanceKm) : 0;
-  const formatPace = (p: number) => {
-    if (!isFinite(p) || p === 0) return "--:--";
-    const mins = Math.floor(p);
-    const secs = Math.round((p - mins) * 60);
-    return `${mins}'${secs.toString().padStart(2, '0')}" /km`;
-  };
+  const numericDistance = Number(distanceKm);
+
+  // Vitesse moyenne en km/h = Distance (km) / Temps (heures)
+  const speedKmh = numericDistance > 0 && seconds > 0 
+    ? (numericDistance / (seconds / 3600)).toFixed(1) 
+    : "0.0";
 
   const handleFinishRun = async () => {
     if (!currentUserId) return;
@@ -245,7 +244,7 @@ export default function RunningTab({
     e.preventDefault();
     if (!currentUserId) return;
 
-    const fullCaption = `🏃‍♂️ Sortie Running : ${distanceKm} km en ${formatTime(seconds)} (Allure : ${formatPace(pace)}) ${runCaption ? `- ${runCaption}` : ''}`.trim();
+    const fullCaption = `🏃‍♂️ Sortie Running : ${distanceKm} km en ${formatTime(seconds)} (Vitesse : ${speedKmh} km/h) ${runCaption ? `- ${runCaption}` : ''}`.trim();
 
     const { error } = await supabase.from('posts').insert([{
       user_id: currentUserId,
@@ -332,8 +331,8 @@ export default function RunningTab({
             <div className="text-3xl font-black text-emerald-400 mt-1">{distanceKm} <span className="text-xs font-semibold text-neutral-400">km</span></div>
           </div>
           <div className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800">
-            <span className="text-[10px] uppercase font-bold text-neutral-400 tracking-wider">Allure moyenne</span>
-            <div className="text-2xl font-black text-white mt-1">{formatPace(pace)}</div>
+            <span className="text-[10px] uppercase font-bold text-neutral-400 tracking-wider">Vitesse moyenne</span>
+            <div className="text-2xl font-black text-white mt-1">{speedKmh} <span className="text-xs font-semibold text-neutral-400">km/h</span></div>
           </div>
         </div>
 
@@ -417,8 +416,8 @@ export default function RunningTab({
                 <span className="font-bold text-white">{formatTime(seconds)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-neutral-400">Allure :</span>
-                <span className="font-bold text-white">{formatPace(pace)}</span>
+                <span className="text-neutral-400">Vitesse moyenne :</span>
+                <span className="font-bold text-white">{speedKmh} km/h</span>
               </div>
             </div>
 
