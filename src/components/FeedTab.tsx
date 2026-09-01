@@ -1,236 +1,181 @@
-import React, { useState } from 'react';
-import { Heart, MessageCircle, ShieldCheck, MapPin, Send, Flag, Flame, Sparkles } from 'lucide-react';
-import { Post, RealUser, FriendRequest } from '../types';
+import { useState, FormEvent } from 'react';
+import { Dumbbell, Heart, MessageCircle, Share2, ShieldCheck, Flame, Send, Sparkles } from 'lucide-react';
 
 interface FeedTabProps {
-  posts: Post[];
-  registeredUsers: RealUser[];
-  friendRequests: FriendRequest[];
+  posts: any[];
   currentUserId?: string;
-  userDiscipline?: string;
-  feedLoading: boolean;
-  calculateStreak: (userId: string) => number;
-  onCreateStoryClick: () => void;
-  onToggleLike: (postId: string) => void;
-  onOpenComments: (postId: string) => void;
-  onReportPost: (postId: string) => void;
-  onDeletePost: (postId: string) => void;
-  onSelectProfile: (user: RealUser) => void;
-  onStartRestTimer: () => void;
+  currentUsername: string;
+  currentUserProfile?: any;
+  onLikePost: (postId: string, likedBy: string[]) => void;
+  onAddComment: (postId: string, commentText: string) => void;
+  onSharePost?: (post: any) => void;
 }
-
-const getDefaultFilter = (discipline?: string): 'Tout' | 'Muscu' | 'Running' | 'CrossFit' => {
-  if (discipline === 'Course à pied') return 'Running';
-  if (discipline === 'Crossfit') return 'CrossFit';
-  if (discipline === 'Fitness / Musculation') return 'Muscu';
-  return 'Tout';
-};
 
 export default function FeedTab({
   posts,
-  registeredUsers,
   currentUserId,
-  userDiscipline,
-  feedLoading,
-  calculateStreak,
-  onToggleLike,
-  onSelectProfile
+  currentUsername,
+  currentUserProfile,
+  onLikePost,
+  onAddComment,
+  onSharePost
 }: FeedTabProps) {
-  const [activeCommentsPostId, setActiveCommentsPostId] = useState<string | null>(null);
+  const [activeCommentPostId, setActiveCommentPostId] = useState<string | null>(null);
   const [commentInput, setCommentInput] = useState('');
-  const [reportMenuPostId, setReportMenuPostId] = useState<string | null>(null);
 
-  const [activeFilter, setActiveFilter] = useState<'Tout' | 'Muscu' | 'Running' | 'CrossFit'>(
-    () => getDefaultFilter(userDiscipline)
-  );
-
-  const handleSendComment = (_postId: string) => {
+  const handleCommentSubmit = (e: FormEvent, postId: string) => {
+    e.preventDefault();
     if (!commentInput.trim()) return;
+    onAddComment(postId, commentInput.trim());
     setCommentInput('');
   };
 
-  const filteredPosts = posts.filter(post => {
-    if (activeFilter === 'Tout') return true;
-    if (activeFilter === 'Running') return post.session_type?.includes('Running');
-    if (activeFilter === 'CrossFit') return post.session_type?.includes('BoxWars') || post.session_type?.includes('WOD');
-    if (activeFilter === 'Muscu') {
-      return !post.session_type?.includes('Running') && !post.session_type?.includes('BoxWars') && !post.session_type?.includes('WOD');
-    }
-    return true;
-  });
-
   return (
-    <div className="space-y-4 pb-12">
-      {/* --- BANNIÈRE ANNONCE FITBOT AI --- */}
-      <div className="bg-gradient-to-r from-orange-600/20 via-neutral-900 to-cyan-950/40 border border-orange-500/30 rounded-3xl p-4 shadow-xl space-y-2 relative overflow-hidden">
-        <div className="absolute top-0 right-0 transform translate-x-3 -translate-y-3 w-20 h-20 bg-orange-500/10 rounded-full blur-xl pointer-events-none" />
-        
-        <div className="flex items-center justify-between">
-          <span className="text-[10px] font-black tracking-wider uppercase bg-orange-500/20 text-orange-400 px-2.5 py-1 rounded-full border border-orange-500/30 flex items-center gap-1">
-            <Sparkles className="w-3 h-3" /> Prochaine mise à jour 🚀
+    <div className="space-y-6 pb-24 animate-fadeIn">
+      {/* En-tête de section moderne */}
+      <div className="bg-gradient-to-r from-neutral-900 via-neutral-900 to-orange-950/30 border border-neutral-800 rounded-3xl p-6 shadow-2xl relative overflow-hidden">
+        <div className="absolute -right-6 -bottom-6 w-32 h-32 bg-orange-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="relative z-10 flex items-center justify-between">
+          <div>
+            <div className="flex items-center gap-2 text-orange-400 font-bold text-xs uppercase tracking-widest mb-1">
+              <Sparkles className="w-4 h-4" /> Communauté FitPulse
+            </div>
+            <h2 className="text-xl font-black text-white tracking-tight">Fil d'actualité des Athlètes</h2>
+          </div>
+          <span className="text-xs font-bold bg-neutral-950/80 border border-neutral-800 px-3.5 py-1.5 rounded-full text-neutral-300 shadow-inner">
+            {posts.length} publications
           </span>
-          <span className="text-[10px] text-neutral-400 font-semibold">Bientôt disponible</span>
         </div>
+      </div>
 
-        <div className="space-y-1">
-          <h3 className="text-sm font-extrabold text-white flex items-center gap-1.5">
-            🤖 Arrivée imminente de FitBot AI !
-          </h3>
-          <p className="text-xs text-neutral-300 leading-relaxed">
-            Ton coach virtuel intelligent débarque bientôt dans FitPulse. Pose-lui toutes tes questions sur tes programmes et analyse tes performances en direct !
+      {/* Liste des publications */}
+      {posts.length === 0 ? (
+        <div className="bg-neutral-900/50 border border-neutral-800/80 rounded-3xl p-12 text-center space-y-3">
+          <Dumbbell className="w-10 h-10 text-neutral-600 mx-auto animate-pulse" />
+          <h3 className="text-sm font-bold text-white">Aucune publication pour le moment</h3>
+          <p className="text-xs text-neutral-400 max-w-xs mx-auto">
+            Sois le premier à partager ton entraînement du jour sur le fil et à faire gagner des points à ton club !
           </p>
         </div>
-
-        <div className="pt-1 flex items-center gap-2">
-          <span className="text-[10px] bg-neutral-950 text-cyan-400 font-bold px-2.5 py-1 rounded-xl border border-neutral-800">
-            ⚡ Analyse de WODs
-          </span>
-          <span className="text-[10px] bg-neutral-950 text-orange-400 font-bold px-2.5 py-1 rounded-xl border border-neutral-800">
-            📈 Conseils nutrition & force
-          </span>
-        </div>
-      </div>
-      {/* ---------------------------------- */}
-
-      {/* --- FILTRES DE FIL D'ACTUALITÉ --- */}
-      <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
-        {(['Tout', 'Muscu', 'Running', 'CrossFit'] as const).map(filter => (
-          <button
-            key={filter}
-            onClick={() => setActiveFilter(filter)}
-            className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-colors border ${
-              activeFilter === filter
-                ? filter === 'CrossFit' ? 'bg-cyan-600 text-white border-cyan-500 shadow-md shadow-cyan-500/20'
-                  : filter === 'Running' ? 'bg-emerald-600 text-white border-emerald-500 shadow-md shadow-emerald-500/20'
-                  : 'bg-orange-600 text-white border-orange-500 shadow-md shadow-orange-500/20'
-                : 'bg-neutral-900 text-neutral-400 border-neutral-800 hover:text-white hover:bg-neutral-800'
-            }`}
-          >
-            {filter === 'Tout' && '🌍 Tout'}
-            {filter === 'Muscu' && '💪 Muscu'}
-            {filter === 'Running' && '🏃‍♂️ Running'}
-            {filter === 'CrossFit' && '⚡ CrossFit'}
-          </button>
-        ))}
-      </div>
-      {/* ------------------------------------------- */}
-
-      <div className="space-y-4">
-        {feedLoading ? (
-          <div className="text-center py-12 text-neutral-500 text-xs">Chargement du fil d'actualité...</div>
-        ) : filteredPosts.length === 0 ? (
-          <div className="text-center py-12 text-neutral-500 text-sm bg-neutral-900 border border-neutral-800 rounded-3xl p-8">
-            {activeFilter === 'Tout' 
-              ? "Aucune publication pour ce club pour le moment. Sois le premier à poster ta séance ! 🚀"
-              : `Aucune publication en ${activeFilter} pour le moment. Fonce t'entraîner ! 💪`}
-          </div>
-        ) : (
-          filteredPosts.map((post) => {
-            const author = registeredUsers.find(u => u.id === post.user_id);
-            const isLiked = post.liked_by?.includes(currentUserId || '');
-            const isShowingComments = activeCommentsPostId === post.id;
-            const isShowingReportMenu = reportMenuPostId === post.id;
-            const streak = author ? calculateStreak(author.id) : 0;
+      ) : (
+        <div className="space-y-5">
+          {posts.map((post) => {
+            const isLikedByMe = currentUserId ? (post.liked_by || []).includes(currentUserId) : false;
+            const likesCount = post.likes_count || (post.liked_by ? post.liked_by.length : 0);
+            const commentsList = post.comments || [];
 
             return (
-              <div key={post.id} className="bg-neutral-900 border border-neutral-800 rounded-3xl overflow-hidden shadow-xl space-y-3 relative">
-                <div className="px-5 pt-4 flex items-center justify-between">
-                  <div className="flex items-center gap-3 cursor-pointer group" onClick={() => author && onSelectProfile(author)}>
-                    <img src={post.avatar_url || author?.avatar_url} alt="" className="w-11 h-11 rounded-full object-cover border border-neutral-800 group-hover:border-orange-500 transition" />
+              <div 
+                key={post.id} 
+                className="bg-neutral-900 border border-neutral-800/80 hover:border-neutral-700/80 rounded-3xl p-6 space-y-4 shadow-xl transition-all duration-300"
+              >
+                {/* Auteur & Club */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <img 
+                      src={post.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200'} 
+                      alt={post.username} 
+                      className="w-11 h-11 rounded-2xl object-cover border-2 border-orange-500/30 shadow-md"
+                    />
                     <div>
-                      <h3 className="font-extrabold text-sm text-white flex items-center gap-1.5 group-hover:text-orange-400 transition">
-                        {post.username} 
-                        {author?.is_verified && <ShieldCheck className="w-4 h-4 text-orange-500 fill-orange-500/20" />}
-                        {streak > 0 && (
-                          <span className="bg-orange-500/20 text-orange-400 text-[10px] px-2 py-0.5 rounded-full border border-orange-500/30 flex items-center gap-0.5 font-black">
-                            <Flame className="w-3 h-3 fill-orange-500" /> {streak}
-                          </span>
-                        )}
-                      </h3>
-                      <p className="text-[11px] text-orange-400 font-semibold flex items-center gap-1 mt-0.5">
-                        <MapPin className="w-3 h-3" /> {post.club_name} • <span className="text-neutral-400">{new Date(post.created_at || Date.now()).toLocaleDateString()}</span>
-                      </p>
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-extrabold text-sm text-white">{post.username}</span>
+                        {post.is_verified && <ShieldCheck className="w-4 h-4 text-orange-500 fill-orange-500/20" />}
+                      </div>
+                      <span className="text-[11px] text-neutral-400 font-medium">{post.club_name || 'Club Tournai (Bastion)'}</span>
                     </div>
                   </div>
 
-                  <div className="relative">
-                    <button onClick={() => setReportMenuPostId(isShowingReportMenu ? null : post.id)} className="p-2 text-neutral-400 hover:text-white font-bold">⋮</button>
-                    {isShowingReportMenu && (
-                      <div className="absolute right-0 mt-1 w-40 bg-neutral-950 border border-neutral-800 rounded-2xl shadow-xl z-30 py-1">
-                        <button 
-                          onClick={() => { alert("🚨 Publication signalée aux administrateurs."); setReportMenuPostId(null); }} 
-                          className="w-full px-4 py-2 text-left text-xs text-amber-400 hover:bg-neutral-900 flex items-center gap-2"
-                        >
-                          <Flag className="w-3.5 h-3.5" /> Signaler le post
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="px-5 space-y-1.5">
-                  <span className={`inline-block font-bold text-xs px-2.5 py-1 rounded-xl border ${
-                    post.session_type?.includes('Running') ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
-                    post.session_type?.includes('BoxWars') ? 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20' :
-                    'bg-orange-500/10 text-orange-400 border-orange-500/20'
-                  }`}>
-                    {post.session_type}
+                  <span className="text-[10px] font-bold tracking-wide uppercase bg-neutral-950 border border-neutral-800 text-orange-400 px-3 py-1 rounded-xl shadow-inner">
+                    {post.session_type || 'Séance'}
                   </span>
-                  <p className="text-xs text-neutral-200 leading-relaxed">{post.caption}</p>
                 </div>
 
+                {/* Légende / Contenu */}
+                <div className="text-xs text-neutral-200 leading-relaxed font-normal whitespace-pre-line bg-neutral-950/60 p-4 rounded-2xl border border-neutral-800/50">
+                  {post.caption}
+                </div>
+
+                {/* Image optionnelle si présente */}
                 {post.image_url && (
-                  <div className="w-full bg-neutral-950 h-72 overflow-hidden border-y border-neutral-800">
-                    <img src={post.image_url} alt="Séance" className="w-full h-full object-cover" />
+                  <div className="rounded-2xl overflow-hidden border border-neutral-800 max-h-80 bg-neutral-950">
+                    <img src={post.image_url} alt="Media" className="w-full h-full object-cover" />
                   </div>
                 )}
 
-                <div className="px-5 pb-4 flex items-center justify-between border-b border-neutral-800/60 pb-3">
-                  <div className="flex items-center gap-5">
-                    <button onClick={() => onToggleLike(post.id)} className={`flex items-center gap-1.5 text-xs font-bold transition ${isLiked ? 'text-red-500' : 'text-neutral-400 hover:text-white'}`}>
-                      <Heart className={`w-5 h-5 ${isLiked ? 'fill-red-500 text-red-500' : ''}`} /> {post.likes_count || 0}
+                {/* Barre d'interactions (Likes, Commentaires, Partage) */}
+                <div className="flex items-center justify-between pt-2 border-t border-neutral-800/60 text-xs text-neutral-400">
+                  <div className="flex items-center gap-4">
+                    <button 
+                      onClick={() => currentUserId && onLikePost(post.id, post.liked_by || [])}
+                      className={`flex items-center gap-2 px-3.5 py-2 rounded-xl transition-all duration-200 font-bold ${
+                        isLikedByMe 
+                          ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30' 
+                          : 'bg-neutral-950 hover:bg-neutral-800 text-neutral-400 border border-neutral-800'
+                      }`}
+                    >
+                      <Heart className={`w-4 h-4 ${isLikedByMe ? 'fill-orange-500 text-orange-500' : ''}`} />
+                      <span>{likesCount}</span>
                     </button>
-                    <button onClick={() => setActiveCommentsPostId(isShowingComments ? null : post.id)} className="flex items-center gap-1.5 text-xs font-bold text-neutral-400 hover:text-white transition">
-                      <MessageCircle className="w-5 h-5" /> {(post.comments || []).length}
+
+                    <button 
+                      onClick={() => setActiveCommentPostId(activeCommentPostId === post.id ? null : post.id)}
+                      className="flex items-center gap-2 px-3.5 py-2 bg-neutral-950 hover:bg-neutral-800 text-neutral-400 border border-neutral-800 rounded-xl transition font-bold"
+                    >
+                      <MessageCircle className="w-4 h-4 text-cyan-400" />
+                      <span>{commentsList.length}</span>
                     </button>
                   </div>
+
+                  {onSharePost && (
+                    <button 
+                      onClick={() => onSharePost(post)}
+                      className="p-2.5 bg-neutral-950 hover:bg-neutral-800 text-neutral-400 hover:text-white border border-neutral-800 rounded-xl transition"
+                      title="Partager"
+                    >
+                      <Share2 className="w-4 h-4" />
+                    </button>
+                  )}
                 </div>
 
-                {isShowingComments && (
-                  <div className="bg-neutral-950 px-5 py-4 space-y-3 border-t border-neutral-800">
-                    <div className="space-y-2.5 max-h-48 overflow-y-auto pr-1">
-                      {(!post.comments || post.comments.length === 0) ? (
-                        <div className="text-center py-4 text-neutral-500 text-xs">Aucun commentaire pour l'instant. Sois le premier !</div>
+                {/* Section des commentaires (si ouverte) */}
+                {activeCommentPostId === post.id && (
+                  <div className="space-y-3 pt-3 border-t border-neutral-800/80 animate-fadeIn">
+                    <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
+                      {commentsList.length === 0 ? (
+                        <p className="text-[11px] text-neutral-500 text-center py-2">Aucun commentaire pour l'instant. Sois le premier !</p>
                       ) : (
-                        post.comments.map((c: any, cIdx: number) => (
-                          <div key={cIdx} className="bg-neutral-900 p-3 rounded-xl border border-neutral-800 text-xs space-y-1">
-                            <span className="font-bold text-orange-400 block">{c.username || 'Athlète'}</span>
-                            <p className="text-neutral-200">{c.text}</p>
+                        commentsList.map((c: any, idx: number) => (
+                          <div key={idx} className="bg-neutral-950 p-3 rounded-2xl border border-neutral-800/80 text-xs space-y-1">
+                            <span className="font-extrabold text-orange-400">{c.username || 'Athlète'}</span>
+                            <p className="text-neutral-300">{c.text || c}</p>
                           </div>
                         ))
                       )}
                     </div>
 
-                    <div className="flex gap-2 pt-2">
+                    <form onSubmit={(e) => handleCommentSubmit(e, post.id)} className="flex gap-2">
                       <input 
-                        type="text" 
-                        placeholder="Écrire un commentaire..." 
-                        value={commentInput} 
+                        type="text"
+                        placeholder="Écris un commentaire motivant..."
+                        value={commentInput}
                         onChange={(e) => setCommentInput(e.target.value)}
-                        onKeyDown={(e) => { if (e.key === 'Enter') handleSendComment(post.id); }}
-                        className="flex-1 bg-neutral-900 border border-neutral-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:border-orange-500"
+                        className="flex-1 bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-2.5 text-xs text-white focus:border-orange-500 focus:outline-none"
                       />
-                      <button onClick={() => handleSendComment(post.id)} className="px-3.5 bg-orange-600 text-white rounded-xl font-bold text-xs">
-                        <Send className="w-4 h-4" />
+                      <button 
+                        type="submit"
+                        className="px-4 py-2.5 bg-orange-600 hover:bg-orange-500 text-white rounded-xl transition font-bold flex items-center justify-center shadow-lg"
+                      >
+                        <Send className="w-3.5 h-3.5" />
                       </button>
-                    </div>
+                    </form>
                   </div>
                 )}
               </div>
             );
-          })
-        )}
-      </div>
+          })}
+        </div>
+      )}
     </div>
   );
 }
