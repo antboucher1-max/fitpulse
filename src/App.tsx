@@ -404,21 +404,33 @@ export default function App() {
             e.preventDefault();
             if (!onboardingUsername.trim()) { alert("Pseudo requis"); return; }
             setOnboardingSubmitting(true);
-            await supabase.from('profiles').upsert({
-              id: user.id, 
-              username: onboardingUsername.trim(), 
-              age: onboardingAgeGroup, 
-              home_club: onboardingClub, 
-              goal: onboardingGoal, 
-              gender: onboardingGender, 
-              preferred_time: onboardingTime,
-              discipline: onboardingDiscipline,
-              avatar_url: onboardingAvatar, 
-              points: 0, 
-              is_admin: user.email === 'antboucher@hotmail.fr'
-            });
-            setOnboardingSubmitting(false);
-            fetchRealUsers();
+            
+            try {
+              const { error } = await supabase.from('profiles').upsert({
+                id: user.id, 
+                username: onboardingUsername.trim(), 
+                age: onboardingAgeGroup, 
+                home_club: onboardingClub, 
+                goal: onboardingGoal, 
+                gender: onboardingGender, 
+                preferred_time: onboardingTime,
+                discipline: onboardingDiscipline,
+                avatar_url: onboardingAvatar, 
+                points: 0, 
+                is_admin: user.email === 'antboucher@hotmail.fr'
+              });
+
+              if (error) {
+                alert("Erreur Supabase : " + error.message);
+              } else {
+                await fetchRealUsers();
+                window.location.reload();
+              }
+            } catch (err: any) {
+              alert("Erreur inattendue : " + (err.message || err));
+            } finally {
+              setOnboardingSubmitting(false);
+            }
           }} className="space-y-3">
             <input type="text" required placeholder="Ton Pseudo" value={onboardingUsername} onChange={(e) => setOnboardingUsername(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-2.5 text-sm text-white" />
             
@@ -465,7 +477,9 @@ export default function App() {
               {CLUBS_LIST.map((club) => <option key={club} value={club}>{club}</option>)}
             </select>
 
-            <button type="submit" disabled={onboardingSubmitting} className="w-full py-3 bg-orange-600 text-white font-bold rounded-2xl text-sm">Valider 🚀</button>
+            <button type="submit" disabled={onboardingSubmitting} className="w-full py-3 bg-orange-600 text-white font-bold rounded-2xl text-sm">
+              {onboardingSubmitting ? "Validation en cours..." : "Valider 🚀"}
+            </button>
           </form>
         </div>
       </div>
