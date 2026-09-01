@@ -225,7 +225,7 @@ export default function RunningTab({
           attributionControl={false}
           style={{ width: '100%', height: '100%', background: '#0a0a0a' }}
         >
-          <TileLayer url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" />
+          <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
           {pathCoordinates.length > 0 && (
             <Polyline positions={pathCoordinates} color="#10b981" weight={4} />
           )}
