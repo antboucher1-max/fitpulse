@@ -1,23 +1,102 @@
-import { useState } from 'react';
-import { Calendar, CheckCircle } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Calendar, CheckCircle, RefreshCw, AlertCircle } from 'lucide-react';
+import { createClient } from '@supabase/supabase-js';
 
-export default function TrainingPlanTab() {
+const supabaseUrl = 'https://obtahwmcoqrcauscpksv.supabase.co';
+const supabaseAnonKey = 'sb_publishable_O8CKhUtzgq9nO9lKavNE9A__fAdRWoB';
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+export default function TrainingPlanTab({ currentUserId }: { currentUserId?: string }) {
   const [goal, setGoal] = useState('10 km');
   const [daysPerWeek, setDaysPerWeek] = useState(3);
-  const [planGenerated, setPlanGenerated] = useState(false);
+  const [activePlan, setActivePlan] = useState<any>(null);
+  const [sessions, setSessions] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  const handleGenerate = () => {
-    setPlanGenerated(true);
+  const fetchActivePlan = async () => {
+    if (!currentUserId) return;
+    
+    // 1. Récupérer le plan actif
+    const { data: planData } = await supabase
+      .from('training_plans')
+      .select('*')
+      .eq('user_id', currentUserId)
+      .eq('is_active', true)
+      .single();
+
+    if (planData) {
+      setActivePlan(planData);
+      
+      // 2. Récupérer les séances associées à ce plan
+      const { data: sessionData } = await supabase
+        .from('training_sessions')
+        .select('*')
+        .eq('plan_id', planData.id)
+        .order('id', { ascending: true });
+
+      if (sessionData) setSessions(sessionData);
+    } else {
+      setActivePlan(null);
+      setSessions([]);
+    }
+  };
+
+  useEffect(() => {
+    fetchActivePlan();
+  }, [currentUserId]);
+
+  const handleGeneratePlan = async (e: any) => {
+    e.preventDefault();
+    if (!currentUserId) {
+      alert("Utilisateur non identifié.");
+      return;
+    }
+
+    setLoading(true);
+
+    // Désactiver les anciens plans
+    await supabase.from('training_plans').update({ is_active: false }).eq('user_id', currentUserId);
+
+    // Créer le nouveau plan
+    const { data: newPlan, error: planError } = await supabase
+      .from('training_plans')
+      .insert([{ user_id: currentUserId, goal, days_per_week: daysPerWeek, is_active: true }])
+      .select()
+      .single();
+
+    if (planError || !newPlan) {
+      alert("Erreur lors de la création du plan : " + (planError?.message || "Inconnue"));
+      setLoading(false);
+      return;
+    }
+
+    // Insérer les séances de base
+    const defaultSessions = [
+      { plan_id: newPlan.id, week_number: 1, day_name: 'Mardi', session_type: 'Endurance Fondamentale', description: '45 min à 65-70% VMA', status: 'À faire' },
+      { plan_id: newPlan.id, week_number: 1, day_name: 'Jeudi', session_type: 'Fractionné VMA', description: '10 x (30s / 30s)', status: 'À faire' },
+      { plan_id: newPlan.id, week_number: 1, day_name: 'Dimanche', session_type: 'Sortie Longue', description: '1h15 allure progressive', status: 'À faire' }
+    ];
+
+    const { error: sessionError } = await supabase.from('training_sessions').insert(defaultSessions);
+
+    if (sessionError) {
+      alert("Erreur lors de l'insertion des séances : " + sessionError.message);
+    }
+
+    await fetchActivePlan();
+    setLoading(false);
   };
 
   return (
     <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-5 shadow-xl animate-fadeIn">
-      <div className="flex items-center gap-2 text-emerald-400 font-bold text-xs uppercase tracking-wider">
-        <Calendar className="w-4 h-4" /> Plan d'Entraînement Intelligent
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2 text-emerald-400 font-bold text-xs uppercase tracking-wider">
+          <Calendar className="w-4 h-4" /> Plan d'Entraînement Intelligent
+        </div>
       </div>
 
-      {!planGenerated ? (
-        <form onSubmit={handleGenerate} className="bg-neutral-950 border border-neutral-800 p-4 rounded-2xl space-y-4">
+      {!activePlan ? (
+        <form onSubmit={handleGeneratePlan} className="bg-neutral-950 border border-neutral-800 p-4 rounded-2xl space-y-4">
           <div className="space-y-1.5">
             <label className="block text-xs font-semibold text-neutral-400">Quel est ton objectif principal ?</label>
             <select 
@@ -51,8 +130,12 @@ export default function TrainingPlanTab() {
             </div>
           </div>
 
-          <button type="submit" className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-neutral-950 font-extrabold rounded-2xl text-xs transition shadow-lg">
-            Générer mon plan adaptatif 🚀
+          <button 
+            type="submit" 
+            disabled={loading}
+            className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-neutral-950 font-extrabold rounded-2xl text-xs transition shadow-lg disabled:opacity-50"
+          >
+            {loading ? "Génération..." : "Générer mon plan adaptatif 🚀"}
           </button>
         </form>
       ) : (
@@ -60,42 +143,42 @@ export default function TrainingPlanTab() {
           <div className="bg-emerald-500/10 border border-emerald-500/30 p-4 rounded-2xl flex items-center justify-between">
             <div>
               <span className="text-[10px] text-emerald-400 font-bold uppercase block">Objectif Actif</span>
-              <span className="text-sm font-black text-white">Plan {goal} ({daysPerWeek} séances/semaine)</span>
+              <span className="text-sm font-black text-white">Plan {activePlan.goal} ({activePlan.days_per_week} séances/semaine)</span>
             </div>
-            <button onClick={() => setPlanGenerated(false)} className="text-[11px] text-neutral-400 underline hover:text-white">
-              Modifier
+            <button 
+              onClick={async () => {
+                await supabase.from('training_plans').update({ is_active: false }).eq('id', activePlan.id);
+                setActivePlan(null);
+                setSessions([]);
+              }} 
+              className="text-[11px] text-neutral-400 underline hover:text-white"
+            >
+              Changer
             </button>
           </div>
 
           <div className="space-y-2">
-            <h4 className="text-xs font-black uppercase tracking-wider text-neutral-400">Semaine 1 / 8 :</h4>
+            <h4 className="text-xs font-black uppercase tracking-wider text-neutral-400">Semaine en cours :</h4>
             
-            <div className="bg-neutral-950 border border-neutral-800 p-3.5 rounded-2xl flex justify-between items-center">
-              <div>
-                <span className="text-[10px] text-cyan-400 font-bold block">Séance 1 • Mardi</span>
-                <span className="text-xs font-bold text-white">Endurance Fondamentale (EF)</span>
-                <span className="text-[10px] text-neutral-400 block">45 min à 65% VMA</span>
-              </div>
-              <CheckCircle className="w-5 h-5 text-emerald-500" />
-            </div>
-
-            <div className="bg-neutral-950 border border-neutral-800 p-3.5 rounded-2xl flex justify-between items-center">
-              <div>
-                <span className="text-[10px] text-orange-400 font-bold block">Séance 2 • Jeudi</span>
-                <span className="text-xs font-bold text-white">Fractionné Court (VMA)</span>
-                <span className="text-[10px] text-neutral-400 block">10 x (30s / 30s)</span>
-              </div>
-              <span className="text-[10px] bg-neutral-900 border border-neutral-800 text-neutral-400 px-2.5 py-1 rounded-xl font-bold">À faire</span>
-            </div>
-
-            <div className="bg-neutral-950 border border-neutral-800 p-3.5 rounded-2xl flex justify-between items-center">
-              <div>
-                <span className="text-[10px] text-amber-400 font-bold block">Séance 3 • Dimanche</span>
-                <span className="text-xs font-bold text-white">Sortie Longue</span>
-                <span className="text-[10px] text-neutral-400 block">1h15 allure progressive</span>
-              </div>
-              <span className="text-[10px] bg-neutral-900 border border-neutral-800 text-neutral-400 px-2.5 py-1 rounded-xl font-bold">À faire</span>
-            </div>
+            {sessions.length === 0 ? (
+              <p className="text-xs text-neutral-500 text-center py-4">Aucune séance planifiée pour l'instant.</p>
+            ) : (
+              sessions.map((session) => (
+                <div key={session.id} className="bg-neutral-950 border border-neutral-800 p-3.5 rounded-2xl flex justify-between items-center">
+                  <div>
+                    <span className="text-[10px] text-cyan-400 font-bold block">{session.day_name} • {session.session_type}</span>
+                    <span className="text-xs font-bold text-white">{session.description}</span>
+                  </div>
+                  <span className={`text-[10px] px-2.5 py-1 rounded-xl font-bold border ${
+                    session.status === 'Adaptée' 
+                      ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' 
+                      : 'bg-neutral-900 text-neutral-400 border-neutral-800'
+                  }`}>
+                    {session.status}
+                  </span>
+                </div>
+              ))
+            )}
           </div>
         </div>
       )}
