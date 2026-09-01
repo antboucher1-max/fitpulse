@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { BarChart3, TrendingUp } from 'lucide-react';
 import GearTrackerSection from './GearTrackerSection';
+import TrainingLoadWidget from './TrainingLoadWidget';
 
 interface ProgressTabProps {
   posts: any[];
@@ -21,7 +22,7 @@ export default function ProgressTab({
 
   // Filtrer uniquement les publications de type course / running
   const runningPosts = posts.filter(p => p.session_type?.toLowerCase().includes('running') || p.caption?.toLowerCase().includes('[running]'));
-  
+   
   const totalSessions = runningPosts.length;
   const totalKm = runningPosts.length * 8.5; // Estimation moyenne par défaut ou extraction de texte
 
@@ -49,6 +50,9 @@ export default function ProgressTab({
 
   return (
     <div className="space-y-5 animate-fadeIn pb-20">
+      {/* Widget de Charge d'Entraînement Globale (Fatigue unifiée Course + Muscu + Crossfit) */}
+      <TrainingLoadWidget posts={posts} />
+
       {/* Statistiques & Progression */}
       <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-5 shadow-xl">
         <div className="flex items-center gap-2 text-cyan-400 font-bold text-xs uppercase tracking-wider">
@@ -99,7 +103,7 @@ export default function ProgressTab({
           <h3 className="font-extrabold text-sm text-white flex items-center gap-2">
             <TrendingUp className="w-4 h-4 text-orange-500" /> Courbe de Performance
           </h3>
-          
+           
           <div className="flex bg-neutral-950 p-1 rounded-xl border border-neutral-800 text-[10px]">
             <button 
               onClick={() => setMetric('sessions')}
