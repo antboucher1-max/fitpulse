@@ -1,11 +1,21 @@
 import { useState, useEffect } from 'react';
 import { 
   Play, Pause, Square, MapPin, Volume2, VolumeX, 
-  Compass, Apple, Droplet, Zap, Navigation 
+  Compass, Apple, Droplet, Zap, Navigation, LocateFixed 
 } from 'lucide-react';
-import { MapContainer, TileLayer, Polyline } from 'react-leaflet';
+import { MapContainer, TileLayer, Polyline, Marker, useMap } from 'react-leaflet';
+import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import GearTrackerSection from './GearTrackerSection';
+
+// Composant interne pour recentrer la carte dynamiquement sur les coordonnées GPS
+function MapController({ center }: { center: [number, number] }) {
+  const map = useMap();
+  useEffect(() => {
+    map.setView(center, map.getZoom(), { animate: true });
+  }, [center, map]);
+  return null;
+}
 
 interface RunningTabProps {
   currentUserId?: string;
@@ -35,11 +45,10 @@ export default function RunningTab({
   const [distanceKm, setDistanceKm] = useState(0);
   const [audioCoaching, setAudioCoaching] = useState(true);
 
-  // Coordonnées GPS pour la carte Leaflet (Centré sur la région de Tournai / Brunehaut)
+  // Position GPS actuelle (par défaut Brunehaut / Tournai si le GPS n'a pas encore répondu)
+  const [currentPosition, setCurrentPosition] = useState<[number, number]>([50.505, 3.325]);
   const [routePositions, setRoutePositions] = useState<Array<[number, number]>>([
-    [50.505, 3.325],
-    [50.507, 3.328],
-    [50.510, 3.332]
+    [50.505, 3.325]
   ]);
 
   // États du Planificateur de Ravitaillement (Nutrition)
@@ -48,24 +57,61 @@ export default function RunningTab({
   const [intensity, setIntensity] = useState<'modere' | 'soutenu' | 'maximal'>('soutenu');
   const [bodyWeight, setBodyWeight] = useState<number>(70);
 
-  // Timer de course et simulation de progression géographique sur la carte
+  // Récupération de la position GPS réelle du téléphone/navigateur
+  const centerOnUserGps = () => {
+    if ('geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const lat = position.coords.latitude;
+          const lng = position.coords.longitude;
+          const newCoord: [number, number] = [lat, lng];
+          setCurrentPosition(newCoord);
+          setRoutePositions(prev => [...prev, newCoord]);
+        },
+        (error) => {
+          console.warn("Erreur de géolocalisation :", error.message);
+        },
+        { enableHighAccuracy: true }
+      );
+    }
+  };
+
+  // Centrer au chargement initial de l'onglet
+  useEffect(() => {
+    centerOnUserGps();
+  }, []);
+
+  // Timer de course et suivi GPS continu
   useEffect(() => {
     let interval: any = null;
+    let watchId: number | null = null;
+
     if (isRunning && !isPaused) {
       interval = setInterval(() => {
         setSeconds(s => s + 1);
         setDistanceKm(d => Number((d + 0.0033).toFixed(2)));
-        
-        // Allongement progressif du tracé vert sur la carte
-        setRoutePositions(prev => {
-          const last = prev[prev.length - 1];
-          return [...prev, [last[0] + 0.0008, last[1] + 0.001]];
-        });
       }, 1000);
-    } else {
-      clearInterval(interval);
+
+      // Suivi en direct du GPS de l'appareil si disponible
+      if ('geolocation' in navigator) {
+        watchId = navigator.geolocation.watchPosition(
+          (position) => {
+            const lat = position.coords.latitude;
+            const lng = position.coords.longitude;
+            const newPos: [number, number] = [lat, lng];
+            setCurrentPosition(newPos);
+            setRoutePositions(prev => [...prev, newPos]);
+          },
+          (error) => console.error(error),
+          { enableHighAccuracy: true, maximumAge: 10000, timeout: 5000 }
+        );
+      }
     }
-    return () => clearInterval(interval);
+
+    return () => {
+      clearInterval(interval);
+      if (watchId !== null) navigator.geolocation.clearWatch(watchId);
+    };
   }, [isRunning, isPaused]);
 
   const formatTime = (totalSecs: number) => {
@@ -84,6 +130,7 @@ export default function RunningTab({
     setIsPaused(false);
     setSeconds(0);
     setDistanceKm(0);
+    centerOnUserGps();
   };
 
   const handlePauseRun = () => {
@@ -110,11 +157,8 @@ export default function RunningTab({
   const totalWaterMl = Math.round(waterPerception * totalHours);
   const standardGelsCount = Math.round(totalCarbs / 25);
 
-  const currentCenter = routePositions[routePositions.length - 1];
-
   return (
     <div className="space-y-6 pb-24 animate-fadeIn">
-      {/* Style CSS intégré pour basculer les tuiles OpenStreetMap en mode sombre */}
       <style>{`
         .map-tiles-dark {
           filter: brightness(0.6) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3);
@@ -131,13 +175,17 @@ export default function RunningTab({
             </div>
             <h2 className="text-xl font-black text-white tracking-tight">GPS, Carte Live & Nutrition</h2>
           </div>
-          <span className="text-xs font-bold bg-neutral-950/80 border border-neutral-800 px-3.5 py-1.5 rounded-full text-orange-400 shadow-inner">
-            Live & Plan
-          </span>
+          <button 
+            onClick={centerOnUserGps}
+            className="flex items-center gap-1.5 text-xs font-bold bg-neutral-950/90 border border-neutral-800 px-3.5 py-2 rounded-xl text-emerald-400 hover:bg-neutral-800 transition shadow-inner cursor-pointer"
+            title="Centrer sur ma position"
+          >
+            <LocateFixed className="w-4 h-4 animate-pulse" /> Centrer GPS
+          </button>
         </div>
       </div>
 
-      {/* Vraie Carte GPS Interactive avec Tracé Vert (Leaflet + OSM Dark Mode) */}
+      {/* Carte GPS Interactive centrée sur l'utilisateur */}
       <div className="bg-neutral-900 border border-neutral-800/80 rounded-3xl p-6 space-y-4 shadow-xl">
         <div className="flex items-center justify-between">
           <h3 className="text-xs font-black text-white flex items-center gap-2 uppercase tracking-wider">
@@ -148,14 +196,14 @@ export default function RunningTab({
           </span>
         </div>
 
-        {/* Conteneur Leaflet aux couleurs sombres */}
-        <div className="w-full h-72 rounded-2xl overflow-hidden border border-neutral-800 relative z-0">
+        <div className="w-full h-80 rounded-2xl overflow-hidden border border-neutral-800 relative z-0">
           <MapContainer 
-            center={currentCenter} 
-            zoom={14} 
-            scrollWheelZoom={false}
+            center={currentPosition} 
+            zoom={15} 
+            scrollWheelZoom={true}
             style={{ width: '100%', height: '100%', background: '#0a0a0a' }}
           >
+            <MapController center={currentPosition} />
             <TileLayer
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -163,7 +211,7 @@ export default function RunningTab({
             />
             <Polyline 
               positions={routePositions} 
-              pathOptions={{ color: '#10b981', weight: 4, opacity: 0.9 }} 
+              pathOptions={{ color: '#10b981', weight: 5, opacity: 0.9 }} 
             />
           </MapContainer>
         </div>
@@ -271,53 +319,3 @@ export default function RunningTab({
             </select>
           </div>
           <div>
-            <label className="block text-xs font-bold text-neutral-400 mb-1">Poids corporel (kg) :</label>
-            <input 
-              type="number" 
-              value={bodyWeight}
-              onChange={(e) => setBodyWeight(Number(e.target.value))}
-              className="w-full bg-neutral-950 border border-neutral-800 rounded-2xl px-4 py-3 text-xs text-white focus:border-orange-500 focus:outline-none"
-            />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-3 pt-2">
-          <div className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 space-y-1">
-            <span className="text-[10px] uppercase font-bold text-neutral-400 flex items-center gap-1">
-              <Apple className="w-3.5 h-3.5 text-orange-500" /> Glucides Totaux
-            </span>
-            <div className="text-2xl font-black text-white mt-1">
-              {totalCarbs} <span className="text-xs font-normal text-orange-400">g</span>
-            </div>
-            <span className="text-[10px] text-neutral-500 block">Soit ~{carbsPerHour}g / heure</span>
-          </div>
-
-          <div className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 space-y-1">
-            <span className="text-[10px] uppercase font-bold text-neutral-400 flex items-center gap-1">
-              <Droplet className="w-3.5 h-3.5 text-cyan-400" /> Hydratation / Eau
-            </span>
-            <div className="text-2xl font-black text-white mt-1">
-              {(totalWaterMl / 1000).toFixed(2)} <span className="text-xs font-normal text-cyan-400">L</span>
-            </div>
-            <span className="text-[10px] text-neutral-500 block">Avec électrolytes conseillés</span>
-          </div>
-        </div>
-
-        <div className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 space-y-2 text-xs">
-          <span className="font-bold text-orange-400 block">Stratégie de course :</span>
-          <p className="text-neutral-300 leading-relaxed">
-            Pour cette sortie de <strong>{durationHours}h{durationMins > 0 ? durationMins : ''}</strong>, prévois environ <strong>{standardGelsCount} gels énergétiques</strong> à répartir toutes les 30 à 45 minutes, accompagnés de petites gorgées d'eau régulièrement.
-          </p>
-        </div>
-      </div>
-
-      {/* Intégration du Gear Tracker (Chaussures) */}
-      <GearTrackerSection 
-        shoes={shoes} 
-        onAddShoe={onAddShoe} 
-        onDeleteShoe={onDeleteShoe} 
-        onSetActiveShoe={onSetActiveShoe} 
-      />
-    </div>
-  );
-}
