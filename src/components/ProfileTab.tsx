@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { RealUser, TransformationPhoto } from '../types';
 import BadgesSection from './BadgesSection';
+import GearTrackerSection from './GearTrackerSection';
 
 interface ProfileTabProps {
   user: SupabaseUser | null;
@@ -15,6 +16,10 @@ interface ProfileTabProps {
   registeredUsers: RealUser[];
   transformations: TransformationPhoto[];
   posts?: any[];
+  shoes?: any[];
+  onAddShoe?: (brand: string, model: string, maxKm: number) => void;
+  onDeleteShoe?: (shoeId: string) => void;
+  onSetActiveShoe?: (shoeId: string) => void;
   newTransWeight: number | '';
   newTransNote: string;
   newTransBefore: string | null;
@@ -58,6 +63,10 @@ export default function ProfileTab({
   registeredUsers,
   transformations,
   posts = [],
+  shoes = [],
+  onAddShoe = () => {},
+  onDeleteShoe = () => {},
+  onSetActiveShoe = () => {},
   newTransWeight,
   newTransNote,
   newTransIsPrivate,
@@ -266,8 +275,9 @@ export default function ProfileTab({
           </div>
 
           {/* Section Badges intégrée directement sous les stats du profil */}
-          <div className="w-full mt-4">
+          <div className="w-full mt-4 space-y-4">
             <BadgesSection userPosts={posts} userProfile={currentUserProfile} />
+            <GearTrackerSection shoes={shoes} onAddShoe={onAddShoe} onDeleteShoe={onDeleteShoe} onSetActiveShoe={onSetActiveShoe} />
           </div>
 
           {/* Sub-navigation tabs */}
@@ -521,7 +531,7 @@ export default function ProfileTab({
                 <span className="font-black text-orange-400 bg-orange-500/10 px-2.5 py-1 rounded-xl">+1 pt</span>
               </div>
             </div>
-          </div>
+         </div>
 
           <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4 shadow-xl">
             <h3 className="text-sm font-extrabold text-white flex items-center gap-2">
