@@ -8,6 +8,7 @@ interface FeedTabProps {
   registeredUsers: RealUser[];
   friendRequests: FriendRequest[];
   currentUserId?: string;
+  userDiscipline?: string; // <-- NOUVEAU : On récupère la discipline de l'utilisateur
   feedLoading: boolean;
   viewedStoryIds: string[];
   calculateStreak: (userId: string) => number;
@@ -25,12 +26,21 @@ interface FeedTabProps {
 const STORY_REACTIONS = ['👍', '❤️', '👏', '😲', '😂', '🔥'];
 const PRESET_HASHTAGS = ['#fitpulse', '#workout', '#musculation', '#cardio', '#tournai', '#teamshape', '#fitness', '#nopainnogain'];
 
+// Fonction pour traduire la discipline de la BDD vers le nom de l'onglet
+const getDefaultFilter = (discipline?: string): 'Tout' | 'Muscu' | 'Running' | 'CrossFit' => {
+  if (discipline === 'Course à pied') return 'Running';
+  if (discipline === 'Crossfit') return 'CrossFit';
+  if (discipline === 'Fitness / Musculation') return 'Muscu';
+  return 'Tout'; // Par défaut si non renseigné
+};
+
 export default function FeedTab({
   stories,
   posts,
   registeredUsers,
   friendRequests,
   currentUserId,
+  userDiscipline, // <-- NOUVEAU
   feedLoading,
   viewedStoryIds,
   calculateStreak,
@@ -51,8 +61,10 @@ export default function FeedTab({
   const [selectedHashtags, setSelectedHashtags] = useState<string[]>(['#fitpulse']);
   const [customTagInput, setCustomTagInput] = useState('');
 
-  // --- NOUVEAU : État pour le filtre du fil d'actualité ---
-  const [activeFilter, setActiveFilter] = useState<'Tout' | 'Muscu' | 'Running' | 'CrossFit'>('Tout');
+  // L'état initial du filtre est maintenant basé sur la discipline de l'utilisateur !
+  const [activeFilter, setActiveFilter] = useState<'Tout' | 'Muscu' | 'Running' | 'CrossFit'>(
+    () => getDefaultFilter(userDiscipline)
+  );
 
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
@@ -124,7 +136,6 @@ export default function FeedTab({
     }
   };
 
-  // --- NOUVEAU : Logique de filtrage des posts ---
   const filteredPosts = posts.filter(post => {
     if (activeFilter === 'Tout') return true;
     if (activeFilter === 'Running') return post.session_type?.includes('Running');
@@ -224,7 +235,7 @@ export default function FeedTab({
         </div>
       </div>
 
-      {/* --- NOUVEAU : FILTRES DE FIL D'ACTUALITÉ --- */}
+      {/* --- FILTRES DE FIL D'ACTUALITÉ --- */}
       <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
         {(['Tout', 'Muscu', 'Running', 'CrossFit'] as const).map(filter => (
           <button
