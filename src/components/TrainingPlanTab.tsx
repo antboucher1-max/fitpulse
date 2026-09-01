@@ -30,26 +30,39 @@ export default function TrainingPlanTab({ currentUserId }: { currentUserId?: str
   const fetchActivePlan = async () => {
     if (!userId) return;
     
-    const { data: planData } = await supabase
-      .from('training_plans')
-      .select('*')
-      .eq('user_id', userId)
-      .eq('is_active', true)
-      .single();
-
-    if (planData) {
-      setActivePlan(planData);
-      
-      const { data: sessionData } = await supabase
-        .from('training_sessions')
+    try {
+      const { data: planData, error: planError } = await supabase
+        .from('training_plans')
         .select('*')
-        .eq('plan_id', planData.id)
-        .order('id', { ascending: true });
+        .eq('user_id', userId)
+        .eq('is_active', true)
+        .maybeSingle();
 
-      if (sessionData) setSessions(sessionData);
-    } else {
-      setActivePlan(null);
-      setSessions([]);
+      if (planError) {
+        console.error("Erreur fetch plan:", planError.message);
+        return;
+      }
+
+      if (planData) {
+        setActivePlan(planData);
+        
+        const { data: sessionData, error: sessionError } = await supabase
+          .from('training_sessions')
+          .select('*')
+          .eq('plan_id', planData.id)
+          .order('id', { ascending: true });
+
+        if (sessionError) {
+          console.error("Erreur fetch séances:", sessionError.message);
+        } else {
+          setSessions(sessionData || []);
+        }
+      } else {
+        setActivePlan(null);
+        setSessions([]);
+      }
+    } catch (err: any) {
+      console.error("Erreur critique chargement plan :", err.message);
     }
   };
 
@@ -75,37 +88,41 @@ export default function TrainingPlanTab({ currentUserId }: { currentUserId?: str
 
     setLoading(true);
 
-    // Désactiver les anciens plans
-    await supabase.from('training_plans').update({ is_active: false }).eq('user_id', targetUser);
+    try {
+      // 1. Désactiver les anciens plans
+      await supabase.from('training_plans').update({ is_active: false }).eq('user_id', targetUser);
 
-    // Créer le nouveau plan
-    const { data: newPlan, error: planError } = await supabase
-      .from('training_plans')
-      .insert([{ user_id: targetUser, goal, days_per_week: daysPerWeek, is_active: true }])
-      .select()
-      .single();
+      // 2. Créer le nouveau plan
+      const { data: newPlan, error: planError } = await supabase
+        .from('training_plans')
+        .insert([{ user_id: targetUser, goal, days_per_week: daysPerWeek, is_active: true }])
+        .select()
+        .single();
 
-    if (planError || !newPlan) {
-      alert("Erreur lors de la création du plan : " + (planError?.message || "Inconnue"));
+      if (planError || !newPlan) {
+        throw new Error(planError?.message || "Impossible de créer le plan.");
+      }
+
+      // 3. Insérer les séances de base
+      const defaultSessions = [
+        { plan_id: newPlan.id, week_number: 1, day_name: 'Mardi', session_type: 'Endurance Fondamentale', description: '45 min à 65-70% VMA', status: 'À faire' },
+        { plan_id: newPlan.id, week_number: 1, day_name: 'Jeudi', session_type: 'Fractionné VMA', description: '10 x (30s / 30s)', status: 'À faire' },
+        { plan_id: newPlan.id, week_number: 1, day_name: 'Dimanche', session_type: 'Sortie Longue', description: '1h15 allure progressive', status: 'À faire' }
+      ];
+
+      const { error: sessionError } = await supabase.from('training_sessions').insert(defaultSessions);
+
+      if (sessionError) {
+        throw new Error(sessionError.message);
+      }
+
+      await fetchActivePlan();
+    } catch (err: any) {
+      console.error("Erreur lors de la génération :", err.message);
+      alert("Erreur : " + err.message);
+    } finally {
       setLoading(false);
-      return;
     }
-
-    // Insérer les séances de base
-    const defaultSessions = [
-      { plan_id: newPlan.id, week_number: 1, day_name: 'Mardi', session_type: 'Endurance Fondamentale', description: '45 min à 65-70% VMA', status: 'À faire' },
-      { plan_id: newPlan.id, week_number: 1, day_name: 'Jeudi', session_type: 'Fractionné VMA', description: '10 x (30s / 30s)', status: 'À faire' },
-      { plan_id: newPlan.id, week_number: 1, day_name: 'Dimanche', session_type: 'Sortie Longue', description: '1h15 allure progressive', status: 'À faire' }
-    ];
-
-    const { error: sessionError } = await supabase.from('training_sessions').insert(defaultSessions);
-
-    if (sessionError) {
-      alert("Erreur lors de l'insertion des séances : " + sessionError.message);
-    }
-
-    await fetchActivePlan();
-    setLoading(false);
   };
 
   return (
@@ -156,7 +173,7 @@ export default function TrainingPlanTab({ currentUserId }: { currentUserId?: str
             disabled={loading}
             className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-neutral-950 font-extrabold rounded-2xl text-xs transition shadow-lg disabled:opacity-50"
           >
-            {loading ? "Génération..." : "Générer mon plan adaptatif 🚀"}
+            {loading ? "Génération en cours..." : "Générer mon plan adaptatif 🚀"}
           </button>
         </form>
       ) : (
