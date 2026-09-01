@@ -369,8 +369,8 @@ export default function App() {
 
     if (!error) {
       const pointsToAdd = 10;
-      const currentMuscuPts = currentUserProfile?.points_muscu || 0;
-      const currentGlobalPts = currentUserProfile?.points_global || currentUserProfile?.points || 0;
+      const currentMuscuPts = (currentUserProfile as any)?.points_muscu || 0;
+      const currentGlobalPts = (currentUserProfile as any)?.points_global || (currentUserProfile as any)?.points || 0;
 
       await supabase.from('profiles').update({ 
         points_muscu: currentMuscuPts + pointsToAdd,
@@ -877,8 +877,8 @@ export default function App() {
 
                 if (!error) {
                   const pointsToAdd = 15;
-                  const currentMuscuPts = currentUserProfile?.points_muscu || 0;
-                  const currentGlobalPts = currentUserProfile?.points_global || currentUserProfile?.points || 0;
+                  const currentMuscuPts = (currentUserProfile as any)?.points_muscu || 0;
+                  const currentGlobalPts = (currentUserProfile as any)?.points_global || (currentUserProfile as any)?.points || 0;
 
                   await supabase.from('profiles').update({ 
                     points_muscu: currentMuscuPts + pointsToAdd,
