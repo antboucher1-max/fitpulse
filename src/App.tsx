@@ -429,7 +429,7 @@ export default function App() {
                 goal: onboardingGoal, 
                 gender: onboardingGender, 
                 preferred_time: onboardingTime,
-                discipline: onboardingDiscipline,
+                // discipline: onboardingDiscipline, // Temporairement retiré pour débloquer l'inscription
                 avatar_url: onboardingAvatar, 
                 points: 0, 
                 is_admin: user.email === 'antboucher@hotmail.fr'
@@ -488,7 +488,7 @@ export default function App() {
               </select>
             </div>
 
-            <select value={onboardingClub} onChange={(e) => setOnboardingClub(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-2.5 text-sm text-white">
+            <select value={onboardingClub} onChange={(e) => setSelectedClub(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-2.5 text-sm text-white">
               {CLUBS_LIST.map((club) => <option key={club} value={club}>{club}</option>)}
             </select>
 
