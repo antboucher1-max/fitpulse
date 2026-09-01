@@ -40,6 +40,15 @@ const CLUBS_LIST = [
   'Club Jurbise'
 ];
 
+const isMatchingClub = (postClubName?: string, selectedClubName?: string): boolean => {
+  if (!postClubName || !selectedClubName) return false;
+  if (selectedClubName.includes('Tous les clubs')) return true;
+  if (postClubName === selectedClubName) return true;
+  const normalize = (str: string) => str.toLowerCase().replace(/[()]/g, '').trim();
+  const p = normalize(postClubName); const s = normalize(selectedClubName);
+  return p === s || p.includes(s) || s.includes(p);
+};
+
 export default function App() {
   const [user, setUser] = useState<SupabaseUser | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
