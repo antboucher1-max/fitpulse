@@ -1,4 +1,4 @@
-import { BarChart3, TrendingUp, Footprints } from 'lucide-react';
+import { BarChart3, TrendingUp } from 'lucide-react';
 import GearTrackerSection from './GearTrackerSection';
 
 interface ProgressTabProps {
@@ -23,7 +23,7 @@ export default function ProgressTab({
   const totalKm = runningPosts.length * 8.5; // Estimation moyenne par défaut ou extraction de texte
 
   return (
-    <div className="space-y-5 animate-fadeIn">
+    <div className="space-y-5 animate-fadeIn pb-20">
       {/* Statistiques & Progression */}
       <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-5 shadow-xl">
         <div className="flex items-center gap-2 text-cyan-400 font-bold text-xs uppercase tracking-wider">
