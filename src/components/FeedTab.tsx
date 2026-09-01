@@ -51,6 +51,9 @@ export default function FeedTab({
   const [selectedHashtags, setSelectedHashtags] = useState<string[]>(['#fitpulse']);
   const [customTagInput, setCustomTagInput] = useState('');
 
+  // --- NOUVEAU : État pour le filtre du fil d'actualité ---
+  const [activeFilter, setActiveFilter] = useState<'Tout' | 'Muscu' | 'Running' | 'CrossFit'>('Tout');
+
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
 
@@ -121,6 +124,17 @@ export default function FeedTab({
     }
   };
 
+  // --- NOUVEAU : Logique de filtrage des posts ---
+  const filteredPosts = posts.filter(post => {
+    if (activeFilter === 'Tout') return true;
+    if (activeFilter === 'Running') return post.session_type?.includes('Running');
+    if (activeFilter === 'CrossFit') return post.session_type?.includes('BoxWars') || post.session_type?.includes('WOD');
+    if (activeFilter === 'Muscu') {
+      return !post.session_type?.includes('Running') && !post.session_type?.includes('BoxWars') && !post.session_type?.includes('WOD');
+    }
+    return true;
+  });
+
   return (
     <div className="space-y-4 pb-12">
       <input type="file" accept="image/*" capture="environment" ref={cameraInputRef} onChange={handleFileChange} className="hidden" />
@@ -157,6 +171,7 @@ export default function FeedTab({
       </div>
       {/* ---------------------------------- */}
 
+      {/* --- SECTION STORIES --- */}
       <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-4 shadow-xl">
         <div className="flex items-center gap-3 overflow-x-auto no-scrollbar pb-1">
           <div 
@@ -208,6 +223,29 @@ export default function FeedTab({
           })}
         </div>
       </div>
+
+      {/* --- NOUVEAU : FILTRES DE FIL D'ACTUALITÉ --- */}
+      <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
+        {(['Tout', 'Muscu', 'Running', 'CrossFit'] as const).map(filter => (
+          <button
+            key={filter}
+            onClick={() => setActiveFilter(filter)}
+            className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-colors border ${
+              activeFilter === filter
+                ? filter === 'CrossFit' ? 'bg-cyan-600 text-white border-cyan-500 shadow-md shadow-cyan-500/20'
+                  : filter === 'Running' ? 'bg-emerald-600 text-white border-emerald-500 shadow-md shadow-emerald-500/20'
+                  : 'bg-orange-600 text-white border-orange-500 shadow-md shadow-orange-500/20'
+                : 'bg-neutral-900 text-neutral-400 border-neutral-800 hover:text-white hover:bg-neutral-800'
+            }`}
+          >
+            {filter === 'Tout' && '🌍 Tout'}
+            {filter === 'Muscu' && '💪 Muscu'}
+            {filter === 'Running' && '🏃‍♂️ Running'}
+            {filter === 'CrossFit' && '⚡ CrossFit'}
+          </button>
+        ))}
+      </div>
+      {/* ------------------------------------------- */}
 
       {isStoryModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/95 backdrop-blur-md flex flex-col justify-between p-4 overflow-y-auto animate-fadeIn">
@@ -290,12 +328,14 @@ export default function FeedTab({
       <div className="space-y-4">
         {feedLoading ? (
           <div className="text-center py-12 text-neutral-500 text-xs">Chargement du fil d'actualité...</div>
-        ) : posts.length === 0 ? (
+        ) : filteredPosts.length === 0 ? (
           <div className="text-center py-12 text-neutral-500 text-sm bg-neutral-900 border border-neutral-800 rounded-3xl p-8">
-            Aucune publication pour ce club pour le moment. Sois le premier à poster ta séance ! 🚀
+            {activeFilter === 'Tout' 
+              ? "Aucune publication pour ce club pour le moment. Sois le premier à poster ta séance ! 🚀"
+              : `Aucune publication en ${activeFilter} pour le moment. Fonce t'entraîner ! 💪`}
           </div>
         ) : (
-          posts.map((post) => {
+          filteredPosts.map((post) => {
             const author = registeredUsers.find(u => u.id === post.user_id);
             const isLiked = post.liked_by?.includes(currentUserId || '');
             const isShowingComments = activeCommentsPostId === post.id;
@@ -339,8 +379,13 @@ export default function FeedTab({
                 </div>
 
                 <div className="px-5 space-y-1.5">
-                  <span className="inline-block bg-orange-500/10 text-orange-400 font-bold text-xs px-2.5 py-1 rounded-xl border border-orange-500/20">
-                    🏋️‍♂️ {post.session_type}
+                  <span className={`inline-block font-bold text-xs px-2.5 py-1 rounded-xl border ${
+                    post.session_type?.includes('Running') ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
+                    post.session_type?.includes('BoxWars') ? 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20' :
+                    'bg-orange-500/10 text-orange-400 border-orange-500/20'
+                  }`}>
+                    {post.session_type?.includes('Running') ? '' : post.session_type?.includes('BoxWars') ? '' : '🏋️‍♂️ '} 
+                    {post.session_type}
                   </span>
                   <p className="text-xs text-neutral-200 leading-relaxed">{post.caption}</p>
                 </div>
