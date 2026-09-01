@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, FormEvent } from 'react';
-import { Play, Pause, Square, MapPin, Flame, X } from 'lucide-react';
+import { Play, Pause, Square, MapPin, Flame, X, Compass } from 'lucide-react';
 import { createClient } from '@supabase/supabase-js';
 import { MapContainer, TileLayer, Polyline, CircleMarker } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -26,6 +26,7 @@ export default function RunningTab({
   onRefreshFeed 
 }: RunningTabProps) {
   const [isRunning, setIsRunning] = useState(false);
+  const [isSimulating, setIsSimulating] = useState(false);
   const [seconds, setSeconds] = useState(0);
   const [distanceMeters, setDistanceMeters] = useState(0);
   const [pathCoordinates, setPathCoordinates] = useState<[number, number][]>([]);
@@ -34,6 +35,7 @@ export default function RunningTab({
   const [showSaveModal, setShowSaveModal] = useState(false);
 
   const watchIdRef = useRef<number | null>(null);
+  const simIntervalRef = useRef<any>(null);
 
   const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
     const R = 6371e3;
@@ -50,16 +52,18 @@ export default function RunningTab({
     return R * c;
   };
 
+  // Chrono général
   useEffect(() => {
     let interval: any = null;
-    if (isRunning) {
+    if (isRunning || isSimulating) {
       interval = setInterval(() => {
         setSeconds(prev => prev + 1);
       }, 1000);
     }
     return () => clearInterval(interval);
-  }, [isRunning]);
+  }, [isRunning, isSimulating]);
 
+  // Vrai GPS (WatchPosition)
   useEffect(() => {
     if (isRunning) {
       if (!navigator.geolocation) {
@@ -107,6 +111,36 @@ export default function RunningTab({
     };
   }, [isRunning]);
 
+  // Mode Simulation (Boucle de déplacement fictif autour de Tournai)
+  useEffect(() => {
+    if (isSimulating) {
+      // Point de départ de la simulation (Centre de Tournai)
+      let simLat = 50.6053;
+      let simLng = 3.3888;
+      
+      simIntervalRef.current = setInterval(() => {
+        // On fait avancer légèrement les coordonnées GPS à chaque seconde (simulation d'une foulée)
+        simLat += 0.00015;
+        simLng += 0.0002;
+        const newPos: [number, number] = [simLat, simLng];
+
+        setCurrentPosition(newPos);
+        setDistanceMeters(m => m + 15); // Ajoute ~15 mètres par seconde
+
+        setPathCoordinates(prev => [...prev, newPos]);
+      }, 1000);
+    } else {
+      if (simIntervalRef.current) {
+        clearInterval(simIntervalRef.current);
+        simIntervalRef.current = null;
+      }
+    }
+
+    return () => {
+      if (simIntervalRef.current) clearInterval(simIntervalRef.current);
+    };
+  }, [isSimulating]);
+
   const formatTime = (totalSecs: number) => {
     const mins = Math.floor(totalSecs / 60);
     const secs = totalSecs % 60;
@@ -130,6 +164,7 @@ export default function RunningTab({
   const handleFinishRun = async () => {
     if (!currentUserId) return;
     setIsRunning(false);
+    setIsSimulating(false);
     setShowSaveModal(true);
   };
 
@@ -178,7 +213,7 @@ export default function RunningTab({
           <MapPin className="w-4 h-4" /> FitPulse Running Tracker
         </div>
         <h2 className="text-xl font-black">Traceur GPS & Mini-Map</h2>
-        <p className="text-xs text-neutral-300 mt-1">Suivi en direct de votre parcours sur carte interactive.</p>
+        <p className="text-xs text-neutral-300 mt-1">Pars courir ou lance une simulation pour tester le tracé de la carte !</p>
       </div>
 
       {/* Mini-Carte Interactive */}
@@ -213,34 +248,44 @@ export default function RunningTab({
 
         <div>
           <span className="text-xs text-neutral-400 font-bold uppercase tracking-widest">Temps écoulé</span>
-          <div className={`text-6xl font-black tracking-widest my-2 ${isRunning ? 'text-emerald-400 animate-pulse' : 'text-white'}`}>
+          <div className={`text-6xl font-black tracking-widest my-2 ${(isRunning || isSimulating) ? 'text-emerald-400 animate-pulse' : 'text-white'}`}>
             {formatTime(seconds)}
           </div>
         </div>
 
-        <div className="flex justify-center gap-3 pt-2">
-          {!isRunning ? (
-            <button 
-              onClick={() => setIsRunning(true)} 
-              className="flex items-center gap-2 px-8 py-4 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-2xl text-sm shadow-xl transition transform active:scale-95"
-            >
-              <Play className="w-5 h-5 fill-white" /> Démarrer la course
-            </button>
-          ) : (
-            <button 
-              onClick={() => setIsRunning(false)} 
-              className="flex items-center gap-2 px-6 py-4 bg-amber-600 hover:bg-amber-500 text-white font-black rounded-2xl text-sm shadow-xl transition transform active:scale-95"
-            >
-              <Pause className="w-5 h-5 fill-white" /> Pause
-            </button>
-          )}
+        <div className="flex flex-col gap-3 pt-2">
+          <div className="flex justify-center gap-3">
+            {!isRunning && !isSimulating ? (
+              <>
+                <button 
+                  onClick={() => setIsRunning(true)} 
+                  className="flex items-center gap-2 px-5 py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-2xl text-xs shadow-xl transition transform active:scale-95"
+                >
+                  <Play className="w-4 h-4 fill-white" /> Vrai GPS
+                </button>
+                <button 
+                  onClick={() => setIsSimulating(true)} 
+                  className="flex items-center gap-2 px-5 py-3.5 bg-indigo-600 hover:bg-indigo-500 text-white font-black rounded-2xl text-xs shadow-xl transition transform active:scale-95"
+                >
+                  <Compass className="w-4 h-4" /> Simuler un run 🗺️
+                </button>
+              </>
+            ) : (
+              <button 
+                onClick={() => { setIsRunning(false); setIsSimulating(false); }} 
+                className="flex items-center gap-2 px-6 py-4 bg-amber-600 hover:bg-amber-500 text-white font-black rounded-2xl text-sm shadow-xl transition transform active:scale-95"
+              >
+                <Pause className="w-5 h-5 fill-white" /> Pause
+              </button>
+            )}
+          </div>
 
-          {seconds > 0 && !isRunning && (
+          {seconds > 0 && !isRunning && !isSimulating && (
             <button 
               onClick={handleFinishRun} 
-              className="flex items-center gap-2 px-6 py-4 bg-cyan-600 hover:bg-cyan-500 text-white font-black rounded-2xl text-sm shadow-xl transition transform active:scale-95"
+              className="w-full flex items-center justify-center gap-2 py-4 bg-cyan-600 hover:bg-cyan-500 text-white font-black rounded-2xl text-sm shadow-xl transition transform active:scale-95"
             >
-              <Square className="w-5 h-5 fill-white" /> Terminer & Publier
+              <Square className="w-5 h-5 fill-white" /> Terminer & Publier sur le fil
             </button>
           )}
         </div>
@@ -278,7 +323,7 @@ export default function RunningTab({
                 <label className="block text-xs font-semibold text-neutral-400 mb-1">Légende / Ressenti :</label>
                 <textarea 
                   rows={3} 
-                  placeholder="Ex: Super sortie le long du canal, bonnes sensations !" 
+                  placeholder="Ex: Simulation de footing au top !" 
                   value={runCaption} 
                   onChange={(e) => setRunCaption(e.target.value)} 
                   className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-sm text-white focus:outline-none" 
