@@ -3,6 +3,8 @@ import {
   Play, Pause, Square, MapPin, Volume2, VolumeX, 
   Compass, Apple, Droplet, Zap, Navigation 
 } from 'lucide-react';
+import { MapContainer, TileLayer, Polyline } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
 import GearTrackerSection from './GearTrackerSection';
 
 interface RunningTabProps {
@@ -33,20 +35,32 @@ export default function RunningTab({
   const [distanceKm, setDistanceKm] = useState(0);
   const [audioCoaching, setAudioCoaching] = useState(true);
 
+  // Coordonnées GPS pour la carte Leaflet (Centré sur la région de Tournai / Brunehaut)
+  const [routePositions, setRoutePositions] = useState<Array<[number, number]>>([
+    [50.505, 3.325],
+    [50.507, 3.328],
+    [50.510, 3.332]
+  ]);
+
   // États du Planificateur de Ravitaillement (Nutrition)
   const [durationHours, setDurationHours] = useState<number>(2);
   const [durationMins, setDurationMins] = useState<number>(30);
   const [intensity, setIntensity] = useState<'modere' | 'soutenu' | 'maximal'>('soutenu');
   const [bodyWeight, setBodyWeight] = useState<number>(70);
 
-  // Timer de course
+  // Timer de course et simulation de progression géographique sur la carte
   useEffect(() => {
     let interval: any = null;
     if (isRunning && !isPaused) {
       interval = setInterval(() => {
         setSeconds(s => s + 1);
-        // Simulation de progression de distance (ex: 12 km/h de moyenne)
         setDistanceKm(d => Number((d + 0.0033).toFixed(2)));
+        
+        // Allongement progressif du tracé vert sur la carte
+        setRoutePositions(prev => {
+          const last = prev[prev.length - 1];
+          return [...prev, [last[0] + 0.0008, last[1] + 0.001]];
+        });
       }, 1000);
     } else {
       clearInterval(interval);
@@ -96,6 +110,8 @@ export default function RunningTab({
   const totalWaterMl = Math.round(waterPerception * totalHours);
   const standardGelsCount = Math.round(totalCarbs / 25);
 
+  const currentCenter = routePositions[routePositions.length - 1];
+
   return (
     <div className="space-y-6 pb-24 animate-fadeIn">
       {/* En-tête de section moderne */}
@@ -114,7 +130,7 @@ export default function RunningTab({
         </div>
       </div>
 
-      {/* Carte GPS Interactive & Tracé Route Vert */}
+      {/* Vraie Carte GPS Interactive avec Tracé Vert (Leaflet) */}
       <div className="bg-neutral-900 border border-neutral-800/80 rounded-3xl p-6 space-y-4 shadow-xl">
         <div className="flex items-center justify-between">
           <h3 className="text-xs font-black text-white flex items-center gap-2 uppercase tracking-wider">
@@ -125,27 +141,23 @@ export default function RunningTab({
           </span>
         </div>
 
-        {/* Conteneur de la carte stylisée sombre avec tracé de route vert */}
-        <div className="w-full h-64 bg-neutral-950 rounded-2xl border border-neutral-800 relative overflow-hidden flex items-center justify-center">
-          <div className="absolute inset-0 opacity-40 bg-[radial-gradient(#262626_1px,transparent_1px)] [background-size:16px_16px]" />
-          
-          <svg className="absolute inset-0 w-full h-full pointer-events-none">
-            <path
-              d="M 60,180 Q 120,120 180,140 T 300,80"
-              fill="none"
-              stroke="#10b981"
-              strokeWidth="4"
-              strokeLinecap="round"
-              className="drop-shadow-[0_0_8px_rgba(16,185,129,0.6)]"
+        {/* Conteneur Leaflet aux couleurs sombres */}
+        <div className="w-full h-72 rounded-2xl overflow-hidden border border-neutral-800 relative z-0">
+          <MapContainer 
+            center={currentCenter} 
+            zoom={14} 
+            scrollWheelZoom={false}
+            style={{ width: '100%', height: '100%', background: '#0a0a0a' }}
+          >
+            <TileLayer
+              attribution='&copy; <a href="https://carto.com/">CARTO</a>'
+              url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
             />
-            <circle cx="300" cy="80" r="6" className="fill-emerald-400 animate-ping" />
-            <circle cx="300" cy="80" r="5" className="fill-emerald-500" />
-          </svg>
-
-          <div className="absolute bottom-3 left-3 bg-neutral-900/90 border border-neutral-800 backdrop-blur px-3 py-1.5 rounded-xl text-[10px] text-neutral-300 font-mono flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span>Lat/Lng: 50.5050° N, 3.3250° E</span>
-          </div>
+            <Polyline 
+              positions={routePositions} 
+              pathOptions={{ color: '#10b981', weight: 4, opacity: 0.9 }} 
+            />
+          </MapContainer>
         </div>
       </div>
 
@@ -166,7 +178,6 @@ export default function RunningTab({
           </button>
         </div>
 
-        {/* Tableau de bord live */}
         <div className="grid grid-cols-2 gap-3">
           <div className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 space-y-1">
             <span className="text-[10px] text-neutral-400 font-semibold block uppercase">Distance</span>
@@ -178,7 +189,6 @@ export default function RunningTab({
           </div>
         </div>
 
-        {/* Boutons de contrôle de course */}
         <div className="flex gap-3 pt-2">
           {!isRunning ? (
             <button 
@@ -263,7 +273,6 @@ export default function RunningTab({
           </div>
         </div>
 
-        {/* Résultats Ravitaillement */}
         <div className="grid grid-cols-2 gap-3 pt-2">
           <div className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 space-y-1">
             <span className="text-[10px] uppercase font-bold text-neutral-400 flex items-center gap-1">
