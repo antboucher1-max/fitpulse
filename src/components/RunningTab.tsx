@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, FormEvent } from 'react';
-import { Play, Pause, Square, MapPin, Flame, X, Compass, RotateCcw } from 'lucide-react';
+import { Play, Pause, Square, MapPin, Flame, X, Compass, RotateCcw, Volume2, VolumeX } from 'lucide-react';
 import { createClient } from '@supabase/supabase-js';
 import { MapContainer, TileLayer, Polyline, CircleMarker, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -16,6 +16,42 @@ interface RunningTabProps {
   userAvatarUrl: string;
   onRefreshFeed: () => void;
 }
+
+// Utilitaire audio pour les bips de guidage et la synthèse vocale
+const audioCoach = {
+  playBeep(frequency = 440, duration = 150) {
+    try {
+      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const oscillator = audioCtx.createOscillator();
+      const gainNode = audioCtx.createGain();
+
+      oscillator.type = 'sine';
+      oscillator.frequency.value = frequency;
+      
+      gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration / 1000);
+
+      oscillator.connect(gainNode);
+      gainNode.connect(audioCtx.destination);
+
+      oscillator.start();
+      oscillator.stop(audioCtx.currentTime + duration / 1000);
+    } catch (e) {
+      console.log("Audio non supporté", e);
+    }
+  },
+
+  speak(text: string) {
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = 'fr-FR';
+      utterance.rate = 1.0;
+      utterance.pitch = 1.0;
+      window.speechSynthesis.speak(utterance);
+    }
+  }
+};
 
 // Composant interne pour centrer dynamiquement la carte
 function MapRecenterAndFix({ position }: { position: [number, number] | null }) {
@@ -46,6 +82,9 @@ export default function RunningTab({
   const [runCaption, setRunCaption] = useState('');
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [hasFinished, setHasFinished] = useState(false);
+  
+  // État pour activer ou désactiver le coaching vocal/bips
+  const [audioEnabled, setAudioEnabled] = useState(true);
 
   const watchIdRef = useRef<number | null>(null);
   const simIntervalRef = useRef<any>(null);
@@ -67,16 +106,24 @@ export default function RunningTab({
     return R * c;
   };
 
-  // Chrono général
+  // Chrono général et annonces audio périodiques (toutes les 30 secondes)
   useEffect(() => {
     let interval: any = null;
     if (isRunning || isSimulating) {
       interval = setInterval(() => {
-        setSeconds(prev => prev + 1);
+        setSeconds(prev => {
+          const nextSec = prev + 1;
+          // Toutes les 30 secondes, petit point audio sur la distance et l'allure si activé
+          if (audioEnabled && nextSec > 0 && nextSec % 30 === 0) {
+            const currentDistKm = (distanceMeters / 1000).toFixed(2);
+            audioCoach.speak(`Temps : ${Math.floor(nextSec / 60)} minutes. Distance : ${currentDistKm} kilomètres. Continue comme ça !`);
+          }
+          return nextSec;
+        });
       }, 1000);
     }
     return () => clearInterval(interval);
-  }, [isRunning, isSimulating]);
+  }, [isRunning, isSimulating, distanceMeters, audioEnabled]);
 
   // Vrai GPS (WatchPosition)
   useEffect(() => {
@@ -99,7 +146,15 @@ export default function RunningTab({
               const last = prev[prev.length - 1];
               const dist = calculateDistance(last[0], last[1], latitude, longitude);
               if (dist > 2 && dist < 100) {
-                setDistanceMeters(m => m + dist);
+                setDistanceMeters(m => {
+                  const newTotal = m + dist;
+                  // Bip de validation d'un nouveau palier de 500m
+                  if (audioEnabled && Math.floor(newTotal / 500) > Math.floor(m / 500)) {
+                    audioCoach.playBeep(587, 200); // Bip aigu de réussite
+                    audioCoach.speak(`Cap des ${Math.floor(newTotal / 500) / 2} kilomètres franchi.`);
+                  }
+                  return newTotal;
+                });
                 return [...prev, newPos];
               }
               return prev;
@@ -126,10 +181,14 @@ export default function RunningTab({
         navigator.geolocation.clearWatch(watchIdRef.current);
       }
     };
-  }, [isRunning]);
+  }, [isRunning, audioEnabled]);
 
-  // Simulation propre, fluide et unidirectionnelle basée sur OSRM (sans aller-retour)
+  // Simulation propre, fluide et unidirectionnelle basée sur OSRM
   const startCleanSimulation = async () => {
+    if (audioEnabled) {
+      audioCoach.speak("Démarrage de la simulation de course. Bon entraînement !");
+    }
+
     let startLat = 50.6053;
     let startLng = 3.3888; // Tournai par défaut
 
@@ -146,7 +205,6 @@ export default function RunningTab({
       console.log("Utilisation de la position de secours (Tournai).");
     }
 
-    // Point d'arrivée un peu plus loin pour former un vrai trajet en avant
     const endLat = startLat + 0.008;
     const endLng = startLng + 0.010;
 
@@ -177,11 +235,13 @@ export default function RunningTab({
             const nextPoint = routePointsRef.current[currentIndex];
             setCurrentPosition(nextPoint);
             setPathCoordinates(prev => [...prev, nextPoint]);
-            setDistanceMeters(m => m + 12); // Progression constante de la distance
+            setDistanceMeters(m => m + 12);
           } else {
-            // Fin de la simulation atteinte proprement
             if (simIntervalRef.current) clearInterval(simIntervalRef.current);
             setIsSimulating(false);
+            if (audioEnabled) {
+              audioCoach.speak("Simulation terminée. Belle performance !");
+            }
           }
         }, 1000);
       } else {
@@ -213,7 +273,6 @@ export default function RunningTab({
   const distanceKm = (distanceMeters / 1000).toFixed(2);
   const numericDistance = Number(distanceKm);
 
-  // Vitesse moyenne en km/h = Distance (km) / Temps (heures)
   const speedKmh = numericDistance > 0 && seconds > 0 
     ? (numericDistance / (seconds / 3600)).toFixed(1) 
     : "0.0";
@@ -223,6 +282,9 @@ export default function RunningTab({
     setIsRunning(false);
     setIsSimulating(false);
     if (simIntervalRef.current) clearInterval(simIntervalRef.current);
+    if (audioEnabled) {
+      audioCoach.speak("Session enregistrée. Prépare ton partage !");
+    }
     setShowSaveModal(true);
   };
 
@@ -264,7 +326,7 @@ export default function RunningTab({
 
     if (!error) {
       const pointsToAdd = Math.round(Number(distanceKm) * 5) + 10;
-      
+       
       const currentRunningPts = currentUserProfile?.points_running || 0;
       const currentGlobalPts = currentUserProfile?.points_global || currentUserProfile?.points || 0;
 
@@ -285,12 +347,30 @@ export default function RunningTab({
 
   return (
     <div className="space-y-4 animate-fadeIn pb-16">
-      <div className="bg-gradient-to-r from-emerald-950/95 to-neutral-900 border border-emerald-500/40 rounded-3xl p-5 text-white shadow-2xl">
-        <div className="flex items-center gap-2 text-emerald-400 font-bold text-xs uppercase tracking-wider mb-1">
-          <MapPin className="w-4 h-4" /> FitPulse Running Tracker
+      <div className="bg-gradient-to-r from-emerald-950/95 to-neutral-900 border border-emerald-500/40 rounded-3xl p-5 text-white shadow-2xl flex items-center justify-between">
+        <div>
+          <div className="flex items-center gap-2 text-emerald-400 font-bold text-xs uppercase tracking-wider mb-1">
+            <MapPin className="w-4 h-4" /> FitPulse Running & Audio Coach
+          </div>
+          <h2 className="text-xl font-black">Traceur GPS & Bips de Guidage</h2>
+          <p className="text-xs text-neutral-300 mt-1">Annonces vocales et bips de cadence intégrés.</p>
         </div>
-        <h2 className="text-xl font-black">Traceur GPS & Mini-Map</h2>
-        <p className="text-xs text-neutral-300 mt-1">La carte se fige et suit automatiquement ta position en direct.</p>
+
+        {/* Bouton Toggle Audio Coach */}
+        <button 
+          onClick={() => {
+            setAudioEnabled(!audioEnabled);
+            if (!audioEnabled) audioCoach.speak("Coach audio activé.");
+          }}
+          className={`p-3 rounded-2xl border flex items-center justify-center transition shadow-lg ${
+            audioEnabled 
+              ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400' 
+              : 'bg-neutral-900 border-neutral-800 text-neutral-500'
+          }`}
+          title={audioEnabled ? "Désactiver le coach audio" : "Activer le coach audio"}
+        >
+          {audioEnabled ? <Volume2 className="w-5 h-5 animate-pulse" /> : <VolumeX className="w-5 h-5" />}
+        </button>
       </div>
 
       {/* Mini-Carte Interactive */}
@@ -309,7 +389,7 @@ export default function RunningTab({
           >
             <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
             <MapRecenterAndFix position={currentPosition} />
-            
+             
             {pathCoordinates.length > 0 && (
               <Polyline positions={pathCoordinates} color="#10b981" weight={5} />
             )}
@@ -318,7 +398,7 @@ export default function RunningTab({
         ) : (
           <div className="text-center p-6 space-y-2">
             <MapPin className="w-8 h-8 text-emerald-500 mx-auto animate-bounce" />
-            <p className="text-xs text-neutral-400 font-medium">Prêt à démarrer. Choisis "Vrai GPS" ou "Simuler un run".</p>
+            <p className="text-xs text-neutral-400 font-medium">Prêt à courir. Active le GPS ou lance la simulation.</p>
           </div>
         )}
       </div>
@@ -348,7 +428,10 @@ export default function RunningTab({
             {!isRunning && !isSimulating && !hasFinished ? (
               <>
                 <button 
-                  onClick={() => setIsRunning(true)} 
+                  onClick={() => {
+                    setIsRunning(true);
+                    if (audioEnabled) audioCoach.speak("Sortie GPS démarrée. C'est parti !");
+                  }} 
                   className="flex items-center gap-2 px-5 py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-2xl text-xs shadow-xl transition transform active:scale-95"
                 >
                   <Play className="w-4 h-4 fill-white" /> Vrai GPS
@@ -366,6 +449,7 @@ export default function RunningTab({
                   setIsRunning(false); 
                   setIsSimulating(false); 
                   if (simIntervalRef.current) clearInterval(simIntervalRef.current);
+                  if (audioEnabled) audioCoach.speak("Course mise en pause.");
                 }} 
                 className="flex items-center gap-2 px-6 py-4 bg-amber-600 hover:bg-amber-500 text-white font-black rounded-2xl text-sm shadow-xl transition transform active:scale-95"
               >
