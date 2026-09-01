@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, FormEvent } from 'react';
-import { Play, Pause, Square, MapPin, Flame, X, Compass, RotateCcw, Volume2, VolumeX } from 'lucide-react';
+import { Play, Pause, Square, MapPin, Flame, X, Compass, RotateCcw, Volume2, VolumeX, CloudSun } from 'lucide-react';
 import { createClient } from '@supabase/supabase-js';
 import { MapContainer, TileLayer, Polyline, CircleMarker, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -82,6 +82,11 @@ export default function RunningTab({
   const [runCaption, setRunCaption] = useState('');
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [hasFinished, setHasFinished] = useState(false);
+
+  // Nouveaux états pour le carnet météo & typologie de terrain
+  const [runWeather, setRunWeather] = useState('☀️ Ensoleillé');
+  const [runTerrain, setRunTerrain] = useState('🌊 Berges / Canal');
+  const [runWind, setRunWind] = useState('🍃 Vent léger');
   
   // État pour activer ou désactiver le coaching vocal/bips
   const [audioEnabled, setAudioEnabled] = useState(true);
@@ -113,7 +118,6 @@ export default function RunningTab({
       interval = setInterval(() => {
         setSeconds(prev => {
           const nextSec = prev + 1;
-          // Toutes les 30 secondes, petit point audio sur la distance et l'allure si activé
           if (audioEnabled && nextSec > 0 && nextSec % 30 === 0) {
             const currentDistKm = (distanceMeters / 1000).toFixed(2);
             audioCoach.speak(`Temps : ${Math.floor(nextSec / 60)} minutes. Distance : ${currentDistKm} kilomètres. Continue comme ça !`);
@@ -148,9 +152,8 @@ export default function RunningTab({
               if (dist > 2 && dist < 100) {
                 setDistanceMeters(m => {
                   const newTotal = m + dist;
-                  // Bip de validation d'un nouveau palier de 500m
                   if (audioEnabled && Math.floor(newTotal / 500) > Math.floor(m / 500)) {
-                    audioCoach.playBeep(587, 200); // Bip aigu de réussite
+                    audioCoach.playBeep(587, 200);
                     audioCoach.speak(`Cap des ${Math.floor(newTotal / 500) / 2} kilomètres franchi.`);
                   }
                   return newTotal;
@@ -306,7 +309,10 @@ export default function RunningTab({
     e.preventDefault();
     if (!currentUserId) return;
 
-    const fullCaption = `🏃‍♂️ Sortie Running : ${distanceKm} km en ${formatTime(seconds)} (Vitesse : ${speedKmh} km/h) ${runCaption ? `- ${runCaption}` : ''}`.trim();
+    // Inclusion du contexte météo et typologie de terrain dans le message partagé
+    const fullCaption = `🏃‍♂️ Sortie Running : ${distanceKm} km en ${formatTime(seconds)} (Vitesse : ${speedKmh} km/h)
+📍 Terrain: ${runTerrain} | Météo: ${runWeather} | Vent: ${runWind}
+${runCaption ? `- ${runCaption}` : ''}`.trim();
 
     const { error } = await supabase.from('posts').insert([{
       user_id: currentUserId,
@@ -505,12 +511,61 @@ export default function RunningTab({
               </div>
             </div>
 
-            <form onSubmit={publishRunToFeed} className="space-y-4">
+            <form onSubmit={publishRunToFeed} className="space-y-3">
+              {/* Carnet Météo & Typologie de Terrain */}
+              <div className="space-y-2 bg-neutral-950 p-3 rounded-2xl border border-neutral-800">
+                <span className="text-[10px] uppercase font-bold text-emerald-400 flex items-center gap-1 mb-1">
+                  <CloudSun className="w-3.5 h-3.5" /> Carnet Météo & Parcours
+                </span>
+                <div className="grid grid-cols-3 gap-2">
+                  <div>
+                    <label className="block text-[10px] font-semibold text-neutral-400 mb-0.5">Météo</label>
+                    <select 
+                      value={runWeather} 
+                      onChange={(e) => setRunWeather(e.target.value)}
+                      className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-2 py-1.5 text-xs text-white"
+                    >
+                      <option value="☀️ Ensoleillé">☀️ Soleil</option>
+                      <option value="⛅ Variable">⛅ Variable</option>
+                      <option value="🌧️ Pluie / Boue">🌧️ Pluie</option>
+                      <option value="❄️ Froid / Gel">❄️ Froid</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-semibold text-neutral-400 mb-0.5">Terrain</label>
+                    <select 
+                      value={runTerrain} 
+                      onChange={(e) => setRunTerrain(e.target.value)}
+                      className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-2 py-1.5 text-xs text-white"
+                    >
+                      <option value="🛣️ Route / Asphalte">🛣️ Route</option>
+                      <option value="🌿 Chemins / Bois">🌿 Chemins</option>
+                      <option value="🌊 Berges / Canal">🌊 Berges</option>
+                      <option value="⛰️ Dénivelé / Collines">⛰️ Dénivelé</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-semibold text-neutral-400 mb-0.5">Vent</label>
+                    <select 
+                      value={runWind} 
+                      onChange={(e) => setRunWind(e.target.value)}
+                      className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-2 py-1.5 text-xs text-white"
+                    >
+                      <option value="💨 Vent de face dur">💨 Face dur</option>
+                      <option value="🍃 Vent léger">🍃 Léger</option>
+                      <option value="✨ Calme / Zéro vent">✨ Calme</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
               <div>
                 <label className="block text-xs font-semibold text-neutral-400 mb-1">Légende / Ressenti :</label>
                 <textarea 
-                  rows={3} 
-                  placeholder="Ex: Super sortie le long du canal !" 
+                  rows={2} 
+                  placeholder="Ex: Sortie difficile face au vent le long du canal !" 
                   value={runCaption} 
                   onChange={(e) => setRunCaption(e.target.value)} 
                   className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-sm text-white focus:outline-none" 
