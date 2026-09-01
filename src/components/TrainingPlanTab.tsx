@@ -7,27 +7,39 @@ const supabaseAnonKey = 'sb_publishable_O8CKhUtzgq9nO9lKavNE9A__fAdRWoB';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export default function TrainingPlanTab({ currentUserId }: { currentUserId?: string }) {
+  const [userId, setUserId] = useState<string | undefined>(currentUserId);
   const [goal, setGoal] = useState('10 km');
   const [daysPerWeek, setDaysPerWeek] = useState(3);
   const [activePlan, setActivePlan] = useState<any>(null);
   const [sessions, setSessions] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
+  // Récupérer l'utilisateur connecté si la prop est vide
+  useEffect(() => {
+    async function resolveUser() {
+      if (currentUserId) {
+        setUserId(currentUserId);
+      } else {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) setUserId(user.id);
+      }
+    }
+    resolveUser();
+  }, [currentUserId]);
+
   const fetchActivePlan = async () => {
-    if (!currentUserId) return;
+    if (!userId) return;
     
-    // 1. Récupérer le plan actif
     const { data: planData } = await supabase
       .from('training_plans')
       .select('*')
-      .eq('user_id', currentUserId)
+      .eq('user_id', userId)
       .eq('is_active', true)
       .single();
 
     if (planData) {
       setActivePlan(planData);
       
-      // 2. Récupérer les séances associées à ce plan
       const { data: sessionData } = await supabase
         .from('training_sessions')
         .select('*')
@@ -42,25 +54,34 @@ export default function TrainingPlanTab({ currentUserId }: { currentUserId?: str
   };
 
   useEffect(() => {
-    fetchActivePlan();
-  }, [currentUserId]);
+    if (userId) {
+      fetchActivePlan();
+    }
+  }, [userId]);
 
   const handleGeneratePlan = async (e: any) => {
     e.preventDefault();
-    if (!currentUserId) {
-      alert("Utilisateur non identifié.");
+    
+    let targetUser = userId;
+    if (!targetUser) {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) targetUser = user.id;
+    }
+
+    if (!targetUser) {
+      alert("Erreur : Aucun utilisateur connecté détecté. Vérifie ton authentification Supabase.");
       return;
     }
 
     setLoading(true);
 
     // Désactiver les anciens plans
-    await supabase.from('training_plans').update({ is_active: false }).eq('user_id', currentUserId);
+    await supabase.from('training_plans').update({ is_active: false }).eq('user_id', targetUser);
 
     // Créer le nouveau plan
     const { data: newPlan, error: planError } = await supabase
       .from('training_plans')
-      .insert([{ user_id: currentUserId, goal, days_per_week: daysPerWeek, is_active: true }])
+      .insert([{ user_id: targetUser, goal, days_per_week: daysPerWeek, is_active: true }])
       .select()
       .single();
 
