@@ -971,7 +971,7 @@ export default function App() {
                       <div className="flex justify-center sm:justify-start gap-3 mt-2 text-[11px] text-neutral-400 font-bold">
                         <span>Objectif : <strong className="text-white">{viewingProfileUser.goal || 'Muscu'}</strong></span>
                         <span>•</span>
-                        <span>Ligue : <strong className="text-cyan-400">{viewingProfileUser.points || 0} pts ⚡</strong></span>
+                        <span>Ligue : <strong className="text-cyan-400">{(viewingProfileUser as any).points || 0} pts ⚡</strong></span>
                       </div>
                     </div>
                   </div>
