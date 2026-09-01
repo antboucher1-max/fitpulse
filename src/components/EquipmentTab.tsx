@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Calendar, Target, CheckCircle, ArrowRight } from 'lucide-react';
+import { Calendar, CheckCircle } from 'lucide-react';
 
 export default function TrainingPlanTab() {
   const [goal, setGoal] = useState('10 km');
