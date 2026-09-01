@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { 
   Play, Pause, Square, MapPin, Volume2, VolumeX, 
-  Flame, Compass, Apple, Droplet, Zap 
+  Compass, Apple, Droplet, Zap, Navigation 
 } from 'lucide-react';
 import GearTrackerSection from './GearTrackerSection';
 
@@ -106,11 +106,46 @@ export default function RunningTab({
             <div className="flex items-center gap-2 text-orange-400 font-bold text-xs uppercase tracking-widest mb-1">
               <Compass className="w-4 h-4" /> Mode Running & Stratégie
             </div>
-            <h2 className="text-xl font-black text-white tracking-tight">GPS, Coaching & Nutrition</h2>
+            <h2 className="text-xl font-black text-white tracking-tight">GPS, Carte Live & Nutrition</h2>
           </div>
           <span className="text-xs font-bold bg-neutral-950/80 border border-neutral-800 px-3.5 py-1.5 rounded-full text-orange-400 shadow-inner">
             Live & Plan
           </span>
+        </div>
+      </div>
+
+      {/* Carte GPS Interactive & Tracé Route Vert */}
+      <div className="bg-neutral-900 border border-neutral-800/80 rounded-3xl p-6 space-y-4 shadow-xl">
+        <div className="flex items-center justify-between">
+          <h3 className="text-xs font-black text-white flex items-center gap-2 uppercase tracking-wider">
+            <Navigation className="w-4 h-4 text-emerald-400 animate-pulse" /> Carte Live & Tracé Route
+          </h3>
+          <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1 rounded-full">
+            {isRunning ? 'GPS Actif (Enregistrement...)' : 'Prêt à démarrer'}
+          </span>
+        </div>
+
+        {/* Conteneur de la carte stylisée sombre avec tracé de route vert */}
+        <div className="w-full h-64 bg-neutral-950 rounded-2xl border border-neutral-800 relative overflow-hidden flex items-center justify-center">
+          <div className="absolute inset-0 opacity-40 bg-[radial-gradient(#262626_1px,transparent_1px)] [background-size:16px_16px]" />
+          
+          <svg className="absolute inset-0 w-full h-full pointer-events-none">
+            <path
+              d="M 60,180 Q 120,120 180,140 T 300,80"
+              fill="none"
+              stroke="#10b981"
+              strokeWidth="4"
+              strokeLinecap="round"
+              className="drop-shadow-[0_0_8px_rgba(16,185,129,0.6)]"
+            />
+            <circle cx="300" cy="80" r="6" className="fill-emerald-400 animate-ping" />
+            <circle cx="300" cy="80" r="5" className="fill-emerald-500" />
+          </svg>
+
+          <div className="absolute bottom-3 left-3 bg-neutral-900/90 border border-neutral-800 backdrop-blur px-3 py-1.5 rounded-xl text-[10px] text-neutral-300 font-mono flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span>Lat/Lng: 50.5050° N, 3.3250° E</span>
+          </div>
         </div>
       </div>
 
@@ -172,7 +207,7 @@ export default function RunningTab({
         </div>
       </div>
 
-      {/* NOUVEAU : Planificateur de Ravitaillement Intégré */}
+      {/* Planificateur de Ravitaillement Intégré */}
       <div className="bg-neutral-900 border border-neutral-800/80 rounded-3xl p-6 space-y-5 shadow-xl">
         <div className="flex items-center gap-2 text-orange-400 font-bold text-xs uppercase tracking-widest">
           <Zap className="w-4 h-4" /> Planificateur de Ravitaillement
