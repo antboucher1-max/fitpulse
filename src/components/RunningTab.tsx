@@ -17,12 +17,14 @@ interface RunningTabProps {
   onRefreshFeed: () => void;
 }
 
-// Composant interne pour corriger le rendu et recentrer la carte proprement
-function MapRecenterAndFix({ position }: { position: [number, number] }) {
+// Composant interne pour centrer dynamiquement la carte
+function MapRecenterAndFix({ position }: { position: [number, number] | null }) {
   const map = useMap();
   useEffect(() => {
-    map.invalidateSize();
-    map.setView(position, map.getZoom(), { animate: true });
+    if (position) {
+      map.invalidateSize();
+      map.setView(position, map.getZoom(), { animate: true });
+    }
   }, [position, map]);
   return null;
 }
@@ -39,13 +41,11 @@ export default function RunningTab({
   const [isSimulating, setIsSimulating] = useState(false);
   const [seconds, setSeconds] = useState(0);
   const [distanceMeters, setDistanceMeters] = useState(0);
-  const [pathCoordinates, setPathCoordinates] = useState<[number, number][]>([
-    [50.6053, 3.3888]
-  ]);
-  const [currentPosition, setCurrentPosition] = useState<[number, number]>([50.6053, 3.3888]); // Tournai par défaut
+  const [pathCoordinates, setPathCoordinates] = useState<[number, number][]>([]);
+  const [currentPosition, setCurrentPosition] = useState<[number, number] | null>(null);
   const [runCaption, setRunCaption] = useState('');
   const [showSaveModal, setShowSaveModal] = useState(false);
-  const [hasFinished, setHasFinished] = useState(false); // État pour indiquer qu'une course est terminée
+  const [hasFinished, setHasFinished] = useState(false);
 
   const watchIdRef = useRef<number | null>(null);
   const simIntervalRef = useRef<any>(null);
@@ -107,6 +107,8 @@ export default function RunningTab({
         },
         (error) => {
           console.error("Erreur GPS :", error);
+          alert("Impossible de récupérer ta position GPS. Vérifie tes paramètres de localisation.");
+          setIsRunning(false);
         },
         { enableHighAccuracy: true, maximumAge: 5000, timeout: 5000 }
       );
@@ -130,6 +132,11 @@ export default function RunningTab({
       let simLat = 50.6053;
       let simLng = 3.3888;
       
+      // Position initiale de simulation
+      const initialPos: [number, number] = [simLat, simLng];
+      setCurrentPosition(initialPos);
+      setPathCoordinates([initialPos]);
+
       simIntervalRef.current = setInterval(() => {
         simLat += 0.00015;
         simLng += 0.0002;
@@ -184,8 +191,8 @@ export default function RunningTab({
     setIsSimulating(false);
     setSeconds(0);
     setDistanceMeters(0);
-    setPathCoordinates([[50.6053, 3.3888]]);
-    setCurrentPosition([50.6053, 3.3888]);
+    setPathCoordinates([]);
+    setCurrentPosition(null);
     setRunCaption('');
     setHasFinished(false);
   };
@@ -217,7 +224,7 @@ export default function RunningTab({
       await supabase.from('profiles').update({ points: (currentUserProfile?.points || 0) + pointsToAdd }).eq('id', currentUserId);
 
       setShowSaveModal(false);
-      setHasFinished(true); // Marque la course comme publiée/terminée
+      setHasFinished(true);
       onRefreshFeed();
       alert("✅ Sortie publiée avec succès sur le fil FitPulse ! (+ " + pointsToAdd + " pts ⚡)");
     } else {
@@ -235,27 +242,34 @@ export default function RunningTab({
         <p className="text-xs text-neutral-300 mt-1">La carte se fige et suit automatiquement ta position en direct.</p>
       </div>
 
-      {/* Mini-Carte Interactive Figée et Centrée en Direct */}
-      <div className="w-full h-60 rounded-3xl overflow-hidden border border-neutral-800 shadow-xl relative z-10 bg-neutral-950">
-        <MapContainer 
-          center={currentPosition} 
-          zoom={16} 
-          zoomControl={false}
-          attributionControl={false}
-          dragging={false}
-          scrollWheelZoom={false}
-          doubleClickZoom={false}
-          touchZoom={false}
-          style={{ width: '100%', height: '240px', background: '#0a0a0a' }}
-        >
-          <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-          <MapRecenterAndFix position={currentPosition} />
-          
-          {pathCoordinates.length > 0 && (
-            <Polyline positions={pathCoordinates} color="#10b981" weight={5} />
-          )}
-          <CircleMarker center={currentPosition} radius={8} fillColor="#10b981" color="#ffffff" weight={2} fillOpacity={1} />
-        </MapContainer>
+      {/* Mini-Carte Interactive */}
+      <div className="w-full h-60 rounded-3xl overflow-hidden border border-neutral-800 shadow-xl relative z-10 bg-neutral-950 flex items-center justify-center">
+        {currentPosition ? (
+          <MapContainer 
+            center={currentPosition} 
+            zoom={16} 
+            zoomControl={false}
+            attributionControl={false}
+            dragging={false}
+            scrollWheelZoom={false}
+            doubleClickZoom={false}
+            touchZoom={false}
+            style={{ width: '100%', height: '240px', background: '#0a0a0a' }}
+          >
+            <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+            <MapRecenterAndFix position={currentPosition} />
+            
+            {pathCoordinates.length > 0 && (
+              <Polyline positions={pathCoordinates} color="#10b981" weight={5} />
+            )}
+            <CircleMarker center={currentPosition} radius={8} fillColor="#10b981" color="#ffffff" weight={2} fillOpacity={1} />
+          </MapContainer>
+        ) : (
+          <div className="text-center p-6 space-y-2">
+            <MapPin className="w-8 h-8 text-emerald-500 mx-auto animate-bounce" />
+            <p className="text-xs text-neutral-400 font-medium">Prêt à démarrer. Choisis "Vrai GPS" ou "Simuler un run".</p>
+          </div>
+        )}
       </div>
 
       {/* Tableau de bord */}
