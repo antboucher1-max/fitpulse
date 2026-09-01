@@ -6,7 +6,7 @@ export default function TrainingPlanTab() {
   const [daysPerWeek, setDaysPerWeek] = useState(3);
   const [planGenerated, setPlanGenerated] = useState(false);
 
-  React.FormEvent = (e: any)
+  const handleGenerate = (e: any) => {
     e.preventDefault();
     setPlanGenerated(true);
   };
