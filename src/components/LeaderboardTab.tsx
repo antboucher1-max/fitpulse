@@ -10,12 +10,17 @@ export default function LeaderboardTab({ registeredUsers }: LeaderboardTabProps)
   const [leaderboardView, setLeaderboardView] = useState<'clubs' | 'athletes'>('clubs');
   const [athleteCategory, setAthleteCategory] = useState<'global' | 'muscu' | 'running'>('global');
 
-  // Calcul dynamique des points des clubs en additionnant les points réels globaux de leurs membres
+  // Calcul dynamique des points des clubs selon la catégorie sélectionnée
   const clubsScoreMap: Record<string, number> = {};
   registeredUsers.forEach(u => {
     const club = u.home_club || 'Club Tournai (Bastion)';
-    const userPoints = (u as any).points_global || (u as any).points || 0;
-    clubsScoreMap[club] = (clubsScoreMap[club] || 0) + userPoints;
+    const userScore = athleteCategory === 'muscu' 
+      ? ((u as any).points_muscu || 0)
+      : athleteCategory === 'running' 
+      ? ((u as any).points_running || 0)
+      : ((u as any).points_global || (u as any).points || 0);
+
+    clubsScoreMap[club] = (clubsScoreMap[club] || 0) + userScore;
   });
 
   const sortedClubs = Object.entries(clubsScoreMap).sort((a, b) => b[1] - a[1]);
@@ -58,29 +63,27 @@ export default function LeaderboardTab({ registeredUsers }: LeaderboardTabProps)
           </button>
         </div>
 
-        {/* Sous-onglets de catégories pour les athlètes */}
-        {leaderboardView === 'athletes' && (
-          <div className="grid grid-cols-3 gap-1.5 pt-1">
-            <button 
-              onClick={() => setAthleteCategory('global')}
-              className={`py-1.5 px-2 rounded-xl text-[11px] font-bold transition border ${athleteCategory === 'global' ? 'bg-orange-500/20 text-orange-400 border-orange-500/40' : 'bg-neutral-950 text-neutral-400 border-neutral-800'}`}
-            >
-              ⚡ Global
-            </button>
-            <button 
-              onClick={() => setAthleteCategory('muscu')}
-              className={`py-1.5 px-2 rounded-xl text-[11px] font-bold transition border flex items-center justify-center gap-1 ${athleteCategory === 'muscu' ? 'bg-orange-500/20 text-orange-400 border-orange-500/40' : 'bg-neutral-950 text-neutral-400 border-neutral-800'}`}
-            >
-              <Dumbbell className="w-3 h-3" /> Muscu
-            </button>
-            <button 
-              onClick={() => setAthleteCategory('running')}
-              className={`py-1.5 px-2 rounded-xl text-[11px] font-bold transition border flex items-center justify-center gap-1 ${athleteCategory === 'running' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40' : 'bg-neutral-950 text-neutral-400 border-neutral-800'}`}
-            >
-              <Navigation className="w-3 h-3" /> Running
-            </button>
-          </div>
-        )}
+        {/* Sous-onglets de catégories (Disponibles pour les Clubs ET les Athlètes) */}
+        <div className="grid grid-cols-3 gap-1.5 pt-1">
+          <button 
+            onClick={() => setAthleteCategory('global')}
+            className={`py-1.5 px-2 rounded-xl text-[11px] font-bold transition border ${athleteCategory === 'global' ? 'bg-orange-500/20 text-orange-400 border-orange-500/40' : 'bg-neutral-950 text-neutral-400 border-neutral-800'}`}
+          >
+            ⚡ Global
+          </button>
+          <button 
+            onClick={() => setAthleteCategory('muscu')}
+            className={`py-1.5 px-2 rounded-xl text-[11px] font-bold transition border flex items-center justify-center gap-1 ${athleteCategory === 'muscu' ? 'bg-orange-500/20 text-orange-400 border-orange-500/40' : 'bg-neutral-950 text-neutral-400 border-neutral-800'}`}
+          >
+            <Dumbbell className="w-3 h-3" /> Muscu
+          </button>
+          <button 
+            onClick={() => setAthleteCategory('running')}
+            className={`py-1.5 px-2 rounded-xl text-[11px] font-bold transition border flex items-center justify-center gap-1 ${athleteCategory === 'running' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40' : 'bg-neutral-950 text-neutral-400 border-neutral-800'}`}
+          >
+            <Navigation className="w-3 h-3" /> Running
+          </button>
+        </div>
       </div>
 
       {/* Contenu CLUBS */}
@@ -94,11 +97,13 @@ export default function LeaderboardTab({ registeredUsers }: LeaderboardTabProps)
                 </span>
                 <div>
                   <h4 className="font-bold text-xs text-white">{clubName}</h4>
-                  <p className="text-[10px] text-neutral-400">Compétition inter-salles</p>
+                  <p className="text-[10px] text-neutral-400">Compétition inter-salles ({athleteCategory})</p>
                 </div>
               </div>
               <div className="text-right">
-                <span className="text-sm font-black text-orange-400">{score} pts</span>
+                <span className={`text-sm font-black ${athleteCategory === 'running' ? 'text-emerald-400' : 'text-orange-400'}`}>
+                  {score} pts
+                </span>
               </div>
             </div>
           ))}
