@@ -41,6 +41,16 @@ export default function BoxWarsTab({ currentUserId, currentUsername, registeredU
   const [isTimerRunning, setIsTimerRunning] = useState<boolean>(false);
   const [showTimerSettings, setShowTimerSettings] = useState<boolean>(false);
 
+  // 🔔 Initialisation du son d'alarme natif
+  const alarmSound = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+
+  const playAlarm = () => {
+    alarmSound.currentTime = 0;
+    alarmSound.play().catch(error => {
+      console.log("Lecture audio bloquée ou non prise en charge :", error);
+    });
+  };
+
   // Calculateur RM
   const [rmWeight, setRmWeight] = useState<number | ''>('');
   const [rmReps, setRmReps] = useState<number | ''>('');
@@ -89,6 +99,7 @@ export default function BoxWarsTab({ currentUserId, currentUsername, registeredU
         setSecondsRemaining(prev => prev - 1);
       }, 1000);
     } else if (isTimerRunning && secondsRemaining === 0) {
+      playAlarm(); // 🔔 Déclenchement de l'alarme lorsque le temps est écoulé
       if (timerMode === 'work') {
         if (restSeconds > 0) {
           setTimerMode('rest');
