@@ -588,7 +588,7 @@ export default function App() {
     );
   }
 
-  const allAvailableSpotsForUserDiscipline = getSpotsByDiscipline(currentUserProfile?.discipline || onboardingDiscipline);
+  const allAvailableSpotsForUserDiscipline = getSpotsByDiscipline((currentUserProfile as any)?.discipline || onboardingDiscipline);
 
   return (
     <div className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col font-sans select-none antialiased relative">
@@ -649,7 +649,7 @@ export default function App() {
         </header>
 
         <main className="flex-1 w-full mx-auto px-4 py-3 pb-24">
-          {currentTab === 'feed' && <FeedTab posts={displayedPosts} registeredUsers={registeredUsers} friendRequests={friendRequests} currentUserId={user?.id} userDiscipline={currentUserProfile?.discipline} feedLoading={feedLoading} calculateStreak={calculateUserStreak} onCreateStoryClick={() => setIsPostModalOpen(true)} onToggleLike={handleToggleLike} onOpenComments={(id) => setActiveCommentPostId(id)} onReportPost={() => {}} onDeletePost={() => {}} onSelectProfile={(u) => setViewingProfileUser(u)} onStartRestTimer={() => handleTabChange('rest_timer')} />}
+          {currentTab === 'feed' && <FeedTab posts={displayedPosts} registeredUsers={registeredUsers} friendRequests={friendRequests} currentUserId={user?.id} userDiscipline={(currentUserProfile as any)?.discipline} feedLoading={feedLoading} calculateStreak={calculateUserStreak} onCreateStoryClick={() => setIsPostModalOpen(true)} onToggleLike={handleToggleLike} onOpenComments={(id) => setActiveCommentPostId(id)} onReportPost={() => {}} onDeletePost={() => {}} onSelectProfile={(u) => setViewingProfileUser(u)} onStartRestTimer={() => handleTabChange('rest_timer')} />}
           {currentTab === 'leaderboard' && <LeaderboardTab registeredUsers={registeredUsers} />}
            
           {currentTab === 'buddy' && (
