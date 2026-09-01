@@ -5,7 +5,7 @@ import {
 import { createClient, User as SupabaseUser } from '@supabase/supabase-js';
 
 import { 
-  TransformationPhoto, Post, Story, RealUser, FriendRequest, DBMessage 
+  TransformationPhoto, Post, RealUser, FriendRequest, DBMessage 
 } from './types';
 
 import FeedTab from './components/FeedTab';
@@ -87,12 +87,9 @@ export default function App() {
   const [transformations, setTransformations] = useState<TransformationPhoto[]>([]);
   const [friendRequests, setFriendRequests] = useState<FriendRequest[]>([]);
   const [registeredUsers, setRegisteredUsers] = useState<RealUser[]>([]);
-  const [cloudStories] = useState<Story[]>([]);
   const [allMessages, setAllMessages] = useState<DBMessage[]>([]);
    
-  const [viewedStoryIds] = useState<string[]>([]);
   const [viewingProfileUser, setViewingProfileUser] = useState<RealUser | null>(null);
-  const [, setActiveStoryIndex] = useState<number | null>(null);
   const [selectedBuddyChat, setSelectedBuddyChat] = useState<RealUser | null>(null);
   const [currentMessageInput, setCurrentMessageInput] = useState('');
   const [isOtherUserTyping] = useState(false);
@@ -404,7 +401,6 @@ export default function App() {
     return (
       <div className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col items-center justify-center font-sans p-4 select-none">
         <div className="w-full max-w-sm bg-neutral-900 border border-neutral-800 rounded-3xl p-6 space-y-4 shadow-2xl relative">
-           
           <button 
             type="button" 
             onClick={async () => {
@@ -562,7 +558,7 @@ export default function App() {
         </header>
 
         <main className="flex-1 w-full mx-auto px-4 py-3 pb-24">
-          {currentTab === 'feed' && <FeedTab stories={cloudStories} posts={displayedPosts} registeredUsers={registeredUsers} friendRequests={friendRequests} currentUserId={user?.id} userDiscipline={currentUserProfile?.discipline} feedLoading={feedLoading} viewedStoryIds={viewedStoryIds} calculateStreak={calculateUserStreak} onOpenStory={(idx) => setActiveStoryIndex(idx)} onCreateStoryClick={() => setIsPostModalOpen(true)} onToggleLike={handleToggleLike} onOpenComments={(id) => setActiveCommentPostId(id)} onReportPost={() => {}} onDeletePost={() => {}} onSelectProfile={(u) => setViewingProfileUser(u)} onStartRestTimer={() => handleTabChange('rest_timer')} />}
+          {currentTab === 'feed' && <FeedTab posts={displayedPosts} registeredUsers={registeredUsers} friendRequests={friendRequests} currentUserId={user?.id} userDiscipline={currentUserProfile?.discipline} feedLoading={feedLoading} calculateStreak={calculateUserStreak} onCreateStoryClick={() => setIsPostModalOpen(true)} onToggleLike={handleToggleLike} onOpenComments={(id) => setActiveCommentPostId(id)} onReportPost={() => {}} onDeletePost={() => {}} onSelectProfile={(u) => setViewingProfileUser(u)} onStartRestTimer={() => handleTabChange('rest_timer')} />}
           {currentTab === 'leaderboard' && <LeaderboardTab registeredUsers={registeredUsers} />}
            
           {currentTab === 'buddy' && (
