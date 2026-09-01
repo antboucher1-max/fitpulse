@@ -265,7 +265,15 @@ export default function RunningTab({
 
     if (!error) {
       const pointsToAdd = Math.round(Number(distanceKm) * 5) + 10;
-      await supabase.from('profiles').update({ points: (currentUserProfile?.points || 0) + pointsToAdd }).eq('id', currentUserId);
+      
+      const currentRunningPts = currentUserProfile?.points_running || 0;
+      const currentGlobalPts = currentUserProfile?.points_global || currentUserProfile?.points || 0;
+
+      await supabase.from('profiles').update({ 
+        points_running: currentRunningPts + pointsToAdd,
+        points_global: currentGlobalPts + pointsToAdd,
+        points: currentGlobalPts + pointsToAdd 
+      }).eq('id', currentUserId);
 
       setShowSaveModal(false);
       setHasFinished(true);
