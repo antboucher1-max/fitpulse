@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Users, UserPlus, Check, Clock, MapPin, Search, ShieldCheck, UserMinus, Sparkles, Filter, SlidersHorizontal, X, Trophy, Flame, Crown, ChevronRight, Target, Star, BrainCircuit } from 'lucide-react';
+import { Users, UserPlus, Check, Clock, MapPin, Search, ShieldCheck, UserMinus, Sparkles, Star, X, Target } from 'lucide-react';
 import { RealUser, FriendRequest } from '../types';
 
 interface BuddyTabProps {
@@ -14,6 +14,7 @@ interface BuddyTabProps {
 
 const GOAL_OPTIONS = ['Musculation', 'Perte de poids', 'CrossFit', 'Powerlifting', 'Yoga/Mobilité'];
 const TIME_SLOTS = ['Matin', 'Midi', 'Soir', 'Week-end'];
+const AGE_RANGES = ['Tous', '18-25 ans', '25-35 ans', '35-45 ans', '45 ans et +'];
 
 const calculateAge = (birthDateString?: string): number | null => {
   if (!birthDateString) return null;
@@ -53,10 +54,10 @@ const calculateMatchScore = (
   possiblePoints += 20;
 
   possiblePoints += 40;
-  if (currentUser.goal && targetUser.goal && currentUser.goal === targetUser.goal) {
+  if (matchCriteria.goal && targetUser.goal && matchCriteria.goal === targetUser.goal) {
     score += 40;
-    details.push(`Même objectif : ${currentUser.goal}`);
-  } else if (currentUser.goal && targetUser.goal) {
+    details.push(`Même objectif : ${matchCriteria.goal}`);
+  } else if (matchCriteria.goal && targetUser.goal) {
     score += 10;
   }
 
@@ -142,7 +143,16 @@ export default function BuddyTab({
           ...u,
           matchData: calculateMatchScore(currentUser, u, matchCriteria)
         }))
-        .filter(item => item.matchData.score !== -1)
+        .filter(item => {
+          if (item.matchData.score === -1) return false;
+          
+          if (matchCriteria.ageRange !== 'Tous') {
+            const userAgeCat = getAgeCategory(u.birth_date);
+            if (userAgeCat !== matchCriteria.ageRange) return false;
+          }
+
+          return true;
+        })
         .sort((a, b) => b.matchData.score - a.matchData.score);
     }
 
@@ -202,11 +212,7 @@ export default function BuddyTab({
               onChange={(e) => setMatchCriteria(prev => ({ ...prev, ageRange: e.target.value }))}
               className="w-full bg-neutral-900 border border-neutral-700 rounded-xl px-4 py-3 text-sm text-white focus:border-orange-500"
             >
-              <option value="Tous">Peu importe</option>
-              <option value="18-25 ans">18-25 ans</option>
-              <option value="25-35 ans">25-35 ans</option>
-              <option value="35-45 ans">35-45 ans</option>
-              <option value="45 ans et +">45 ans et +</option>
+              {AGE_RANGES.map(range => <option key={range} value={range}>{range === 'Tous' ? 'Peu importe' : range}</option>)}
             </select>
           </div>
 
@@ -233,7 +239,7 @@ export default function BuddyTab({
                 }}
                 className="flex-1 px-6 py-4 bg-neutral-800 text-neutral-300 font-extrabold rounded-2xl text-sm transition hover:bg-neutral-700"
              >
-                Désactiver
+               Désactiver
              </button>
           )}
           <button 
