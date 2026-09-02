@@ -15,10 +15,11 @@ const runnerIcon = L.divIcon({
   iconAnchor: [9, 9]
 });
 
-function MapAutoFollow({ center }: { center: [number, number] }) {
+// Composant pour centrer automatiquement et dynamiquement la carte
+function MapAutoCentering({ center }: { center: [number, number] }) {
   const map = useMap();
   useEffect(() => {
-    map.setView(center, 16, { animate: true });
+    map.panTo(center, { animate: true, duration: 0.5 });
   }, [center, map]);
   return null;
 }
@@ -100,7 +101,7 @@ export default function RunningTab({
             setRoutePositions(prev => [...prev, newPos]);
           },
           (error) => console.error(error),
-          { enableHighAccuracy: true, maximumAge: 5000, timeout: 5000 }
+          { enableHighAccuracy: true, maximumAge: 3000, timeout: 5000 }
         );
       }
     }
@@ -172,7 +173,7 @@ export default function RunningTab({
         </div>
       </div>
 
-      {/* Carte GPS OpenStreetMap propre et sans bug */}
+      {/* Carte GPS avec centrage automatique permanent */}
       <div className="bg-neutral-900 border border-neutral-800/80 rounded-3xl p-6 space-y-4 shadow-xl">
         <div className="flex items-center justify-between">
           <h3 className="text-xs font-black text-white flex items-center gap-2 uppercase tracking-wider">
@@ -190,7 +191,7 @@ export default function RunningTab({
             scrollWheelZoom={true}
             style={{ width: '100%', height: '100%', background: '#1a1a1a' }}
           >
-            <MapAutoFollow center={currentPosition} />
+            <MapAutoCentering center={currentPosition} />
             <TileLayer
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -279,79 +280,4 @@ export default function RunningTab({
             />
           </div>
           <div>
-            <label className="block text-xs font-bold text-neutral-400 mb-1">Durée (Minutes) :</label>
-            <input 
-              type="number" 
-              min="0" 
-              max="55"
-              step="5"
-              value={durationMins}
-              onChange={(e) => setDurationMins(Number(e.target.value))}
-              className="w-full bg-neutral-950 border border-neutral-800 rounded-2xl px-4 py-3 text-xs text-white focus:border-orange-500 focus:outline-none"
-            />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="block text-xs font-bold text-neutral-400 mb-1">Intensité :</label>
-            <select 
-              value={intensity} 
-              onChange={(e: any) => setIntensity(e.target.value)}
-              className="w-full bg-neutral-950 border border-neutral-800 rounded-2xl px-4 py-3 text-xs text-white focus:border-orange-500 focus:outline-none"
-            >
-              <option value="modere">Modéré (Endurance cool)</option>
-              <option value="soutenu">Soutenu (Allure semi/marathon)</option>
-              <option value="maximal">Maximal (Seuil / Race Pace)</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-bold text-neutral-400 mb-1">Poids corporel (kg) :</label>
-            <input 
-              type="number" 
-              value={bodyWeight}
-              onChange={(e) => setBodyWeight(Number(e.target.value))}
-              className="w-full bg-neutral-950 border border-neutral-800 rounded-2xl px-4 py-3 text-xs text-white focus:border-orange-500 focus:outline-none"
-            />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-3 pt-2">
-          <div className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 space-y-1">
-            <span className="text-[10px] uppercase font-bold text-neutral-400 flex items-center gap-1">
-              <Apple className="w-3.5 h-3.5 text-orange-500" /> Glucides Totaux
-            </span>
-            <div className="text-2xl font-black text-white mt-1">
-              {totalCarbs} <span className="text-xs font-normal text-orange-400">g</span>
-            </div>
-            <span className="text-[10px] text-neutral-500 block">Soit ~{carbsPerHour}g / heure</span>
-          </div>
-
-          <div className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 space-y-1">
-            <span className="text-[10px] uppercase font-bold text-neutral-400 flex items-center gap-1">
-              <Droplet className="w-3.5 h-3.5 text-cyan-400" /> Hydratation / Eau
-            </span>
-            <div className="text-2xl font-black text-white mt-1">
-              {(totalWaterMl / 1000).toFixed(2)} <span className="text-xs font-normal text-cyan-400">L</span>
-            </div>
-            <span className="text-[10px] text-neutral-500 block">Avec électrolytes conseillés</span>
-          </div>
-        </div>
-
-        <div className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 space-y-2 text-xs">
-          <span className="font-bold text-orange-400 block">Stratégie de course :</span>
-          <p className="text-neutral-300 leading-relaxed">
-            Pour cette sortie de <strong>{durationHours}h{durationMins > 0 ? durationMins : ''}</strong>, prévois environ <strong>{standardGelsCount} gels énergétiques</strong> à répartir toutes les 30 à 45 minutes, accompagnés de petites gorgées d'eau régulièrement.
-          </p>
-        </div>
-      </div>
-
-      <GearTrackerSection 
-        shoes={shoes} 
-        onAddShoe={onAddShoe} 
-        onDeleteShoe={onDeleteShoe} 
-        onSetActiveShoe={onSetActiveShoe} 
-      />
-    </div>
-  );
-}
+            <label className="block text-xs font-bold text-neutral-40
