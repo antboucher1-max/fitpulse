@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { Bot, Sparkles, Send, Dumbbell, Utensils, Zap, Activity, RefreshCw } from 'lucide-react';
+import { Bot, Sparkles, Send, RefreshCw, Zap } from 'lucide-react';
 
 interface FitBotTabProps {
   currentUserProfile: any;
   currentReadinessScore: number;
+  userShoes?: any[];
 }
 
 interface Message {
@@ -13,24 +14,26 @@ interface Message {
   timestamp: string;
 }
 
-export default function FitBotTab({ currentUserProfile, currentReadinessScore }: FitBotTabProps) {
+export default function FitBotTab({ currentUserProfile, currentReadinessScore, userShoes = [] }: FitBotTabProps) {
+  const userVma = currentUserProfile?.vma || 14;
+  const activeShoe = userShoes.find(s => s.is_active) || userShoes[0];
+
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
       sender: 'ai',
-      text: `Salut ${currentUserProfile?.username || 'Athlète'} ! Je suis FitBot, ton coach personnel. J'analyse ta forme du jour (${currentReadinessScore}%) et tes objectifs (${currentUserProfile?.goal || 'Performance'}). Comment puis-je t'aider aujourd'hui sur ton entraînement ou ta nutrition ?`,
+      text: `Salut ${currentUserProfile?.username || 'Athlète'} ! Je suis ton coach FitBot. J'ai analysé ton profil : VMA de ${userVma} km/h, objectif "${currentUserProfile?.goal || 'Performance'}" et état de forme à ${currentReadinessScore}%. Que veux-tu optimiser aujourd'hui ?`,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     }
   ]);
   const [inputMessage, setInputMessage] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
-  // Suggestions rapides pour l'utilisateur
   const quickPrompts = [
-    "Que manger avant mon fractionné ?",
-    "Analyse ma forme actuelle",
-    "Adapter ma séance si j'ai des courbatures",
-    "Mon plan glucides pour ce soir"
+    "Quelles sont mes allures cibles ?",
+    "État de mes chaussures / Matos",
+    "Conseil nutrition pour ma séance",
+    "Comment gérer ma fatigue ?"
   ];
 
   const handleSendMessage = (textToSend?: string) => {
@@ -48,17 +51,23 @@ export default function FitBotTab({ currentUserProfile, currentReadinessScore }:
     if (!textToSend) setInputMessage('');
     setIsAnalyzing(true);
 
-    // Simulation d'une réponse intelligente et contextuelle de l'IA
     setTimeout(() => {
-      let aiResponseText = "C'est un excellent point. Avec ton profil orienté hybride, assure-toi de bien alterner les phases de tension mécanique et de récupération glucidique.";
+      let aiResponseText = "Analyse validée. En tant qu'athlète hybride, garde ton focus sur la régularité.";
       
       const lower = text.toLowerCase();
-      if (lower.includes('manger') || lower.includes('nutrition') || lower.includes('glucides')) {
-        aiResponseText = "🍎 **Conseil Nutrition FitBot :** Pour optimiser tes stocks de glycogène sans alourdir ta digestion, privilégie des glucides à assimilation rapide (compotes, pain blanc, eau isotonique) 1h30 avant l'effort, et garde les graisses/fibres pour après la séance.";
-      } else if (lower.includes('forme') || lower.includes('analyse')) {
-        aiResponseText = `📊 **Diagnostic de Forme :** Ton score de readiness est à ${currentReadinessScore}%. ${currentReadinessScore < 50 ? "Attention, la fatigue s'accumule. Je te conseille un entraînement en Zone 2 ou de la mobilité pure." : "Ton organisme est réceptif. C'est le moment idéal pour aller chercher un record ou envoyer du volume !"}`;
-      } else if (lower.includes('courbatures') || lower.includes('adapter')) {
-        aiResponseText = "⚠️ **Gestion de la fatigue :** Si les courbatures sont locales (ex: ischio-jambiers), bascule sur du haut du corps ou un footing très souple de régénération. Ne force jamais sur une fibre musculaire inflammée.";
+      if (lower.includes('allures') || lower.includes('vma')) {
+        const slowPace = (60 / (userVma * 0.75)).toFixed(2).replace('.', 'm');
+        const thresholdPace = (60 / (userVma * 0.88)).toFixed(2).replace('.', 'm');
+        aiResponseText = `⚡ **Calculateur d'allures (VMA ${userVma} km/h) :**\n- Footing / Endurance (75% VMA) : ~${slowPace} /km\n- Seuil / Fractionné (88% VMA) : ~${thresholdPace} /km`;
+      } else if (lower.includes('chaussures') || lower.includes('matos') || lower.includes('fatigue chaussures')) {
+        if (activeShoe) {
+          const kmLeft = activeShoe.max_km - activeShoe.current_km;
+          aiResponseText = `👟 **Suivi Matériel :** Ta paire active (${activeShoe.brand} ${activeShoe.model}) comptabilise ${activeShoe.current_km} km sur ${activeShoe.max_km} km max. Il te reste environ ${kmLeft} km avant de prévoir un renouvellement pour préserver tes articulations.`;
+        } else {
+          aiResponseText = "👟 Aucune chaussure enregistrée dans ton profil. Pense à en ajouter une dans ton profil pour suivre ton kilométrage !";
+        }
+      } else if (lower.includes('nutrition') || lower.includes('manger')) {
+        aiResponseText = "🍎 **Stratégie Nutritionnelle :** Vise 1g de glucides par kilo de poids de corps 2h avant l'effort. Pour l'hydratation, intègre des électrolytes si la sortie dépasse 45 minutes.";
       }
 
       const aiMsg: Message = {
@@ -70,13 +79,11 @@ export default function FitBotTab({ currentUserProfile, currentReadinessScore }:
 
       setMessages(prev => [...prev, aiMsg]);
       setIsAnalyzing(false);
-    }, 1000);
+    }, 900);
   };
 
   return (
     <div className="space-y-4 animate-fadeIn pb-24">
-      
-      {/* HEADER FITBOT */}
       <div className="bg-gradient-to-br from-cyan-950/60 via-neutral-900 to-neutral-900 border border-cyan-500/40 rounded-3xl p-5 shadow-2xl relative overflow-hidden">
         <div className="absolute -right-8 -top-8 w-32 h-32 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
         <div className="flex items-center gap-3 relative z-10">
@@ -85,18 +92,15 @@ export default function FitBotTab({ currentUserProfile, currentReadinessScore }:
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="text-base font-black text-white">FitBot Intelligence</h2>
-              <span className="text-[9px] bg-cyan-500/20 text-cyan-400 font-bold px-2 py-0.5 rounded-full border border-cyan-500/30">V1.0 Actif</span>
+              <h2 className="text-base font-black text-white">FitBot Intelligence V2</h2>
+              <span className="text-[9px] bg-cyan-500/20 text-cyan-400 font-bold px-2 py-0.5 rounded-full border border-cyan-500/30">Connecté à la Data</span>
             </div>
-            <p className="text-xs text-neutral-400">Ton coach expert en course, muscu & nutrition.</p>
+            <p className="text-xs text-neutral-400">Conseils basés sur ta VMA et ton matos.</p>
           </div>
         </div>
       </div>
 
-      {/* ZONE DE CHAT / CONVERSATION */}
       <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-4 flex flex-col h-[50vh] shadow-xl">
-        
-        {/* Messages list */}
         <div className="flex-1 overflow-y-auto space-y-3 pr-1">
           {messages.map(msg => (
             <div key={msg.id} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
@@ -119,15 +123,14 @@ export default function FitBotTab({ currentUserProfile, currentReadinessScore }:
           {isAnalyzing && (
             <div className="flex justify-start">
               <div className="bg-neutral-950 border border-neutral-800 rounded-2xl p-3 text-xs text-neutral-400 flex items-center gap-2 animate-pulse">
-                <RefreshCw className="w-3.5 h-3.5 animate-spin text-cyan-400" /> FitBot analyse tes données...
+                <RefreshCw className="w-3.5 h-3.5 animate-spin text-cyan-400" /> FitBot croise tes données...
               </div>
             </div>
           )}
         </div>
 
-        {/* PROMPTS RAPIDES (Boutons de suggestions) */}
         <div className="pt-3 border-t border-neutral-800/80 mt-2">
-          <p className="text-[10px] font-bold text-neutral-400 mb-2 uppercase tracking-wider">Suggestions rapides :</p>
+          <p className="text-[10px] font-bold text-neutral-400 mb-2 uppercase tracking-wider">Requêtes rapides :</p>
           <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none">
             {quickPrompts.map((prompt, idx) => (
               <button
@@ -141,11 +144,10 @@ export default function FitBotTab({ currentUserProfile, currentReadinessScore }:
           </div>
         </div>
 
-        {/* INPUT DE MESSAGE */}
         <div className="flex items-center gap-2 mt-3 pt-2">
           <input 
             type="text" 
-            placeholder="Pose ta question à FitBot..."
+            placeholder="Interroge FitBot sur ta prépa..."
             value={inputMessage}
             onChange={(e) => setInputMessage(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
@@ -158,9 +160,7 @@ export default function FitBotTab({ currentUserProfile, currentReadinessScore }:
             <Send className="w-4 h-4 text-white" />
           </button>
         </div>
-
       </div>
-
     </div>
   );
 }
