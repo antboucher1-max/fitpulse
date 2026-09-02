@@ -1,8 +1,14 @@
 import { useState } from 'react';
-import { Gauge, Flame, Zap, Compass } from 'lucide-react';
+import { Gauge, Flame, Zap, Compass, CheckCircle2 } from 'lucide-react';
 
-export default function PaceCalculatorTab() {
-  const [vma, setVma] = useState<number>(14); // VMA par défaut en km/h
+interface PaceCalculatorTabProps {
+  currentVma?: number;
+  onSaveVma?: (vma: number) => void;
+}
+
+export default function PaceCalculatorTab({ currentVma = 14, onSaveVma }: PaceCalculatorTabProps) {
+  const [vma, setVma] = useState<number>(currentVma); // VMA par défaut en km/h
+  const [saved, setSaved] = useState(false);
 
   // Calcul des allures (exprimées en min/km)
   const calculatePace = (percentage: number) => {
@@ -13,13 +19,21 @@ export default function PaceCalculatorTab() {
     return `${mins}:${secs < 10 ? '0' : ''}${secs} min/km`;
   };
 
+  const handleSave = () => {
+    if (onSaveVma) {
+      onSaveVma(vma);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+    }
+  };
+
   return (
     <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-5 shadow-xl animate-fadeIn">
       <div className="flex items-center gap-2 text-emerald-400 font-bold text-xs uppercase tracking-wider">
         <Gauge className="w-4 h-4" /> Calculateur d'Allures & Zones VMA
       </div>
 
-      <div className="bg-neutral-950 border border-neutral-800 p-4 rounded-2xl space-y-2">
+      <div className="bg-neutral-950 border border-neutral-800 p-4 rounded-2xl space-y-3">
         <label className="block text-xs font-semibold text-neutral-400">Ta VMA estimée (km/h) :</label>
         <div className="flex items-center gap-4">
           <input 
@@ -33,6 +47,17 @@ export default function PaceCalculatorTab() {
           />
           <span className="text-sm font-bold text-emerald-400 whitespace-nowrap">{vma} km/h</span>
         </div>
+
+        {onSaveVma && (
+          <button 
+            type="button"
+            onClick={handleSave}
+            className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-neutral-950 font-black rounded-xl text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition cursor-pointer shadow-md"
+          >
+            {saved ? <CheckCircle2 className="w-4 h-4 text-neutral-950" /> : <Zap className="w-4 h-4 text-neutral-950 fill-neutral-950" />}
+            {saved ? "VMA enregistrée dans ton profil !" : "Enregistrer comme mon record VMA 🚀"}
+          </button>
+        )}
       </div>
 
       <div className="space-y-2.5">
