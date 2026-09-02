@@ -22,6 +22,7 @@ import ReadinessCheckin from './components/ReadinessCheckin';
 import TrainingPlanTab from './components/TrainingPlanTab';
 import RoadbookTab from './components/RoadbookTab';
 import OfflineRunGuard from './components/OfflineRunGuard';
+import WodGenerator from './components/WodGenerator';
 
 const supabaseUrl = 'https://obtahwmcoqrcauscpksv.supabase.co';
 const supabaseAnonKey = 'sb_publishable_O8CKhUtzgq9nO9lKavNE9A__fAdRWoB';
@@ -771,6 +772,9 @@ export default function App() {
                   </div>
                 </button>
               </div>
+
+              {/* GÉNÉRATEUR DE WOD / SÉANCES CROISÉES (IA / READINESS) */}
+              <WodGenerator />
 
               {/* Module de Readiness & Plan Intégré */}
               <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-3 shadow-xl">
