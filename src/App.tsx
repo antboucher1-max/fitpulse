@@ -467,7 +467,7 @@ export default function App() {
 
   const hasProfile = registeredUsers.some(u => u.id === user.id);
   if (user && registeredUsers.length >= 0 && !hasProfile) {
-    const currentAvailableSpots = getSpotsByDiscipline(onboardingDiscipline);
+    const currentAvailableSpots = getSpotsByDiscipline(onboardingMainDiscipline);
 
     return (
       <div className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col items-center justify-center font-sans p-4 select-none">
@@ -502,7 +502,8 @@ export default function App() {
                 goal: onboardingGoal, 
                 gender: onboardingGender, 
                 preferred_time: onboardingTime,
-                discipline: onboardingDiscipline,
+                discipline: onboardingMainDiscipline,
+                disciplines: onboardingDisciplines.join(','),
                 avatar_url: onboardingAvatar, 
                 points: 0, 
                 is_admin: user.email === 'antboucher@hotmail.fr'
@@ -526,22 +527,66 @@ export default function App() {
             </div>
              
             <div>
-              <label className="block text-xs text-neutral-400 mb-1">Discipline principale :</label>
-              <select 
-                value={onboardingDiscipline} 
-                onChange={(e) => {
-                  const newDisc = e.target.value;
-                  setOnboardingDiscipline(newDisc);
-                  const newSpots = getSpotsByDiscipline(newDisc);
-                  setOnboardingSpot(newSpots[0]);
-                }} 
-                className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-2.5 text-sm text-white"
-              >
-                <option value="Fitness / Musculation">💪 Fitness / Musculation</option>
-                <option value="Course à pied">🏃‍♂️ Course à pied</option>
-                <option value="Crossfit">⚡ Crossfit</option>
-              </select>
+              <label className="block text-xs text-neutral-400 mb-1.5">Disciplines pratiquées (Sélection multiple) :</label>
+              <div className="grid grid-cols-1 gap-2">
+                {[
+                  { id: 'Fitness / Musculation', label: '💪 Fitness / Musculation' },
+                  { id: 'Course à pied', label: '🏃‍♂️ Course à pied' },
+                  { id: 'Crossfit', label: '⚡ Crossfit' }
+                ].map((item) => {
+                  const isSelected = onboardingDisciplines.includes(item.id);
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => {
+                        let updated: string[];
+                        if (isSelected) {
+                          if (onboardingDisciplines.length === 1) return;
+                          updated = onboardingDisciplines.filter(d => d !== item.id);
+                          if (onboardingMainDiscipline === item.id) {
+                            setOnboardingMainDiscipline(updated[0]);
+                          }
+                        } else {
+                          updated = [...onboardingDisciplines, item.id];
+                        }
+                        setOnboardingDisciplines(updated);
+                        const newSpots = getSpotsByDiscipline(updated[0]);
+                        setOnboardingSpot(newSpots[0]);
+                      }}
+                      className={`py-2.5 px-4 rounded-xl text-xs font-bold border text-left transition flex items-center justify-between cursor-pointer ${
+                        isSelected 
+                          ? 'bg-orange-500/20 border-orange-500 text-orange-400' 
+                          : 'bg-neutral-950 border-neutral-800 text-neutral-400 hover:border-neutral-700'
+                      }`}
+                    >
+                      <span>{item.label}</span>
+                      {isSelected && <span className="text-[10px] bg-orange-500 text-neutral-950 px-2 py-0.5 rounded-full font-black">Actif</span>}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
+
+            {onboardingDisciplines.length > 1 && (
+              <div>
+                <label className="block text-xs text-neutral-400 mb-1">Discipline dominante (pour le spot de référence) :</label>
+                <select 
+                  value={onboardingMainDiscipline} 
+                  onChange={(e) => {
+                    const mainDisc = e.target.value;
+                    setOnboardingMainDiscipline(mainDisc);
+                    const newSpots = getSpotsByDiscipline(mainDisc);
+                    setOnboardingSpot(newSpots[0]);
+                  }} 
+                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-2.5 text-sm text-white"
+                >
+                  {onboardingDisciplines.map((disc) => (
+                    <option key={disc} value={disc}>{disc}</option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             <div>
               <label className="block text-xs text-neutral-400 mb-1">Tranche d'âge :</label>
@@ -580,7 +625,7 @@ export default function App() {
               </select>
             </div>
 
-            <button type="submit" disabled={onboardingSubmitting} className="w-full py-3 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-2xl text-sm transition">
+            <button type="submit" disabled={onboardingSubmitting} className="w-full py-3 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-2xl text-sm transition cursor-pointer">
               {onboardingSubmitting ? "Validation..." : "Rejoindre la communauté 🚀"}
             </button>
           </form>
@@ -589,7 +634,7 @@ export default function App() {
     );
   }
 
-  const allAvailableSpotsForUserDiscipline = getSpotsByDiscipline((currentUserProfile as any)?.discipline || onboardingDiscipline);
+  const allAvailableSpotsForUserDiscipline = getSpotsByDiscipline((currentUserProfile as any)?.discipline || 'Fitness / Musculation');
 
   return (
     <div className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col font-sans select-none antialiased relative">
@@ -607,7 +652,7 @@ export default function App() {
           <div className="flex items-center gap-2">
             <button 
               onClick={() => handleTabChange('calculator')}
-              className={`p-2 rounded-xl text-xs font-bold transition ${currentTab === 'calculator' ? 'bg-orange-500 text-neutral-950' : 'bg-neutral-900 text-orange-400 border border-orange-500/30'}`}
+              className={`p-2 rounded-xl text-xs font-bold transition cursor-pointer ${currentTab === 'calculator' ? 'bg-orange-500 text-neutral-950' : 'bg-neutral-900 text-orange-400 border border-orange-500/30'}`}
               title="Calculateur 1RM"
             >
               1RM
@@ -615,7 +660,7 @@ export default function App() {
 
             <button 
               onClick={() => handleTabChange('paces')}
-              className={`p-2 rounded-xl text-xs font-bold transition ${currentTab === 'paces' ? 'bg-emerald-500 text-neutral-950' : 'bg-neutral-900 text-emerald-400 border border-emerald-500/30'}`}
+              className={`p-2 rounded-xl text-xs font-bold transition cursor-pointer ${currentTab === 'paces' ? 'bg-emerald-500 text-neutral-950' : 'bg-neutral-900 text-emerald-400 border border-emerald-500/30'}`}
               title="Calculateur VMA"
             >
               VMA
@@ -623,7 +668,7 @@ export default function App() {
 
             <button 
               onClick={() => handleTabChange('readiness')}
-              className={`p-2 rounded-xl text-xs font-bold transition ${currentTab === 'readiness' ? 'bg-emerald-500 text-neutral-950' : 'bg-neutral-900 text-emerald-400 border border-emerald-500/30'}`}
+              className={`p-2 rounded-xl text-xs font-bold transition cursor-pointer ${currentTab === 'readiness' ? 'bg-emerald-500 text-neutral-950' : 'bg-neutral-900 text-emerald-400 border border-emerald-500/30'}`}
               title="Plan & Roadbook"
             >
               📅 Plan
@@ -631,7 +676,7 @@ export default function App() {
 
             <button 
               onClick={() => handleTabChange(currentTab === 'running' ? 'feed' : 'running')}
-              className={`p-2 rounded-xl text-xs font-bold flex items-center gap-1 transition ${currentTab === 'running' ? 'bg-emerald-500 text-neutral-950' : 'bg-neutral-900 text-emerald-400 border border-emerald-500/30'}`}
+              className={`p-2 rounded-xl text-xs font-bold flex items-center gap-1 transition cursor-pointer ${currentTab === 'running' ? 'bg-emerald-500 text-neutral-950' : 'bg-neutral-900 text-emerald-400 border border-emerald-500/30'}`}
               title="Mode Running"
             >
               <Navigation className="w-4 h-4" />
@@ -680,7 +725,6 @@ export default function App() {
            
           {currentTab === 'paces' && <PaceCalculatorTab />}
 
-          {/* INTÉGRATION DU PLAN D'ENTRAÎNEMENT, ROADBOOK & CHECK-IN */}
           {currentTab === 'readiness' && (
             <div className="space-y-4">
               <TrainingPlanTab currentUserId={user?.id} />
@@ -694,7 +738,6 @@ export default function App() {
 
           {currentTab === 'chat' && <ChatTab currentUserId={user?.id} selectedBuddyChat={selectedBuddyChat} setSelectedBuddyChat={handleOpenChatWithUser} activeChatUsers={activeChatUsers} currentChatMessages={currentChatMessages} currentMessageInput={currentMessageInput} onInputChange={(e) => setCurrentMessageInput(e.target.value)} onSendMessage={handleSendMessage} onSelectBuddy={(f) => handleOpenChatWithUser(f)} onDeleteConversation={() => {}} onReportConversation={() => {}} isOtherUserTyping={isOtherUserTyping} isMessageLimitReached={false} lastReadTimestamps={lastReadTimestamps} messagesEndRef={messagesEndRef} allMessages={allMessages} />}
            
-          {/* Passage des props de chaussures (Gear Tracker) et posts dans ProfileTab */}
           {currentTab === 'profile' && (
             <ProfileTab 
               user={user} 
@@ -787,7 +830,7 @@ export default function App() {
                 <h3 className="font-extrabold text-base text-white flex items-center gap-2">
                   <Flame className="w-5 h-5 text-orange-500" /> Partager une séance
                 </h3>
-                <button type="button" onClick={() => setIsPostModalOpen(false)} className="p-2 text-neutral-400 hover:text-white rounded-xl"><X className="w-5 h-5" /></button>
+                <button type="button" onClick={() => setIsPostModalOpen(false)} className="p-2 text-neutral-400 hover:text-white rounded-xl cursor-pointer"><X className="w-5 h-5" /></button>
               </div>
 
               <form onSubmit={handlePublishPost} className="space-y-4">
@@ -809,7 +852,7 @@ export default function App() {
 
                 <div>
                   <label className="block text-xs font-semibold text-neutral-400 mb-1">Photo (Galerie ou Appareil) :</label>
-                  <button type="button" onClick={() => postImageFileInputRef.current?.click()} className="w-full py-3 bg-neutral-950 border border-neutral-800 hover:border-orange-500 rounded-xl text-xs font-bold text-neutral-200 flex items-center justify-center gap-2">
+                  <button type="button" onClick={() => postImageFileInputRef.current?.click()} className="w-full py-3 bg-neutral-950 border border-neutral-800 hover:border-orange-500 rounded-xl text-xs font-bold text-neutral-200 flex items-center justify-center gap-2 cursor-pointer">
                     <Camera className="w-4 h-4 text-orange-500" /> Choisir une image
                   </button>
                   <input type="file" accept="image/*" ref={postImageFileInputRef} onChange={handlePostImageFileSelect} className="hidden" />
@@ -818,11 +861,11 @@ export default function App() {
                 {postImageUrl && (
                   <div className="relative rounded-2xl overflow-hidden h-36 border border-neutral-800">
                     <img src={postImageUrl} alt="Aperçu" className="w-full h-full object-cover" />
-                    <button type="button" onClick={() => setPostImageUrl(null)} className="absolute top-2 right-2 p-1 bg-black/70 rounded-full text-white"><X className="w-4 h-4" /></button>
+                    <button type="button" onClick={() => setPostImageUrl(null)} className="absolute top-2 right-2 p-1 bg-black/70 rounded-full text-white cursor-pointer"><X className="w-4 h-4" /></button>
                   </div>
                 )}
 
-                <button type="submit" className="w-full py-3.5 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-2xl text-sm shadow-xl">
+                <button type="submit" className="w-full py-3.5 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-2xl text-sm shadow-xl cursor-pointer">
                   Publier sur le fil (+10 pts 🚀)
                 </button>
               </form>
@@ -837,7 +880,7 @@ export default function App() {
                 <h3 className="font-extrabold text-base text-white flex items-center gap-2">
                   <Zap className="w-5 h-5 text-cyan-400" /> Enregistrer un score BoxWars
                 </h3>
-                <button type="button" onClick={() => setIsBoxWarsModalOpen(false)} className="p-2 text-neutral-400 hover:text-white rounded-xl">
+                <button type="button" onClick={() => setIsBoxWarsModalOpen(false)} className="p-2 text-neutral-400 hover:text-white rounded-xl cursor-pointer">
                   <X className="w-5 h-5" />
                 </button>
               </div>
@@ -914,14 +957,14 @@ export default function App() {
                 </div>
 
                 <div className="flex items-center gap-3 bg-neutral-950 border border-neutral-800 rounded-xl p-3">
-                  <input type="radio" name="scaleMode" value="RX" id="rxMode" defaultChecked className="accent-cyan-500 w-4 h-4" />
-                  <label htmlFor="rxMode" className="text-xs text-white font-bold mr-4">RX</label>
+                  <input type="radio" name="scaleMode" value="RX" id="rxMode" defaultChecked className="accent-cyan-500 w-4 h-4 cursor-pointer" />
+                  <label htmlFor="rxMode" className="text-xs text-white font-bold mr-4 cursor-pointer">RX</label>
                    
-                  <input type="radio" name="scaleMode" value="SCALED" id="scaledMode" className="accent-neutral-500 w-4 h-4" />
-                  <label htmlFor="scaledMode" className="text-xs text-white font-bold">Scaled</label>
+                  <input type="radio" name="scaleMode" value="SCALED" id="scaledMode" className="accent-neutral-500 w-4 h-4 cursor-pointer" />
+                  <label htmlFor="scaledMode" className="text-xs text-white font-bold cursor-pointer">Scaled</label>
                 </div>
 
-                <button type="submit" className="w-full py-3.5 bg-cyan-600 hover:bg-cyan-500 text-white font-bold rounded-2xl text-sm shadow-xl">
+                <button type="submit" className="w-full py-3.5 bg-cyan-600 hover:bg-cyan-500 text-white font-bold rounded-2xl text-sm shadow-xl cursor-pointer">
                   Publier sur le fil BoxWars (+15 pts ⚡)
                 </button>
               </form>
@@ -952,7 +995,7 @@ export default function App() {
                   <button 
                     type="button" 
                     onClick={() => setViewingProfileUser(null)} 
-                    className="absolute top-3 right-3 p-2 bg-black/60 hover:bg-black text-white rounded-full z-10 transition"
+                    className="absolute top-3 right-3 p-2 bg-black/60 hover:bg-black text-white rounded-full z-10 transition cursor-pointer"
                   >
                     <X className="w-4 h-4" />
                   </button>
@@ -986,7 +1029,7 @@ export default function App() {
                             await supabase.from('friend_requests').insert([{ sender_id: user.id, receiver_id: targetUserId, status: 'pending' }]);
                             fetchFriendRequests(user.id);
                           }}
-                          className="flex-1 py-2.5 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-xl text-xs shadow-lg transition"
+                          className="flex-1 py-2.5 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-xl text-xs shadow-lg transition cursor-pointer"
                         >
                           Ajouter en ami 🤝
                         </button>
@@ -996,7 +1039,7 @@ export default function App() {
                             await supabase.from('friend_requests').delete().eq('id', friendship.id);
                             if (user) fetchFriendRequests(user.id);
                           }}
-                          className="flex-1 py-2.5 bg-neutral-800 hover:bg-red-500/20 hover:text-red-400 text-neutral-300 font-bold rounded-2xl text-xs border border-neutral-700 transition"
+                          className="flex-1 py-2.5 bg-neutral-800 hover:bg-red-500/20 hover:text-red-400 text-neutral-300 font-bold rounded-2xl text-xs border border-neutral-700 transition cursor-pointer"
                         >
                           Retirer des amis ✓
                         </button>
@@ -1010,7 +1053,7 @@ export default function App() {
                             await supabase.from('friend_requests').update({ status: 'accepted' }).eq('id', friendship.id);
                             if (user) fetchFriendRequests(user.id);
                           }}
-                          className="flex-1 py-2.5 bg-green-600 hover:bg-green-500 text-white font-bold rounded-2xl text-xs shadow-lg transition"
+                          className="flex-1 py-2.5 bg-green-600 hover:bg-green-500 text-white font-bold rounded-2xl text-xs shadow-lg transition cursor-pointer"
                         >
                           Accepter la demande ✅
                         </button>
@@ -1022,7 +1065,7 @@ export default function App() {
                           handleOpenChatWithUser(viewingProfileUser);
                           handleTabChange('chat');
                         }}
-                        className="px-4 py-2.5 bg-neutral-800 hover:bg-neutral-700 text-white font-bold rounded-2xl text-xs border border-neutral-700 transition"
+                        className="px-4 py-2.5 bg-neutral-800 hover:bg-neutral-700 text-white font-bold rounded-2xl text-xs border border-neutral-700 transition cursor-pointer"
                       >
                         Message 💬
                       </button>
@@ -1061,9 +1104,9 @@ export default function App() {
         })()}
 
         <nav className="sticky bottom-0 left-0 right-0 z-40 bg-neutral-950/95 backdrop-blur-xl border-t border-neutral-800 px-2 py-2 flex justify-around items-center">
-          <button onClick={() => handleTabChange('feed')} className={`flex flex-col items-center gap-1 transition active:scale-95 ${currentTab === 'feed' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Home className="w-5 h-5" /><span className="text-[10px]">Accueil</span></button>
-          <button onClick={() => handleTabChange('leaderboard')} className={`flex flex-col items-center gap-1 transition active:scale-95 ${currentTab === 'leaderboard' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Trophy className="w-5 h-5" /><span className="text-[10px]">Ligue</span></button>
-          <button onClick={() => handleTabChange('boxwars')} className={`flex flex-col items-center gap-1 transition active:scale-95 ${currentTab === 'boxwars' ? 'text-cyan-400 font-bold' : 'text-neutral-500'}`}>
+          <button onClick={() => handleTabChange('feed')} className={`flex flex-col items-center gap-1 transition active:scale-95 cursor-pointer ${currentTab === 'feed' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Home className="w-5 h-5" /><span className="text-[10px]">Accueil</span></button>
+          <button onClick={() => handleTabChange('leaderboard')} className={`flex flex-col items-center gap-1 transition active:scale-95 cursor-pointer ${currentTab === 'leaderboard' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Trophy className="w-5 h-5" /><span className="text-[10px]">Ligue</span></button>
+          <button onClick={() => handleTabChange('boxwars')} className={`flex flex-col items-center gap-1 transition active:scale-95 cursor-pointer ${currentTab === 'boxwars' ? 'text-cyan-400 font-bold' : 'text-neutral-500'}`}>
             <Zap className="w-5 h-5" />
             <span className="text-[10px]">BoxWars</span>
           </button>
@@ -1078,14 +1121,14 @@ export default function App() {
                 setIsPostModalOpen(true);
               }
             }} 
-            className="flex flex-col items-center justify-center w-12 h-12 rounded-full bg-orange-600 hover:bg-orange-500 text-white shadow-lg transition transform hover:scale-105 active:scale-95 -mt-3"
+            className="flex flex-col items-center justify-center w-12 h-12 rounded-full bg-orange-600 hover:bg-orange-500 text-white shadow-lg transition transform hover:scale-105 active:scale-95 -mt-3 cursor-pointer"
           >
             <Plus className="w-6 h-6 stroke-[3]" />
           </button>
 
-          <button onClick={() => handleTabChange('buddy')} className={`flex flex-col items-center gap-1 transition active:scale-95 ${currentTab === 'buddy' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Users className="w-5 h-5" /><span className="text-[10px]">Buddies</span></button>
-          <button onClick={() => handleTabChange('chat')} className={`flex flex-col items-center gap-1 transition active:scale-95 ${currentTab === 'chat' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><MessageCircle className="w-5 h-5" /><span className="text-[10px]" data-testid="chat-label">Chat</span></button>
-          <button onClick={() => handleTabChange('profile')} className={`flex flex-col items-center gap-1 transition active:scale-95 ${currentTab === 'profile' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><User className="w-5 h-5" /><span className="text-[10px]">Profil</span></button>
+          <button onClick={() => handleTabChange('buddy')} className={`flex flex-col items-center gap-1 transition active:scale-95 cursor-pointer ${currentTab === 'buddy' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Users className="w-5 h-5" /><span className="text-[10px]">Buddies</span></button>
+          <button onClick={() => handleTabChange('chat')} className={`flex flex-col items-center gap-1 transition active:scale-95 cursor-pointer ${currentTab === 'chat' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><MessageCircle className="w-5 h-5" /><span className="text-[10px]" data-testid="chat-label">Chat</span></button>
+          <button onClick={() => handleTabChange('profile')} className={`flex flex-1 flex-col items-center gap-1 transition active:scale-95 cursor-pointer ${currentTab === 'profile' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><User className="w-5 h-5" /><span className="text-[10px]">Profil</span></button>
         </nav>
       </div>
     </div>
