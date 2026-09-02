@@ -1,4 +1,3 @@
-import { EXERCISE_DATABASE, ExerciseItem } from '../exercisesDatabase';
 import { useState } from 'react';
 import { Search, X, Dumbbell } from 'lucide-react';
 import { EXERCISE_DATABASE, ExerciseItem } from '../exercisesDatabase';
@@ -10,20 +9,17 @@ interface ExerciseSelectorModalProps {
 }
 
 const MUSCLE_FILTERS = ['Tous', 'Pectoraux', 'Dos', 'Jambes', 'Épaules', 'Bras', 'Full Body'];
-const EQUIPMENT_FILTERS = ['Tous', 'Barre', 'Haltères', 'Poids de corps', 'Machine', 'Poulie'];
 
 export default function ExerciseSelectorModal({ isOpen, onClose, onSelectExercise }: ExerciseSelectorModalProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedMuscle, setSelectedMuscle] = useState('Tous');
-  const [selectedEquipment, setSelectedEquipment] = useState('Tous');
 
   if (!isOpen) return null;
 
   const filteredExercises = EXERCISE_DATABASE.filter(ex => {
     const matchesSearch = ex.name.toLowerCase().includes(searchQuery.toLowerCase()) || ex.targetMuscle.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesMuscle = selectedMuscle === 'Tous' || ex.targetMuscle === selectedMuscle;
-    const matchesEq = selectedEquipment === 'Tous' || ex.equipment === selectedEquipment;
-    return matchesSearch && matchesMuscle && matchesEq;
+    return matchesSearch && matchesMuscle;
   });
 
   return (
