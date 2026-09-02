@@ -119,8 +119,10 @@ export default function App() {
   const afterFileInputRef = useRef<HTMLInputElement>(null);
   const postImageFileInputRef = useRef<HTMLInputElement>(null);
 
+  const [isActionMenuOpen, setIsActionMenuOpen] = useState(false); // NOUVEAU MENU D'ACTION GLOBAL
   const [isPostModalOpen, setIsPostModalOpen] = useState(false);
   const [isBoxWarsModalOpen, setIsBoxWarsModalOpen] = useState(false);
+  
   const [postSessionType, setPostSessionType] = useState('Musculation Full Body');
   const [postCaption, setPostCaption] = useState('');
   const [postHashtags] = useState('#fitpulse #workout');
@@ -1206,6 +1208,62 @@ export default function App() {
 
         </main>
 
+        {/* MODAL GLOBAL D'ACTION (LE NOUVEAU BOUTON "+") */}
+        {isActionMenuOpen && (
+          <div className="fixed inset-0 z-50 bg-black/90 flex items-end justify-center p-4 pb-24 sm:items-center animate-fadeIn" onClick={() => setIsActionMenuOpen(false)}>
+            <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-sm w-full p-6 space-y-5 shadow-2xl relative animate-slideUp" onClick={e => e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="font-extrabold text-lg text-white">Que veux-tu faire ?</h3>
+                <button type="button" onClick={() => setIsActionMenuOpen(false)} className="p-2 text-neutral-400 hover:text-white rounded-xl cursor-pointer bg-neutral-800/50 hover:bg-neutral-800 transition">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 gap-3">
+                <button 
+                  onClick={() => { setIsActionMenuOpen(false); setIsPostModalOpen(true); }}
+                  className="flex items-center gap-4 p-4 bg-neutral-950 border border-neutral-800 hover:border-orange-500 rounded-2xl transition cursor-pointer text-left group"
+                >
+                  <div className="w-12 h-12 rounded-full bg-orange-500/20 text-orange-500 flex items-center justify-center group-hover:scale-110 transition">
+                    <Flame className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-white">Partager une séance</h4>
+                    <p className="text-[11px] text-neutral-400">Muscu, Cardio, ou Galère du jour</p>
+                  </div>
+                </button>
+
+                <button 
+                  onClick={() => { setIsActionMenuOpen(false); setIsBoxWarsModalOpen(true); }}
+                  className="flex items-center gap-4 p-4 bg-neutral-950 border border-neutral-800 hover:border-cyan-500 rounded-2xl transition cursor-pointer text-left group"
+                >
+                  <div className="w-12 h-12 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center group-hover:scale-110 transition">
+                    <Zap className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-white">Score BoxWars</h4>
+                    <p className="text-[11px] text-neutral-400">Enregistrer un WOD ou un Challenge</p>
+                  </div>
+                </button>
+
+                <button 
+                  onClick={() => { setIsActionMenuOpen(false); handleTabChange('readiness'); }}
+                  className="flex items-center gap-4 p-4 bg-neutral-950 border border-neutral-800 hover:border-emerald-500 rounded-2xl transition cursor-pointer text-left group"
+                >
+                  <div className="w-12 h-12 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center group-hover:scale-110 transition">
+                    <BatteryCharging className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-white">Bilan / Récupération</h4>
+                    <p className="text-[11px] text-neutral-400">Faire le check-in de ta forme du jour</p>
+                  </div>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ANCIENS MODALS RESTANTS (Aucune fonctionnalité supprimée) */}
         {isPostModalOpen && (
           <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4">
             <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-sm w-full p-6 space-y-4 shadow-2xl">
@@ -1487,6 +1545,7 @@ export default function App() {
           );
         })()}
 
+        {/* NOUVELLE BARRE DE NAVIGATION (UX Standardisée) */}
         <nav className="sticky bottom-0 left-0 right-0 z-40 bg-neutral-950/95 backdrop-blur-xl border-t border-neutral-800 px-4 py-3 flex justify-around items-center">
           <button 
             onClick={() => handleTabChange('today')} 
@@ -1505,16 +1564,10 @@ export default function App() {
           </button>
            
           <button 
-            onClick={() => {
-              if (currentTab === 'boxwars') {
-                setIsBoxWarsModalOpen(true);
-              } else {
-                setIsPostModalOpen(true);
-              }
-            }} 
-            className="flex flex-col items-center justify-center w-11 h-11 rounded-full bg-orange-600 hover:bg-orange-500 text-white shadow-lg transition transform hover:scale-105 active:scale-95 -mt-3 cursor-pointer flex-shrink-0"
+            onClick={() => setIsActionMenuOpen(true)} 
+            className="flex flex-col items-center justify-center w-12 h-12 rounded-full bg-orange-600 hover:bg-orange-500 text-white shadow-[0_0_15px_rgba(234,88,12,0.3)] transition transform hover:scale-105 active:scale-95 -mt-4 cursor-pointer flex-shrink-0 z-50 border-[3px] border-neutral-950"
           >
-            <Plus className="w-5 h-5 stroke-[3]" />
+            <Plus className="w-6 h-6 stroke-[3]" />
           </button>
 
           <button 
