@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { 
   Play, Pause, Square, MapPin, Volume2, VolumeX, 
   Compass, Apple, Droplet, Zap, Navigation, LocateFixed 
@@ -10,15 +10,17 @@ import GearTrackerSection from './GearTrackerSection';
 
 const runnerIcon = L.divIcon({
   className: 'custom-runner-marker',
-  html: `<div style="width: 18px; height: 18px; background: #10b981; border: 3px solid #ffffff; border-radius: 50%; box-shadow: 0 0 14px #10b981;"></div>`,
-  iconSize: [18, 18],
-  iconAnchor: [9, 9]
+  html: `<div style="width: 20px; height: 20px; background: #10b981; border: 4px solid #ffffff; border-radius: 50%; box-shadow: 0 0 16px #10b981, 0 0 4px rgba(0,0,0,0.8);"></div>`,
+  iconSize: [20, 20],
+  iconAnchor: [10, 10]
 });
 
-function MapAutoCentering({ center }: { center: [number, number] }) {
+// Contrôleur pour recentrer et redimensionner la carte dynamiquement
+function MapController({ center }: { center: [number, number] }) {
   const map = useMap();
   useEffect(() => {
-    map.panTo(center, { animate: true, duration: 0.5 });
+    map.invalidateSize();
+    map.setView(center, map.getZoom(), { animate: true });
   }, [center, map]);
   return null;
 }
@@ -60,15 +62,19 @@ export default function RunningTab({
   const [intensity, setIntensity] = useState<'modere' | 'soutenu' | 'maximal'>('soutenu');
   const [bodyWeight, setBodyWeight] = useState<number>(70);
 
-  const updateGpsPosition = () => {
+  const lastPositionRef = useRef<[number, number]>([50.505, 3.325]);
+
+  // Initialisation et centrage sur la position réelle
+  const fetchInitialPosition = () => {
     if ('geolocation' in navigator) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
           const lat = position.coords.latitude;
           const lng = position.coords.longitude;
-          const newCoord: [number, number] = [lat, lng];
-          setCurrentPosition(newCoord);
-          setRoutePositions(prev => [...prev, newCoord]);
+          const coord: [number, number] = [lat, lng];
+          setCurrentPosition(coord);
+          lastPositionRef.current = coord;
+          setRoutePositions([coord]);
         },
         (error) => console.warn("GPS non disponible :", error.message),
         { enableHighAccuracy: true }
@@ -77,9 +83,10 @@ export default function RunningTab({
   };
 
   useEffect(() => {
-    updateGpsPosition();
+    fetchInitialPosition();
   }, []);
 
+  // Suivi GPS stable : ajoute les points uniquement en avançant (pas de retour en arrière)
   useEffect(() => {
     let interval: any = null;
     let watchId: number | null = null;
@@ -96,8 +103,16 @@ export default function RunningTab({
             const lat = position.coords.latitude;
             const lng = position.coords.longitude;
             const newPos: [number, number] = [lat, lng];
-            setCurrentPosition(newPos);
-            setRoutePositions(prev => [...prev, newPos]);
+
+            // Vérifier si la position a réellement changé pour éviter les micro-saccades
+            const last = lastPositionRef.current;
+            const distanceMoved = Math.hypot(newPos[0] - last[0], newPos[1] - last[1]);
+
+            if (distanceMoved > 0.00001) {
+              lastPositionRef.current = newPos;
+              setCurrentPosition(newPos);
+              setRoutePositions(prev => [...prev, newPos]); // Accumule le parcours sans reculer
+            }
           },
           (error) => console.error(error),
           { enableHighAccuracy: true, maximumAge: 3000, timeout: 5000 }
@@ -127,7 +142,7 @@ export default function RunningTab({
     setIsPaused(false);
     setSeconds(0);
     setDistanceKm(0);
-    updateGpsPosition();
+    fetchInitialPosition();
   };
 
   const handlePauseRun = () => setIsPaused(!isPaused);
@@ -153,6 +168,7 @@ export default function RunningTab({
 
   return (
     <div className="space-y-6 pb-24 animate-fadeIn">
+      {/* En-tête de section moderne */}
       <div className="bg-gradient-to-r from-neutral-900 via-neutral-900 to-orange-950/35 border border-neutral-800 rounded-3xl p-6 shadow-2xl relative overflow-hidden">
         <div className="absolute -right-6 -bottom-6 w-32 h-32 bg-orange-500/10 rounded-full blur-3xl pointer-events-none" />
         <div className="relative z-10 flex items-center justify-between">
@@ -163,7 +179,7 @@ export default function RunningTab({
             <h2 className="text-xl font-black text-white tracking-tight">GPS, Carte Live & Nutrition</h2>
           </div>
           <button 
-            onClick={updateGpsPosition}
+            onClick={fetchInitialPosition}
             className="flex items-center gap-1.5 text-xs font-bold bg-neutral-950/90 border border-neutral-800 px-3.5 py-2 rounded-xl text-emerald-400 hover:bg-neutral-800 transition shadow-inner cursor-pointer"
           >
             <LocateFixed className="w-4 h-4 animate-pulse" /> Ma Position
@@ -171,13 +187,14 @@ export default function RunningTab({
         </div>
       </div>
 
-      <div className="bg-neutral-900 border border-neutral-800/80 rounded-3xl p-6 space-y-4 shadow-xl">
-        <div className="flex items-center justify-between">
+      {/* Carte GPS prenant tout le cadre avec suivi et marqueur */}
+      <div className="bg-neutral-900 border border-neutral-800/80 rounded-3xl p-4 sm:p-6 space-y-4 shadow-xl">
+        <div className="flex items-center justify-between px-1">
           <h3 className="text-xs font-black text-white flex items-center gap-2 uppercase tracking-wider">
             <Navigation className="w-4 h-4 text-emerald-400 animate-pulse" /> Carte Live & Tracé Route
           </h3>
           <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1 rounded-full">
-            {isRunning ? 'GPS Actif (Suivi Auto...)' : 'Prêt à démarrer'}
+            {isRunning ? 'Enregistrement actif...' : 'Prêt à démarrer'}
           </span>
         </div>
 
@@ -186,22 +203,29 @@ export default function RunningTab({
             center={currentPosition} 
             zoom={16} 
             scrollWheelZoom={true}
-            style={{ width: '100%', height: '100%', background: '#1a1a1a' }}
+            style={{ width: '100%', height: '100%', background: '#0a0a0a' }}
           >
-            <MapAutoCentering center={currentPosition} />
+            <MapController center={currentPosition} />
             <TileLayer
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
             <Polyline 
               positions={routePositions} 
-              pathOptions={{ color: '#10b981', weight: 5, opacity: 0.9 }} 
+              pathOptions={{ color: '#10b981', weight: 6, opacity: 0.95, lineCap: 'round', lineJoin: 'round' }} 
             />
             <Marker position={currentPosition} icon={runnerIcon} />
           </MapContainer>
+
+          {/* Badge position GPS en temps réel sur la carte */}
+          <div className="absolute bottom-3 left-3 z-[1000] bg-neutral-950/90 border border-neutral-800 backdrop-blur px-3 py-1.5 rounded-xl text-[10px] text-emerald-400 font-mono flex items-center gap-2 shadow-lg">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+            <span>Lat: {currentPosition[0].toFixed(4)}° N, Lng: {currentPosition[1].toFixed(4)}° E</span>
+          </div>
         </div>
       </div>
 
+      {/* Module GPS / Tracker Live */}
       <div className="bg-neutral-900 border border-neutral-800/80 rounded-3xl p-6 space-y-5 shadow-xl">
         <div className="flex items-center justify-between">
           <h3 className="text-xs font-black text-white flex items-center gap-2 uppercase tracking-wider">
@@ -257,6 +281,7 @@ export default function RunningTab({
         </div>
       </div>
 
+      {/* Planificateur de Ravitaillement Intégré */}
       <div className="bg-neutral-900 border border-neutral-800/80 rounded-3xl p-6 space-y-5 shadow-xl">
         <div className="flex items-center gap-2 text-orange-400 font-bold text-xs uppercase tracking-widest">
           <Zap className="w-4 h-4" /> Planificateur de Ravitaillement
