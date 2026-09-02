@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, ChangeEvent, FormEvent } from 'react';
 import {
-  Zap, User, MessageCircle, Home, Users, Plus, X, Camera, Flame, MapPin, Trophy, Navigation, Calendar, Skull, BatteryCharging, ArrowRight, Activity, Sparkles
+  Zap, User, MessageCircle, Home, Users, Plus, X, Camera, Flame, MapPin, Trophy, Navigation, Calendar, Skull, BatteryCharging, ArrowRight, Activity, Sparkles, Play, Dumbbell, Settings
 } from 'lucide-react';
 import { createClient, User as SupabaseUser } from '@supabase/supabase-js';
 
@@ -119,10 +119,14 @@ export default function App() {
   const afterFileInputRef = useRef<HTMLInputElement>(null);
   const postImageFileInputRef = useRef<HTMLInputElement>(null);
 
-  const [isActionMenuOpen, setIsActionMenuOpen] = useState(false); // NOUVEAU MENU D'ACTION GLOBAL
+  const [isActionMenuOpen, setIsActionMenuOpen] = useState(false);
   const [isPostModalOpen, setIsPostModalOpen] = useState(false);
   const [isBoxWarsModalOpen, setIsBoxWarsModalOpen] = useState(false);
   
+  // NOUVEAUX ÉTATS POUR LES SOUS-MENUS DU DASHBOARD (LA BOÎTE À OUTILS)
+  const [isGymLogOpen, setIsGymLogOpen] = useState(false);
+  const [isWodGeneratorOpen, setIsWodGeneratorOpen] = useState(false);
+
   const [postSessionType, setPostSessionType] = useState('Musculation Full Body');
   const [postCaption, setPostCaption] = useState('');
   const [postHashtags] = useState('#fitpulse #workout');
@@ -715,8 +719,9 @@ export default function App() {
         <main className="flex-1 w-full mx-auto px-4 py-3 pb-32 space-y-3">
           {currentTab === 'running' && <OfflineRunGuard currentUserId={user?.id} />}
 
+          {/* DÉBUT DU NOUVEAU DASHBOARD NETTOYÉ */}
           {currentTab === 'today' && (
-            <div className="space-y-4 animate-fadeIn pb-12">
+            <div className="space-y-6 animate-fadeIn pb-12">
               <OnboardingGuide />
 
               {inTaperingWeek && (
@@ -726,15 +731,17 @@ export default function App() {
                   </span>
                   <h3 className="text-base font-black text-white pt-2">Objectif Marathon en approche</h3>
                   <p className="text-xs text-neutral-400">
-                    Volume réduit, préservation des fibres musculaires et remplissage des stocks de glycogène (Carbo-Loading).
+                    Volume réduit, préservation des fibres musculaires et remplissage des stocks de glycogène.
                   </p>
                 </div>
               )}
 
-              <div className="bg-gradient-to-br from-neutral-900 via-neutral-900 to-orange-950/40 border border-neutral-800 rounded-3xl p-6 shadow-2xl relative overflow-hidden space-y-4">
+              {/* 1. CARTE MAÎTRE : LA "NEXT BEST ACTION" (Ultra Focus) */}
+              <div className="bg-gradient-to-br from-neutral-900 via-neutral-900 to-orange-950/40 border border-orange-500/30 rounded-[2rem] p-6 shadow-2xl relative overflow-hidden">
                 <div className="absolute -right-8 -top-8 w-36 h-36 bg-orange-500/10 rounded-full blur-3xl pointer-events-none" />
                 
-                <div className="flex items-center justify-between relative z-10">
+                {/* En-tête du flux */}
+                <div className="flex items-center justify-between relative z-10 mb-4">
                   <div className="flex items-center gap-2">
                     <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
                     <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400">
@@ -746,39 +753,39 @@ export default function App() {
                   </span>
                 </div>
 
-                <div className="relative z-10 space-y-1">
-                  <h2 className="text-xl font-black text-white tracking-tight">
-                    Bonjour, {currentUsername} !
+                {/* Accroche principale */}
+                <div className="relative z-10 space-y-1 mb-6">
+                  <h2 className="text-2xl font-black text-white tracking-tight">
+                    Prêt pour ta séance ?
                   </h2>
                   <p className="text-xs text-neutral-300 leading-relaxed">
-                    {inTaperingWeek 
-                      ? "⚡ Semaine d'affûtage en cours. Volume réduit, privilégie l'intensité modérée."
-                      : "Ton organisme est prêt pour ta prochaine session hybride."}
+                    Ton organisme a bien récupéré. Feu vert pour une session active aujourd'hui.
                   </p>
                 </div>
 
-                <div className="pt-2 relative z-10">
-                  <div className="bg-neutral-950/80 border border-neutral-800/80 rounded-2xl p-4 flex items-center justify-between shadow-inner">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-orange-500/20 text-orange-500 flex items-center justify-center flex-shrink-0">
-                        <Navigation className="w-5 h-5" />
+                {/* Bouton d'Action Directe (La "Next Best Action") */}
+                <div className="relative z-10">
+                  <div className="bg-neutral-950/90 border border-orange-500/50 rounded-2xl p-5 flex flex-col gap-4 shadow-[0_8px_30px_rgba(0,0,0,0.5)]">
+                    <div className="flex items-center gap-3.5">
+                      <div className="w-12 h-12 rounded-xl bg-orange-500/20 text-orange-500 flex items-center justify-center flex-shrink-0">
+                        <Navigation className="w-6 h-6" />
                       </div>
                       <div>
-                        <span className="text-[10px] uppercase font-bold text-neutral-400 block">Séance Recommandée</span>
-                        <span className="text-xs font-black text-white">Mode Running & Stratégie GPS</span>
+                        <span className="text-[10px] uppercase font-black tracking-widest text-orange-400 block mb-0.5">Objectif du jour</span>
+                        <span className="text-sm font-black text-white">Footing Actif & Stratégie Gels (6 km)</span>
                       </div>
                     </div>
                     <button 
                       onClick={() => handleTabChange('running')}
-                      className="px-4 py-2.5 bg-orange-600 hover:bg-orange-500 text-white rounded-xl text-xs font-black flex items-center gap-1.5 transition shadow-lg cursor-pointer"
+                      className="w-full py-4 bg-orange-600 hover:bg-orange-500 text-white rounded-xl text-sm font-black flex items-center justify-center gap-2 transition shadow-[0_0_20px_rgba(234,88,12,0.4)] cursor-pointer"
                     >
-                      Lancer <ArrowRight className="w-3.5 h-3.5" />
+                      Lancer l'entraînement <Play className="w-4 h-4 fill-current" />
                     </button>
                   </div>
                 </div>
               </div>
 
-              {/* ANNONCE PROCHAINE MISE À JOUR : COACH FITBOT */}
+              {/* 2. ANNONCE PROCHAINE MISE À JOUR : COACH FITBOT */}
               <div className="bg-gradient-to-r from-cyan-950/60 via-neutral-900 to-neutral-900 border border-cyan-500/40 rounded-3xl p-4 flex items-center gap-3.5 shadow-lg relative overflow-hidden">
                 <div className="absolute right-0 top-0 w-28 h-28 bg-cyan-500/10 rounded-full blur-2xl pointer-events-none" />
                 <div className="w-10 h-10 rounded-2xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center flex-shrink-0 border border-cyan-500/30 animate-pulse">
@@ -795,68 +802,31 @@ export default function App() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div 
-                  onClick={() => handleTabChange('running')}
-                  className="bg-neutral-900 hover:bg-neutral-800/80 border border-neutral-800 p-4 rounded-3xl space-y-2 cursor-pointer transition shadow-lg"
-                >
-                  <div className="w-7 h-7 rounded-lg bg-cyan-500/20 text-cyan-400 flex items-center justify-center">
-                    <Zap className="w-3.5 h-3.5" />
-                  </div>
-                  <div>
-                    <h4 className="text-xs font-bold text-white">Ravitaillement</h4>
-                    <p className="text-[10px] text-neutral-400">Planificateur & Gels actifs</p>
-                  </div>
-                </div>
-
-                <div 
-                  onClick={() => handleTabChange('readiness')}
-                  className="bg-neutral-900 hover:bg-neutral-800/80 border border-neutral-800 p-4 rounded-3xl space-y-2 cursor-pointer transition shadow-lg"
-                >
-                  <div className="w-7 h-7 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
-                    <BatteryCharging className="w-3.5 h-3.5" />
-                  </div>
-                  <div>
-                    <h4 className="text-xs font-bold text-white">Check-in Récup</h4>
-                    <p className="text-[10px] text-neutral-400">Indice de charge et plan</p>
-                  </div>
+              {/* 3. LA BOÎTE À OUTILS (Sous-menus pour garder l'accueil clean) */}
+              <div className="pt-2">
+                <h3 className="text-[10px] font-black uppercase tracking-widest text-neutral-500 mb-3 ml-2 flex items-center gap-2">
+                  <Settings className="w-3.5 h-3.5" /> Boîte à outils
+                </h3>
+                <div className="grid grid-cols-2 gap-2.5">
+                  <button onClick={() => setIsGymLogOpen(true)} className="bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 p-4 rounded-2xl flex flex-col gap-2.5 items-start transition cursor-pointer">
+                    <Dumbbell className="w-5 h-5 text-neutral-400" />
+                    <span className="text-xs font-bold text-neutral-200">Carnet Muscu</span>
+                  </button>
+                  <button onClick={() => setIsWodGeneratorOpen(true)} className="bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 p-4 rounded-2xl flex flex-col gap-2.5 items-start transition cursor-pointer">
+                    <Flame className="w-5 h-5 text-neutral-400" />
+                    <span className="text-xs font-bold text-neutral-200">WOD Generator</span>
+                  </button>
+                  <button onClick={() => handleTabChange('running')} className="bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 p-4 rounded-2xl flex flex-col gap-2.5 items-start transition cursor-pointer">
+                    <Zap className="w-5 h-5 text-neutral-400" />
+                    <span className="text-xs font-bold text-neutral-200">Ravitaillement</span>
+                  </button>
+                  <button onClick={() => handleTabChange('paces')} className="bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 p-4 rounded-2xl flex flex-col gap-2.5 items-start transition cursor-pointer">
+                    <Activity className="w-5 h-5 text-neutral-400" />
+                    <span className="text-xs font-bold text-neutral-200">Calculateur Allures</span>
+                  </button>
                 </div>
               </div>
 
-              <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-4 flex items-center justify-around">
-                <button 
-                  onClick={() => handleTabChange('boxwars')}
-                  className="flex flex-col items-center gap-1 text-neutral-400 hover:text-white text-[10px] font-bold transition cursor-pointer"
-                >
-                  <div className="w-8 h-8 rounded-full bg-neutral-950 border border-neutral-800 flex items-center justify-center text-cyan-400">
-                    <Flame className="w-4 h-4" />
-                  </div>
-                  BoxWars
-                </button>
-
-                <button 
-                  onClick={() => handleTabChange('buddy')}
-                  className="flex flex-col items-center gap-1 text-neutral-400 hover:text-white text-[10px] font-bold transition cursor-pointer"
-                >
-                  <div className="w-8 h-8 rounded-full bg-neutral-950 border border-neutral-800 flex items-center justify-center text-orange-400">
-                    <Users className="w-4 h-4" />
-                  </div>
-                  Match Partenaires
-                </button>
-
-                <button 
-                  onClick={() => handleTabChange('readiness')}
-                  className="flex flex-col items-center gap-1 text-neutral-400 hover:text-white text-[10px] font-bold transition cursor-pointer"
-                >
-                  <div className="w-8 h-8 rounded-full bg-neutral-950 border border-neutral-800 flex items-center justify-center text-emerald-400">
-                    <Activity className="w-4 h-4" />
-                  </div>
-                  Plan & Roadbook
-                </button>
-              </div>
-
-              <WodGenerator />
-              <GymLogTab currentUserId={user?.id} onStartRestTimer={() => handleTabChange('rest_timer')} />
             </div>
           )}
 
@@ -1205,7 +1175,6 @@ export default function App() {
               }} 
             />
           )}
-
         </main>
 
         {/* MODAL GLOBAL D'ACTION (LE NOUVEAU BOUTON "+") */}
@@ -1263,7 +1232,41 @@ export default function App() {
           </div>
         )}
 
-        {/* ANCIENS MODALS RESTANTS (Aucune fonctionnalité supprimée) */}
+        {/* MODAL : CARNET DE MUSCULATION (Caché du dashboard, ouvert depuis la boîte à outils) */}
+        {isGymLogOpen && (
+          <div className="fixed inset-0 z-50 bg-black/95 flex flex-col animate-fadeIn">
+            <div className="flex items-center justify-between p-4 border-b border-neutral-800 bg-neutral-900">
+              <div className="flex items-center gap-2 text-white font-black">
+                <Dumbbell className="w-5 h-5 text-orange-500" /> Carnet de Musculation
+              </div>
+              <button type="button" onClick={() => setIsGymLogOpen(false)} className="p-2 text-neutral-400 hover:text-white rounded-xl bg-neutral-800 transition cursor-pointer">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4 bg-neutral-950">
+              <GymLogTab currentUserId={user?.id} onStartRestTimer={() => { setIsGymLogOpen(false); handleTabChange('rest_timer'); }} />
+            </div>
+          </div>
+        )}
+
+        {/* MODAL : GÉNÉRATEUR DE WOD (Caché du dashboard, ouvert depuis la boîte à outils) */}
+        {isWodGeneratorOpen && (
+          <div className="fixed inset-0 z-50 bg-black/95 flex flex-col animate-fadeIn">
+            <div className="flex items-center justify-between p-4 border-b border-neutral-800 bg-neutral-900">
+              <div className="flex items-center gap-2 text-white font-black">
+                <Flame className="w-5 h-5 text-cyan-400" /> Générateur de WOD
+              </div>
+              <button type="button" onClick={() => setIsWodGeneratorOpen(false)} className="p-2 text-neutral-400 hover:text-white rounded-xl bg-neutral-800 transition cursor-pointer">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4 bg-neutral-950">
+              <WodGenerator />
+            </div>
+          </div>
+        )}
+
+        {/* MODAL : POSTER UNE SÉANCE */}
         {isPostModalOpen && (
           <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4">
             <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-sm w-full p-6 space-y-4 shadow-2xl">
@@ -1315,6 +1318,7 @@ export default function App() {
           </div>
         )}
 
+        {/* MODAL : SCORE BOXWARS */}
         {isBoxWarsModalOpen && (
           <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4">
             <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-sm w-full p-6 space-y-4 shadow-2xl">
@@ -1414,6 +1418,7 @@ export default function App() {
           </div>
         )}
 
+        {/* MODAL : PROFIL D'UN UTILISATEUR */}
         {viewingProfileUser && (() => {
           const targetUserId = viewingProfileUser.id;
           const isSelf = user?.id === targetUserId;
