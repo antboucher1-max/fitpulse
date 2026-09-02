@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { 
   Play, Pause, Square, MapPin, Volume2, VolumeX, 
-  Compass, Apple, Droplet, Zap, Navigation, LocateFixed, Activity, Gauge, Timer, Target 
+  Compass, Apple, Droplet, Zap, Navigation, LocateFixed, Activity, Gauge, Timer, Target, Radio 
 } from 'lucide-react';
 import { MapContainer, TileLayer, Polyline, Marker, useMap } from 'react-leaflet';
 import L from 'leaflet';
@@ -110,12 +110,12 @@ export default function RunningTab({
       interval = setInterval(() => {
         setSeconds(s => {
           const newSecs = s + 1;
-          
+           
           // Analyse de l'allure par rapport à la cible toutes les minutes
           if (newSecs > 0 && newSecs % 60 === 0 && distanceKm > 0) {
             const currentSecPerKm = newSecs / distanceKm;
             const diff = currentSecPerKm - targetPaceSecs; 
-            
+             
             let coachingText = `Point course : ${distanceKm.toFixed(2)} kilomètres. `;
             if (Math.abs(diff) < 15) {
               coachingText += "Allure parfaite, tu es dans les clous de ton objectif !";
@@ -160,6 +160,43 @@ export default function RunningTab({
     };
   }, [isRunning, isPaused, distanceKm, targetPaceSecs, audioCoaching]);
 
+  // Fonction de test pour le "Silent Club Broadcast" (Vibration + Alerte Sonore AirHorn)
+  const triggerSilentBroadcastTest = () => {
+    if ('vibrate' in navigator) {
+      navigator.vibrate([200, 100, 400]);
+    }
+
+    try {
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      
+      const osc1 = audioContext.createOscillator();
+      const gain1 = audioContext.createGain();
+      osc1.type = 'sawtooth';
+      osc1.frequency.setValueAtTime(587.33, audioContext.currentTime); 
+      gain1.gain.setValueAtTime(0.15, audioContext.currentTime);
+      osc1.connect(gain1);
+      gain1.connect(audioContext.destination);
+      osc1.start();
+      osc1.stop(audioContext.currentTime + 0.15);
+
+      setTimeout(() => {
+        const osc2 = audioContext.createOscillator();
+        const gain2 = audioContext.createGain();
+        osc2.type = 'square';
+        osc2.frequency.setValueAtTime(880, audioContext.currentTime); 
+        gain2.gain.setValueAtTime(0.2, audioContext.currentTime);
+        osc2.connect(gain2);
+        gain2.connect(audioContext.destination);
+        osc2.start();
+        osc2.stop(audioContext.currentTime + 0.3);
+      }, 200);
+    } catch (e) {
+      console.warn("Audio context non supporté ou bloqué", e);
+    }
+
+    alert("📳 [Silent Broadcast] Un pote vient de t'envoyer un signal d'encouragement en direct ! (Vibration + Son)");
+  };
+
   const formatTime = (totalSecs: number) => {
     const mins = Math.floor(totalSecs / 60);
     const secs = totalSecs % 60;
@@ -197,7 +234,7 @@ export default function RunningTab({
   // Calculs d'allure et vitesse en temps réel
   const currentHours = seconds / 3600;
   const currentSpeedKmh = currentHours > 0 && distanceKm > 0 ? (distanceKm / currentHours).toFixed(1) : '0.0';
-  
+   
   let paceFormatted = '--:--';
   if (distanceKm > 0 && seconds > 0) {
     const totalSecPerKm = seconds / distanceKm;
@@ -373,6 +410,15 @@ export default function RunningTab({
             <span className="text-lg font-black text-white">{formatTime(seconds)}</span>
           </div>
         </div>
+
+        {/* Bouton de test du Silent Club Broadcast */}
+        <button 
+          type="button"
+          onClick={triggerSilentBroadcastTest}
+          className="w-full py-3 bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/40 text-emerald-400 font-extrabold rounded-2xl text-xs transition flex items-center justify-center gap-2 cursor-pointer shadow-lg"
+        >
+          <Radio className="w-4 h-4 animate-pulse" /> 📳 Tester le Silent Broadcast (Vibration + Son)
+        </button>
 
         <div className="flex gap-3 pt-2">
           {!isRunning ? (
