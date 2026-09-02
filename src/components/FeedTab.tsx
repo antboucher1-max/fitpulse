@@ -1,5 +1,5 @@
 import { useState, FormEvent } from 'react';
-import { Dumbbell, Heart, MessageCircle, Share2, ShieldCheck, Send, Sparkles } from 'lucide-react';
+import { Dumbbell, Heart, MessageCircle, Share2, ShieldCheck, Send, Sparkles, Navigation, Zap, Calendar } from 'lucide-react';
 
 interface FeedTabProps {
   posts: any[];
@@ -21,6 +21,7 @@ interface FeedTabProps {
   onStartRestTimer?: () => void;
   onSharePost?: (post: any) => void;
   onLikePost?: (postId: string, likedBy: string[]) => void;
+  onNavigateTab?: (tab: string) => void; // Prop pour changer de vue facilement
 }
 
 export default function FeedTab({
@@ -29,7 +30,8 @@ export default function FeedTab({
   onLikePost,
   onToggleLike,
   onAddComment,
-  onSharePost
+  onSharePost,
+  onNavigateTab
 }: FeedTabProps) {
   const [activeCommentPostId, setActiveCommentPostId] = useState<string | null>(null);
   const [commentInput, setCommentInput] = useState('');
@@ -66,6 +68,42 @@ export default function FeedTab({
             {posts.length} publications
           </span>
         </div>
+      </div>
+
+      {/* Barre d'accès rapide hybride (Running, BoxWars, Plan) */}
+      <div className="grid grid-cols-3 gap-3">
+        <button 
+          onClick={() => onNavigateTab && onNavigateTab('running')}
+          className="bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 hover:border-emerald-500/50 p-3.5 rounded-2xl flex flex-col items-center text-center transition group cursor-pointer shadow-lg"
+        >
+          <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center mb-2 group-hover:scale-110 transition">
+            <Navigation className="w-4 h-4" />
+          </div>
+          <span className="text-xs font-black text-white">Mode Running</span>
+          <span className="text-[10px] text-neutral-400">GPS & Allures</span>
+        </button>
+
+        <button 
+          onClick={() => onNavigateTab && onNavigateTab('boxwars')}
+          className="bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 hover:border-cyan-500/50 p-3.5 rounded-2xl flex flex-col items-center text-center transition group cursor-pointer shadow-lg"
+        >
+          <div className="w-8 h-8 rounded-xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center mb-2 group-hover:scale-110 transition">
+            <Zap className="w-4 h-4" />
+          </div>
+          <span className="text-xs font-black text-white">BoxWars</span>
+          <span className="text-[10px] text-neutral-400">WODs & Scores</span>
+        </button>
+
+        <button 
+          onClick={() => onNavigateTab && onNavigateTab('readiness')}
+          className="bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 hover:border-orange-500/50 p-3.5 rounded-2xl flex flex-col items-center text-center transition group cursor-pointer shadow-lg"
+        >
+          <div className="w-8 h-8 rounded-xl bg-orange-500/20 text-orange-400 flex items-center justify-center mb-2 group-hover:scale-110 transition">
+            <Calendar className="w-4 h-4" />
+          </div>
+          <span className="text-xs font-black text-white">Plan & Load</span>
+          <span className="text-[10px] text-neutral-400">Check-in fatigue</span>
+        </button>
       </div>
 
       {posts.length === 0 ? (
