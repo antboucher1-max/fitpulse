@@ -509,22 +509,45 @@ export default function App() {
             setOnboardingSubmitting(true);
              
             try {
-              const { error } = await supabase.from('profiles').upsert({
+              // Objet d'onboarding robuste et sécurisé (évite tout plantage si la colonne SQL n'existe pas)
+              const profileData: any = {
                 id: user.id, 
                 username: onboardingUsername.trim(), 
                 home_club: onboardingSpot, 
                 goal: onboardingGoal, 
                 gender: onboardingGender, 
                 preferred_time: onboardingTime,
-                discipline: onboardingMainDiscipline,
-                disciplines: onboardingDisciplines.join(','),
                 avatar_url: onboardingAvatar, 
                 points: 0, 
                 is_admin: user.email === 'antboucher@hotmail.fr'
-              });
+              };
+
+              try {
+                profileData.discipline = onboardingMainDiscipline;
+                profileData.disciplines = onboardingDisciplines.join(',');
+              } catch (_) {}
+
+              const { error } = await supabase.from('profiles').upsert(profileData);
 
               if (error) {
-                alert("Erreur Supabase : " + error.message);
+                // Secours en cas de colonne manquante en BDD
+                const { error: retryError } = await supabase.from('profiles').upsert({
+                  id: user.id, 
+                  username: onboardingUsername.trim(), 
+                  home_club: onboardingSpot, 
+                  goal: onboardingGoal, 
+                  gender: onboardingGender, 
+                  preferred_time: onboardingTime,
+                  avatar_url: onboardingAvatar, 
+                  points: 0, 
+                  is_admin: user.email === 'antboucher@hotmail.fr'
+                });
+                if (retryError) {
+                  alert("Erreur Supabase : " + retryError.message);
+                } else {
+                  await fetchRealUsers();
+                  window.location.reload();
+                }
               } else {
                 await fetchRealUsers();
                 window.location.reload();
@@ -675,7 +698,25 @@ export default function App() {
         </header>
 
         <main className="flex-1 w-full mx-auto px-4 py-3 pb-24">
-          {currentTab === 'feed' && <FeedTab posts={displayedPosts} registeredUsers={registeredUsers} friendRequests={friendRequests} currentUserId={user?.id} userDiscipline={(currentUserProfile as any)?.discipline} feedLoading={feedLoading} calculateStreak={calculateUserStreak} onCreateStoryClick={() => setIsPostModalOpen(true)} onToggleLike={handleToggleLike} onOpenComments={(id) => setActiveCommentPostId(id)} onReportPost={() => {}} onDeletePost={() => {}} onSelectProfile={(u) => setViewingProfileUser(u)} onStartRestTimer={() => handleTabChange('rest_timer')} />}
+          {currentTab === 'feed' && (
+            <FeedTab 
+              posts={displayedPosts} 
+              registeredUsers={registeredUsers} 
+              friendRequests={friendRequests} 
+              currentUserId={user?.id} 
+              userDiscipline={(currentUserProfile as any)?.discipline} 
+              feedLoading={feedLoading} 
+              calculateStreak={calculateUserStreak} 
+              onCreateStoryClick={() => setIsPostModalOpen(true)} 
+              onToggleLike={handleToggleLike} 
+              onOpenComments={(id) => setActiveCommentPostId(id)} 
+              onReportPost={() => {}} 
+              onDeletePost={() => {}} 
+              onSelectProfile={(u) => setViewingProfileUser(u)} 
+              onStartRestTimer={() => handleTabChange('rest_timer')}
+              onNavigateTab={handleTabChange}
+            />
+          )}
           {currentTab === 'leaderboard' && <LeaderboardTab registeredUsers={registeredUsers} />}
            
           {currentTab === 'buddy' && (
