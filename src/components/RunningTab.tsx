@@ -8,15 +8,15 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import GearTrackerSection from './GearTrackerSection';
 
-// Icône personnalisée pour le point GPS de l'athlète
+// Point lumineux vert pour représenter ta position GPS
 const runnerIcon = L.divIcon({
   className: 'custom-runner-marker',
-  html: `<div style="width: 16px; height: 16px; background: #10b981; border: 3px solid #ffffff; border-radius: 50%; box-shadow: 0 0 12px #10b981;"></div>`,
-  iconSize: [16, 16],
-  iconAnchor: [8, 8]
+  html: `<div style="width: 18px; height: 18px; background: #10b981; border: 3px solid #ffffff; border-radius: 50%; box-shadow: 0 0 14px #10b981, 0 0 4px #000000;"></div>`,
+  iconSize: [18, 18],
+  iconAnchor: [9, 9]
 });
 
-// Contrôleur pour suivre automatiquement la position GPS de l'utilisateur
+// Composant pour centrer automatiquement la carte sur la position GPS
 function MapAutoFollow({ center }: { center: [number, number] }) {
   const map = useMap();
   useEffect(() => {
@@ -52,7 +52,7 @@ export default function RunningTab({
   const [distanceKm, setDistanceKm] = useState(0);
   const [audioCoaching, setAudioCoaching] = useState(true);
 
-  // Position par défaut sur ta région (Brunehaut/Tournai)
+  // Position par défaut (région de Tournai / Brunehaut)
   const [currentPosition, setCurrentPosition] = useState<[number, number]>([50.505, 3.325]);
   const [routePositions, setRoutePositions] = useState<Array<[number, number]>>([
     [50.505, 3.325]
@@ -63,7 +63,7 @@ export default function RunningTab({
   const [intensity, setIntensity] = useState<'modere' | 'soutenu' | 'maximal'>('soutenu');
   const [bodyWeight, setBodyWeight] = useState<number>(70);
 
-  // Récupération initiale de la position GPS réelle
+  // Récupération de la position GPS réelle de l'appareil
   const updateGpsPosition = () => {
     if ('geolocation' in navigator) {
       navigator.geolocation.getCurrentPosition(
@@ -84,7 +84,7 @@ export default function RunningTab({
     updateGpsPosition();
   }, []);
 
-  // Suivi continu du GPS pendant la course
+  // Suivi GPS continu pendant l'effort
   useEffect(() => {
     let interval: any = null;
     let watchId: number | null = null;
@@ -158,12 +158,7 @@ export default function RunningTab({
 
   return (
     <div className="space-y-6 pb-24 animate-fadeIn">
-      <style>{`
-        .map-tiles-dark {
-          filter: brightness(0.6) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3);
-        }
-      `}</style>
-
+      {/* En-tête de section moderne */}
       <div className="bg-gradient-to-r from-neutral-900 via-neutral-900 to-orange-950/35 border border-neutral-800 rounded-3xl p-6 shadow-2xl relative overflow-hidden">
         <div className="absolute -right-6 -bottom-6 w-32 h-32 bg-orange-500/10 rounded-full blur-3xl pointer-events-none" />
         <div className="relative z-10 flex items-center justify-between">
@@ -182,6 +177,7 @@ export default function RunningTab({
         </div>
       </div>
 
+      {/* Vraie Carte GPS Sombre avec les Rues et le Marqueur de Position */}
       <div className="bg-neutral-900 border border-neutral-800/80 rounded-3xl p-6 space-y-4 shadow-xl">
         <div className="flex items-center justify-between">
           <h3 className="text-xs font-black text-white flex items-center gap-2 uppercase tracking-wider">
@@ -201,10 +197,15 @@ export default function RunningTab({
           >
             <MapAutoFollow center={currentPosition} />
             <TileLayer
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              attribution='&copy; <a href="https://carto.com/">CARTO</a>'
+              url="https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
               className="map-tiles-dark"
             />
+            <style>{`
+              .map-tiles-dark {
+                filter: brightness(0.25) invert(1) contrast(2) hue-rotate(200deg);
+              }
+            `}</style>
             <Polyline 
               positions={routePositions} 
               pathOptions={{ color: '#10b981', weight: 5, opacity: 0.9 }} 
@@ -214,6 +215,7 @@ export default function RunningTab({
         </div>
       </div>
 
+      {/* Module GPS / Tracker Live */}
       <div className="bg-neutral-900 border border-neutral-800/80 rounded-3xl p-6 space-y-5 shadow-xl">
         <div className="flex items-center justify-between">
           <h3 className="text-xs font-black text-white flex items-center gap-2 uppercase tracking-wider">
@@ -269,6 +271,7 @@ export default function RunningTab({
         </div>
       </div>
 
+      {/* Planificateur de Ravitaillement Intégré */}
       <div className="bg-neutral-900 border border-neutral-800/80 rounded-3xl p-6 space-y-5 shadow-xl">
         <div className="flex items-center gap-2 text-orange-400 font-bold text-xs uppercase tracking-widest">
           <Zap className="w-4 h-4" /> Planificateur de Ravitaillement
