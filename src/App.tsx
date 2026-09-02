@@ -87,7 +87,6 @@ const isMatchingClub = (postClubName?: string, selectedClubName?: string): boole
   return p === s || p.includes(s) || s.includes(p);
 };
 
-// Helper pour détecter si on est dans la semaine de tapering du marathon
 const isMarathonWeek = (targetMarathonDate?: string): boolean => {
   if (!targetMarathonDate) return false;
   const today = new Date().getTime();
@@ -105,7 +104,6 @@ export default function App() {
   const [isSignUpMode, setIsSignUpMode] = useState(false);
   const [acceptCgu, setAcceptCgu] = useState(false);
 
-  // REDESIGN UX : Réduction de la navigation principale à 3 onglets essentiels ('today', 'community', 'profile')
   const [currentTab, setCurrentTab] = useState<'today' | 'community' | 'profile' | 'feed' | 'buddy' | 'workout' | 'exercises' | 'chat' | 'calculator' | 'paces' | 'live_tracker' | 'rest_timer' | 'notifications' | 'leaderboard' | 'boxwars' | 'running' | 'readiness' | 'hall_of_fame'>(() => {
     const savedTab = localStorage.getItem('fitpulse_active_tab');
     return (savedTab as any) || 'today';
@@ -429,7 +427,6 @@ export default function App() {
 
   const isAdmin = currentUserProfile?.is_admin || user?.email === 'antboucher@hotmail.fr';
 
-  // Vérification de la semaine de tapering marathon
   const marathonDate = (currentUserProfile as any)?.next_marathon_date;
   const inTaperingWeek = isMarathonWeek(marathonDate);
 
@@ -716,7 +713,6 @@ export default function App() {
         <main className="flex-1 w-full mx-auto px-4 py-3 pb-32 space-y-3">
           {currentTab === 'running' && <OfflineRunGuard currentUserId={user?.id} />}
 
-          {/* DASHBOARD CONTEXTUEL ET INTELLIGENT ('TODAY') */}
           {currentTab === 'today' && (
             <div className="space-y-4 animate-fadeIn pb-12">
               <OnboardingGuide />
@@ -733,7 +729,6 @@ export default function App() {
                 </div>
               )}
 
-              {/* 1. CARTE MAÎTRE : LE CONTEXTE DU JOUR */}
               <div className="bg-gradient-to-br from-neutral-900 via-neutral-900 to-orange-950/40 border border-neutral-800 rounded-3xl p-6 shadow-2xl relative overflow-hidden space-y-4">
                 <div className="absolute -right-8 -top-8 w-36 h-36 bg-orange-500/10 rounded-full blur-3xl pointer-events-none" />
                 
@@ -781,7 +776,6 @@ export default function App() {
                 </div>
               </div>
 
-              {/* 2. TIMELINE DES BRIQUES CLÉS */}
               <div className="grid grid-cols-2 gap-3">
                 <div 
                   onClick={() => handleTabChange('running')}
@@ -810,7 +804,6 @@ export default function App() {
                 </div>
               </div>
 
-              {/* 3. RACCOURCIS RAPIDES VERS LES MODULES CLÉS */}
               <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-4 flex items-center justify-around">
                 <button 
                   onClick={() => handleTabChange('boxwars')}
@@ -848,7 +841,6 @@ export default function App() {
             </div>
           )}
 
-          {/* REDESIGN UX - ONGLET 'COMMUNITY' (FUSION FEED + LEADERBOARD + BUDDIES + HALL OF FAME) */}
           {currentTab === 'community' && (
             <div className="space-y-4 animate-fadeIn pb-12">
               <div className="flex gap-1.5 bg-neutral-900 p-1.5 rounded-2xl border border-neutral-800">
@@ -947,7 +939,6 @@ export default function App() {
             </div>
           )}
 
-          {/* VUE DÉDIÉE : HALL OF FAME DES GALÈRES (PAINS & GAINS) */}
           {currentTab === 'hall_of_fame' && (
             <div className="space-y-4 animate-fadeIn pb-12">
               <div className="flex gap-1.5 bg-neutral-900 p-1.5 rounded-2xl border border-neutral-800">
@@ -1479,7 +1470,6 @@ export default function App() {
           );
         })()}
 
-        {/* REDESIGN UX - NAVIGATION PRINCIPALE À 3 ONGLETS ESSENTIELS (+ BOUTON CENTRAL +) */}
         <nav className="sticky bottom-0 left-0 right-0 z-40 bg-neutral-950/95 backdrop-blur-xl border-t border-neutral-800 px-4 py-3 flex justify-around items-center">
           <button 
             onClick={() => handleTabChange('today')} 
