@@ -218,7 +218,6 @@ export default function App() {
     fetchUserShoes(user.id);
   };
 
-  // Fonction de sauvegarde de la VMA connectée au profil Supabase
   const handleSaveVma = async (newVma: number) => {
     if (!user) return;
     const { error } = await supabase
@@ -664,49 +663,15 @@ export default function App() {
             </h1>
           </div>
 
-          <div className="flex items-center gap-2">
-            <button 
-              onClick={() => handleTabChange('calculator')}
-              className={`p-2 rounded-xl text-xs font-bold transition cursor-pointer ${currentTab === 'calculator' ? 'bg-orange-500 text-neutral-950' : 'bg-neutral-900 text-orange-400 border border-orange-500/30'}`}
-              title="Calculateur 1RM"
-            >
-              1RM
-            </button>
-
-            <button 
-              onClick={() => handleTabChange('paces')}
-              className={`p-2 rounded-xl text-xs font-bold transition cursor-pointer ${currentTab === 'paces' ? 'bg-emerald-500 text-neutral-950' : 'bg-neutral-900 text-emerald-400 border border-emerald-500/30'}`}
-              title="Calculateur VMA"
-            >
-              VMA
-            </button>
-
-            <button 
-              onClick={() => handleTabChange('readiness')}
-              className={`p-2 rounded-xl text-xs font-bold transition cursor-pointer ${currentTab === 'readiness' ? 'bg-emerald-500 text-neutral-950' : 'bg-neutral-900 text-emerald-400 border border-emerald-500/30'}`}
-              title="Plan & Roadbook"
-            >
-              📅 Plan
-            </button>
-
-            <button 
-              onClick={() => handleTabChange(currentTab === 'running' ? 'feed' : 'running')}
-              className={`p-2 rounded-xl text-xs font-bold flex items-center gap-1 transition cursor-pointer ${currentTab === 'running' ? 'bg-emerald-500 text-neutral-950' : 'bg-neutral-900 text-emerald-400 border border-emerald-500/30'}`}
-              title="Mode Running"
-            >
-              <Navigation className="w-4 h-4" />
-            </button>
-
-            {currentTab !== 'boxwars' && currentTab !== 'running' && currentTab !== 'readiness' && currentTab !== 'paces' && (
-              <div className="relative flex items-center bg-neutral-900 border border-neutral-800 rounded-xl px-2.5 py-1.5">
-                <MapPin className="w-3.5 h-3.5 text-orange-500 mr-1.5 flex-shrink-0" />
-                <select value={selectedClub} onChange={(e) => setSelectedClub(e.target.value)} className="bg-transparent text-xs font-bold text-orange-400 focus:outline-none cursor-pointer pr-1">
-                  <option value="🌐 Tous les spots (Global)">🌐 Tous les spots (Global)</option>
-                  {allAvailableSpotsForUserDiscipline.map((spot) => <option key={spot} value={spot} className="bg-neutral-900 text-white">{spot}</option>)}
-                </select>
-              </div>
-            )}
-          </div>
+          {currentTab !== 'boxwars' && currentTab !== 'running' && currentTab !== 'readiness' && currentTab !== 'paces' && currentTab !== 'calculator' && (
+            <div className="relative flex items-center bg-neutral-900 border border-neutral-800 rounded-xl px-2.5 py-1.5">
+              <MapPin className="w-3.5 h-3.5 text-orange-500 mr-1.5 flex-shrink-0" />
+              <select value={selectedClub} onChange={(e) => setSelectedClub(e.target.value)} className="bg-transparent text-xs font-bold text-orange-400 focus:outline-none cursor-pointer pr-1">
+                <option value="🌐 Tous les spots (Global)">🌐 Tous les spots (Global)</option>
+                {allAvailableSpotsForUserDiscipline.map((spot) => <option key={spot} value={spot} className="bg-neutral-900 text-white">{spot}</option>)}
+              </select>
+            </div>
+          )}
         </header>
 
         <main className="flex-1 w-full mx-auto px-4 py-3 pb-24">
