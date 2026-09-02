@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { 
   Play, Pause, Square, MapPin, Volume2, VolumeX, 
-  Compass, Apple, Droplet, Zap, Navigation, LocateFixed, Activity, Gauge, Timer 
+  Compass, Apple, Droplet, Zap, Navigation, LocateFixed, Activity, Gauge, Timer, Target 
 } from 'lucide-react';
 import { MapContainer, TileLayer, Polyline, Marker, useMap } from 'react-leaflet';
 import L from 'leaflet';
@@ -54,6 +54,9 @@ export default function RunningTab({
   const [distanceKm, setDistanceKm] = useState(0);
   const [audioCoaching, setAudioCoaching] = useState(true);
 
+  // Objectif d'allure cible en secondes par kilomètre (Ex: 5'30" = 330 secondes)
+  const [targetPaceSecs, setTargetPaceSecs] = useState<number>(330); 
+
   const [currentPosition, setCurrentPosition] = useState<[number, number]>([50.505, 3.325]);
   const [routePositions, setRoutePositions] = useState<Array<[number, number]>>([
     [50.505, 3.325]
@@ -88,14 +91,44 @@ export default function RunningTab({
     fetchInitialPosition();
   }, []);
 
-  // Suivi GPS stable : ajoute les points uniquement en avançant
+  // Fonction de synthèse vocale intelligente
+  const speakMessage = (text: string) => {
+    if (!audioCoaching || !('speechSynthesis' in window)) return;
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'fr-FR';
+    utterance.rate = 1.0;
+    window.speechSynthesis.speak(utterance);
+  };
+
+  // Suivi GPS stable et Coaching Vocal périodique (toutes les 60 secondes)
   useEffect(() => {
     let interval: any = null;
     let watchId: number | null = null;
 
     if (isRunning && !isPaused) {
       interval = setInterval(() => {
-        setSeconds(s => s + 1);
+        setSeconds(s => {
+          const newSecs = s + 1;
+          
+          // Analyse de l'allure par rapport à la cible toutes les minutes
+          if (newSecs > 0 && newSecs % 60 === 0 && distanceKm > 0) {
+            const currentSecPerKm = newSecs / distanceKm;
+            const diff = currentSecPerKm - targetPaceSecs; 
+            
+            let coachingText = `Point course : ${distanceKm.toFixed(2)} kilomètres. `;
+            if (Math.abs(diff) < 15) {
+              coachingText += "Allure parfaite, tu es dans les clous de ton objectif !";
+            } else if (diff < -15) {
+              coachingText += "Attention, tu es au-dessus de ton allure cible, tu cours trop vite !";
+            } else {
+              coachingText += "Tu es en dessous de ton allure cible, relance un peu l'effort !";
+            }
+            speakMessage(coachingText);
+          }
+          return newSecs;
+        });
+
         setDistanceKm(d => Number((d + 0.0033).toFixed(2)));
       }, 1000);
 
@@ -125,7 +158,7 @@ export default function RunningTab({
       clearInterval(interval);
       if (watchId !== null) navigator.geolocation.clearWatch(watchId);
     };
-  }, [isRunning, isPaused]);
+  }, [isRunning, isPaused, distanceKm, targetPaceSecs, audioCoaching]);
 
   const formatTime = (totalSecs: number) => {
     const mins = Math.floor(totalSecs / 60);
@@ -144,13 +177,18 @@ export default function RunningTab({
     setSeconds(0);
     setDistanceKm(0);
     fetchInitialPosition();
+    speakMessage("Sortie démarrée. Bon entraînement hybride !");
   };
 
-  const handlePauseRun = () => setIsPaused(!isPaused);
+  const handlePauseRun = () => {
+    setIsPaused(!isPaused);
+    speakMessage(isPaused ? "Reprise de la course." : "Chrono en pause.");
+  };
 
   const handleStopRun = () => {
     setIsRunning(false);
     setIsPaused(false);
+    speakMessage("Séance terminée. Excellent travail !");
     if (distanceKm > 0 && onSaveRunPost) {
       onSaveRunPost(`[Running] Sortie de ${distanceKm} km en ${formatTime(seconds)} 🏃‍♂️`, distanceKm);
     }
@@ -293,6 +331,23 @@ export default function RunningTab({
             {audioCoaching ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
             {audioCoaching ? 'Coach Vocal Actif' : 'Muté'}
           </button>
+        </div>
+
+        {/* Paramétrage de l'allure cible pour le coach vocal */}
+        <div className="bg-neutral-950 p-3.5 rounded-2xl border border-neutral-800 flex items-center justify-between">
+          <span className="text-xs font-bold text-neutral-300 flex items-center gap-1.5">
+            <Target className="w-4 h-4 text-orange-400" /> Objectif d'allure cible :
+          </span>
+          <select 
+            value={targetPaceSecs}
+            onChange={(e) => setTargetPaceSecs(Number(e.target.value))}
+            className="bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-1.5 text-xs text-orange-400 font-bold focus:outline-none cursor-pointer"
+          >
+            <option value={270}>4'30" / km (Soutenu)</option>
+            <option value={300}>5'00" / km (Modéré+)</option>
+            <option value={330}>5'30" / km (Endurance active)</option>
+            <option value={360}>6'00" / km (Endurance cool)</option>
+          </select>
         </div>
 
         {/* Grille des 4 indicateurs clés : Distance, Vitesse (km/h), Allure (min/km), Chrono */}
