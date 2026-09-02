@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef, ChangeEvent, FormEvent } from 'react';
-import { Zap, User, MessageCircle, Home, Users, Plus, X, Camera, Flame, MapPin, Trophy, Navigation, Calendar, Skull, BatteryCharging, ArrowRight, Activity } from 'lucide-react';
+import {
+  Zap, User, MessageCircle, Home, Users, Plus, X, Camera, Flame, MapPin, Trophy, Navigation, Calendar, Skull, BatteryCharging, ArrowRight, Activity, Sparkles
+} from 'lucide-react';
 import { createClient, User as SupabaseUser } from '@supabase/supabase-js';
 
 import { 
@@ -771,6 +773,23 @@ export default function App() {
                       Lancer <ArrowRight className="w-3.5 h-3.5" />
                     </button>
                   </div>
+                </div>
+              </div>
+
+              {/* ANNONCE PROCHAINE MISE À JOUR : COACH FITBOT */}
+              <div className="bg-gradient-to-r from-cyan-950/60 via-neutral-900 to-neutral-900 border border-cyan-500/40 rounded-3xl p-4 flex items-center gap-3.5 shadow-lg relative overflow-hidden">
+                <div className="absolute right-0 top-0 w-28 h-28 bg-cyan-500/10 rounded-full blur-2xl pointer-events-none" />
+                <div className="w-10 h-10 rounded-2xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center flex-shrink-0 border border-cyan-500/30 animate-pulse">
+                  <Sparkles className="w-5 h-5" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <h4 className="text-xs font-black text-white">Prochainement sur FitPulse</h4>
+                    <span className="text-[9px] bg-cyan-500/20 text-cyan-400 font-extrabold px-2 py-0.5 rounded-md border border-cyan-500/30">Bientôt 🚀</span>
+                  </div>
+                  <p className="text-[11px] text-neutral-300 leading-snug pt-0.5">
+                    Arrivée imminente du <strong>Coach FitBot</strong> : tes conseils personnalisés en direct pour optimiser tes performances sportives et ta nutrition !
+                  </p>
                 </div>
               </div>
 
