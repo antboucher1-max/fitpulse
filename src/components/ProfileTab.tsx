@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, FormEvent, ChangeEvent, RefObject } from '
 import { User as SupabaseUser } from '@supabase/supabase-js';
 import { 
   ShieldCheck, MapPin, Camera, Key, LogOut, 
-  Dumbbell, Edit3, Check, X, Image as ImageIcon, AlertCircle, Trophy 
+  Dumbbell, Edit3, Check, X, Image as ImageIcon, AlertCircle, Trophy, Share2 
 } from 'lucide-react';
 import { RealUser, TransformationPhoto } from '../types';
 import BadgesSection from './BadgesSection';
@@ -90,6 +90,34 @@ export default function ProfileTab({
   const [activeSubSection, setActiveSubSection] = useState<'feed' | 'transformations' | 'settings'>('feed');
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // États pour les passerelles externes Strava & Garmin
+  const [isStravaConnected, setIsStravaConnected] = useState(false);
+  const [stravaSync, setStravaSync] = useState(true);
+  const [isGarminConnected, setIsGarminConnected] = useState(false);
+  const [garminSync, setGarminSync] = useState(true);
+
+  useEffect(() => {
+    setIsStravaConnected(localStorage.getItem('fitpulse_strava_connected') === 'true');
+    setStravaSync(localStorage.getItem('fitpulse_strava_sync') !== 'false');
+
+    setIsGarminConnected(localStorage.getItem('fitpulse_garmin_connected') === 'true');
+    setGarminSync(localStorage.getItem('fitpulse_garmin_sync') !== 'false');
+  }, []);
+
+  const toggleStrava = () => {
+    const nextState = !isStravaConnected;
+    setIsStravaConnected(nextState);
+    localStorage.setItem('fitpulse_strava_connected', String(nextState));
+    showToast(nextState ? 'Strava connecté avec succès' : 'Strava déconnecté');
+  };
+
+  const toggleGarmin = () => {
+    const nextState = !isGarminConnected;
+    setIsGarminConnected(nextState);
+    localStorage.setItem('fitpulse_garmin_connected', String(nextState));
+    showToast(nextState ? 'Garmin Connect connecté avec succès' : 'Garmin déconnecté');
+  };
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -215,6 +243,7 @@ export default function ProfileTab({
           <img src={currentBanner} alt="Bannière" className="w-full h-full object-cover" />
           <div className="absolute inset-0 bg-black/40 group-hover:bg-black/60 transition flex items-center justify-center opacity-0 group-hover:opacity-100">
             <button 
+              type="button"
               onClick={() => bannerFileInputRef.current?.click()}
               className="px-4 py-2 bg-black/80 hover:bg-black text-white text-xs font-bold rounded-xl flex items-center gap-2 backdrop-blur-md shadow-lg transition cursor-pointer"
             >
@@ -242,6 +271,7 @@ export default function ProfileTab({
           </div>
 
           <button 
+            type="button"
             onClick={() => setIsEditingProfile(true)}
             className="mt-4 px-4 py-2.5 bg-neutral-800 hover:bg-neutral-700 text-white font-bold rounded-2xl text-xs flex items-center gap-2 transition shadow-md cursor-pointer"
           >
@@ -274,27 +304,28 @@ export default function ProfileTab({
             </div>
           </div>
 
-          {/* Badges Section */}
           <div className="w-full mt-4 space-y-4">
             <BadgesSection userPosts={posts} userProfile={currentUserProfile} />
             <GearTrackerSection shoes={shoes} onAddShoe={onAddShoe} onDeleteShoe={onDeleteShoe} onSetActiveShoe={onSetActiveShoe} />
           </div>
 
-          {/* Sub-navigation tabs modernisées */}
           <div className="flex gap-2 w-full mt-6 bg-neutral-950 p-1.5 rounded-2xl border border-neutral-800">
             <button 
+              type="button"
               onClick={() => setActiveSubSection('feed')}
               className={`flex-1 py-3 rounded-xl text-xs font-bold transition cursor-pointer ${activeSubSection === 'feed' ? 'bg-orange-600 text-white shadow-lg' : 'text-neutral-400 hover:text-white'}`}
             >
               Publications
             </button>
             <button 
+              type="button"
               onClick={() => setActiveSubSection('transformations')}
               className={`flex-1 py-3 rounded-xl text-xs font-bold transition cursor-pointer ${activeSubSection === 'transformations' ? 'bg-orange-600 text-white shadow-lg' : 'text-neutral-400 hover:text-white'}`}
             >
               Transformations
             </button>
             <button 
+              type="button"
               onClick={() => setActiveSubSection('settings')}
               className={`flex-1 py-3 rounded-xl text-xs font-bold transition cursor-pointer ${activeSubSection === 'settings' ? 'bg-orange-600 text-white shadow-lg' : 'text-neutral-400 hover:text-white'}`}
             >
@@ -312,7 +343,7 @@ export default function ProfileTab({
               <h3 className="font-black text-sm text-white flex items-center gap-2">
                 <Edit3 className="w-4 h-4 text-orange-500" /> Modifier mon profil
               </h3>
-              <button onClick={() => setIsEditingProfile(false)} className="p-2 text-neutral-400 hover:text-white rounded-xl cursor-pointer">
+              <button type="button" onClick={() => setIsEditingProfile(false)} className="p-2 text-neutral-400 hover:text-white rounded-xl cursor-pointer">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -340,7 +371,7 @@ export default function ProfileTab({
                 <select 
                   value={editClub} 
                   onChange={(e) => setEditClub(e.target.value)} 
-                  className="w-full bg-neutral-950 border border-neutral-800 rounded-2xl px-4 py-3 text-xs text-white focus:border-orange-500 focus:outline-none"
+                  className="w-full bg-neutral-950 border border-neutral-800 rounded-2xl px-4 py-3 text-xs text-white focus:border-orange-500 focus:outline-none cursor-pointer"
                 >
                   {CLUBS_LIST.map((club) => (
                     <option key={club} value={club}>{club}</option>
@@ -364,7 +395,7 @@ export default function ProfileTab({
                   <select 
                     value={editTime} 
                     onChange={(e) => setEditTime(e.target.value)} 
-                    className="w-full bg-neutral-950 border border-neutral-800 rounded-2xl px-3 py-3 text-xs text-white focus:border-orange-500 focus:outline-none"
+                    className="w-full bg-neutral-950 border border-neutral-800 rounded-2xl px-3 py-3 text-xs text-white focus:border-orange-500 focus:outline-none cursor-pointer"
                   >
                     <option value="Matin">Matin</option>
                     <option value="Midi">Midi</option>
@@ -377,7 +408,7 @@ export default function ProfileTab({
                   <select 
                     value={editGender} 
                     onChange={(e) => setEditGender(e.target.value)} 
-                    className="w-full bg-neutral-950 border border-neutral-800 rounded-2xl px-3 py-3 text-xs text-white focus:border-orange-500 focus:outline-none"
+                    className="w-full bg-neutral-950 border border-neutral-800 rounded-2xl px-3 py-3 text-xs text-white focus:border-orange-500 focus:outline-none cursor-pointer"
                   >
                     <option value="Homme">Homme</option>
                     <option value="Femme">Femme</option>
@@ -487,6 +518,100 @@ export default function ProfileTab({
       {/* SETTINGS SUB-SECTION */}
       {activeSubSection === 'settings' && (
         <div className="space-y-4">
+          {/* Passerelle GPS / Plateformes Externes */}
+          <div className="bg-neutral-900 border border-neutral-800/80 rounded-3xl p-6 space-y-4 shadow-xl">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-orange-400 font-bold text-xs uppercase tracking-widest">
+                <Share2 className="w-4 h-4" /> Passerelles GPS & Plateformes
+              </div>
+              <span className="text-[10px] font-mono text-neutral-400 bg-neutral-950 px-3 py-1 rounded-full border border-neutral-800">
+                API Sync
+              </span>
+            </div>
+
+            {/* Bloc Strava */}
+            <div className="bg-neutral-950 border border-neutral-800 p-4 rounded-2xl space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-orange-600/20 text-orange-500 flex items-center justify-center font-black text-xs">
+                    S
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold text-white">Strava</h4>
+                    <p className="text-[10px] text-neutral-400">Synchronisation des runs & segments</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={toggleStrava}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer border ${
+                    isStravaConnected
+                      ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+                      : 'bg-orange-600 border-orange-500 text-white hover:bg-orange-500'
+                  }`}
+                >
+                  {isStravaConnected ? 'Connecté ✓' : 'Connecter'}
+                </button>
+              </div>
+
+              {isStravaConnected && (
+                <div className="pt-2 border-t border-neutral-800 flex items-center justify-between text-xs">
+                  <span className="text-neutral-300">Envoyer mes runs automatiquement sur Strava</span>
+                  <input
+                    type="checkbox"
+                    checked={stravaSync}
+                    onChange={(e) => {
+                      setStravaSync(e.target.checked);
+                      localStorage.setItem('fitpulse_strava_sync', String(e.target.checked));
+                    }}
+                    className="w-4 h-4 rounded accent-orange-500 cursor-pointer"
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Bloc Garmin */}
+            <div className="bg-neutral-950 border border-neutral-800 p-4 rounded-2xl space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-cyan-600/20 text-cyan-400 flex items-center justify-center font-black text-xs">
+                    G
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold text-white">Garmin Connect</h4>
+                    <p className="text-[10px] text-neutral-400">Import/Export de charges & montres GPS</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={toggleGarmin}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer border ${
+                    isGarminConnected
+                      ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+                      : 'bg-cyan-600 border-cyan-500 text-white hover:bg-cyan-500'
+                  }`}
+                >
+                  {isGarminConnected ? 'Connecté ✓' : 'Connecter'}
+                </button>
+              </div>
+
+              {isGarminConnected && (
+                <div className="pt-2 border-t border-neutral-800 flex items-center justify-between text-xs">
+                  <span className="text-neutral-300">Envoyer mes runs automatiquement sur Garmin</span>
+                  <input
+                    type="checkbox"
+                    checked={garminSync}
+                    onChange={(e) => {
+                      setGarminSync(e.target.checked);
+                      localStorage.setItem('fitpulse_garmin_sync', String(e.target.checked));
+                    }}
+                    className="w-4 h-4 rounded accent-cyan-500 cursor-pointer"
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+
           <div className="bg-neutral-900 border border-neutral-800/80 rounded-3xl p-6 space-y-4 shadow-xl">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-2xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center text-orange-500">
@@ -547,6 +672,7 @@ export default function ProfileTab({
           <div className="bg-neutral-900 border border-neutral-800/80 rounded-3xl p-6 space-y-3 shadow-xl">
             <h3 className="text-xs font-black text-white uppercase tracking-wider">Session</h3>
             <button 
+              type="button"
               onClick={async () => {
                 await onSignOut();
                 window.location.reload();
@@ -573,6 +699,7 @@ export default function ProfileTab({
                       </div>
                     </div>
                     <button 
+                      type="button"
                       onClick={() => { onToggleVerifyAdmin(u.id, u.is_verified || false); showToast('Badge mis à jour'); }} 
                       className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${u.is_verified ? 'bg-orange-600 text-white shadow-lg' : 'bg-neutral-800 text-neutral-400 hover:text-white'}`}
                     >
