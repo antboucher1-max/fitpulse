@@ -24,6 +24,7 @@ import RoadbookTab from './components/RoadbookTab';
 import OfflineRunGuard from './components/OfflineRunGuard';
 import WodGenerator from './components/WodGenerator';
 import OnboardingGuide from './components/OnboardingGuide';
+import GymLogTab from './components/GymLogTab';
 
 const supabaseUrl = 'https://obtahwmcoqrcauscpksv.supabase.co';
 const supabaseAnonKey = 'sb_publishable_O8CKhUtzgq9nO9lKavNE9A__fAdRWoB';
@@ -779,6 +780,9 @@ export default function App() {
 
               {/* GÉNÉRATEUR DE WOD / SÉANCES CROISÉES (IA / READINESS) */}
               <WodGenerator />
+
+              {/* CARNET DE MUSCULATION & PRs */}
+              <GymLogTab currentUserId={user?.id} onStartRestTimer={() => handleTabChange('rest_timer')} />
 
               {/* Module de Readiness & Plan Intégré */}
               <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-3 shadow-xl">
