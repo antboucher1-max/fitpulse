@@ -233,11 +233,11 @@ export default function BuddyTab({
         <div className="flex gap-3 pt-4">
           {isMatchActive && (
              <button 
-                onClick={() => {
-                    setIsMatchActive(false);
-                    setShowMatchModal(false);
-                }}
-                className="flex-1 px-6 py-4 bg-neutral-800 text-neutral-300 font-extrabold rounded-2xl text-sm transition hover:bg-neutral-700"
+               onClick={() => {
+                   setIsMatchActive(false);
+                   setShowMatchModal(false);
+               }}
+               className="flex-1 px-6 py-4 bg-neutral-800 text-neutral-300 font-extrabold rounded-2xl text-sm transition hover:bg-neutral-700"
              >
                Désactiver
              </button>
