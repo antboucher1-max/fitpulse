@@ -1,3 +1,4 @@
+import { EXERCISE_DATABASE, ExerciseItem } from '../exercisesDatabase';
 import { useState } from 'react';
 import { Search, X, Dumbbell } from 'lucide-react';
 import { EXERCISE_DATABASE, ExerciseItem } from '../exercisesDatabase';
