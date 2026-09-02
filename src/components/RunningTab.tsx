@@ -8,15 +8,13 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import GearTrackerSection from './GearTrackerSection';
 
-// Point lumineux vert pour représenter ta position GPS
 const runnerIcon = L.divIcon({
   className: 'custom-runner-marker',
-  html: `<div style="width: 18px; height: 18px; background: #10b981; border: 3px solid #ffffff; border-radius: 50%; box-shadow: 0 0 14px #10b981, 0 0 4px #000000;"></div>`,
+  html: `<div style="width: 18px; height: 18px; background: #10b981; border: 3px solid #ffffff; border-radius: 50%; box-shadow: 0 0 14px #10b981;"></div>`,
   iconSize: [18, 18],
   iconAnchor: [9, 9]
 });
 
-// Composant pour centrer automatiquement la carte sur la position GPS
 function MapAutoFollow({ center }: { center: [number, number] }) {
   const map = useMap();
   useEffect(() => {
@@ -52,7 +50,6 @@ export default function RunningTab({
   const [distanceKm, setDistanceKm] = useState(0);
   const [audioCoaching, setAudioCoaching] = useState(true);
 
-  // Position par défaut (région de Tournai / Brunehaut)
   const [currentPosition, setCurrentPosition] = useState<[number, number]>([50.505, 3.325]);
   const [routePositions, setRoutePositions] = useState<Array<[number, number]>>([
     [50.505, 3.325]
@@ -63,7 +60,6 @@ export default function RunningTab({
   const [intensity, setIntensity] = useState<'modere' | 'soutenu' | 'maximal'>('soutenu');
   const [bodyWeight, setBodyWeight] = useState<number>(70);
 
-  // Récupération de la position GPS réelle de l'appareil
   const updateGpsPosition = () => {
     if ('geolocation' in navigator) {
       navigator.geolocation.getCurrentPosition(
@@ -84,7 +80,6 @@ export default function RunningTab({
     updateGpsPosition();
   }, []);
 
-  // Suivi GPS continu pendant l'effort
   useEffect(() => {
     let interval: any = null;
     let watchId: number | null = null;
@@ -177,7 +172,7 @@ export default function RunningTab({
         </div>
       </div>
 
-      {/* Vraie Carte GPS Sombre avec les Rues et le Marqueur de Position */}
+      {/* Carte GPS OpenStreetMap propre et sans bug */}
       <div className="bg-neutral-900 border border-neutral-800/80 rounded-3xl p-6 space-y-4 shadow-xl">
         <div className="flex items-center justify-between">
           <h3 className="text-xs font-black text-white flex items-center gap-2 uppercase tracking-wider">
@@ -193,19 +188,13 @@ export default function RunningTab({
             center={currentPosition} 
             zoom={16} 
             scrollWheelZoom={true}
-            style={{ width: '100%', height: '100%', background: '#0a0a0a' }}
+            style={{ width: '100%', height: '100%', background: '#1a1a1a' }}
           >
             <MapAutoFollow center={currentPosition} />
             <TileLayer
-              attribution='&copy; <a href="https://carto.com/">CARTO</a>'
-              url="https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
-              className="map-tiles-dark"
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
-            <style>{`
-              .map-tiles-dark {
-                filter: brightness(0.25) invert(1) contrast(2) hue-rotate(200deg);
-              }
-            `}</style>
             <Polyline 
               positions={routePositions} 
               pathOptions={{ color: '#10b981', weight: 5, opacity: 0.9 }} 
