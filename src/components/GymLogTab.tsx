@@ -1,27 +1,37 @@
 import { useState, useEffect } from 'react';
-import { Dumbbell, Plus, Trophy, Flame, CheckCircle, Trash2 } from 'lucide-react';
+import { Dumbbell, Plus, Trash2, Clock, CheckCircle2 } from 'lucide-react';
 import { createClient } from '@supabase/supabase-js';
+import { EXERCISE_DATABASE, ExerciseItem } from '../exercisesDatabase';
+import ExerciseSelectorModal from './ExerciseSelectorModal';
 
 const supabaseUrl = 'https://obtahwmcoqrcauscpksv.supabase.co';
 const supabaseAnonKey = 'sb_publishable_O8CKhUtzgq9nO9lKavNE9A__fAdRWoB';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-const MUSCLE_GROUPS = [
-  'Pectoraux / Triceps (Push)',
-  'Dos / Biceps (Pull)',
-  'Jambes / Fessiers (Legs)',
-  'Épaules / Abdos',
-  'Full Body'
-];
+interface GymLogTabProps {
+  currentUserId?: string;
+  onStartRestTimer?: () => void;
+}
 
-export default function GymLogTab({ currentUserId, onStartRestTimer }: { currentUserId?: string, onStartRestTimer?: () => void }) {
-  const [exercises, setExercises] = useState<any[]>([]);
-  const [selectedGroup, setSelectedGroup] = useState(MUSCLE_GROUPS[0]);
-  const [exerciseName, setExerciseName] = useState('');
-  const [weight, setWeight] = useState<number | ''>('');
-  const [reps, setReps] = useState<number | ''>('');
-  const [sets, setSets] = useState<number | ''>(4);
-  const [loading, setLoading] = useState(false);
+interface ActiveExerciseSet {
+  id: string;
+  weight: number | '';
+  reps: number | '';
+  completed: boolean;
+}
+
+interface ActiveWorkoutExercise {
+  id: string;
+  name: string;
+  targetMuscle: string;
+  sets: ActiveExerciseSet[];
+}
+
+export default function GymLogTab({ currentUserId, onStartRestTimer }: GymLogTabProps) {
+  const [activeExercises, setActiveExercises] = useState<ActiveWorkoutExercise[]>([]);
+  const [isExerciseModalOpen, setIsExerciseModalOpen] = useState(false);
+  const [workoutTitle, setWorkoutTitle] = useState('Séance Musculation Full Body');
+  const [saving, setSaving] = useState(false);
   const [recentLogs, setRecentLogs] = useState<any[]>([]);
 
   const fetchGymLogs = async () => {
@@ -39,37 +49,143 @@ export default function GymLogTab({ currentUserId, onStartRestTimer }: { current
     if (currentUserId) fetchGymLogs();
   }, [currentUserId]);
 
-  const handleLogExercise = async (e: any) => {
-    e.preventDefault();
-    if (!currentUserId || !exerciseName.trim() || weight === '' || reps === '') return;
-
-    setLoading(true);
+  // Charger les brouillons de séance en cours depuis le localStorage
+  useEffect(() => {
     try {
-      const { error } = await supabase.from('gym_logs').insert([{
+      const saved = localStorage.getItem('fitpulse_active_gym_workout');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        setActiveExercises(parsed.exercises || []);
+        if (parsed.title) setWorkoutTitle(parsed.title);
+      }
+    } catch (_) {}
+  }, []);
+
+  // Sauvegarder automatiquement l'état dans le localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem('fitpulse_active_gym_workout', JSON.stringify({
+        title: workoutTitle,
+        exercises: activeExercises
+      }));
+    } catch (_) {}
+  }, [activeExercises, workoutTitle]);
+
+  const handleSelectExerciseFromCatalog = (exercise: ExerciseItem) => {
+    const newExercise: ActiveWorkoutExercise = {
+      id: `${exercise.id}_${Date.now()}`,
+      name: exercise.name,
+      targetMuscle: exercise.targetMuscle,
+      sets: [
+        { id: `set_${Date.now()}_1`, weight: '', reps: '', completed: false }
+      ]
+    };
+    setActiveExercises(prev => [...prev, newExercise]);
+  };
+
+  const handleAddSet = (exerciseId: string) => {
+    setActiveExercises(prev => prev.map(ex => {
+      if (ex.id !== exerciseId) return ex;
+      const lastSet = ex.sets[ex.sets.length - 1];
+      return {
+        ...ex,
+        sets: [
+          ...ex.sets,
+          {
+            id: `set_${Date.now()}_${ex.sets.length + 1}`,
+            weight: lastSet ? lastSet.weight : '',
+            reps: lastSet ? lastSet.reps : '',
+            completed: false
+          }
+        ]
+      };
+    }));
+  };
+
+  const handleUpdateSet = (exerciseId: string, setId: string, field: 'weight' | 'reps', value: number | '') => {
+    setActiveExercises(prev => prev.map(ex => {
+      if (ex.id !== exerciseId) return ex;
+      return {
+        ...ex,
+        sets: ex.sets.map(s => s.id === setId ? { ...s, [field]: value } : s)
+      };
+    }));
+  };
+
+  const handleToggleCompleteSet = (exerciseId: string, setId: string) => {
+    setActiveExercises(prev => prev.map(ex => {
+      if (ex.id !== exerciseId) return ex;
+      return {
+        ...ex,
+        sets: ex.sets.map(s => {
+          if (s.id !== setId) return s;
+          const nextState = !s.completed;
+          if (nextState && onStartRestTimer) {
+            onStartRestTimer(); // Déclencheur automatique du chrono de repos façon Lyfta
+          }
+          return { ...s, completed: nextState };
+        })
+      };
+    }));
+  };
+
+  const handleDeleteExercise = (exerciseId: string) => {
+    setActiveExercises(prev => prev.filter(ex => ex.id !== exerciseId));
+  };
+
+  const handleFinishWorkout = async () => {
+    if (!currentUserId || activeExercises.length === 0) {
+      alert("Ajoute au moins un exercice avant de valider ta séance !");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      // Enregistrement de chaque exercice/série dans la table gym_logs et publication globale
+      for (const ex of activeExercises) {
+        for (const set of ex.sets) {
+          if (set.weight !== '' && set.reps !== '') {
+            await supabase.from('gym_logs').insert([{
+              user_id: currentUserId,
+              muscle_group: ex.targetMuscle,
+              exercise_name: ex.name,
+              weight: Number(set.weight),
+              reps: Number(set.reps),
+              sets: 1,
+              date: new Date().toISOString().split('T')[0]
+            }]);
+          }
+        }
+      }
+
+      const summaryText = activeExercises.map(e => `${e.name} (${e.sets.length} séries)`).join(', ');
+      
+      const { error } = await supabase.from('posts').insert([{
         user_id: currentUserId,
-        muscle_group: selectedGroup,
-        exercise_name: exerciseName.trim(),
-        weight: Number(weight),
-        reps: Number(reps),
-        sets: Number(sets),
-        date: new Date().toISOString().split('T')[0]
+        username: 'Athlète',
+        club_name: 'Tournai (Quais de l’Escaut & Parc)',
+        session_type: workoutTitle,
+        caption: `💪 [CARNET MUSCU] ${workoutTitle} : ${summaryText}`,
+        exercises: activeExercises,
+        likes_count: 0,
+        liked_by: [],
+        comments_count: 0,
+        comments: [],
+        is_private: false
       }]);
 
-      if (error) throw error;
-
-      setExerciseName('');
-      setWeight('');
-      setReps('');
-      fetchGymLogs();
-
-      // Déclenche le minuteur de repos si la fonction est transmise
-      if (onStartRestTimer) onStartRestTimer();
-      
-      alert("🏋️‍♂️ Série enregistrée avec succès ! Minuteur de repos lancé ⏱️");
+      if (!error) {
+        alert("Séance enregistrée et publiée sur le fil avec succès ! 🚀");
+        localStorage.removeItem('fitpulse_active_gym_workout');
+        setActiveExercises([]);
+        fetchGymLogs();
+      } else {
+        alert("Erreur lors de l'enregistrement : " + error.message);
+      }
     } catch (err: any) {
-      alert("Erreur : " + err.message);
+      alert("Erreur technique : " + err.message);
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   };
 
@@ -80,83 +196,138 @@ export default function GymLogTab({ currentUserId, onStartRestTimer }: { current
 
   return (
     <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-5 shadow-xl animate-fadeIn">
+      {/* Modale de sélection d'exercices inspirée de Lyfta */}
+      <ExerciseSelectorModal 
+        isOpen={isExerciseModalOpen}
+        onClose={() => setIsExerciseModalOpen(false)}
+        onSelectExercise={handleSelectExerciseFromCatalog}
+      />
+
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 text-orange-400 font-bold text-xs uppercase tracking-wider">
-          <Dumbbell className="w-4 h-4" /> Carnet de Musculation & PRs
+          <Dumbbell className="w-4 h-4" /> Carnet de Musculation & PRs (Style Lyfta)
         </div>
       </div>
 
-      {/* Formulaire d'enregistrement éclair */}
-      <form onSubmit={handleLogExercise} className="bg-neutral-950 border border-neutral-800 p-4 rounded-2xl space-y-3">
+      {/* En-tête du carnet de séance active */}
+      <div className="bg-neutral-950 border border-neutral-800 rounded-2xl p-4 space-y-4">
         <div className="space-y-1">
-          <label className="block text-xs font-semibold text-neutral-400">Groupe Musculaire :</label>
-          <select 
-            value={selectedGroup} 
-            onChange={(e) => setSelectedGroup(e.target.value)}
-            className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none"
-          >
-            {MUSCLE_GROUPS.map((group) => (
-              <option key={group} value={group}>{group}</option>
-            ))}
-          </select>
-        </div>
-
-        <div className="space-y-1">
-          <label className="block text-xs font-semibold text-neutral-400">Nom de l'exercice :</label>
+          <label className="block text-[10px] font-black uppercase tracking-widest text-neutral-400">Titre de la Séance :</label>
           <input 
             type="text" 
-            required 
-            placeholder="Ex: Développé couché, Squat, Tractions..." 
-            value={exerciseName} 
-            onChange={(e) => setExerciseName(e.target.value)}
-            className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none"
+            value={workoutTitle} 
+            onChange={(e) => setWorkoutTitle(e.target.value)}
+            className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-3.5 py-2.5 text-sm font-black text-white focus:outline-none focus:border-orange-500"
           />
         </div>
 
-        <div className="grid grid-cols-3 gap-2">
-          <div className="space-y-1">
-            <label className="block text-[11px] font-semibold text-neutral-400">Poids (kg) :</label>
-            <input 
-              type="number" 
-              step="0.5" 
-              required 
-              placeholder="Ex: 80" 
-              value={weight} 
-              onChange={(e) => setWeight(e.target.value === '' ? '' : Number(e.target.value))}
-              className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none"
-            />
-          </div>
-          <div className="space-y-1">
-            <label className="block text-[11px] font-semibold text-neutral-400">Répétitions :</label>
-            <input 
-              type="number" 
-              required 
-              placeholder="Ex: 10" 
-              value={reps} 
-              onChange={(e) => setReps(e.target.value === '' ? '' : Number(e.target.value))}
-              className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none"
-            />
-          </div>
-          <div className="space-y-1">
-            <label className="block text-[11px] font-semibold text-neutral-400">Séries :</label>
-            <input 
-              type="number" 
-              required 
-              value={sets} 
-              onChange={(e) => setSets(e.target.value === '' ? '' : Number(e.target.value))}
-              className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none"
-            />
-          </div>
+        {/* Liste des exercices ajoutés */}
+        <div className="space-y-3">
+          {activeExercises.length === 0 ? (
+            <div className="text-center py-10 bg-neutral-900/50 border border-neutral-800 rounded-xl p-4 text-neutral-500 text-xs space-y-2">
+              <p>Aucun exercice dans cette séance pour le moment.</p>
+              <p className="text-neutral-400">Clique sur le bouton ci-dessous pour piocher dans la bibliothèque.</p>
+            </div>
+          ) : (
+            activeExercises.map((exercise) => (
+              <div key={exercise.id} className="bg-neutral-900 border border-neutral-800 rounded-xl p-3.5 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="text-xs font-black text-white">{exercise.name}</h4>
+                    <span className="text-[10px] text-orange-400 font-semibold">{exercise.targetMuscle}</span>
+                  </div>
+                  <button 
+                    onClick={() => handleDeleteExercise(exercise.id)}
+                    className="text-neutral-500 hover:text-red-400 p-1 transition cursor-pointer"
+                    title="Supprimer l'exercice"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+
+                {/* Tableau des séries */}
+                <div className="space-y-1.5 pt-1">
+                  <div className="grid grid-cols-12 gap-2 text-[10px] font-bold text-neutral-500 uppercase px-1">
+                    <span className="col-span-2 text-center">Série</span>
+                    <span className="col-span-4 text-center">Kg</span>
+                    <span className="col-span-4 text-center">Reps</span>
+                    <span className="col-span-2 text-center">Valider</span>
+                  </div>
+
+                  {exercise.sets.map((set, setIdx) => (
+                    <div key={set.id} className="grid grid-cols-12 gap-2 items-center bg-neutral-950 p-1.5 rounded-lg border border-neutral-800/80">
+                      <span className="col-span-2 text-center text-xs font-bold text-neutral-400">
+                        {setIdx + 1}
+                      </span>
+                      <div className="col-span-4">
+                        <input 
+                          type="number" 
+                          step="0.5"
+                          placeholder="0"
+                          value={set.weight}
+                          onChange={(e) => handleUpdateSet(exercise.id, set.id, 'weight', e.target.value === '' ? '' : Number(e.target.value))}
+                          className="w-full bg-neutral-900 border border-neutral-800 rounded-md py-1 text-center text-xs text-white font-bold focus:border-orange-500"
+                        />
+                      </div>
+                      <div className="col-span-4">
+                        <input 
+                          type="number" 
+                          placeholder="0"
+                          value={set.reps}
+                          onChange={(e) => handleUpdateSet(exercise.id, set.id, 'reps', e.target.value === '' ? '' : Number(e.target.value))}
+                          className="w-full bg-neutral-900 border border-neutral-800 rounded-md py-1 text-center text-xs text-white font-bold focus:border-orange-500"
+                        />
+                      </div>
+                      <div className="col-span-2 flex items-center justify-center">
+                        <button 
+                          type="button"
+                          onClick={() => handleToggleCompleteSet(exercise.id, set.id)}
+                          className={`w-6 h-6 rounded-md flex items-center justify-center transition cursor-pointer ${
+                            set.completed ? 'bg-emerald-600 text-white shadow' : 'bg-neutral-800 text-neutral-400 hover:bg-neutral-700'
+                          }`}
+                        >
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="flex justify-between pt-1">
+                  <button 
+                    type="button"
+                    onClick={() => handleAddSet(exercise.id)}
+                    className="text-[11px] font-bold text-orange-400 hover:text-orange-300 transition cursor-pointer flex items-center gap-1"
+                  >
+                    + Ajouter une série
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
         </div>
 
+        {/* Bouton d'ajout d'exercice (Bibliothèque Lyfta-style) */}
         <button 
-          type="submit" 
-          disabled={loading}
-          className="w-full py-3 bg-orange-600 hover:bg-orange-500 text-white font-extrabold rounded-2xl text-xs transition shadow-lg flex items-center justify-center gap-2 cursor-pointer mt-2"
+          type="button"
+          onClick={() => setIsExerciseModalOpen(true)}
+          className="w-full py-3 bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 hover:border-orange-500/50 rounded-xl text-xs font-black text-white flex items-center justify-center gap-2 cursor-pointer shadow transition"
         >
-          <Plus className="w-4 h-4" /> Enregistrer la séance & Lancer le repos ⏱️
+          <Plus className="w-4 h-4 text-orange-500" /> Ajouter un exercice (Bibliothèque Lyfta)
         </button>
-      </form>
+
+        {/* Bouton de validation finale de la séance */}
+        {activeExercises.length > 0 && (
+          <button 
+            type="button"
+            onClick={handleFinishWorkout}
+            disabled={saving}
+            className="w-full py-3.5 bg-orange-600 hover:bg-orange-500 text-white font-black rounded-xl text-xs shadow-xl transition cursor-pointer"
+          >
+            {saving ? "Enregistrement..." : "Terminer et Publier la séance 🚀"}
+          </button>
+        )}
+      </div>
 
       {/* Historique récent des perfs */}
       <div className="space-y-2">
