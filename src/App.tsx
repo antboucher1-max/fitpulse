@@ -131,7 +131,8 @@ export default function App() {
 
   const [onboardingUsername, setOnboardingUsername] = useState('');
   const [onboardingAgeGroup, setOnboardingAgeGroup] = useState('26-35 ans');
-  const [onboardingDiscipline, setOnboardingDiscipline] = useState('Fitness / Musculation');
+  const [onboardingDisciplines, setOnboardingDisciplines] = useState<string[]>(['Fitness / Musculation']);
+  const [onboardingMainDiscipline, setOnboardingMainDiscipline] = useState<string>('Fitness / Musculation');
   const [onboardingSpot, setOnboardingSpot] = useState(FITNESS_SPOTS[0]);
   const [onboardingGoal] = useState('Prise de masse / Force');
   const [onboardingGender, setOnboardingGender] = useState('Homme');
