@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Dumbbell, Plus, Trash2, Clock, CheckCircle2 } from 'lucide-react';
 import { createClient } from '@supabase/supabase-js';
-import { EXERCISE_DATABASE, ExerciseItem } from '../exercisesDatabase';
-import ExerciseSelectorModal from './ExerciseSelectorModal';
+import ExerciseSelectorModal, { ExerciseItem } from './ExerciseSelectorModal';
 
 const supabaseUrl = 'https://obtahwmcoqrcauscpksv.supabase.co';
 const supabaseAnonKey = 'sb_publishable_O8CKhUtzgq9nO9lKavNE9A__fAdRWoB';
@@ -49,7 +48,6 @@ export default function GymLogTab({ currentUserId, onStartRestTimer }: GymLogTab
     if (currentUserId) fetchGymLogs();
   }, [currentUserId]);
 
-  // Charger les brouillons de séance en cours depuis le localStorage
   useEffect(() => {
     try {
       const saved = localStorage.getItem('fitpulse_active_gym_workout');
@@ -61,7 +59,6 @@ export default function GymLogTab({ currentUserId, onStartRestTimer }: GymLogTab
     } catch (_) {}
   }, []);
 
-  // Sauvegarder automatiquement l'état dans le localStorage
   useEffect(() => {
     try {
       localStorage.setItem('fitpulse_active_gym_workout', JSON.stringify({
@@ -121,7 +118,7 @@ export default function GymLogTab({ currentUserId, onStartRestTimer }: GymLogTab
           if (s.id !== setId) return s;
           const nextState = !s.completed;
           if (nextState && onStartRestTimer) {
-            onStartRestTimer(); // Déclencheur automatique du chrono de repos façon Lyfta
+            onStartRestTimer();
           }
           return { ...s, completed: nextState };
         })
@@ -141,7 +138,6 @@ export default function GymLogTab({ currentUserId, onStartRestTimer }: GymLogTab
 
     setSaving(true);
     try {
-      // Enregistrement de chaque exercice/série dans la table gym_logs et publication globale
       for (const ex of activeExercises) {
         for (const set of ex.sets) {
           if (set.weight !== '' && set.reps !== '') {
@@ -196,7 +192,6 @@ export default function GymLogTab({ currentUserId, onStartRestTimer }: GymLogTab
 
   return (
     <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-5 shadow-xl animate-fadeIn">
-      {/* Modale de sélection d'exercices inspirée de Lyfta */}
       <ExerciseSelectorModal 
         isOpen={isExerciseModalOpen}
         onClose={() => setIsExerciseModalOpen(false)}
@@ -209,7 +204,6 @@ export default function GymLogTab({ currentUserId, onStartRestTimer }: GymLogTab
         </div>
       </div>
 
-      {/* En-tête du carnet de séance active */}
       <div className="bg-neutral-950 border border-neutral-800 rounded-2xl p-4 space-y-4">
         <div className="space-y-1">
           <label className="block text-[10px] font-black uppercase tracking-widest text-neutral-400">Titre de la Séance :</label>
@@ -221,7 +215,6 @@ export default function GymLogTab({ currentUserId, onStartRestTimer }: GymLogTab
           />
         </div>
 
-        {/* Liste des exercices ajoutés */}
         <div className="space-y-3">
           {activeExercises.length === 0 ? (
             <div className="text-center py-10 bg-neutral-900/50 border border-neutral-800 rounded-xl p-4 text-neutral-500 text-xs space-y-2">
@@ -245,7 +238,6 @@ export default function GymLogTab({ currentUserId, onStartRestTimer }: GymLogTab
                   </button>
                 </div>
 
-                {/* Tableau des séries */}
                 <div className="space-y-1.5 pt-1">
                   <div className="grid grid-cols-12 gap-2 text-[10px] font-bold text-neutral-500 uppercase px-1">
                     <span className="col-span-2 text-center">Série</span>
@@ -307,7 +299,6 @@ export default function GymLogTab({ currentUserId, onStartRestTimer }: GymLogTab
           )}
         </div>
 
-        {/* Bouton d'ajout d'exercice (Bibliothèque Lyfta-style) */}
         <button 
           type="button"
           onClick={() => setIsExerciseModalOpen(true)}
@@ -316,7 +307,6 @@ export default function GymLogTab({ currentUserId, onStartRestTimer }: GymLogTab
           <Plus className="w-4 h-4 text-orange-500" /> Ajouter un exercice (Bibliothèque Lyfta)
         </button>
 
-        {/* Bouton de validation finale de la séance */}
         {activeExercises.length > 0 && (
           <button 
             type="button"
@@ -329,7 +319,6 @@ export default function GymLogTab({ currentUserId, onStartRestTimer }: GymLogTab
         )}
       </div>
 
-      {/* Historique récent des perfs */}
       <div className="space-y-2">
         <h4 className="text-xs font-black uppercase tracking-wider text-neutral-400">Dernières perfs enregistrées :</h4>
         {recentLogs.length === 0 ? (
