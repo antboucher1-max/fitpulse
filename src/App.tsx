@@ -23,11 +23,11 @@ import TrainingPlanTab from './components/TrainingPlanTab';
 import RoadbookTab from './components/RoadbookTab';
 import OfflineRunGuard from './components/OfflineRunGuard';
 import WodGenerator from './components/WodGenerator';
-import OnboardingGuide from './components/OnboardingGuide';
 import GymLogTab from './components/GymLogTab';
 import FitBotTab from './components/FitBotTab';
 import SpotSearchInput from './components/SpotSearchInput';
 import HybridCalendar from './components/HybridCalendar';
+import OnboardingWizard from './components/OnboardingWizard';
 
 const supabaseUrl = 'https://obtahwmcoqrcauscpksv.supabase.co';
 const supabaseAnonKey = 'sb_publishable_O8CKhUtzgq9nO9lKavNE9A__fAdRWoB';
@@ -100,18 +100,6 @@ export default function App() {
   const [selectedBuddyChat, setSelectedBuddyChat] = useState<RealUser | null>(null);
   const [currentMessageInput, setCurrentMessageInput] = useState('');
   const [isOtherUserTyping] = useState(false);
-
-  const [onboardingStep, setOnboardingStep] = useState(1);
-  const [onboardingUsername, setOnboardingUsername] = useState('');
-  const [onboardingAgeGroup, setOnboardingAgeGroup] = useState('26-35 ans');
-  const [onboardingDisciplines, setOnboardingDisciplines] = useState<string[]>(['Fitness / Musculation']);
-  const [onboardingMainDiscipline, setOnboardingMainDiscipline] = useState<string>('Fitness / Musculation');
-  const [onboardingSpot, setOnboardingSpot] = useState('');
-  const [onboardingGoal, setOnboardingGoal] = useState('Prise de masse / Force');
-  const [onboardingGender, setOnboardingGender] = useState('Homme');
-  const [onboardingTime, setOnboardingTime] = useState('Soir');
-  const [onboardingAvatar] = useState<string>('https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=150');
-  const [onboardingSubmitting, setOnboardingSubmitting] = useState(false);
    
   const [lastReadTimestamps, setLastReadTimestamps] = useState<Record<string, number>>(() => {
     try {
@@ -469,192 +457,13 @@ export default function App() {
   const hasProfile = registeredUsers.some(u => u.id === user.id);
   if (user && registeredUsers.length >= 0 && !hasProfile) {
     return (
-      <div className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col items-center justify-center font-sans p-4 select-none relative overflow-hidden">
-        <div className="absolute top-8 w-full max-w-sm px-4">
-          <div className="flex gap-2 w-full">
-            <div className={`h-1.5 flex-1 rounded-full transition-colors duration-300 ${onboardingStep >= 1 ? 'bg-orange-500' : 'bg-neutral-800'}`} />
-            <div className={`h-1.5 flex-1 rounded-full transition-colors duration-300 ${onboardingStep >= 2 ? 'bg-orange-500' : 'bg-neutral-800'}`} />
-            <div className={`h-1.5 flex-1 rounded-full transition-colors duration-300 ${onboardingStep >= 3 ? 'bg-orange-500' : 'bg-neutral-800'}`} />
-          </div>
-        </div>
-
-        <div className="w-full max-w-sm bg-neutral-900 border border-neutral-800 rounded-[2rem] p-6 space-y-6 shadow-2xl relative animate-slideUp">
-          <div className="text-center space-y-1">
-            <h1 className="text-2xl font-black text-white">
-              {onboardingStep === 1 ? "Qui es-tu ?" : onboardingStep === 2 ? "Ton style ?" : "Ton QG ?"}
-            </h1>
-            <p className="text-xs text-neutral-400">
-              {onboardingStep === 1 ? "Commençons par les bases." : onboardingStep === 2 ? "Dis-nous comment tu t'entraînes." : "Trouve tes partenaires locaux."}
-            </p>
-          </div>
-           
-          <form onSubmit={async (e) => {
-            e.preventDefault();
-            if (onboardingStep < 3) {
-              if (onboardingStep === 1 && !onboardingUsername.trim()) { alert("Pseudo requis"); return; }
-              setOnboardingStep(prev => prev + 1);
-              return;
-            }
-
-            if (!onboardingSpot.trim()) { alert("Merci d'indiquer ton spot d'entraînement !"); return; }
-
-            setOnboardingSubmitting(true);
-            try {
-              const profileData: any = {
-                id: user.id, 
-                username: onboardingUsername.trim(), 
-                home_club: onboardingSpot.trim(), 
-                goal: onboardingGoal, 
-                gender: onboardingGender, 
-                preferred_time: onboardingTime,
-                avatar_url: onboardingAvatar, 
-                points: 0, 
-                is_admin: user.email === 'antboucher@hotmail.fr',
-                discipline: onboardingMainDiscipline,
-                disciplines: onboardingDisciplines.join(',')
-              };
-
-              const { error } = await supabase.from('profiles').upsert(profileData);
-              if (error) throw error;
-              
-              await fetchRealUsers();
-              window.location.reload();
-            } catch (err: any) {
-              alert("Erreur lors de la création : " + (err.message || err));
-            } finally {
-              setOnboardingSubmitting(false);
-            }
-          }} className="space-y-4">
-
-            {onboardingStep === 1 && (
-              <div className="space-y-4 animate-fadeIn">
-                <div>
-                  <label className="block text-xs font-bold text-neutral-400 mb-1.5">Pseudo / Prénom</label>
-                  <input type="text" autoFocus required placeholder="Ex: Antoine" value={onboardingUsername} onChange={(e) => setOnboardingUsername(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 focus:border-orange-500 rounded-xl px-4 py-3.5 text-sm text-white transition outline-none" />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-neutral-400 mb-1.5">Genre</label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {['Homme', 'Femme'].map(g => (
-                      <div 
-                        key={g} 
-                        onClick={() => setOnboardingGender(g)} 
-                        className={`p-3 rounded-xl border text-center text-sm font-bold cursor-pointer transition ${onboardingGender === g ? 'bg-orange-500/20 border-orange-500 text-orange-400' : 'bg-neutral-950 border-neutral-800 text-neutral-400 hover:border-neutral-700'}`}
-                      >
-                        {g}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-neutral-400 mb-1.5">Tranche d'âge</label>
-                  <select value={onboardingAgeGroup} onChange={(e) => setOnboardingAgeGroup(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-3 text-sm text-white outline-none">
-                    <option value="18-25 ans">18-25 ans</option>
-                    <option value="26-35 ans">26-35 ans</option>
-                    <option value="36-45 ans">36-45 ans</option>
-                    <option value="Plus de 45 ans">Plus de 45 ans</option>
-                  </select>
-                </div>
-              </div>
-            )}
-
-            {onboardingStep === 2 && (
-              <div className="space-y-4 animate-fadeIn">
-                <div>
-                  <label className="block text-xs font-bold text-neutral-400 mb-1.5">Disciplines pratiquées</label>
-                  <div className="grid grid-cols-1 gap-2.5">
-                    {[
-                      { id: 'Fitness / Musculation', label: '💪 Musculation / Fitness' },
-                      { id: 'Course à pied', label: '🏃‍♂️ Course à pied' },
-                      { id: 'Crossfit', label: '⚡ Crossfit' }
-                    ].map((item) => {
-                      const isSelected = onboardingDisciplines.includes(item.id);
-                      return (
-                        <div
-                          key={item.id}
-                          onClick={() => {
-                            let updated: string[];
-                            if (isSelected) {
-                              if (onboardingDisciplines.length === 1) return;
-                              updated = onboardingDisciplines.filter(d => d !== item.id);
-                              if (onboardingMainDiscipline === item.id) setOnboardingMainDiscipline(updated[0]);
-                            } else {
-                              updated = [...onboardingDisciplines, item.id];
-                            }
-                            setOnboardingDisciplines(updated);
-                          }}
-                          className={`p-3.5 rounded-xl border text-sm font-bold flex items-center justify-between cursor-pointer transition ${isSelected ? 'bg-orange-500/20 border-orange-500 text-orange-400' : 'bg-neutral-950 border-neutral-800 text-neutral-400 hover:border-neutral-700'}`}
-                        >
-                          <span>{item.label}</span>
-                          {isSelected && <CheckCircle2 className="w-4 h-4 text-orange-500" />}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {onboardingDisciplines.length > 1 && (
-                  <div>
-                    <label className="block text-xs font-bold text-neutral-400 mb-1.5">Discipline dominante</label>
-                    <select value={onboardingMainDiscipline} onChange={(e) => setOnboardingMainDiscipline(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-3 text-sm text-white outline-none">
-                      {onboardingDisciplines.map((disc) => <option key={disc} value={disc}>{disc}</option>)}
-                    </select>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {onboardingStep === 3 && (
-              <div className="space-y-4 animate-fadeIn">
-                <div>
-                  <label className="block text-xs font-bold text-neutral-400 mb-1.5">Ton Spot / Salle principale</label>
-                  <p className="text-[10px] text-neutral-500 mb-2">Tape le nom de ton lieu d'entraînement (ville, salle...). Tu pourras toujours changer plus tard.</p>
-                  
-                  <input 
-                    type="text" 
-                    required 
-                    placeholder="Ex: Paris, Montreal, Basic-Fit..." 
-                    value={onboardingSpot} 
-                    onChange={(e) => setOnboardingSpot(e.target.value)} 
-                    className="w-full bg-neutral-950 border border-neutral-800 focus:border-orange-500 rounded-xl px-4 py-3 text-sm text-white transition outline-none" 
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-neutral-400 mb-1.5">Horaire de prédilection</label>
-                  <div className="grid grid-cols-3 gap-2">
-                    {[
-                      { id: 'Matin', label: '🌅 Matin' },
-                      { id: 'Midi', label: '☀️ Midi' },
-                      { id: 'Soir', label: '🌙 Soir' }
-                    ].map(t => (
-                      <div 
-                        key={t.id} 
-                        onClick={() => setOnboardingTime(t.id)} 
-                        className={`p-2.5 rounded-xl border text-center text-[10px] font-bold cursor-pointer transition ${onboardingTime === t.id ? 'bg-orange-500/20 border-orange-500 text-orange-400' : 'bg-neutral-950 border-neutral-800 text-neutral-400 hover:border-neutral-700'}`}
-                      >
-                        {t.label}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            <div className="flex items-center gap-3 pt-4">
-              {onboardingStep > 1 && (
-                <button type="button" onClick={() => setOnboardingStep(prev => prev - 1)} className="p-3.5 bg-neutral-800 hover:bg-neutral-700 text-white rounded-xl transition cursor-pointer">
-                  <ChevronLeft className="w-5 h-5" />
-                </button>
-              )}
-              <button type="submit" disabled={onboardingSubmitting} className="flex-1 py-3.5 bg-orange-600 hover:bg-orange-500 text-white font-black rounded-xl text-sm transition shadow-lg flex items-center justify-center gap-2 cursor-pointer">
-                {onboardingStep < 3 ? "Continuer" : onboardingSubmitting ? "Création..." : "Rejoindre la meute 🚀"}
-                {onboardingStep < 3 && <ChevronRight className="w-4 h-4" />}
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
+      <OnboardingWizard 
+        user={user} 
+        onComplete={() => {
+          fetchRealUsers();
+          window.location.reload();
+        }} 
+      />
     );
   }
 
