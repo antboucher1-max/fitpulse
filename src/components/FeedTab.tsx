@@ -1,5 +1,5 @@
 import { useState, FormEvent } from 'react';
-import { Dumbbell, Heart, MessageCircle, Share2, ShieldCheck, Send, Sparkles, Navigation, Zap, Calendar } from 'lucide-react';
+import { Dumbbell, Heart, MessageCircle, Share2, ShieldCheck, Send, Sparkles, Navigation, Zap, Calendar, Skull } from 'lucide-react';
 
 interface FeedTabProps {
   posts: any[];
@@ -134,16 +134,19 @@ export default function FeedTab({
             const isLikedByMe = currentUserId ? (post.liked_by || []).includes(currentUserId) : false;
             const likesCount = post.likes_count || (post.liked_by ? post.liked_by.length : 0);
             const commentsList = post.comments || [];
+            const isPainAndGain = post.session_type?.includes('Pain & Gain');
 
             return (
               <div 
                 key={post.id} 
-                className="bg-neutral-900 border border-neutral-800/80 hover:border-neutral-700/80 rounded-3xl p-6 space-y-4 shadow-xl transition-all duration-300"
+                className={`bg-neutral-900 border rounded-3xl p-6 space-y-4 shadow-xl transition-all duration-300 ${
+                  isPainAndGain ? 'border-red-500/40 bg-gradient-to-b from-red-950/10 to-neutral-900' : 'border-neutral-800/80 hover:border-neutral-700/80'
+                }`}
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <img 
-                      src={post.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200'} 
+                      src={post.avatar_url || 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=150'} 
                       alt={post.username} 
                       className="w-11 h-11 rounded-2xl object-cover border-2 border-orange-500/30 shadow-md"
                     />
@@ -156,9 +159,15 @@ export default function FeedTab({
                     </div>
                   </div>
 
-                  <span className="text-[10px] font-bold tracking-wide uppercase bg-neutral-950 border border-neutral-800 text-orange-400 px-3 py-1 rounded-xl shadow-inner">
-                    {post.session_type || 'Séance'}
-                  </span>
+                  {isPainAndGain ? (
+                    <span className="text-[10px] bg-red-500/20 border border-red-500/40 text-red-400 font-black px-3 py-1 rounded-xl uppercase tracking-wider flex items-center gap-1 shadow-inner">
+                      <Skull className="w-3.5 h-3.5" /> Hall of Fame des Galères
+                    </span>
+                  ) : (
+                    <span className="text-[10px] font-bold tracking-wide uppercase bg-neutral-950 border border-neutral-800 text-orange-400 px-3 py-1 rounded-xl shadow-inner">
+                      {post.session_type || 'Séance'}
+                    </span>
+                  )}
                 </div>
 
                 <div className="text-xs text-neutral-200 leading-relaxed font-normal whitespace-pre-line bg-neutral-950/60 p-4 rounded-2xl border border-neutral-800/50">
