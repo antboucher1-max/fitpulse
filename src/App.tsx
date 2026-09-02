@@ -27,6 +27,7 @@ import OnboardingGuide from './components/OnboardingGuide';
 import GymLogTab from './components/GymLogTab';
 import FitBotTab from './components/FitBotTab';
 import SpotSearchInput from './components/SpotSearchInput';
+import HybridCalendar from './components/HybridCalendar';
 
 const supabaseUrl = 'https://obtahwmcoqrcauscpksv.supabase.co';
 const supabaseAnonKey = 'sb_publishable_O8CKhUtzgq9nO9lKavNE9A__fAdRWoB';
@@ -877,6 +878,7 @@ export default function App() {
 
           {currentTab === 'readiness' && (
             <div className="space-y-4">
+              <HybridCalendar posts={posts} currentUserId={user?.id} />
               <TrainingPlanTab currentUserId={user?.id} />
               <RoadbookTab currentUserId={user?.id} />
               <ReadinessCheckin currentUserId={user?.id} onUpdatePlan={(rec) => alert(rec)} />
