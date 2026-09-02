@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, ChangeEvent, FormEvent } from 'react';
 import {
-  Zap, User, MessageCircle, Home, Users, Plus, X, Camera, Flame, MapPin, Trophy, Navigation, Calendar, Skull, BatteryCharging, ArrowRight, Activity, Sparkles, Play, Dumbbell, Settings
+  Zap, User, MessageCircle, Home, Users, Plus, X, Camera, Flame, MapPin, Trophy, Navigation, Calendar, Skull, BatteryCharging, ArrowRight, Activity, Sparkles, Play, Dumbbell, Settings, ChevronRight, ChevronLeft
 } from 'lucide-react';
 import { createClient, User as SupabaseUser } from '@supabase/supabase-js';
 
@@ -30,53 +30,17 @@ const supabaseUrl = 'https://obtahwmcoqrcauscpksv.supabase.co';
 const supabaseAnonKey = 'sb_publishable_O8CKhUtzgq9nO9lKavNE9A__fAdRWoB';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-const RUNNING_SPOTS = [
-  'Antoing (Canaux & Carrières)',
-  'Binche (Remparts & Périphérie)',
-  'Estaimpuis (Canal de l’Espierre)',
-  'Farciennes (Sambre & Rives)',
-  'Ham-sur-Heure-Nalinnes (Basses-Sambres & Rées)',
-  'Manage (Canal historique du Centre)',
+// On garde tes spots locaux comme "Suggestions" mais on ne bloque plus les autres utilisateurs
+const LOCAL_SUGGESTIONS = [
+  'Tournai (Quais de l’Escaut & Parc)',
+  'Tournai (Pôles Fitness & Muscu / Froyennes)',
   'Mons (Grand-Place & Grand Large)',
-  'Saint-Ghislain (Hauts-Borains & Canaux)',
-  'Tournai (Quais de l’Escaut & Parc)'
-];
-
-const FITNESS_SPOTS = [
-  'Ath (Centre & Zones Fitness)',
-  'Beloeil (Entité & Salles de proximité)',
-  'Colfontaine (Pôle sportif local)',
-  'Genly (Espaces Forme & Muscu)',
-  'Leuze-en-Hainaut (Centre & Salles)',
   'Mons (Pôles Fitness & Musculation)',
-  'Mouscron (Salles de référence & Fitness)',
-  'Péruwelz (Centres de remise en forme)',
-  'Tournai (Pôles Fitness & Muscu / Froyennes)'
-];
-
-const CROSSFIT_SPOTS = [
-  'Ath (Box & Affiliées)',
-  'Beloeil (Entité CrossFit & Training)',
-  'Bernissart (Espaces WOD & Fonctionnel)',
-  'Binche (Boxes & Entraînement fonctionnel)',
-  'Charleroi (Pôle CrossFit & Haltérophilie)',
-  'Frasnes-lez-Gosselies (Zones WOD)',
-  'Genly (Boxes & Entraînement intensif)',
-  'Le Roeulx (Espaces CrossFit)',
-  'Mons (Boxes & Affiliées principales)',
-  'Montigny-le-Tilleul (Salles & Boxes)',
+  'Ath (Centre & Zones Fitness)',
   'Mouscron (Boxes & Cross Training)',
-  'Rumes (Espaces WOD locaux)',
-  'Saint-Ghislain (Boxes & Entraînement fonctionnel)',
-  'Soignies (Boxes & Haltérophilie)',
-  'Tournai (Boxes & Affiliées principales)'
+  'Basic-Fit',
+  'CrossFit'
 ];
-
-const getSpotsByDiscipline = (discipline: string) => {
-  if (discipline === 'Course à pied') return RUNNING_SPOTS;
-  if (discipline === 'Crossfit') return CROSSFIT_SPOTS;
-  return FITNESS_SPOTS;
-};
 
 const isMatchingClub = (postClubName?: string, selectedClubName?: string): boolean => {
   if (!postClubName || !selectedClubName) return false;
@@ -123,7 +87,6 @@ export default function App() {
   const [isPostModalOpen, setIsPostModalOpen] = useState(false);
   const [isBoxWarsModalOpen, setIsBoxWarsModalOpen] = useState(false);
   
-  // NOUVEAUX ÉTATS POUR LES SOUS-MENUS DU DASHBOARD (LA BOÎTE À OUTILS)
   const [isGymLogOpen, setIsGymLogOpen] = useState(false);
   const [isWodGeneratorOpen, setIsWodGeneratorOpen] = useState(false);
 
@@ -147,12 +110,14 @@ export default function App() {
   const [currentMessageInput, setCurrentMessageInput] = useState('');
   const [isOtherUserTyping] = useState(false);
 
+  // ÉTATS ONBOARDING UX FLUIDE
+  const [onboardingStep, setOnboardingStep] = useState(1);
   const [onboardingUsername, setOnboardingUsername] = useState('');
   const [onboardingAgeGroup, setOnboardingAgeGroup] = useState('26-35 ans');
   const [onboardingDisciplines, setOnboardingDisciplines] = useState<string[]>(['Fitness / Musculation']);
   const [onboardingMainDiscipline, setOnboardingMainDiscipline] = useState<string>('Fitness / Musculation');
-  const [onboardingSpot, setOnboardingSpot] = useState(FITNESS_SPOTS[0]);
-  const [onboardingGoal] = useState('Prise de masse / Force');
+  const [onboardingSpot, setOnboardingSpot] = useState('');
+  const [onboardingGoal, setOnboardingGoal] = useState('Prise de masse / Force');
   const [onboardingGender, setOnboardingGender] = useState('Homme');
   const [onboardingTime, setOnboardingTime] = useState('Soir');
   const [onboardingAvatar] = useState<string>('https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=150');
@@ -208,6 +173,19 @@ export default function App() {
     const { data } = await supabase.from('running_shoes').select('*').eq('user_id', userId).order('created_at', { ascending: false });
     if (data) setUserShoes(data);
   };
+
+  // Logique READINESS UNIFIÉE (Basée sur l'activité réelle de l'utilisateur)
+  const calculateDynamicReadiness = () => {
+    if (!user) return 88;
+    const now = new Date().getTime();
+    const myRecentPosts = posts.filter(p => p.user_id === user.id && (now - new Date(p.created_at).getTime() < 24 * 60 * 60 * 1000));
+    
+    // Si l'utilisateur a posté une séance récemment, son readiness baisse
+    let score = 88 - (myRecentPosts.length * 35);
+    return Math.max(12, Math.min(100, score));
+  };
+
+  const currentReadinessScore = calculateDynamicReadiness();
 
   const handleAddShoe = async (brand: string, model: string, maxKm: number) => {
     if (!user) return;
@@ -388,7 +366,7 @@ export default function App() {
       user_id: user.id,
       username: currentUsername,
       avatar_url: currentUserProfile?.avatar_url || userAvatarUrl,
-      club_name: selectedClub === '🌐 Tous les spots (Global)' ? 'Tournai (Quais de l’Escaut & Parc)' : selectedClub,
+      club_name: selectedClub === '🌐 Tous les spots (Global)' ? 'Tournai (Quais de l’Escaut & Parc)' : selectedClub, // On pourra l'améliorer plus tard, utilise le club global pour l'instant
       session_type: postSessionType,
       caption: fullCaption,
       image_url: postImageUrl,
@@ -435,6 +413,9 @@ export default function App() {
 
   const marathonDate = (currentUserProfile as any)?.next_marathon_date;
   const inTaperingWeek = isMarathonWeek(marathonDate);
+
+  // EXTRACTION DES CLUBS UNIQUES POUR LA BARRE DE RECHERCHE DYNAMIQUE
+  const activeGlobalClubs = Array.from(new Set(posts.map(p => p.club_name).filter(Boolean)));
 
   if (authLoading) {
     return (
@@ -502,195 +483,208 @@ export default function App() {
 
   const hasProfile = registeredUsers.some(u => u.id === user.id);
   if (user && registeredUsers.length >= 0 && !hasProfile) {
-    const currentAvailableSpots = getSpotsByDiscipline(onboardingMainDiscipline);
-
+    
+    // NOUVEL ONBOARDING EN 3 ÉTAPES FLUIDES
     return (
-      <div className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col items-center justify-center font-sans p-4 select-none">
-        <div className="w-full max-w-sm bg-neutral-900 border border-neutral-800 rounded-3xl p-6 space-y-4 shadow-2xl relative">
-          <button 
-            type="button" 
-            onClick={async () => {
-              await supabase.auth.signOut();
-              setUser(null);
-              window.location.reload();
-            }} 
-            className="text-xs text-neutral-400 hover:text-white flex items-center gap-1 transition mb-1"
-          >
-            ← Retour à la connexion
-          </button>
+      <div className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col items-center justify-center font-sans p-4 select-none relative overflow-hidden">
+        
+        {/* Barre de progression */}
+        <div className="absolute top-8 w-full max-w-sm px-4">
+          <div className="flex gap-2 w-full">
+            <div className={`h-1.5 flex-1 rounded-full transition-colors duration-300 ${onboardingStep >= 1 ? 'bg-orange-500' : 'bg-neutral-800'}`} />
+            <div className={`h-1.5 flex-1 rounded-full transition-colors duration-300 ${onboardingStep >= 2 ? 'bg-orange-500' : 'bg-neutral-800'}`} />
+            <div className={`h-1.5 flex-1 rounded-full transition-colors duration-300 ${onboardingStep >= 3 ? 'bg-orange-500' : 'bg-neutral-800'}`} />
+          </div>
+        </div>
 
+        <div className="w-full max-w-sm bg-neutral-900 border border-neutral-800 rounded-[2rem] p-6 space-y-6 shadow-2xl relative animate-slideUp">
+          
           <div className="text-center space-y-1">
-            <h1 className="text-lg font-black text-white">Crée ton profil sportif</h1>
-            <p className="text-xs text-neutral-400">Pour trouver tes partenaires de training.</p>
+            <h1 className="text-2xl font-black text-white">
+              {onboardingStep === 1 ? "Qui es-tu ?" : onboardingStep === 2 ? "Ton style ?" : "Ton QG ?"}
+            </h1>
+            <p className="text-xs text-neutral-400">
+              {onboardingStep === 1 ? "Commençons par les bases." : onboardingStep === 2 ? "Dis-nous comment tu t'entraînes." : "Trouve tes partenaires locaux."}
+            </p>
           </div>
            
           <form onSubmit={async (e) => {
             e.preventDefault();
-            if (!onboardingUsername.trim()) { alert("Pseudo requis"); return; }
+            if (onboardingStep < 3) {
+              if (onboardingStep === 1 && !onboardingUsername.trim()) { alert("Pseudo requis"); return; }
+              setOnboardingStep(prev => prev + 1);
+              return;
+            }
+
+            if (!onboardingSpot.trim()) { alert("Merci d'indiquer ton spot d'entraînement !"); return; }
+
             setOnboardingSubmitting(true);
-             
             try {
               const profileData: any = {
                 id: user.id, 
                 username: onboardingUsername.trim(), 
-                home_club: onboardingSpot, 
+                home_club: onboardingSpot.trim(), 
                 goal: onboardingGoal, 
                 gender: onboardingGender, 
                 preferred_time: onboardingTime,
                 avatar_url: onboardingAvatar, 
                 points: 0, 
-                is_admin: user.email === 'antboucher@hotmail.fr'
+                is_admin: user.email === 'antboucher@hotmail.fr',
+                discipline: onboardingMainDiscipline,
+                disciplines: onboardingDisciplines.join(',')
               };
 
-              try {
-                profileData.discipline = onboardingMainDiscipline;
-                profileData.disciplines = onboardingDisciplines.join(',');
-              } catch (_) {}
-
               const { error } = await supabase.from('profiles').upsert(profileData);
-
-              if (error) {
-                const { error: retryError } = await supabase.from('profiles').upsert({
-                  id: user.id, 
-                  username: onboardingUsername.trim(), 
-                  home_club: onboardingSpot, 
-                  goal: onboardingGoal, 
-                  gender: onboardingGender, 
-                  preferred_time: onboardingTime,
-                  avatar_url: onboardingAvatar, 
-                  points: 0, 
-                  is_admin: user.email === 'antboucher@hotmail.fr'
-                });
-                if (retryError) {
-                  alert("Erreur Supabase : " + retryError.message);
-                } else {
-                  await fetchRealUsers();
-                  window.location.reload();
-                }
-              } else {
-                await fetchRealUsers();
-                window.location.reload();
-              }
+              if (error) throw error;
+              
+              await fetchRealUsers();
+              window.location.reload();
             } catch (err: any) {
-              alert("Erreur inattendue : " + (err.message || err));
+              alert("Erreur lors de la création : " + (err.message || err));
             } finally {
               setOnboardingSubmitting(false);
             }
-          }} className="space-y-3">
-            <div>
-              <label className="block text-xs text-neutral-400 mb-1">Pseudo / Prénom :</label>
-              <input type="text" required placeholder="Ex: Antoine" value={onboardingUsername} onChange={(e) => setOnboardingUsername(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-2.5 text-sm text-white" />
-            </div>
-             
-            <div>
-              <label className="block text-xs text-neutral-400 mb-1.5">Disciplines pratiquées (Sélection multiple) :</label>
-              <div className="grid grid-cols-1 gap-2">
-                {[
-                  { id: 'Fitness / Musculation', label: '💪 Fitness / Musculation' },
-                  { id: 'Course à pied', label: '🏃‍♂️ Course à pied' },
-                  { id: 'Crossfit', label: '⚡ Crossfit' }
-                ].map((item) => {
-                  const isSelected = onboardingDisciplines.includes(item.id);
-                  return (
-                    <button
-                      key={item.id}
-                      type="button"
-                      onClick={() => {
-                        let updated: string[];
-                        if (isSelected) {
-                          if (onboardingDisciplines.length === 1) return;
-                          updated = onboardingDisciplines.filter(d => d !== item.id);
-                          if (onboardingMainDiscipline === item.id) {
-                            setOnboardingMainDiscipline(updated[0]);
-                          }
-                        } else {
-                          updated = [...onboardingDisciplines, item.id];
-                        }
-                        setOnboardingDisciplines(updated);
-                        const newSpots = getSpotsByDiscipline(updated[0]);
-                        setOnboardingSpot(newSpots[0]);
-                      }}
-                      className={`py-2.5 px-4 rounded-xl text-xs font-bold border text-left transition flex items-center justify-between cursor-pointer ${
-                        isSelected 
-                          ? 'bg-orange-500/20 border-orange-500 text-orange-400' 
-                          : 'bg-neutral-950 border-neutral-800 text-neutral-400 hover:border-neutral-700'
-                      }`}
-                    >
-                      <span>{item.label}</span>
-                      {isSelected && <span className="text-[10px] bg-orange-500 text-neutral-950 px-2 py-0.5 rounded-full font-black">Actif</span>}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
+          }} className="space-y-4">
 
-            {onboardingDisciplines.length > 1 && (
-              <div>
-                <label className="block text-xs text-neutral-400 mb-1">Discipline dominante (pour le spot de référence) :</label>
-                <select 
-                  value={onboardingMainDiscipline} 
-                  onChange={(e) => {
-                    const mainDisc = e.target.value;
-                    setOnboardingMainDiscipline(mainDisc);
-                    const newSpots = getSpotsByDiscipline(mainDisc);
-                    setOnboardingSpot(newSpots[0]);
-                  }} 
-                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-2.5 text-sm text-white"
-                >
-                  {onboardingDisciplines.map((disc) => (
-                    <option key={disc} value={disc}>{disc}</option>
-                  ))}
-                </select>
+            {/* ÉTAPE 1 : IDENTITÉ */}
+            {onboardingStep === 1 && (
+              <div className="space-y-4 animate-fadeIn">
+                <div>
+                  <label className="block text-xs font-bold text-neutral-400 mb-1.5">Pseudo / Prénom</label>
+                  <input type="text" autoFocus required placeholder="Ex: Antoine" value={onboardingUsername} onChange={(e) => setOnboardingUsername(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 focus:border-orange-500 rounded-xl px-4 py-3.5 text-sm text-white transition outline-none" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-neutral-400 mb-1.5">Genre</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {['Homme', 'Femme'].map(g => (
+                      <div 
+                        key={g} 
+                        onClick={() => setOnboardingGender(g)} 
+                        className={`p-3 rounded-xl border text-center text-sm font-bold cursor-pointer transition ${onboardingGender === g ? 'bg-orange-500/20 border-orange-500 text-orange-400' : 'bg-neutral-950 border-neutral-800 text-neutral-400 hover:border-neutral-700'}`}
+                      >
+                        {g}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-neutral-400 mb-1.5">Tranche d'âge</label>
+                  <select value={onboardingAgeGroup} onChange={(e) => setOnboardingAgeGroup(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-3 text-sm text-white outline-none">
+                    <option value="18-25 ans">18-25 ans</option>
+                    <option value="26-35 ans">26-35 ans</option>
+                    <option value="36-45 ans">36-45 ans</option>
+                    <option value="Plus de 45 ans">Plus de 45 ans</option>
+                  </select>
+                </div>
               </div>
             )}
 
-            <div>
-              <label className="block text-xs text-neutral-400 mb-1">Tranche d'âge :</label>
-              <select value={onboardingAgeGroup} onChange={(e) => setOnboardingAgeGroup(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-2.5 text-sm text-white">
-                <option value="Moins de 18 ans">Moins de 18 ans</option>
-                <option value="18-25 ans">18-25 ans</option>
-                <option value="26-35 ans">26-35 ans</option>
-                <option value="36-45 ans">36-45 ans</option>
-                <option value="46-55 ans">46-55 ans</option>
-                <option value="Plus de 55 ans">Plus de 55 ans</option>
-              </select>
-            </div>
+            {/* ÉTAPE 2 : DISCIPLINES */}
+            {onboardingStep === 2 && (
+              <div className="space-y-4 animate-fadeIn">
+                <div>
+                  <label className="block text-xs font-bold text-neutral-400 mb-1.5">Disciplines pratiquées</label>
+                  <div className="grid grid-cols-1 gap-2.5">
+                    {[
+                      { id: 'Fitness / Musculation', label: '💪 Musculation / Fitness' },
+                      { id: 'Course à pied', label: '🏃‍♂️ Course à pied' },
+                      { id: 'Crossfit', label: '⚡ Crossfit' }
+                    ].map((item) => {
+                      const isSelected = onboardingDisciplines.includes(item.id);
+                      return (
+                        <div
+                          key={item.id}
+                          onClick={() => {
+                            let updated: string[];
+                            if (isSelected) {
+                              if (onboardingDisciplines.length === 1) return;
+                              updated = onboardingDisciplines.filter(d => d !== item.id);
+                              if (onboardingMainDiscipline === item.id) setOnboardingMainDiscipline(updated[0]);
+                            } else {
+                              updated = [...onboardingDisciplines, item.id];
+                            }
+                            setOnboardingDisciplines(updated);
+                          }}
+                          className={`p-3.5 rounded-xl border text-sm font-bold flex items-center justify-between cursor-pointer transition ${isSelected ? 'bg-orange-500/20 border-orange-500 text-orange-400' : 'bg-neutral-950 border-neutral-800 text-neutral-400 hover:border-neutral-700'}`}
+                        >
+                          <span>{item.label}</span>
+                          {isSelected && <CheckCircle2 className="w-4 h-4 text-orange-500" />}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
 
-            <div>
-              <label className="block text-xs text-neutral-400 mb-1">Genre :</label>
-              <select value={onboardingGender} onChange={(e) => setOnboardingGender(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-2.5 text-sm text-white">
-                <option value="Homme">Homme</option>
-                <option value="Femme">Femme</option>
-                <option value="Autre">Autre</option>
-              </select>
-            </div>
+                {onboardingDisciplines.length > 1 && (
+                  <div>
+                    <label className="block text-xs font-bold text-neutral-400 mb-1.5">Discipline dominante</label>
+                    <select value={onboardingMainDiscipline} onChange={(e) => setOnboardingMainDiscipline(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-3 text-sm text-white outline-none">
+                      {onboardingDisciplines.map((disc) => <option key={disc} value={disc}>{disc}</option>)}
+                    </select>
+                  </div>
+                )}
+              </div>
+            )}
 
-            <div>
-              <label className="block text-xs text-neutral-400 mb-1">Créneau horaire de Match (Dispo) :</label>
-              <select value={onboardingTime} onChange={(e) => setOnboardingTime(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-2.5 text-sm text-white">
-                <option value="Matin">🌅 Matin</option>
-                <option value="Midi">☀️ Midi</option>
-                <option value="Soir">🌙 Soir</option>
-              </select>
-            </div>
+            {/* ÉTAPE 3 : LIEU ET HORAIRE (SPOTS DYNAMIQUES) */}
+            {onboardingStep === 3 && (
+              <div className="space-y-4 animate-fadeIn">
+                <div>
+                  <label className="block text-xs font-bold text-neutral-400 mb-1.5">Ton Spot / Salle principale</label>
+                  <p className="text-[10px] text-neutral-500 mb-2">Tape le nom de ton lieu d'entraînement (ville, salle...). Tu pourras toujours changer plus tard.</p>
+                  
+                  {/* CHAMP LIBRE AVEC SUGGESTIONS INTELLIGENTES */}
+                  <input 
+                    type="text" 
+                    list="spot-suggestions"
+                    required 
+                    placeholder="Ex: Basic-Fit Lille, CrossFit Paris..." 
+                    value={onboardingSpot} 
+                    onChange={(e) => setOnboardingSpot(e.target.value)} 
+                    className="w-full bg-neutral-950 border border-neutral-800 focus:border-orange-500 rounded-xl px-4 py-3 text-sm text-white transition outline-none" 
+                  />
+                  <datalist id="spot-suggestions">
+                    {LOCAL_SUGGESTIONS.map(spot => <option key={spot} value={spot} />)}
+                  </datalist>
+                </div>
 
-            <div>
-              <label className="block text-xs text-neutral-400 mb-1">Spot d'entraînement principal :</label>
-              <select value={onboardingSpot} onChange={(e) => setOnboardingSpot(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-2.5 text-sm text-white">
-                {currentAvailableSpots.map((spot) => <option key={spot} value={spot}>{spot}</option>)}
-              </select>
-            </div>
+                <div>
+                  <label className="block text-xs font-bold text-neutral-400 mb-1.5">Horaire de prédilection</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      { id: 'Matin', label: '🌅 Matin' },
+                      { id: 'Midi', label: '☀️ Midi' },
+                      { id: 'Soir', label: '🌙 Soir' }
+                    ].map(t => (
+                      <div 
+                        key={t.id} 
+                        onClick={() => setOnboardingTime(t.id)} 
+                        className={`p-2.5 rounded-xl border text-center text-[10px] font-bold cursor-pointer transition ${onboardingTime === t.id ? 'bg-orange-500/20 border-orange-500 text-orange-400' : 'bg-neutral-950 border-neutral-800 text-neutral-400 hover:border-neutral-700'}`}
+                      >
+                        {t.label}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
 
-            <button type="submit" disabled={onboardingSubmitting} className="w-full py-3 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-2xl text-sm transition cursor-pointer">
-              {onboardingSubmitting ? "Validation..." : "Rejoindre la communauté 🚀"}
-            </button>
+            <div className="flex items-center gap-3 pt-4">
+              {onboardingStep > 1 && (
+                <button type="button" onClick={() => setOnboardingStep(prev => prev - 1)} className="p-3.5 bg-neutral-800 hover:bg-neutral-700 text-white rounded-xl transition cursor-pointer">
+                  <ChevronLeft className="w-5 h-5" />
+                </button>
+              )}
+              <button type="submit" disabled={onboardingSubmitting} className="flex-1 py-3.5 bg-orange-600 hover:bg-orange-500 text-white font-black rounded-xl text-sm transition shadow-lg flex items-center justify-center gap-2 cursor-pointer">
+                {onboardingStep < 3 ? "Continuer" : onboardingSubmitting ? "Création..." : "Rejoindre la meute 🚀"}
+                {onboardingStep < 3 && <ChevronRight className="w-4 h-4" />}
+              </button>
+            </div>
           </form>
         </div>
       </div>
     );
   }
-
-  const allAvailableSpotsForUserDiscipline = getSpotsByDiscipline((currentUserProfile as any)?.discipline || 'Fitness / Musculation');
 
   return (
     <div className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col font-sans select-none antialiased relative">
@@ -706,11 +700,12 @@ export default function App() {
           </div>
 
           {currentTab !== 'boxwars' && currentTab !== 'running' && currentTab !== 'readiness' && currentTab !== 'paces' && currentTab !== 'calculator' && currentTab !== 'hall_of_fame' && currentTab !== 'buddy' && (
-            <div className="relative flex items-center bg-neutral-900 border border-neutral-800 rounded-xl px-2.5 py-1.5">
+            <div className="relative flex items-center bg-neutral-900 border border-neutral-800 rounded-xl px-2.5 py-1.5 max-w-[50%]">
               <MapPin className="w-3.5 h-3.5 text-orange-500 mr-1.5 flex-shrink-0" />
-              <select value={selectedClub} onChange={(e) => setSelectedClub(e.target.value)} className="bg-transparent text-xs font-bold text-orange-400 focus:outline-none cursor-pointer pr-1">
-                <option value="🌐 Tous les spots (Global)">🌐 Tous les spots (Global)</option>
-                {allAvailableSpotsForUserDiscipline.map((spot) => <option key={spot} value={spot} className="bg-neutral-900 text-white">{spot}</option>)}
+              {/* FILTRE DE SPOTS DYNAMIQUE (Extrait les clubs de la DB) */}
+              <select value={selectedClub} onChange={(e) => setSelectedClub(e.target.value)} className="bg-transparent text-[10px] font-bold text-orange-400 focus:outline-none cursor-pointer pr-1 w-full truncate">
+                <option value="🌐 Tous les spots (Global)">🌐 Global</option>
+                {activeGlobalClubs.map((spot) => <option key={spot} value={spot} className="bg-neutral-900 text-white">{spot}</option>)}
               </select>
             </div>
           )}
@@ -736,16 +731,16 @@ export default function App() {
                 </div>
               )}
 
-              {/* 1. CARTE MAÎTRE : LA "NEXT BEST ACTION" (Ultra Focus) */}
-              <div className="bg-gradient-to-br from-neutral-900 via-neutral-900 to-orange-950/40 border border-orange-500/30 rounded-[2rem] p-6 shadow-2xl relative overflow-hidden">
-                <div className="absolute -right-8 -top-8 w-36 h-36 bg-orange-500/10 rounded-full blur-3xl pointer-events-none" />
+              {/* 1. CARTE MAÎTRE : LA "NEXT BEST ACTION" (Readiness Dynamique) */}
+              <div className={`bg-gradient-to-br border rounded-[2rem] p-6 shadow-2xl relative overflow-hidden transition-colors duration-500 ${currentReadinessScore < 50 ? 'from-neutral-900 to-red-950/40 border-red-500/30' : 'from-neutral-900 to-orange-950/40 border-orange-500/30'}`}>
+                <div className={`absolute -right-8 -top-8 w-36 h-36 rounded-full blur-3xl pointer-events-none ${currentReadinessScore < 50 ? 'bg-red-500/10' : 'bg-orange-500/10'}`} />
                 
                 {/* En-tête du flux */}
                 <div className="flex items-center justify-between relative z-10 mb-4">
                   <div className="flex items-center gap-2">
-                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
-                    <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400">
-                      État de Forme • Optimal (78%)
+                    <span className={`w-2.5 h-2.5 rounded-full animate-pulse ${currentReadinessScore < 50 ? 'bg-red-400' : 'bg-emerald-400'}`} />
+                    <span className={`text-[10px] font-black uppercase tracking-widest ${currentReadinessScore < 50 ? 'text-red-400' : 'text-emerald-400'}`}>
+                      État de Forme • {currentReadinessScore < 50 ? 'Fatigue' : 'Optimal'} ({currentReadinessScore}%)
                     </span>
                   </div>
                   <span className="text-xs text-neutral-400 font-medium">
@@ -756,31 +751,36 @@ export default function App() {
                 {/* Accroche principale */}
                 <div className="relative z-10 space-y-1 mb-6">
                   <h2 className="text-2xl font-black text-white tracking-tight">
-                    Prêt pour ta séance ?
+                    {currentReadinessScore < 50 ? "Repos conseillé." : "Prêt pour ta séance ?"}
                   </h2>
                   <p className="text-xs text-neutral-300 leading-relaxed">
-                    Ton organisme a bien récupéré. Feu vert pour une session active aujourd'hui.
+                    {currentReadinessScore < 50 
+                      ? "Tu as déjà enregistré une activité forte récemment. Laisse tes muscles récupérer." 
+                      : "Ton organisme a bien récupéré. Feu vert pour une session active aujourd'hui."}
                   </p>
                 </div>
 
                 {/* Bouton d'Action Directe (La "Next Best Action") */}
                 <div className="relative z-10">
-                  <div className="bg-neutral-950/90 border border-orange-500/50 rounded-2xl p-5 flex flex-col gap-4 shadow-[0_8px_30px_rgba(0,0,0,0.5)]">
+                  <div className={`bg-neutral-950/90 border rounded-2xl p-5 flex flex-col gap-4 shadow-[0_8px_30px_rgba(0,0,0,0.5)] ${currentReadinessScore < 50 ? 'border-red-500/50' : 'border-orange-500/50'}`}>
                     <div className="flex items-center gap-3.5">
-                      <div className="w-12 h-12 rounded-xl bg-orange-500/20 text-orange-500 flex items-center justify-center flex-shrink-0">
-                        <Navigation className="w-6 h-6" />
+                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${currentReadinessScore < 50 ? 'bg-red-500/20 text-red-500' : 'bg-orange-500/20 text-orange-500'}`}>
+                        {currentReadinessScore < 50 ? <BatteryCharging className="w-6 h-6" /> : <Navigation className="w-6 h-6" />}
                       </div>
                       <div>
-                        <span className="text-[10px] uppercase font-black tracking-widest text-orange-400 block mb-0.5">Objectif du jour</span>
-                        <span className="text-sm font-black text-white">Footing Actif & Stratégie Gels (6 km)</span>
+                        <span className={`text-[10px] uppercase font-black tracking-widest block mb-0.5 ${currentReadinessScore < 50 ? 'text-red-400' : 'text-orange-400'}`}>Objectif du jour</span>
+                        <span className="text-sm font-black text-white">{currentReadinessScore < 50 ? 'Mobilité & Récupération' : 'Footing Actif ou GymLog'}</span>
                       </div>
                     </div>
-                    <button 
-                      onClick={() => handleTabChange('running')}
-                      className="w-full py-4 bg-orange-600 hover:bg-orange-500 text-white rounded-xl text-sm font-black flex items-center justify-center gap-2 transition shadow-[0_0_20px_rgba(234,88,12,0.4)] cursor-pointer"
-                    >
-                      Lancer l'entraînement <Play className="w-4 h-4 fill-current" />
-                    </button>
+                    
+                    {currentReadinessScore >= 50 && (
+                      <button 
+                        onClick={() => handleTabChange('running')}
+                        className="w-full py-4 bg-orange-600 hover:bg-orange-500 text-white rounded-xl text-sm font-black flex items-center justify-center gap-2 transition shadow-[0_0_20px_rgba(234,88,12,0.4)] cursor-pointer"
+                      >
+                        Lancer l'entraînement <Play className="w-4 h-4 fill-current" />
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -867,7 +867,7 @@ export default function App() {
                 userDiscipline={(currentUserProfile as any)?.discipline} 
                 feedLoading={feedLoading} 
                 calculateStreak={calculateUserStreak} 
-                onCreateStoryClick={() => setIsPostModalOpen(true)} 
+                onCreateStoryClick={() => setIsActionMenuOpen(true)} 
                 onToggleLike={handleToggleLike} 
                 onOpenComments={(id) => setActiveCommentPostId(id)} 
                 onReportPost={() => {}} 
@@ -916,7 +916,7 @@ export default function App() {
                 userDiscipline={(currentUserProfile as any)?.discipline} 
                 feedLoading={feedLoading} 
                 calculateStreak={calculateUserStreak} 
-                onCreateStoryClick={() => setIsPostModalOpen(true)} 
+                onCreateStoryClick={() => setIsActionMenuOpen(true)} 
                 onToggleLike={handleToggleLike} 
                 onOpenComments={(id) => setActiveCommentPostId(id)} 
                 onReportPost={() => {}} 
@@ -974,7 +974,7 @@ export default function App() {
                 userDiscipline={(currentUserProfile as any)?.discipline} 
                 feedLoading={feedLoading} 
                 calculateStreak={calculateUserStreak} 
-                onCreateStoryClick={() => setIsPostModalOpen(true)} 
+                onCreateStoryClick={() => setIsActionMenuOpen(true)} 
                 onToggleLike={handleToggleLike} 
                 onOpenComments={(id) => setActiveCommentPostId(id)} 
                 onReportPost={() => {}} 
