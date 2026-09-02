@@ -218,6 +218,21 @@ export default function App() {
     fetchUserShoes(user.id);
   };
 
+  // Fonction de sauvegarde de la VMA connectée au profil Supabase
+  const handleSaveVma = async (newVma: number) => {
+    if (!user) return;
+    const { error } = await supabase
+      .from('profiles')
+      .update({ vma: newVma })
+      .eq('id', user.id);
+
+    if (!error) {
+      fetchRealUsers();
+    } else {
+      alert("Erreur lors de la sauvegarde de la VMA : " + error.message);
+    }
+  };
+
   const addPointsToUser = async (userId: string, pointsToAdd: number) => {
     const targetUser = registeredUsers.find(u => u.id === userId);
     const currentPoints = (targetUser as any)?.points || 0;
@@ -723,7 +738,12 @@ export default function App() {
           {currentTab === 'rest_timer' && <WodTimerTab />}
           {currentTab === 'calculator' && <CalculatorTab />}
            
-          {currentTab === 'paces' && <PaceCalculatorTab />}
+          {currentTab === 'paces' && (
+            <PaceCalculatorTab 
+              currentVma={(currentUserProfile as any)?.vma || 14} 
+              onSaveVma={handleSaveVma} 
+            />
+          )}
 
           {currentTab === 'readiness' && (
             <div className="space-y-4">
