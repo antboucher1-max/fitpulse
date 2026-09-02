@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { 
   Play, Pause, Square, MapPin, Volume2, VolumeX, 
-  Compass, Apple, Droplet, Zap, Navigation, LocateFixed 
+  Compass, Apple, Droplet, Zap, Navigation, LocateFixed, Activity, AlertTriangle 
 } from 'lucide-react';
 import { MapContainer, TileLayer, Polyline, Marker, useMap } from 'react-leaflet';
 import L from 'leaflet';
@@ -37,6 +37,7 @@ interface RunningTabProps {
   onDeleteShoe?: (shoeId: string) => void;
   onSetActiveShoe?: (shoeId: string) => void;
   onSaveRunPost?: (caption: string, km: number) => void;
+  onNavigateTab?: (tab: string) => void;
 }
 
 export default function RunningTab({
@@ -44,7 +45,8 @@ export default function RunningTab({
   onAddShoe = () => {},
   onDeleteShoe = () => {},
   onSetActiveShoe = () => {},
-  onSaveRunPost
+  onSaveRunPost,
+  onNavigateTab
 }: RunningTabProps) {
   const [isRunning, setIsRunning] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
@@ -104,14 +106,13 @@ export default function RunningTab({
             const lng = position.coords.longitude;
             const newPos: [number, number] = [lat, lng];
 
-            // Vérifier si la position a réellement changé pour éviter les micro-saccades
             const last = lastPositionRef.current;
             const distanceMoved = Math.hypot(newPos[0] - last[0], newPos[1] - last[1]);
 
             if (distanceMoved > 0.00001) {
               lastPositionRef.current = newPos;
               setCurrentPosition(newPos);
-              setRoutePositions(prev => [...prev, newPos]); // Accumule le parcours sans reculer
+              setRoutePositions(prev => [...prev, newPos]);
             }
           },
           (error) => console.error(error),
@@ -179,11 +180,43 @@ export default function RunningTab({
             <h2 className="text-xl font-black text-white tracking-tight">GPS, Carte Live & Nutrition</h2>
           </div>
           <button 
+            type="button"
             onClick={fetchInitialPosition}
             className="flex items-center gap-1.5 text-xs font-bold bg-neutral-950/90 border border-neutral-800 px-3.5 py-2 rounded-xl text-emerald-400 hover:bg-neutral-800 transition shadow-inner cursor-pointer"
           >
             <LocateFixed className="w-4 h-4 animate-pulse" /> Ma Position
           </button>
+        </div>
+      </div>
+
+      {/* Widget Intégré : Contrôle de Récupération & Charge (Readiness / Load Score) */}
+      <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4 shadow-xl">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 text-emerald-400 font-bold text-xs uppercase tracking-wider">
+            <Activity className="w-4 h-4" /> Statut de Forme & Fatigue du Jour
+          </div>
+          <button 
+            type="button"
+            onClick={() => onNavigateTab && onNavigateTab('readiness')}
+            className="text-[10px] font-bold text-orange-400 bg-orange-500/10 border border-orange-500/20 px-3 py-1 rounded-full hover:bg-orange-500/20 transition cursor-pointer"
+          >
+            Faire un Check-in ⚡
+          </button>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div className="bg-neutral-950 p-3.5 rounded-2xl border border-neutral-800 space-y-1">
+            <span className="text-[10px] text-neutral-400 uppercase font-semibold block">Indice Récupération</span>
+            <span className="text-xl font-black text-emerald-400">78% <span className="text-[10px] text-neutral-500 font-normal">Optimal</span></span>
+          </div>
+          <div className="bg-neutral-950 p-3.5 rounded-2xl border border-neutral-800 space-y-1">
+            <span className="text-[10px] text-neutral-400 uppercase font-semibold block">Charge Hebdo (Load)</span>
+            <span className="text-xl font-black text-orange-400">45 <span className="text-[10px] text-neutral-500 font-normal">/ 100</span></span>
+          </div>
+        </div>
+
+        <div className="bg-neutral-950 border border-neutral-800 p-3 rounded-xl flex items-center justify-between text-xs">
+          <span className="text-neutral-300">💡 Conseil du jour : Feu vert pour une sortie endurance ou seuil modéré.</span>
         </div>
       </div>
 
@@ -232,8 +265,9 @@ export default function RunningTab({
             <MapPin className="w-4 h-4 text-orange-500" /> Traceur Live & Audio
           </h3>
           <button 
+            type="button"
             onClick={() => setAudioCoaching(!audioCoaching)}
-            className={`p-2 rounded-xl border text-xs font-bold transition flex items-center gap-1.5 ${
+            className={`p-2 rounded-xl border text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
               audioCoaching ? 'bg-orange-500/20 text-orange-400 border-orange-500/30' : 'bg-neutral-950 text-neutral-500 border-neutral-800'
             }`}
           >
@@ -256,6 +290,7 @@ export default function RunningTab({
         <div className="flex gap-3 pt-2">
           {!isRunning ? (
             <button 
+              type="button"
               onClick={handleStartRun}
               className="flex-1 py-4 bg-orange-600 hover:bg-orange-500 text-white font-black rounded-2xl text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-xl transition cursor-pointer"
             >
@@ -264,6 +299,7 @@ export default function RunningTab({
           ) : (
             <>
               <button 
+                type="button"
                 onClick={handlePauseRun}
                 className="flex-1 py-4 bg-neutral-800 hover:bg-neutral-700 text-white font-bold rounded-2xl text-xs flex items-center justify-center gap-2 transition cursor-pointer"
               >
@@ -271,6 +307,7 @@ export default function RunningTab({
                 {isPaused ? 'Reprendre' : 'Pause'}
               </button>
               <button 
+                type="button"
                 onClick={handleStopRun}
                 className="flex-1 py-4 bg-red-950/60 border border-red-900/50 hover:bg-red-900/60 text-red-400 font-black rounded-2xl text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition cursor-pointer"
               >
@@ -319,7 +356,7 @@ export default function RunningTab({
             <select 
               value={intensity} 
               onChange={(e: any) => setIntensity(e.target.value)}
-              className="w-full bg-neutral-950 border border-neutral-800 rounded-2xl px-4 py-3 text-xs text-white focus:border-orange-500 focus:outline-none"
+              className="w-full bg-neutral-950 border border-neutral-800 rounded-2xl px-4 py-3 text-xs text-white focus:border-orange-500 focus:outline-none cursor-pointer"
             >
               <option value="modere">Modéré (Endurance cool)</option>
               <option value="soutenu">Soutenu (Allure semi/marathon)</option>
