@@ -495,8 +495,6 @@ export default function App() {
 
           {currentTab === 'today' && (
             <div className="space-y-6 animate-fadeIn pb-12">
-              <OnboardingGuide />
-
               {inTaperingWeek && (
                 <div className="bg-amber-950/40 border border-amber-500/40 rounded-3xl p-5 text-center space-y-1 shadow-2xl">
                   <span className="text-[10px] font-black uppercase tracking-widest text-amber-400 bg-amber-500/20 px-3 py-1 rounded-full border border-amber-500/30">
