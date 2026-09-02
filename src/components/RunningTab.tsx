@@ -210,8 +210,11 @@ export default function RunningTab({
           <button 
             type="button"
             onClick={() => {
+              localStorage.setItem('fitpulse_active_tab', 'readiness');
               if (onNavigateTab) {
                 onNavigateTab('readiness');
+              } else {
+                window.location.reload();
               }
             }}
             className="text-[10px] font-bold text-orange-400 bg-orange-500/10 border border-orange-500/20 px-3 py-1 rounded-full hover:bg-orange-500/20 transition cursor-pointer"
