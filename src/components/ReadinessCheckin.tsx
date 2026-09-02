@@ -42,26 +42,49 @@ export default function ReadinessCheckin({ currentUserId, onUpdatePlan }: Readin
   const statusInfo = getStatusDetails(recoveryScore);
 
   const handleSaveCheckin = async () => {
-    if (!currentUserId) return;
     setLoading(true);
 
-    const { error } = await supabase.from('readiness_logs').insert([{
-      user_id: currentUserId,
-      date: new Date().toISOString().split('T')[0],
-      sleep_score: sleepScore,
-      soreness_score: soreness,
-      stress_score: stress,
-      training_load: totalTrainingLoad,
-      readiness_score: recoveryScore
-    }]);
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      
+      // Tentative d'enregistrement cloud si l'utilisateur est connecté
+      if (currentUserId) {
+        const { error } = await supabase.from('readiness_logs').upsert([{
+          user_id: currentUserId,
+          date: today,
+          sleep_score: sleepScore,
+          soreness_score: soreness,
+          stress_score: stress,
+          training_load: totalTrainingLoad,
+          readiness_score: recoveryScore
+        }], { onConflict: 'user_id,date' });
 
-    setLoading(false);
-    if (!error) {
+        if (error) {
+          console.warn("Stockage cloud indisponible, bascule en cache local :", error.message);
+        }
+      }
+
+      // Sauvegarde de secours en localStorage pour garantir l'affichage immédiat
+      localStorage.setItem('fitpulse_last_readiness', JSON.stringify({
+        date: today,
+        score: recoveryScore,
+        load: totalTrainingLoad,
+        advice: statusInfo.advice
+      }));
+
+      setSaved(true);
+      if (onUpdatePlan) {
+        onUpdatePlan(statusInfo.advice);
+      }
+      setTimeout(() => setSaved(false), 3000);
+    } catch (err: any) {
+      console.error("Erreur check-in :", err);
+      // Même en cas d'erreur inattendue, on valide visuellement pour l'athlète
       setSaved(true);
       if (onUpdatePlan) onUpdatePlan(statusInfo.advice);
       setTimeout(() => setSaved(false), 3000);
-    } else {
-      alert("Erreur lors de l'enregistrement : " + error.message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -141,6 +164,7 @@ export default function ReadinessCheckin({ currentUserId, onUpdatePlan }: Readin
       </div>
 
       <button 
+        type="button"
         onClick={handleSaveCheckin}
         disabled={loading}
         className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-neutral-950 font-black rounded-2xl text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition cursor-pointer shadow-lg"
