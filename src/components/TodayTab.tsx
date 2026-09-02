@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Play, Activity, Zap, Navigation, Flame, Calendar, ArrowRight, ShieldCheck, BatteryCharging, CheckCircle2 } from 'lucide-react';
+import { Play, Activity, Zap, Navigation, Flame, Calendar, ArrowRight, ShieldCheck, BatteryCharging, CheckCircle2, Users } from 'lucide-react';
 
 export default function ContextualDashboard({ currentUserProfile, onNavigateTab }: { currentUserProfile: any, onNavigateTab: (tab: string) => void }) {
   // Simulation de l'état contextuel du jour
