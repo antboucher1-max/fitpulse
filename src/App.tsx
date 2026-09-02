@@ -21,6 +21,7 @@ import RunningTab from './components/RunningTab';
 import ReadinessCheckin from './components/ReadinessCheckin';
 import TrainingPlanTab from './components/TrainingPlanTab';
 import RoadbookTab from './components/RoadbookTab';
+import OfflineRunGuard from './components/OfflineRunGuard';
 
 const supabaseUrl = 'https://obtahwmcoqrcauscpksv.supabase.co';
 const supabaseAnonKey = 'sb_publishable_O8CKhUtzgq9nO9lKavNE9A__fAdRWoB';
@@ -695,7 +696,9 @@ export default function App() {
           )}
         </header>
 
-        <main className="flex-1 w-full mx-auto px-4 py-3 pb-24">
+        <main className="flex-1 w-full mx-auto px-4 py-3 pb-24 space-y-3">
+          {currentTab === 'running' && <OfflineRunGuard currentUserId={user?.id} />}
+
           {currentTab === 'feed' && (
             <FeedTab 
               posts={displayedPosts} 
