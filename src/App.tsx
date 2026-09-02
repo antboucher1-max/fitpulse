@@ -23,6 +23,7 @@ import TrainingPlanTab from './components/TrainingPlanTab';
 import RoadbookTab from './components/RoadbookTab';
 import OfflineRunGuard from './components/OfflineRunGuard';
 import WodGenerator from './components/WodGenerator';
+import OnboardingGuide from './components/OnboardingGuide';
 
 const supabaseUrl = 'https://obtahwmcoqrcauscpksv.supabase.co';
 const supabaseAnonKey = 'sb_publishable_O8CKhUtzgq9nO9lKavNE9A__fAdRWoB';
@@ -711,12 +712,15 @@ export default function App() {
           )}
         </header>
 
-        <main className="flex-1 w-full mx-auto px-4 py-3 pb-24 space-y-3">
+        <main className="flex-1 w-full mx-auto px-4 py-3 pb-32 space-y-3">
           {currentTab === 'running' && <OfflineRunGuard currentUserId={user?.id} />}
 
           {/* REDESIGN UX - ONGLET 'TODAY' (HUB CENTRAL INTELLIGENT) */}
           {currentTab === 'today' && (
             <div className="space-y-4 animate-fadeIn pb-12">
+              {/* GUIDE DE BIENVENUE INTERACTIF */}
+              <OnboardingGuide />
+
               {/* Alerte Tapering Marathon si actif */}
               {inTaperingWeek && (
                 <div className="bg-amber-950/40 border border-amber-500/40 rounded-3xl p-5 text-center space-y-1 shadow-2xl">
