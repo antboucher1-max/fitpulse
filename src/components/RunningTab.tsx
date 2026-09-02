@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { 
   Play, Pause, Square, MapPin, Volume2, VolumeX, 
-  Compass, Apple, Droplet, Zap, Navigation, LocateFixed, Activity, AlertTriangle 
+  Compass, Apple, Droplet, Zap, Navigation, LocateFixed, Activity, Gauge, Timer 
 } from 'lucide-react';
 import { MapContainer, TileLayer, Polyline, Marker, useMap } from 'react-leaflet';
 import L from 'leaflet';
@@ -88,7 +88,7 @@ export default function RunningTab({
     fetchInitialPosition();
   }, []);
 
-  // Suivi GPS stable : ajoute les points uniquement en avançant (pas de retour en arrière)
+  // Suivi GPS stable : ajoute les points uniquement en avançant
   useEffect(() => {
     let interval: any = null;
     let watchId: number | null = null;
@@ -156,6 +156,18 @@ export default function RunningTab({
     }
   };
 
+  // Calculs d'allure et vitesse en temps réel
+  const currentHours = seconds / 3600;
+  const currentSpeedKmh = currentHours > 0 && distanceKm > 0 ? (distanceKm / currentHours).toFixed(1) : '0.0';
+  
+  let paceFormatted = '--:--';
+  if (distanceKm > 0 && seconds > 0) {
+    const totalSecPerKm = seconds / distanceKm;
+    const rawMins = Math.floor(totalSecPerKm / 60);
+    const rawSecs = Math.round(totalSecPerKm % 60);
+    paceFormatted = `${rawMins}'${rawSecs < 10 ? '0' : ''}${rawSecs}"`;
+  }
+
   const totalHours = durationHours + durationMins / 60;
   let carbsPerHour = 60;
   if (intensity === 'modere') carbsPerHour = 45;
@@ -197,7 +209,11 @@ export default function RunningTab({
           </div>
           <button 
             type="button"
-            onClick={() => onNavigateTab && onNavigateTab('readiness')}
+            onClick={() => {
+              if (onNavigateTab) {
+                onNavigateTab('readiness');
+              }
+            }}
             className="text-[10px] font-bold text-orange-400 bg-orange-500/10 border border-orange-500/20 px-3 py-1 rounded-full hover:bg-orange-500/20 transition cursor-pointer"
           >
             Faire un Check-in ⚡
@@ -258,7 +274,7 @@ export default function RunningTab({
         </div>
       </div>
 
-      {/* Module GPS / Tracker Live */}
+      {/* Module GPS / Tracker Live avec Vitesse km/h et Allure min/km */}
       <div className="bg-neutral-900 border border-neutral-800/80 rounded-3xl p-6 space-y-5 shadow-xl">
         <div className="flex items-center justify-between">
           <h3 className="text-xs font-black text-white flex items-center gap-2 uppercase tracking-wider">
@@ -276,14 +292,27 @@ export default function RunningTab({
           </button>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
-          <div className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 space-y-1">
+        {/* Grille des 4 indicateurs clés : Distance, Vitesse (km/h), Allure (min/km), Chrono */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="bg-neutral-950 p-3 rounded-2xl border border-neutral-800 space-y-1">
             <span className="text-[10px] text-neutral-400 font-semibold block uppercase">Distance</span>
-            <span className="text-2xl font-black text-white">{distanceKm.toFixed(2)} <span className="text-xs font-normal text-neutral-400">km</span></span>
+            <span className="text-lg font-black text-white">{distanceKm.toFixed(2)} <span className="text-[10px] font-normal text-neutral-400">km</span></span>
           </div>
-          <div className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 space-y-1">
+          <div className="bg-neutral-950 p-3 rounded-2xl border border-neutral-800 space-y-1">
+            <span className="text-[10px] text-neutral-400 font-semibold block uppercase flex items-center gap-1">
+              <Gauge className="w-3 h-3 text-emerald-400" /> Vitesse
+            </span>
+            <span className="text-lg font-black text-emerald-400">{currentSpeedKmh} <span className="text-[10px] font-normal text-neutral-400">km/h</span></span>
+          </div>
+          <div className="bg-neutral-950 p-3 rounded-2xl border border-neutral-800 space-y-1">
+            <span className="text-[10px] text-neutral-400 font-semibold block uppercase flex items-center gap-1">
+              <Timer className="w-3 h-3 text-orange-400" /> Allure
+            </span>
+            <span className="text-lg font-black text-orange-400">{paceFormatted}</span>
+          </div>
+          <div className="bg-neutral-950 p-3 rounded-2xl border border-neutral-800 space-y-1">
             <span className="text-[10px] text-neutral-400 font-semibold block uppercase">Chrono</span>
-            <span className="text-2xl font-black text-orange-400">{formatTime(seconds)}</span>
+            <span className="text-lg font-black text-white">{formatTime(seconds)}</span>
           </div>
         </div>
 
