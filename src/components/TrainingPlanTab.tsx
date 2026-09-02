@@ -6,10 +6,21 @@ const supabaseUrl = 'https://obtahwmcoqrcauscpksv.supabase.co';
 const supabaseAnonKey = 'sb_publishable_O8CKhUtzgq9nO9lKavNE9A__fAdRWoB';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
+// Ordre chronologique pour trier les jours de la semaine proprement
+const DAY_ORDER: Record<string, number> = {
+  'Lundi': 1,
+  'Mardi': 2,
+  'Mercredi': 3,
+  'Jeudi': 4,
+  'Vendredi': 5,
+  'Samedi': 6,
+  'Dimanche': 7
+};
+
 export default function TrainingPlanTab({ currentUserId }: { currentUserId?: string }) {
   const [userId, setUserId] = useState<string | undefined>(currentUserId);
   const [goal, setGoal] = useState('Force & Hypertrophie + Cardio');
-  const [daysPerWeek, setDaysPerWeek] = useState(4);
+  const [daysPerWeek, setDaysPerWeek] = useState(3);
   const [activePlan, setActivePlan] = useState<any>(null);
   const [sessions, setSessions] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -49,10 +60,17 @@ export default function TrainingPlanTab({ currentUserId }: { currentUserId?: str
       const { data: sessionData } = await supabase
         .from('training_sessions')
         .select('*')
-        .eq('plan_id', planData.id)
-        .order('id', { ascending: true });
+        .eq('plan_id', planData.id);
 
-      setSessions(sessionData || []);
+      if (sessionData) {
+        // Tri direct des séances par ordre chronologique des jours
+        const sorted = [...sessionData].sort((a, b) => {
+          return (DAY_ORDER[a.day_name] || 99) - (DAY_ORDER[b.day_name] || 99);
+        });
+        setSessions(sorted);
+      } else {
+        setSessions([]);
+      }
     }
   };
 
@@ -74,7 +92,7 @@ export default function TrainingPlanTab({ currentUserId }: { currentUserId?: str
       // 1. Désactiver les anciens plans
       await supabase.from('training_plans').update({ is_active: false }).eq('user_id', userId);
 
-      // 2. Créer le plan
+      // 2. Créer le plan avec le bon nombre de jours
       const { data: newPlan, error: planError } = await supabase
         .from('training_plans')
         .insert([{ user_id: userId, goal, days_per_week: daysPerWeek, is_active: true }])
@@ -83,26 +101,28 @@ export default function TrainingPlanTab({ currentUserId }: { currentUserId?: str
 
       if (planError) throw new Error("Plan error: " + planError.message);
 
-      // 3. Créer des séances adaptées selon l'objectif (Muscu/Hybride vs Course)
-      let defaultSessions = [];
-      
-      if (goal.includes('Force') || goal.includes('Hybride') || goal.includes('Masse')) {
-        defaultSessions = [
-          { plan_id: newPlan.id, week_number: 1, day_name: 'Lundi', session_type: 'Musculation (Push / Force)', description: 'Pectoraux / Épaules / Triceps + lourd', status: 'À faire' },
-          { plan_id: newPlan.id, week_number: 1, day_name: 'Mardi', session_type: 'WOD / Fonctionnel', description: 'MetCon court & intensité élevée', status: 'À faire' },
-          { plan_id: newPlan.id, week_number: 1, day_name: 'Jeudi', session_type: 'Musculation (Pull / Dos)', description: 'Dos / Biceps / Postérieur + isolation', status: 'À faire' },
-          { plan_id: newPlan.id, week_number: 1, day_name: 'Vendredi', session_type: 'Cardio Hybride / Run', description: '30 min endurance fondamentale ou seuil', status: 'À faire' },
-          { plan_id: newPlan.id, week_number: 1, day_name: 'Samedi', session_type: 'Jambes / Force Bas du corps', description: 'Squats, Deadlifts & hypertrophie', status: 'À faire' }
-        ];
-      } else {
-        defaultSessions = [
-          { plan_id: newPlan.id, week_number: 1, day_name: 'Mardi', session_type: 'Endurance Fondamentale', description: '45 min à 65-70% VMA', status: 'À faire' },
-          { plan_id: newPlan.id, week_number: 1, day_name: 'Jeudi', session_type: 'Fractionné VMA', description: '10 x (30s / 30s)', status: 'À faire' },
-          { plan_id: newPlan.id, week_number: 1, day_name: 'Dimanche', session_type: 'Sortie Longue', description: '1h15 allure progressive', status: 'À faire' }
-        ];
-      }
+      // 3. Définir un catalogue de séances hybrides par défaut sur la semaine
+      const allPossibleSessions = [
+        { day_name: 'Lundi', session_type: 'Musculation (Push / Force)', description: 'Pectoraux / Épaules / Triceps + lourd' },
+        { day_name: 'Mardi', session_type: 'WOD / Fonctionnel', description: 'MetCon court & intensité élevée' },
+        { day_name: 'Mercredi', session_type: 'Récupération Active', description: 'Mobilité & Core training léger' },
+        { day_name: 'Jeudi', session_type: 'Musculation (Pull / Dos)', description: 'Dos / Biceps / Postérieur + isolation' },
+        { day_name: 'Vendredi', session_type: 'Cardio Hybride / Run', description: '30 min endurance fondamentale ou seuil' },
+        { day_name: 'Samedi', session_type: 'Jambes / Force Bas du corps', description: 'Squats, Deadlifts & hypertrophie' },
+        { day_name: 'Dimanche', session_type: 'Repos total', description: 'Recharge & décompression' }
+      ];
 
-      const { error: sessionError } = await supabase.from('training_sessions').insert(defaultSessions);
+      // On sélectionne exactement le nombre de séances demandé par l'utilisateur (`daysPerWeek`)
+      const selectedSessions = allPossibleSessions.slice(0, daysPerWeek).map((s) => ({
+        plan_id: newPlan.id,
+        week_number: 1,
+        day_name: s.day_name,
+        session_type: s.session_type,
+        description: s.description,
+        status: 'À faire'
+      }));
+
+      const { error: sessionError } = await supabase.from('training_sessions').insert(selectedSessions);
       if (sessionError) throw new Error("Session error: " + sessionError.message);
 
       await fetchActivePlan();
