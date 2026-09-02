@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, ChangeEvent, FormEvent } from 'react';
 import {
-  Zap, User, MessageCircle, Home, Users, Plus, X, Camera, Flame, MapPin, Trophy, Navigation, Calendar, Skull
+  Zap, User, MessageCircle, Home, Users, Plus, X, Camera, Flame, MapPin, Trophy, Navigation, Calendar, Skull, BatteryCharging, ArrowRight, Activity
 } from 'lucide-react';
 import { createClient, User as SupabaseUser } from '@supabase/supabase-js';
 
@@ -716,13 +716,11 @@ export default function App() {
         <main className="flex-1 w-full mx-auto px-4 py-3 pb-32 space-y-3">
           {currentTab === 'running' && <OfflineRunGuard currentUserId={user?.id} />}
 
-          {/* REDESIGN UX - ONGLET 'TODAY' (HUB CENTRAL INTELLIGENT) */}
+          {/* DASHBOARD CONTEXTUEL ET INTELLIGENT ('TODAY') */}
           {currentTab === 'today' && (
             <div className="space-y-4 animate-fadeIn pb-12">
-              {/* GUIDE DE BIENVENUE INTERACTIF */}
               <OnboardingGuide />
 
-              {/* Alerte Tapering Marathon si actif */}
               {inTaperingWeek && (
                 <div className="bg-amber-950/40 border border-amber-500/40 rounded-3xl p-5 text-center space-y-1 shadow-2xl">
                   <span className="text-[10px] font-black uppercase tracking-widest text-amber-400 bg-amber-500/20 px-3 py-1 rounded-full border border-amber-500/30">
@@ -735,75 +733,118 @@ export default function App() {
                 </div>
               )}
 
-              {/* En-tête Statut / Readiness */}
-              <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-6 shadow-xl space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-orange-400 bg-orange-500/10 px-3 py-1 rounded-full border border-orange-500/20">
-                    Tableau de Bord du Jour
+              {/* 1. CARTE MAÎTRE : LE CONTEXTE DU JOUR */}
+              <div className="bg-gradient-to-br from-neutral-900 via-neutral-900 to-orange-950/40 border border-neutral-800 rounded-3xl p-6 shadow-2xl relative overflow-hidden space-y-4">
+                <div className="absolute -right-8 -top-8 w-36 h-36 bg-orange-500/10 rounded-full blur-3xl pointer-events-none" />
+                
+                <div className="flex items-center justify-between relative z-10">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
+                    <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400">
+                      État de Forme • Optimal (78%)
+                    </span>
+                  </div>
+                  <span className="text-xs text-neutral-400 font-medium">
+                    {new Date().toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })}
                   </span>
-                  <span className="text-xs text-neutral-400">{new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}</span>
                 </div>
-                <div>
-                  <h2 className="text-xl font-black text-white tracking-tight">Bonjour, {currentUsername} !</h2>
-                  <p className="text-xs text-neutral-400 pt-1">Ton organisme est prêt pour ta prochaine session hybride.</p>
+
+                <div className="relative z-10 space-y-1">
+                  <h2 className="text-xl font-black text-white tracking-tight">
+                    Bonjour, {currentUsername} !
+                  </h2>
+                  <p className="text-xs text-neutral-300 leading-relaxed">
+                    {inTaperingWeek 
+                      ? "⚡ Semaine d'affûtage en cours. Volume réduit, privilégie l'intensité modérée."
+                      : "Ton organisme est prêt pour ta prochaine session hybride."}
+                  </p>
+                </div>
+
+                <div className="pt-2 relative z-10">
+                  <div className="bg-neutral-950/80 border border-neutral-800/80 rounded-2xl p-4 flex items-center justify-between shadow-inner">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-orange-500/20 text-orange-500 flex items-center justify-center flex-shrink-0">
+                        <Navigation className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <span className="text-[10px] uppercase font-bold text-neutral-400 block">Séance Recommandée</span>
+                        <span className="text-xs font-black text-white">Mode Running & Stratégie GPS</span>
+                      </div>
+                    </div>
+                    <button 
+                      onClick={() => handleTabChange('running')}
+                      className="px-4 py-2.5 bg-orange-600 hover:bg-orange-500 text-white rounded-xl text-xs font-black flex items-center gap-1.5 transition shadow-lg cursor-pointer"
+                    >
+                      Lancer <ArrowRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
               </div>
 
-              {/* Accès Rapides Contextuels (Les modules clés en 1 clic) */}
+              {/* 2. TIMELINE DES BRIQUES CLÉS */}
               <div className="grid grid-cols-2 gap-3">
-                <button 
+                <div 
                   onClick={() => handleTabChange('running')}
-                  className="bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 hover:border-emerald-500/50 p-4 rounded-3xl text-left space-y-2 transition cursor-pointer shadow-lg"
+                  className="bg-neutral-900 hover:bg-neutral-800/80 border border-neutral-800 p-4 rounded-3xl space-y-2 cursor-pointer transition shadow-lg"
                 >
-                  <div className="w-8 h-8 rounded-2xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
-                    <Navigation className="w-4 h-4" />
+                  <div className="w-7 h-7 rounded-lg bg-cyan-500/20 text-cyan-400 flex items-center justify-center">
+                    <Zap className="w-3.5 h-3.5" />
                   </div>
                   <div>
-                    <h4 className="text-xs font-black text-white">Mode Running</h4>
-                    <p className="text-[10px] text-neutral-400">GPS & Coach Vocal</p>
+                    <h4 className="text-xs font-bold text-white">Ravitaillement</h4>
+                    <p className="text-[10px] text-neutral-400">Planificateur & Gels actifs</p>
                   </div>
-                </button>
+                </div>
 
+                <div 
+                  onClick={() => handleTabChange('readiness')}
+                  className="bg-neutral-900 hover:bg-neutral-800/80 border border-neutral-800 p-4 rounded-3xl space-y-2 cursor-pointer transition shadow-lg"
+                >
+                  <div className="w-7 h-7 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
+                    <BatteryCharging className="w-3.5 h-3.5" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold text-white">Check-in Récup</h4>
+                    <p className="text-[10px] text-neutral-400">Indice de charge et plan</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* 3. RACCOURCIS RAPIDES VERS LES MODULES CLÉS */}
+              <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-4 flex items-center justify-around">
                 <button 
                   onClick={() => handleTabChange('boxwars')}
-                  className="bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 hover:border-cyan-500/50 p-4 rounded-3xl text-left space-y-2 transition cursor-pointer shadow-lg"
+                  className="flex flex-col items-center gap-1 text-neutral-400 hover:text-white text-[10px] font-bold transition cursor-pointer"
                 >
-                  <div className="w-8 h-8 rounded-2xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center">
-                    <Zap className="w-4 h-4" />
+                  <div className="w-8 h-8 rounded-full bg-neutral-950 border border-neutral-800 flex items-center justify-center text-cyan-400">
+                    <Flame className="w-4 h-4" />
                   </div>
-                  <div>
-                    <h4 className="text-xs font-black text-white">BoxWars / WOD</h4>
-                    <p className="text-[10px] text-neutral-400">Scores & Ligues</p>
+                  BoxWars
+                </button>
+
+                <button 
+                  onClick={() => handleTabChange('buddy')}
+                  className="flex flex-col items-center gap-1 text-neutral-400 hover:text-white text-[10px] font-bold transition cursor-pointer"
+                >
+                  <div className="w-8 h-8 rounded-full bg-neutral-950 border border-neutral-800 flex items-center justify-center text-orange-400">
+                    <Users className="w-4 h-4" />
                   </div>
+                  Match Partenaires
+                </button>
+
+                <button 
+                  onClick={() => handleTabChange('readiness')}
+                  className="flex flex-col items-center gap-1 text-neutral-400 hover:text-white text-[10px] font-bold transition cursor-pointer"
+                >
+                  <div className="w-8 h-8 rounded-full bg-neutral-950 border border-neutral-800 flex items-center justify-center text-emerald-400">
+                    <Activity className="w-4 h-4" />
+                  </div>
+                  Plan & Roadbook
                 </button>
               </div>
 
-              {/* BOUTON D'ACCÈS RAPIDE VERS LES BUDDIES & MATCH */}
-              <button 
-                onClick={() => handleTabChange('buddy')}
-                className="w-full py-3.5 bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 hover:border-orange-500/50 rounded-3xl text-xs font-black text-white flex items-center justify-center gap-2 cursor-pointer shadow-lg transition"
-              >
-                <Users className="w-4 h-4 text-orange-500" /> Trouver des Partenaires & Match 🤝
-              </button>
-
-              {/* GÉNÉRATEUR DE WOD / SÉANCES CROISÉES (IA / READINESS) */}
               <WodGenerator />
-
-              {/* CARNET DE MUSCULATION & PRs */}
               <GymLogTab currentUserId={user?.id} onStartRestTimer={() => handleTabChange('rest_timer')} />
-
-              {/* Module de Readiness & Plan Intégré */}
-              <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-3 shadow-xl">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-xs font-black text-white uppercase tracking-wider flex items-center gap-2">
-                    <Calendar className="w-4 h-4 text-orange-400" /> Plan & Récupération
-                  </h3>
-                  <button onClick={() => handleTabChange('readiness')} className="text-[10px] text-orange-400 font-bold hover:underline">
-                    Gérer →
-                  </button>
-                </div>
-                <TrainingPlanTab currentUserId={user?.id} />
-              </div>
             </div>
           )}
 
