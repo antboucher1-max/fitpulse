@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { BatteryMedium, Zap, Activity, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { useState } from 'react';
+import { Zap, Activity, CheckCircle2, ArrowLeft } from 'lucide-react';
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = 'https://obtahwmcoqrcauscpksv.supabase.co';
@@ -9,23 +9,22 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey);
 interface ReadinessCheckinProps {
   currentUserId?: string;
   onUpdatePlan?: (recommendation: string) => void;
+  onNavigateTab?: (tab: string) => void;
 }
 
-export default function ReadinessCheckin({ currentUserId, onUpdatePlan }: ReadinessCheckinProps) {
-  const [sleepScore, setSleepScore] = useState<number>(4); // 1 à 5
-  const [soreness, setSoreness] = useState<number>(3);     // 1 à 5 (courbatures)
-  const [stress, setStress] = useState<number>(2);         // 1 à 5
-  const [recentLoadKm, setRecentLoadKm] = useState<number>(25); // km de course récents
-  const [recentWods, setRecentWods] = useState<number>(3);       // Nombre de WODs / séances muscu récents
+export default function ReadinessCheckin({ currentUserId, onUpdatePlan, onNavigateTab }: ReadinessCheckinProps) {
+  const [sleepScore, setSleepScore] = useState<number>(4);
+  const [soreness, setSoreness] = useState<number>(3);
+  const [stress, setStress] = useState<number>(2);
+  const [recentLoadKm, setRecentLoadKm] = useState<number>(25);
+  const [recentWods, setRecentWods] = useState<number>(3);
   const [loading, setLoading] = useState(false);
   const [saved, setSaved] = useState(false);
 
-  // Calcul du Load Score Hybride (Charge globale estimée sur 100)
-  const runningLoad = recentLoadKm * 3.5; // Impact aérobie
-  const strengthLoad = recentWods * 12;   // Impact neuromusculaire & tissulaire
+  const runningLoad = recentLoadKm * 3.5;
+  const strengthLoad = recentWods * 12;
   const totalTrainingLoad = Math.min(100, Math.round(runningLoad + strengthLoad));
 
-  // Score de récupération (Readiness sur 100)
   const recoveryScore = Math.max(10, Math.min(100, Math.round(
     ((sleepScore / 5) * 40) + 
     (((6 - soreness) / 5) * 30) + 
@@ -47,7 +46,6 @@ export default function ReadinessCheckin({ currentUserId, onUpdatePlan }: Readin
     try {
       const today = new Date().toISOString().split('T')[0];
       
-      // Tentative d'enregistrement cloud si l'utilisateur est connecté
       if (currentUserId) {
         const { error } = await supabase.from('readiness_logs').upsert([{
           user_id: currentUserId,
@@ -64,7 +62,6 @@ export default function ReadinessCheckin({ currentUserId, onUpdatePlan }: Readin
         }
       }
 
-      // Sauvegarde de secours en localStorage pour garantir l'affichage immédiat
       localStorage.setItem('fitpulse_last_readiness', JSON.stringify({
         date: today,
         score: recoveryScore,
@@ -76,15 +73,21 @@ export default function ReadinessCheckin({ currentUserId, onUpdatePlan }: Readin
       if (onUpdatePlan) {
         onUpdatePlan(statusInfo.advice);
       }
-      setTimeout(() => setSaved(false), 3000);
     } catch (err: any) {
       console.error("Erreur check-in :", err);
-      // Même en cas d'erreur inattendue, on valide visuellement pour l'athlète
       setSaved(true);
       if (onUpdatePlan) onUpdatePlan(statusInfo.advice);
-      setTimeout(() => setSaved(false), 3000);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleReturn = () => {
+    localStorage.setItem('fitpulse_active_tab', 'running');
+    if (onNavigateTab) {
+      onNavigateTab('running');
+    } else {
+      window.location.reload();
     }
   };
 
@@ -94,12 +97,15 @@ export default function ReadinessCheckin({ currentUserId, onUpdatePlan }: Readin
         <div className="flex items-center gap-2 text-emerald-400 font-bold text-xs uppercase tracking-wider">
           <Activity className="w-4 h-4" /> Check-in & Load Score Hybride
         </div>
-        <span className="text-[10px] font-mono text-neutral-400 bg-neutral-950 px-3 py-1 rounded-full border border-neutral-800">
-          Analyse de la fatigue
-        </span>
+        <button
+          type="button"
+          onClick={handleReturn}
+          className="flex items-center gap-1.5 text-xs font-bold text-neutral-400 hover:text-white bg-neutral-950 border border-neutral-800 px-3 py-1.5 rounded-xl transition cursor-pointer"
+        >
+          <ArrowLeft className="w-3.5 h-3.5" /> Retour
+        </button>
       </div>
 
-      {/* Jauge globale de récupération et charge */}
       <div className="grid grid-cols-2 gap-3">
         <div className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 space-y-1">
           <span className="text-[10px] text-neutral-400 uppercase font-semibold block">Indice de Récupération</span>
@@ -111,13 +117,11 @@ export default function ReadinessCheckin({ currentUserId, onUpdatePlan }: Readin
         </div>
       </div>
 
-      {/* Statut textuel intelligent */}
       <div className="bg-neutral-950 border border-neutral-800 p-4 rounded-2xl space-y-1">
         <span className={`text-xs font-black block ${statusInfo.color}`}>{statusInfo.label}</span>
         <p className="text-xs text-neutral-300 leading-relaxed">{statusInfo.advice}</p>
       </div>
 
-      {/* Sliders de saisie rapide */}
       <div className="space-y-4 pt-2">
         <div>
           <div className="flex justify-between text-xs font-semibold text-neutral-400 mb-1">
@@ -132,7 +136,7 @@ export default function ReadinessCheckin({ currentUserId, onUpdatePlan }: Readin
         </div>
 
         <div>
-            <div className="flex justify-between text-xs font-semibold text-neutral-400 mb-1">
+          <div className="flex justify-between text-xs font-semibold text-neutral-400 mb-1">
             <span>Niveau de Courbatures / Tensions (1-5) :</span>
             <span className="text-white font-bold">{soreness} / 5</span>
           </div>
@@ -163,15 +167,27 @@ export default function ReadinessCheckin({ currentUserId, onUpdatePlan }: Readin
         </div>
       </div>
 
-      <button 
-        type="button"
-        onClick={handleSaveCheckin}
-        disabled={loading}
-        className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-neutral-950 font-black rounded-2xl text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition cursor-pointer shadow-lg"
-      >
-        {saved ? <CheckCircle2 className="w-4 h-4 text-neutral-950" /> : <Zap className="w-4 h-4 text-neutral-950 fill-neutral-950" />}
-        {saved ? "Check-in enregistré !" : "Valider mon statut du jour ⚡"}
-      </button>
+      <div className="space-y-2">
+        <button 
+          type="button"
+          onClick={handleSaveCheckin}
+          disabled={loading}
+          className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-neutral-950 font-black rounded-2xl text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition cursor-pointer shadow-lg"
+        >
+          {saved ? <CheckCircle2 className="w-4 h-4 text-neutral-950" /> : <Zap className="w-4 h-4 text-neutral-950 fill-neutral-950" />}
+          {saved ? "Check-in enregistré !" : "Valider mon statut du jour ⚡"}
+        </button>
+
+        {saved && (
+          <button 
+            type="button"
+            onClick={handleReturn}
+            className="w-full py-2.5 bg-neutral-800 hover:bg-neutral-700 text-white font-bold rounded-2xl text-xs transition cursor-pointer flex items-center justify-center gap-2"
+          >
+            <ArrowLeft className="w-4 h-4" /> Revenir à l'écran Running / Dashboard
+          </button>
+        )}
+      </div>
     </div>
   );
 }
