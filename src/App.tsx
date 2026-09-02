@@ -26,21 +26,11 @@ import WodGenerator from './components/WodGenerator';
 import OnboardingGuide from './components/OnboardingGuide';
 import GymLogTab from './components/GymLogTab';
 import FitBotTab from './components/FitBotTab';
+import SpotSearchInput from './components/SpotSearchInput';
 
 const supabaseUrl = 'https://obtahwmcoqrcauscpksv.supabase.co';
 const supabaseAnonKey = 'sb_publishable_O8CKhUtzgq9nO9lKavNE9A__fAdRWoB';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
-
-const LOCAL_SUGGESTIONS = [
-  'Tournai (Quais de l’Escaut & Parc)',
-  'Tournai (Pôles Fitness & Muscu / Froyennes)',
-  'Mons (Grand-Place & Grand Large)',
-  'Mons (Pôles Fitness & Musculation)',
-  'Ath (Centre & Zones Fitness)',
-  'Mouscron (Boxes & Cross Training)',
-  'Basic-Fit',
-  'CrossFit'
-];
 
 const isMatchingClub = (postClubName?: string, selectedClubName?: string): boolean => {
   if (!postClubName || !selectedClubName) return false;
@@ -411,8 +401,6 @@ export default function App() {
   const marathonDate = (currentUserProfile as any)?.next_marathon_date;
   const inTaperingWeek = isMarathonWeek(marathonDate);
 
-  const activeGlobalClubs = Array.from(new Set(posts.map(p => p.club_name).filter(Boolean)));
-
   if (authLoading) {
     return (
       <div className="min-h-screen bg-neutral-950 flex items-center justify-center">
@@ -623,16 +611,12 @@ export default function App() {
                   
                   <input 
                     type="text" 
-                    list="spot-suggestions"
                     required 
-                    placeholder="Ex: Basic-Fit Lille, CrossFit Paris..." 
+                    placeholder="Ex: Paris, Montreal, Basic-Fit..." 
                     value={onboardingSpot} 
                     onChange={(e) => setOnboardingSpot(e.target.value)} 
                     className="w-full bg-neutral-950 border border-neutral-800 focus:border-orange-500 rounded-xl px-4 py-3 text-sm text-white transition outline-none" 
                   />
-                  <datalist id="spot-suggestions">
-                    {LOCAL_SUGGESTIONS.map(spot => <option key={spot} value={spot} />)}
-                  </datalist>
                 </div>
 
                 <div>
@@ -687,12 +671,11 @@ export default function App() {
           </div>
 
           {currentTab !== 'boxwars' && currentTab !== 'running' && currentTab !== 'readiness' && currentTab !== 'paces' && currentTab !== 'calculator' && currentTab !== 'hall_of_fame' && currentTab !== 'buddy' && currentTab !== 'fitbot' && (
-            <div className="relative flex items-center bg-neutral-900 border border-neutral-800 rounded-xl px-2.5 py-1.5 max-w-[50%]">
-              <MapPin className="w-3.5 h-3.5 text-orange-500 mr-1.5 flex-shrink-0" />
-              <select value={selectedClub} onChange={(e) => setSelectedClub(e.target.value)} className="bg-transparent text-[10px] font-bold text-orange-400 focus:outline-none cursor-pointer pr-1 w-full truncate">
-                <option value="🌐 Tous les spots (Global)">🌐 Global</option>
-                {activeGlobalClubs.map((spot) => <option key={spot} value={spot} className="bg-neutral-900 text-white">{spot}</option>)}
-              </select>
+            <div className="w-[52%] sm:w-[45%]">
+              <SpotSearchInput 
+                selectedSpot={selectedClub} 
+                onSelectSpot={(spot) => setSelectedClub(spot)} 
+              />
             </div>
           )}
         </header>
