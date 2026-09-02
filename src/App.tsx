@@ -1,7 +1,5 @@
 import { useState, useEffect, useRef, ChangeEvent, FormEvent } from 'react';
-import {
-  Zap, User, MessageCircle, Home, Users, Plus, X, Camera, Flame, MapPin, Trophy, Navigation, Calendar, Skull, BatteryCharging, ArrowRight, Activity
-} from 'lucide-react';
+import { Zap, User, MessageCircle, Home, Users, Plus, X, Camera, Flame, MapPin, Trophy, Navigation, Calendar, Skull, BatteryCharging, ArrowRight, Activity } from 'lucide-react';
 import { createClient, User as SupabaseUser } from '@supabase/supabase-js';
 
 import { 
