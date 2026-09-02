@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, ChangeEvent, FormEvent } from 'react';
 import {
-  Zap, User, MessageCircle, Home, Users, Plus, X, Camera, Flame, MapPin, Trophy, Navigation, Calendar
+  Zap, User, MessageCircle, Home, Users, Plus, X, Camera, Flame, MapPin, Trophy, Navigation, Calendar, Skull
 } from 'lucide-react';
 import { createClient, User as SupabaseUser } from '@supabase/supabase-js';
 
@@ -106,7 +106,7 @@ export default function App() {
   const [acceptCgu, setAcceptCgu] = useState(false);
 
   // REDESIGN UX : Réduction de la navigation principale à 3 onglets essentiels ('today', 'community', 'profile')
-  const [currentTab, setCurrentTab] = useState<'today' | 'community' | 'profile' | 'feed' | 'buddy' | 'workout' | 'exercises' | 'chat' | 'calculator' | 'paces' | 'live_tracker' | 'rest_timer' | 'notifications' | 'leaderboard' | 'boxwars' | 'running' | 'readiness'>(() => {
+  const [currentTab, setCurrentTab] = useState<'today' | 'community' | 'profile' | 'feed' | 'buddy' | 'workout' | 'exercises' | 'chat' | 'calculator' | 'paces' | 'live_tracker' | 'rest_timer' | 'notifications' | 'leaderboard' | 'boxwars' | 'running' | 'readiness' | 'hall_of_fame'>(() => {
     const savedTab = localStorage.getItem('fitpulse_active_tab');
     return (savedTab as any) || 'today';
   });
@@ -698,11 +698,11 @@ export default function App() {
               <Zap className="w-5 h-5" />
             </div>
             <h1 className="text-base font-black tracking-tight leading-none text-white">
-              {currentTab === 'boxwars' ? 'BOXWARS' : currentTab === 'running' ? 'RUNNING' : 'FitPulse'}
+              {currentTab === 'boxwars' ? 'BOXWARS' : currentTab === 'running' ? 'RUNNING' : currentTab === 'hall_of_fame' ? 'HALL OF FAME' : 'FitPulse'}
             </h1>
           </div>
 
-          {currentTab !== 'boxwars' && currentTab !== 'running' && currentTab !== 'readiness' && currentTab !== 'paces' && currentTab !== 'calculator' && (
+          {currentTab !== 'boxwars' && currentTab !== 'running' && currentTab !== 'readiness' && currentTab !== 'paces' && currentTab !== 'calculator' && currentTab !== 'hall_of_fame' && (
             <div className="relative flex items-center bg-neutral-900 border border-neutral-800 rounded-xl px-2.5 py-1.5">
               <MapPin className="w-3.5 h-3.5 text-orange-500 mr-1.5 flex-shrink-0" />
               <select value={selectedClub} onChange={(e) => setSelectedClub(e.target.value)} className="bg-transparent text-xs font-bold text-orange-400 focus:outline-none cursor-pointer pr-1">
@@ -799,21 +799,27 @@ export default function App() {
             </div>
           )}
 
-          {/* REDESIGN UX - ONGLET 'COMMUNITY' (FUSION FEED + LEADERBOARD + BUDDIES) */}
+          {/* REDESIGN UX - ONGLET 'COMMUNITY' (FUSION FEED + LEADERBOARD + BUDDIES + HALL OF FAME) */}
           {currentTab === 'community' && (
             <div className="space-y-4 animate-fadeIn pb-12">
-              <div className="flex gap-2 bg-neutral-900 p-1.5 rounded-2xl border border-neutral-800">
+              <div className="flex gap-1.5 bg-neutral-900 p-1.5 rounded-2xl border border-neutral-800">
                 <button 
                   onClick={() => setCurrentTab('feed')}
-                  className="flex-1 py-2 rounded-xl text-xs font-bold bg-orange-600 text-white shadow-md cursor-pointer"
+                  className="flex-1 py-2 rounded-xl text-[11px] font-bold bg-orange-600 text-white shadow-md cursor-pointer"
                 >
                   Fil d'Actu
                 </button>
                 <button 
                   onClick={() => setCurrentTab('leaderboard')}
-                  className="flex-1 py-2 rounded-xl text-xs font-bold text-neutral-400 hover:text-white cursor-pointer"
+                  className="flex-1 py-2 rounded-xl text-[11px] font-bold text-neutral-400 hover:text-white cursor-pointer"
                 >
-                  Classement Ligue
+                  Classement
+                </button>
+                <button 
+                  onClick={() => setCurrentTab('hall_of_fame')}
+                  className="flex-1 py-2 rounded-xl text-[11px] font-black bg-red-950/50 border border-red-500/40 text-red-400 hover:bg-red-900/40 cursor-pointer flex items-center justify-center gap-1 shadow-sm"
+                >
+                  <Skull className="w-3.5 h-3.5" /> Galères
                 </button>
               </div>
 
@@ -838,25 +844,127 @@ export default function App() {
           )}
 
           {currentTab === 'feed' && (
-            <FeedTab 
-              posts={displayedPosts} 
-              registeredUsers={registeredUsers} 
-              friendRequests={friendRequests} 
-              currentUserId={user?.id} 
-              userDiscipline={(currentUserProfile as any)?.discipline} 
-              feedLoading={feedLoading} 
-              calculateStreak={calculateUserStreak} 
-              onCreateStoryClick={() => setIsPostModalOpen(true)} 
-              onToggleLike={handleToggleLike} 
-              onOpenComments={(id) => setActiveCommentPostId(id)} 
-              onReportPost={() => {}} 
-              onDeletePost={() => {}} 
-              onSelectProfile={(u) => setViewingProfileUser(u)} 
-              onStartRestTimer={() => handleTabChange('rest_timer')}
-              onNavigateTab={handleTabChange}
-            />
+            <div className="space-y-4 animate-fadeIn pb-12">
+              <div className="flex gap-1.5 bg-neutral-900 p-1.5 rounded-2xl border border-neutral-800">
+                <button 
+                  onClick={() => setCurrentTab('feed')}
+                  className="flex-1 py-2 rounded-xl text-[11px] font-bold bg-orange-600 text-white shadow-md cursor-pointer"
+                >
+                  Fil d'Actu
+                </button>
+                <button 
+                  onClick={() => setCurrentTab('leaderboard')}
+                  className="flex-1 py-2 rounded-xl text-[11px] font-bold text-neutral-400 hover:text-white cursor-pointer"
+                >
+                  Classement
+                </button>
+                <button 
+                  onClick={() => setCurrentTab('hall_of_fame')}
+                  className="flex-1 py-2 rounded-xl text-[11px] font-black bg-red-950/50 border border-red-500/40 text-red-400 hover:bg-red-900/40 cursor-pointer flex items-center justify-center gap-1 shadow-sm"
+                >
+                  <Skull className="w-3.5 h-3.5" /> Galères
+                </button>
+              </div>
+
+              <FeedTab 
+                posts={displayedPosts} 
+                registeredUsers={registeredUsers} 
+                friendRequests={friendRequests} 
+                currentUserId={user?.id} 
+                userDiscipline={(currentUserProfile as any)?.discipline} 
+                feedLoading={feedLoading} 
+                calculateStreak={calculateUserStreak} 
+                onCreateStoryClick={() => setIsPostModalOpen(true)} 
+                onToggleLike={handleToggleLike} 
+                onOpenComments={(id) => setActiveCommentPostId(id)} 
+                onReportPost={() => {}} 
+                onDeletePost={() => {}} 
+                onSelectProfile={(u) => setViewingProfileUser(u)} 
+                onStartRestTimer={() => handleTabChange('rest_timer')}
+                onNavigateTab={handleTabChange}
+              />
+            </div>
           )}
-          {currentTab === 'leaderboard' && <LeaderboardTab registeredUsers={registeredUsers} />}
+
+          {/* VUE DÉDIÉE : HALL OF FAME DES GALÈRES (PAINS & GAINS) */}
+          {currentTab === 'hall_of_fame' && (
+            <div className="space-y-4 animate-fadeIn pb-12">
+              <div className="flex gap-1.5 bg-neutral-900 p-1.5 rounded-2xl border border-neutral-800">
+                <button 
+                  onClick={() => setCurrentTab('feed')}
+                  className="flex-1 py-2 rounded-xl text-[11px] font-bold text-neutral-400 hover:text-white cursor-pointer"
+                >
+                  Fil d'Actu
+                </button>
+                <button 
+                  onClick={() => setCurrentTab('leaderboard')}
+                  className="flex-1 py-2 rounded-xl text-[11px] font-bold text-neutral-400 hover:text-white cursor-pointer"
+                >
+                  Classement
+                </button>
+                <button 
+                  onClick={() => setCurrentTab('hall_of_fame')}
+                  className="flex-1 py-2 rounded-xl text-[11px] font-black bg-red-600 text-white shadow-md cursor-pointer flex items-center justify-center gap-1"
+                >
+                  <Skull className="w-3.5 h-3.5" /> Galères
+                </button>
+              </div>
+
+              <div className="bg-gradient-to-br from-red-950/40 via-neutral-900 to-neutral-900 border border-red-500/30 rounded-3xl p-5 space-y-2 shadow-2xl">
+                <div className="flex items-center gap-2 text-red-400 font-black text-xs uppercase tracking-wider">
+                  <Skull className="w-4 h-4" /> Hall of Fame des Pains & Gains 💀
+                </div>
+                <p className="text-xs text-neutral-300 leading-relaxed">
+                  Ici, pas de filtre ni de performance parfaite. On célèbre les pires courbatures, les barres ratées, les réveils à la boue et l'autodérision pure de la communauté !
+                </p>
+              </div>
+
+              <FeedTab 
+                posts={displayedPosts.filter(p => p.session_type?.includes('Pain & Gain'))} 
+                registeredUsers={registeredUsers} 
+                friendRequests={friendRequests} 
+                currentUserId={user?.id} 
+                userDiscipline={(currentUserProfile as any)?.discipline} 
+                feedLoading={feedLoading} 
+                calculateStreak={calculateUserStreak} 
+                onCreateStoryClick={() => setIsPostModalOpen(true)} 
+                onToggleLike={handleToggleLike} 
+                onOpenComments={(id) => setActiveCommentPostId(id)} 
+                onReportPost={() => {}} 
+                onDeletePost={() => {}} 
+                onSelectProfile={(u) => setViewingProfileUser(u)} 
+                onStartRestTimer={() => handleTabChange('rest_timer')}
+                onNavigateTab={handleTabChange}
+              />
+            </div>
+          )}
+
+          {currentTab === 'leaderboard' && (
+            <div className="space-y-4 animate-fadeIn pb-12">
+              <div className="flex gap-1.5 bg-neutral-900 p-1.5 rounded-2xl border border-neutral-800">
+                <button 
+                  onClick={() => setCurrentTab('feed')}
+                  className="flex-1 py-2 rounded-xl text-[11px] font-bold text-neutral-400 hover:text-white cursor-pointer"
+                >
+                  Fil d'Actu
+                </button>
+                <button 
+                  onClick={() => setCurrentTab('leaderboard')}
+                  className="flex-1 py-2 rounded-xl text-[11px] font-bold bg-orange-600 text-white shadow-md cursor-pointer"
+                >
+                  Classement
+                </button>
+                <button 
+                  onClick={() => setCurrentTab('hall_of_fame')}
+                  className="flex-1 py-2 rounded-xl text-[11px] font-black bg-red-950/50 border border-red-500/40 text-red-400 hover:bg-red-900/40 cursor-pointer flex items-center justify-center gap-1 shadow-sm"
+                >
+                  <Skull className="w-3.5 h-3.5" /> Galères
+                </button>
+              </div>
+
+              <LeaderboardTab registeredUsers={registeredUsers} />
+            </div>
+          )}
            
           {currentTab === 'buddy' && (
             <BuddyTab 
@@ -1007,6 +1115,7 @@ export default function App() {
                     <option value="Dos / Biceps">Dos / Biceps</option>
                     <option value="Jambes / Abdos">Jambes / Abdos</option>
                     <option value="Cardio / HIIT">Cardio / HIIT</option>
+                    <option value="💀 Pain & Gain (La Galère du Jour)">💀 Pain & Gain (La Galère du Jour)</option>
                   </select>
                 </div>
 
@@ -1280,7 +1389,7 @@ export default function App() {
 
           <button 
             onClick={() => handleTabChange('community')} 
-            className={`flex flex-col items-center gap-1 transition active:scale-95 cursor-pointer px-3 ${currentTab === 'community' || currentTab === 'feed' || currentTab === 'leaderboard' || currentTab === 'boxwars' ? 'text-orange-500 font-bold' : 'text-neutral-500 hover:text-neutral-300'}`}
+            className={`flex flex-col items-center gap-1 transition active:scale-95 cursor-pointer px-3 ${currentTab === 'community' || currentTab === 'feed' || currentTab === 'leaderboard' || currentTab === 'hall_of_fame' ? 'text-orange-500 font-bold' : 'text-neutral-500 hover:text-neutral-300'}`}
           >
             <Users className="w-5 h-5" />
             <span className="text-[10px]">Communauté</span>
