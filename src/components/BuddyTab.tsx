@@ -147,7 +147,7 @@ export default function BuddyTab({
           if (item.matchData.score === -1) return false;
           
           if (matchCriteria.ageRange !== 'Tous') {
-            const userAgeCat = getAgeCategory(u.birth_date);
+            const userAgeCat = getAgeCategory(item.birth_date);
             if (userAgeCat !== matchCriteria.ageRange) return false;
           }
 
