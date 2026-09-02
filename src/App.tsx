@@ -694,15 +694,15 @@ export default function App() {
       <div className="w-full max-w-md mx-auto min-h-screen bg-neutral-950 flex flex-col shadow-2xl sm:border-x sm:border-neutral-900 relative">
         <header className="sticky top-0 z-40 bg-neutral-950/80 backdrop-blur-md border-b border-neutral-900 px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className={`w-8 h-8 rounded-xl ${currentTab === 'boxwars' ? 'bg-cyan-500/20 text-cyan-400' : currentTab === 'running' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-orange-500/20 text-orange-500'} flex items-center justify-center`}>
+            <div className={`w-8 h-8 rounded-xl ${currentTab === 'boxwars' ? 'bg-cyan-500/20 text-cyan-400' : currentTab === 'running' ? 'bg-emerald-500/20 text-emerald-400' : currentTab === 'hall_of_fame' ? 'bg-red-500/20 text-red-400' : currentTab === 'buddy' ? 'bg-orange-500/20 text-orange-400' : 'bg-orange-500/20 text-orange-500'} flex items-center justify-center`}>
               <Zap className="w-5 h-5" />
             </div>
             <h1 className="text-base font-black tracking-tight leading-none text-white">
-              {currentTab === 'boxwars' ? 'BOXWARS' : currentTab === 'running' ? 'RUNNING' : currentTab === 'hall_of_fame' ? 'HALL OF FAME' : 'FitPulse'}
+              {currentTab === 'boxwars' ? 'BOXWARS' : currentTab === 'running' ? 'RUNNING' : currentTab === 'hall_of_fame' ? 'HALL OF FAME' : currentTab === 'buddy' ? 'BUDDIES & MATCH' : 'FitPulse'}
             </h1>
           </div>
 
-          {currentTab !== 'boxwars' && currentTab !== 'running' && currentTab !== 'readiness' && currentTab !== 'paces' && currentTab !== 'calculator' && currentTab !== 'hall_of_fame' && (
+          {currentTab !== 'boxwars' && currentTab !== 'running' && currentTab !== 'readiness' && currentTab !== 'paces' && currentTab !== 'calculator' && currentTab !== 'hall_of_fame' && currentTab !== 'buddy' && (
             <div className="relative flex items-center bg-neutral-900 border border-neutral-800 rounded-xl px-2.5 py-1.5">
               <MapPin className="w-3.5 h-3.5 text-orange-500 mr-1.5 flex-shrink-0" />
               <select value={selectedClub} onChange={(e) => setSelectedClub(e.target.value)} className="bg-transparent text-xs font-bold text-orange-400 focus:outline-none cursor-pointer pr-1">
@@ -778,6 +778,14 @@ export default function App() {
                 </button>
               </div>
 
+              {/* BOUTON D'ACCÈS RAPIDE VERS LES BUDDIES & MATCH */}
+              <button 
+                onClick={() => handleTabChange('buddy')}
+                className="w-full py-3.5 bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 hover:border-orange-500/50 rounded-3xl text-xs font-black text-white flex items-center justify-center gap-2 cursor-pointer shadow-lg transition"
+              >
+                <Users className="w-4 h-4 text-orange-500" /> Trouver des Partenaires & Match 🤝
+              </button>
+
               {/* GÉNÉRATEUR DE WOD / SÉANCES CROISÉES (IA / READINESS) */}
               <WodGenerator />
 
@@ -820,6 +828,12 @@ export default function App() {
                   className="flex-1 py-2 rounded-xl text-[11px] font-black bg-red-950/50 border border-red-500/40 text-red-400 hover:bg-red-900/40 cursor-pointer flex items-center justify-center gap-1 shadow-sm"
                 >
                   <Skull className="w-3.5 h-3.5" /> Galères
+                </button>
+                <button 
+                  onClick={() => setCurrentTab('buddy')}
+                  className="flex-1 py-2 rounded-xl text-[11px] font-bold bg-neutral-950 border border-neutral-800 text-orange-400 hover:bg-neutral-800 cursor-pointer flex items-center justify-center gap-1"
+                >
+                  <Users className="w-3.5 h-3.5" /> Match
                 </button>
               </div>
 
@@ -864,6 +878,12 @@ export default function App() {
                 >
                   <Skull className="w-3.5 h-3.5" /> Galères
                 </button>
+                <button 
+                  onClick={() => setCurrentTab('buddy')}
+                  className="flex-1 py-2 rounded-xl text-[11px] font-bold bg-neutral-950 border border-neutral-800 text-orange-400 hover:bg-neutral-800 cursor-pointer flex items-center justify-center gap-1"
+                >
+                  <Users className="w-3.5 h-3.5" /> Match
+                </button>
               </div>
 
               <FeedTab 
@@ -907,6 +927,12 @@ export default function App() {
                   className="flex-1 py-2 rounded-xl text-[11px] font-black bg-red-600 text-white shadow-md cursor-pointer flex items-center justify-center gap-1"
                 >
                   <Skull className="w-3.5 h-3.5" /> Galères
+                </button>
+                <button 
+                  onClick={() => setCurrentTab('buddy')}
+                  className="flex-1 py-2 rounded-xl text-[11px] font-bold bg-neutral-950 border border-neutral-800 text-orange-400 hover:bg-neutral-800 cursor-pointer flex items-center justify-center gap-1"
+                >
+                  <Users className="w-3.5 h-3.5" /> Match
                 </button>
               </div>
 
@@ -960,6 +986,12 @@ export default function App() {
                 >
                   <Skull className="w-3.5 h-3.5" /> Galères
                 </button>
+                <button 
+                  onClick={() => setCurrentTab('buddy')}
+                  className="flex-1 py-2 rounded-xl text-[11px] font-bold bg-neutral-950 border border-neutral-800 text-orange-400 hover:bg-neutral-800 cursor-pointer flex items-center justify-center gap-1"
+                >
+                  <Users className="w-3.5 h-3.5" /> Match
+                </button>
               </div>
 
               <LeaderboardTab registeredUsers={registeredUsers} />
@@ -967,25 +999,54 @@ export default function App() {
           )}
            
           {currentTab === 'buddy' && (
-            <BuddyTab 
-              currentUserId={user?.id} 
-              registeredUsers={registeredUsers} 
-              friendRequests={friendRequests} 
-              onSendFriendRequest={async (receiverId) => {
-                if (!user) return;
-                await supabase.from('friend_requests').insert([{ sender_id: user.id, receiver_id: receiverId, status: 'pending' }]);
-                fetchFriendRequests(user.id);
-              }} 
-              onAcceptFriendRequest={async (reqId) => {
-                await supabase.from('friend_requests').update({ status: 'accepted' }).eq('id', reqId);
-                if (user) fetchFriendRequests(user.id);
-              }}
-              onRemoveFriend={async (reqId) => {
-                await supabase.from('friend_requests').delete().eq('id', reqId);
-                if (user) fetchFriendRequests(user.id);
-              }}
-              onSelectBuddyProfile={(u) => setViewingProfileUser(u)} 
-            />
+            <div className="space-y-4 animate-fadeIn pb-12">
+              <div className="flex gap-1.5 bg-neutral-900 p-1.5 rounded-2xl border border-neutral-800">
+                <button 
+                  onClick={() => setCurrentTab('feed')}
+                  className="flex-1 py-2 rounded-xl text-[11px] font-bold text-neutral-400 hover:text-white cursor-pointer"
+                >
+                  Fil d'Actu
+                </button>
+                <button 
+                  onClick={() => setCurrentTab('leaderboard')}
+                  className="flex-1 py-2 rounded-xl text-[11px] font-bold text-neutral-400 hover:text-white cursor-pointer"
+                >
+                  Classement
+                </button>
+                <button 
+                  onClick={() => setCurrentTab('hall_of_fame')}
+                  className="flex-1 py-2 rounded-xl text-[11px] font-black bg-red-950/50 border border-red-500/40 text-red-400 hover:bg-red-900/40 cursor-pointer flex items-center justify-center gap-1 shadow-sm"
+                >
+                  <Skull className="w-3.5 h-3.5" /> Galères
+                </button>
+                <button 
+                  onClick={() => setCurrentTab('buddy')}
+                  className="flex-1 py-2 rounded-xl text-[11px] font-black bg-orange-600 text-white shadow-md cursor-pointer flex items-center justify-center gap-1"
+                >
+                  <Users className="w-3.5 h-3.5" /> Match
+                </button>
+              </div>
+
+              <BuddyTab 
+                currentUserId={user?.id} 
+                registeredUsers={registeredUsers} 
+                friendRequests={friendRequests} 
+                onSendFriendRequest={async (receiverId) => {
+                  if (!user) return;
+                  await supabase.from('friend_requests').insert([{ sender_id: user.id, receiver_id: receiverId, status: 'pending' }]);
+                  fetchFriendRequests(user.id);
+                }} 
+                onAcceptFriendRequest={async (reqId) => {
+                  await supabase.from('friend_requests').update({ status: 'accepted' }).eq('id', reqId);
+                  if (user) fetchFriendRequests(user.id);
+                }}
+                onRemoveFriend={async (reqId) => {
+                  await supabase.from('friend_requests').delete().eq('id', reqId);
+                  if (user) fetchFriendRequests(user.id);
+                }}
+                onSelectBuddyProfile={(u) => setViewingProfileUser(u)} 
+              />
+            </div>
           )}
 
           {currentTab === 'rest_timer' && <WodTimerTab />}
@@ -1389,7 +1450,7 @@ export default function App() {
 
           <button 
             onClick={() => handleTabChange('community')} 
-            className={`flex flex-col items-center gap-1 transition active:scale-95 cursor-pointer px-3 ${currentTab === 'community' || currentTab === 'feed' || currentTab === 'leaderboard' || currentTab === 'hall_of_fame' ? 'text-orange-500 font-bold' : 'text-neutral-500 hover:text-neutral-300'}`}
+            className={`flex flex-col items-center gap-1 transition active:scale-95 cursor-pointer px-3 ${currentTab === 'community' || currentTab === 'feed' || currentTab === 'leaderboard' || currentTab === 'hall_of_fame' || currentTab === 'buddy' ? 'text-orange-500 font-bold' : 'text-neutral-500 hover:text-neutral-300'}`}
           >
             <Users className="w-5 h-5" />
             <span className="text-[10px]">Communauté</span>
@@ -1410,7 +1471,7 @@ export default function App() {
 
           <button 
             onClick={() => handleTabChange('profile')} 
-            className={`flex flex-col items-center gap-1 transition active:scale-95 cursor-pointer px-3 ${currentTab === 'profile' || currentTab === 'chat' || currentTab === 'buddy' ? 'text-orange-500 font-bold' : 'text-neutral-500 hover:text-neutral-300'}`}
+            className={`flex flex-col items-center gap-1 transition active:scale-95 cursor-pointer px-3 ${currentTab === 'profile' || currentTab === 'chat' ? 'text-orange-500 font-bold' : 'text-neutral-500 hover:text-neutral-300'}`}
           >
             <User className="w-5 h-5" />
             <span className="text-[10px]">Profil & QG</span>
