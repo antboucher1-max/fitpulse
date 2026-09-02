@@ -509,7 +509,6 @@ export default function App() {
             setOnboardingSubmitting(true);
              
             try {
-              // Objet d'onboarding robuste et sécurisé (évite tout plantage si la colonne SQL n'existe pas)
               const profileData: any = {
                 id: user.id, 
                 username: onboardingUsername.trim(), 
@@ -530,7 +529,6 @@ export default function App() {
               const { error } = await supabase.from('profiles').upsert(profileData);
 
               if (error) {
-                // Secours en cas de colonne manquante en BDD
                 const { error: retryError } = await supabase.from('profiles').upsert({
                   id: user.id, 
                   username: onboardingUsername.trim(), 
@@ -1129,10 +1127,18 @@ export default function App() {
           );
         })()}
 
-        <nav className="sticky bottom-0 left-0 right-0 z-40 bg-neutral-950/95 backdrop-blur-xl border-t border-neutral-800 px-2 py-2 flex justify-around items-center">
-          <button onClick={() => handleTabChange('feed')} className={`flex flex-col items-center gap-1 transition active:scale-95 cursor-pointer ${currentTab === 'feed' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Home className="w-5 h-5" /><span className="text-[10px]">Accueil</span></button>
-          <button onClick={() => handleTabChange('leaderboard')} className={`flex flex-col items-center gap-1 transition active:scale-95 cursor-pointer ${currentTab === 'leaderboard' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Trophy className="w-5 h-5" /><span className="text-[10px]">Ligue</span></button>
-          <button onClick={() => handleTabChange('boxwars')} className={`flex flex-col items-center gap-1 transition active:scale-95 cursor-pointer ${currentTab === 'boxwars' ? 'text-cyan-400 font-bold' : 'text-neutral-500'}`}>
+        <nav className="sticky bottom-0 left-0 right-0 z-40 bg-neutral-950/95 backdrop-blur-xl border-t border-neutral-800 px-3 py-2.5 flex justify-between items-center">
+          <button onClick={() => handleTabChange('feed')} className={`flex flex-col items-center gap-1 transition active:scale-95 cursor-pointer px-1 ${currentTab === 'feed' ? 'text-orange-500 font-bold' : 'text-neutral-500 hover:text-neutral-300'}`}>
+            <Home className="w-5 h-5" />
+            <span className="text-[10px]">Accueil</span>
+          </button>
+
+          <button onClick={() => handleTabChange('leaderboard')} className={`flex flex-col items-center gap-1 transition active:scale-95 cursor-pointer px-1 ${currentTab === 'leaderboard' ? 'text-orange-500 font-bold' : 'text-neutral-500 hover:text-neutral-300'}`}>
+            <Trophy className="w-5 h-5" />
+            <span className="text-[10px]">Ligue</span>
+          </button>
+
+          <button onClick={() => handleTabChange('boxwars')} className={`flex flex-col items-center gap-1 transition active:scale-95 cursor-pointer px-1 ${currentTab === 'boxwars' ? 'text-cyan-400 font-bold' : 'text-neutral-500 hover:text-neutral-300'}`}>
             <Zap className="w-5 h-5" />
             <span className="text-[10px]">BoxWars</span>
           </button>
@@ -1141,20 +1147,29 @@ export default function App() {
             onClick={() => {
               if (currentTab === 'boxwars') {
                 setIsBoxWarsModalOpen(true);
-              } else if (currentTab === 'running') {
-                setIsPostModalOpen(true);
               } else {
                 setIsPostModalOpen(true);
               }
             }} 
-            className="flex flex-col items-center justify-center w-12 h-12 rounded-full bg-orange-600 hover:bg-orange-500 text-white shadow-lg transition transform hover:scale-105 active:scale-95 -mt-3 cursor-pointer"
+            className="flex flex-col items-center justify-center w-11 h-11 rounded-full bg-orange-600 hover:bg-orange-500 text-white shadow-lg transition transform hover:scale-105 active:scale-95 -mt-3 cursor-pointer flex-shrink-0"
           >
-            <Plus className="w-6 h-6 stroke-[3]" />
+            <Plus className="w-5 h-5 stroke-[3]" />
           </button>
 
-          <button onClick={() => handleTabChange('buddy')} className={`flex flex-col items-center gap-1 transition active:scale-95 cursor-pointer ${currentTab === 'buddy' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><Users className="w-5 h-5" /><span className="text-[10px]">Buddies</span></button>
-          <button onClick={() => handleTabChange('chat')} className={`flex flex-col items-center gap-1 transition active:scale-95 cursor-pointer ${currentTab === 'chat' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><MessageCircle className="w-5 h-5" /><span className="text-[10px]" data-testid="chat-label">Chat</span></button>
-          <button onClick={() => handleTabChange('profile')} className={`flex flex-1 flex-col items-center gap-1 transition active:scale-95 cursor-pointer ${currentTab === 'profile' ? 'text-orange-500 font-bold' : 'text-neutral-500'}`}><User className="w-5 h-5" /><span className="text-[10px]">Profil</span></button>
+          <button onClick={() => handleTabChange('buddy')} className={`flex flex-col items-center gap-1 transition active:scale-95 cursor-pointer px-1 ${currentTab === 'buddy' ? 'text-orange-500 font-bold' : 'text-neutral-500 hover:text-neutral-300'}`}>
+            <Users className="w-5 h-5" />
+            <span className="text-[10px]">Buddies</span>
+          </button>
+
+          <button onClick={() => handleTabChange('chat')} className={`flex flex-col items-center gap-1 transition active:scale-95 cursor-pointer px-1 ${currentTab === 'chat' ? 'text-orange-500 font-bold' : 'text-neutral-500 hover:text-neutral-300'}`}>
+            <MessageCircle className="w-5 h-5" />
+            <span className="text-[10px]" data-testid="chat-label">Chat</span>
+          </button>
+
+          <button onClick={() => handleTabChange('profile')} className={`flex flex-col items-center gap-1 transition active:scale-95 cursor-pointer px-1 ${currentTab === 'profile' ? 'text-orange-500 font-bold' : 'text-neutral-500 hover:text-neutral-300'}`}>
+            <User className="w-5 h-5" />
+            <span className="text-[10px]">Profil</span>
+          </button>
         </nav>
       </div>
     </div>
