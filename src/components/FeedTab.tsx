@@ -21,7 +21,7 @@ interface FeedTabProps {
   onStartRestTimer?: () => void;
   onSharePost?: (post: any) => void;
   onLikePost?: (postId: string, likedBy: string[]) => void;
-  onNavigateTab?: (tab: string) => void; // Prop pour changer de vue facilement
+  onNavigateTab?: (tab: string) => void;
 }
 
 export default function FeedTab({
@@ -70,10 +70,14 @@ export default function FeedTab({
         </div>
       </div>
 
-      {/* Barre d'accès rapide hybride (Running, BoxWars, Plan) */}
       <div className="grid grid-cols-3 gap-3">
         <button 
-          onClick={() => onNavigateTab && onNavigateTab('running')}
+          type="button"
+          onClick={() => {
+            if (onNavigateTab) {
+              onNavigateTab('running');
+            }
+          }}
           className="bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 hover:border-emerald-500/50 p-3.5 rounded-2xl flex flex-col items-center text-center transition group cursor-pointer shadow-lg"
         >
           <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center mb-2 group-hover:scale-110 transition">
@@ -84,7 +88,12 @@ export default function FeedTab({
         </button>
 
         <button 
-          onClick={() => onNavigateTab && onNavigateTab('boxwars')}
+          type="button"
+          onClick={() => {
+            if (onNavigateTab) {
+              onNavigateTab('boxwars');
+            }
+          }}
           className="bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 hover:border-cyan-500/50 p-3.5 rounded-2xl flex flex-col items-center text-center transition group cursor-pointer shadow-lg"
         >
           <div className="w-8 h-8 rounded-xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center mb-2 group-hover:scale-110 transition">
@@ -95,7 +104,12 @@ export default function FeedTab({
         </button>
 
         <button 
-          onClick={() => onNavigateTab && onNavigateTab('readiness')}
+          type="button"
+          onClick={() => {
+            if (onNavigateTab) {
+              onNavigateTab('readiness');
+            }
+          }}
           className="bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 hover:border-orange-500/50 p-3.5 rounded-2xl flex flex-col items-center text-center transition group cursor-pointer shadow-lg"
         >
           <div className="w-8 h-8 rounded-xl bg-orange-500/20 text-orange-400 flex items-center justify-center mb-2 group-hover:scale-110 transition">
@@ -160,6 +174,7 @@ export default function FeedTab({
                 <div className="flex items-center justify-between pt-2 border-t border-neutral-800/60 text-xs text-neutral-400">
                   <div className="flex items-center gap-4">
                     <button 
+                      type="button"
                       onClick={() => currentUserId && handleLikeAction(post.id, post.liked_by || [])}
                       className={`flex items-center gap-2 px-3.5 py-2 rounded-xl transition-all duration-200 font-bold ${
                         isLikedByMe 
@@ -172,6 +187,7 @@ export default function FeedTab({
                     </button>
 
                     <button 
+                      type="button"
                       onClick={() => setActiveCommentPostId(activeCommentPostId === post.id ? null : post.id)}
                       className="flex items-center gap-2 px-3.5 py-2 bg-neutral-950 hover:bg-neutral-800 text-neutral-400 border border-neutral-800 rounded-xl transition font-bold"
                     >
@@ -182,6 +198,7 @@ export default function FeedTab({
 
                   {onSharePost && (
                     <button 
+                      type="button"
                       onClick={() => onSharePost(post)}
                       className="p-2.5 bg-neutral-950 hover:bg-neutral-800 text-neutral-400 hover:text-white border border-neutral-800 rounded-xl transition"
                       title="Partager"
