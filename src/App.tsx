@@ -84,6 +84,15 @@ const isMatchingClub = (postClubName?: string, selectedClubName?: string): boole
   return p === s || p.includes(s) || s.includes(p);
 };
 
+// Helper pour détecter si on est dans la semaine de tapering du marathon
+const isMarathonWeek = (targetMarathonDate?: string): boolean => {
+  if (!targetMarathonDate) return false;
+  const today = new Date().getTime();
+  const marathonTime = new Date(targetMarathonDate).getTime();
+  const diffDays = (marathonTime - today) / (1000 * 3600 * 24);
+  return diffDays >= 0 && diffDays <= 7;
+};
+
 export default function App() {
   const [user, setUser] = useState<SupabaseUser | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
@@ -93,9 +102,10 @@ export default function App() {
   const [isSignUpMode, setIsSignUpMode] = useState(false);
   const [acceptCgu, setAcceptCgu] = useState(false);
 
-  const [currentTab, setCurrentTab] = useState<'feed' | 'buddy' | 'workout' | 'exercises' | 'chat' | 'profile' | 'calculator' | 'paces' | 'live_tracker' | 'rest_timer' | 'notifications' | 'leaderboard' | 'boxwars' | 'running' | 'readiness'>(() => {
+  // REDESIGN UX : Réduction de la navigation principale à 3 onglets essentiels ('today', 'community', 'profile')
+  const [currentTab, setCurrentTab] = useState<'today' | 'community' | 'profile' | 'feed' | 'buddy' | 'workout' | 'exercises' | 'chat' | 'calculator' | 'paces' | 'live_tracker' | 'rest_timer' | 'notifications' | 'leaderboard' | 'boxwars' | 'running' | 'readiness'>(() => {
     const savedTab = localStorage.getItem('fitpulse_active_tab');
-    return (savedTab as any) || 'feed';
+    return (savedTab as any) || 'today';
   });
 
   const [selectedClub, setSelectedClub] = useState<string>('🌐 Tous les spots (Global)');
@@ -416,6 +426,10 @@ export default function App() {
 
   const isAdmin = currentUserProfile?.is_admin || user?.email === 'antboucher@hotmail.fr';
 
+  // Vérification de la semaine de tapering marathon
+  const marathonDate = (currentUserProfile as any)?.next_marathon_date;
+  const inTaperingWeek = isMarathonWeek(marathonDate);
+
   if (authLoading) {
     return (
       <div className="min-h-screen bg-neutral-950 flex items-center justify-center">
@@ -698,6 +712,118 @@ export default function App() {
 
         <main className="flex-1 w-full mx-auto px-4 py-3 pb-24 space-y-3">
           {currentTab === 'running' && <OfflineRunGuard currentUserId={user?.id} />}
+
+          {/* REDESIGN UX - ONGLET 'TODAY' (HUB CENTRAL INTELLIGENT) */}
+          {currentTab === 'today' && (
+            <div className="space-y-4 animate-fadeIn pb-12">
+              {/* Alerte Tapering Marathon si actif */}
+              {inTaperingWeek && (
+                <div className="bg-amber-950/40 border border-amber-500/40 rounded-3xl p-5 text-center space-y-1 shadow-2xl">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-amber-400 bg-amber-500/20 px-3 py-1 rounded-full border border-amber-500/30">
+                    ⚡ Semaine de Tapering & Affûtage
+                  </span>
+                  <h3 className="text-base font-black text-white pt-2">Objectif Marathon en approche</h3>
+                  <p className="text-xs text-neutral-400">
+                    Volume réduit, préservation des fibres musculaires et remplissage des stocks de glycogène (Carbo-Loading).
+                  </p>
+                </div>
+              )}
+
+              {/* En-tête Statut / Readiness */}
+              <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-6 shadow-xl space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-orange-400 bg-orange-500/10 px-3 py-1 rounded-full border border-orange-500/20">
+                    Tableau de Bord du Jour
+                  </span>
+                  <span className="text-xs text-neutral-400">{new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}</span>
+                </div>
+                <div>
+                  <h2 className="text-xl font-black text-white tracking-tight">Bonjour, {currentUsername} !</h2>
+                  <p className="text-xs text-neutral-400 pt-1">Ton organisme est prêt pour ta prochaine session hybride.</p>
+                </div>
+              </div>
+
+              {/* Accès Rapides Contextuels (Les modules clés en 1 clic) */}
+              <div className="grid grid-cols-2 gap-3">
+                <button 
+                  onClick={() => handleTabChange('running')}
+                  className="bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 hover:border-emerald-500/50 p-4 rounded-3xl text-left space-y-2 transition cursor-pointer shadow-lg"
+                >
+                  <div className="w-8 h-8 rounded-2xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
+                    <Navigation className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-black text-white">Mode Running</h4>
+                    <p className="text-[10px] text-neutral-400">GPS & Coach Vocal</p>
+                  </div>
+                </button>
+
+                <button 
+                  onClick={() => handleTabChange('boxwars')}
+                  className="bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 hover:border-cyan-500/50 p-4 rounded-3xl text-left space-y-2 transition cursor-pointer shadow-lg"
+                >
+                  <div className="w-8 h-8 rounded-2xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center">
+                    <Zap className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-black text-white">BoxWars / WOD</h4>
+                    <p className="text-[10px] text-neutral-400">Scores & Ligues</p>
+                  </div>
+                </button>
+              </div>
+
+              {/* Module de Readiness & Plan Intégré */}
+              <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-3 shadow-xl">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-black text-white uppercase tracking-wider flex items-center gap-2">
+                    <Calendar className="w-4 h-4 text-orange-400" /> Plan & Récupération
+                  </h3>
+                  <button onClick={() => handleTabChange('readiness')} className="text-[10px] text-orange-400 font-bold hover:underline">
+                    Gérer →
+                  </button>
+                </div>
+                <TrainingPlanTab currentUserId={user?.id} />
+              </div>
+            </div>
+          )}
+
+          {/* REDESIGN UX - ONGLET 'COMMUNITY' (FUSION FEED + LEADERBOARD + BUDDIES) */}
+          {currentTab === 'community' && (
+            <div className="space-y-4 animate-fadeIn pb-12">
+              <div className="flex gap-2 bg-neutral-900 p-1.5 rounded-2xl border border-neutral-800">
+                <button 
+                  onClick={() => setCurrentTab('feed')}
+                  className="flex-1 py-2 rounded-xl text-xs font-bold bg-orange-600 text-white shadow-md cursor-pointer"
+                >
+                  Fil d'Actu
+                </button>
+                <button 
+                  onClick={() => setCurrentTab('leaderboard')}
+                  className="flex-1 py-2 rounded-xl text-xs font-bold text-neutral-400 hover:text-white cursor-pointer"
+                >
+                  Classement Ligue
+                </button>
+              </div>
+
+              <FeedTab 
+                posts={displayedPosts} 
+                registeredUsers={registeredUsers} 
+                friendRequests={friendRequests} 
+                currentUserId={user?.id} 
+                userDiscipline={(currentUserProfile as any)?.discipline} 
+                feedLoading={feedLoading} 
+                calculateStreak={calculateUserStreak} 
+                onCreateStoryClick={() => setIsPostModalOpen(true)} 
+                onToggleLike={handleToggleLike} 
+                onOpenComments={(id) => setActiveCommentPostId(id)} 
+                onReportPost={() => {}} 
+                onDeletePost={() => {}} 
+                onSelectProfile={(u) => setViewingProfileUser(u)} 
+                onStartRestTimer={() => handleTabChange('rest_timer')}
+                onNavigateTab={handleTabChange}
+              />
+            </div>
+          )}
 
           {currentTab === 'feed' && (
             <FeedTab 
@@ -1130,20 +1256,22 @@ export default function App() {
           );
         })()}
 
-        <nav className="sticky bottom-0 left-0 right-0 z-40 bg-neutral-950/95 backdrop-blur-xl border-t border-neutral-800 px-3 py-2.5 flex justify-between items-center">
-          <button onClick={() => handleTabChange('feed')} className={`flex flex-col items-center gap-1 transition active:scale-95 cursor-pointer px-1 ${currentTab === 'feed' ? 'text-orange-500 font-bold' : 'text-neutral-500 hover:text-neutral-300'}`}>
+        {/* REDESIGN UX - NAVIGATION PRINCIPALE À 3 ONGLETS ESSENTIELS (+ BOUTON CENTRAL +) */}
+        <nav className="sticky bottom-0 left-0 right-0 z-40 bg-neutral-950/95 backdrop-blur-xl border-t border-neutral-800 px-4 py-3 flex justify-around items-center">
+          <button 
+            onClick={() => handleTabChange('today')} 
+            className={`flex flex-col items-center gap-1 transition active:scale-95 cursor-pointer px-3 ${currentTab === 'today' || currentTab === 'running' || currentTab === 'readiness' ? 'text-orange-500 font-bold' : 'text-neutral-500 hover:text-neutral-300'}`}
+          >
             <Home className="w-5 h-5" />
-            <span className="text-[10px]">Accueil</span>
+            <span className="text-[10px]">Aujourd'hui</span>
           </button>
 
-          <button onClick={() => handleTabChange('leaderboard')} className={`flex flex-col items-center gap-1 transition active:scale-95 cursor-pointer px-1 ${currentTab === 'leaderboard' ? 'text-orange-500 font-bold' : 'text-neutral-500 hover:text-neutral-300'}`}>
-            <Trophy className="w-5 h-5" />
-            <span className="text-[10px]">Ligue</span>
-          </button>
-
-          <button onClick={() => handleTabChange('boxwars')} className={`flex flex-col items-center gap-1 transition active:scale-95 cursor-pointer px-1 ${currentTab === 'boxwars' ? 'text-cyan-400 font-bold' : 'text-neutral-500 hover:text-neutral-300'}`}>
-            <Zap className="w-5 h-5" />
-            <span className="text-[10px]">BoxWars</span>
+          <button 
+            onClick={() => handleTabChange('community')} 
+            className={`flex flex-col items-center gap-1 transition active:scale-95 cursor-pointer px-3 ${currentTab === 'community' || currentTab === 'feed' || currentTab === 'leaderboard' || currentTab === 'boxwars' ? 'text-orange-500 font-bold' : 'text-neutral-500 hover:text-neutral-300'}`}
+          >
+            <Users className="w-5 h-5" />
+            <span className="text-[10px]">Communauté</span>
           </button>
            
           <button 
@@ -1159,19 +1287,12 @@ export default function App() {
             <Plus className="w-5 h-5 stroke-[3]" />
           </button>
 
-          <button onClick={() => handleTabChange('buddy')} className={`flex flex-col items-center gap-1 transition active:scale-95 cursor-pointer px-1 ${currentTab === 'buddy' ? 'text-orange-500 font-bold' : 'text-neutral-500 hover:text-neutral-300'}`}>
-            <Users className="w-5 h-5" />
-            <span className="text-[10px]">Buddies</span>
-          </button>
-
-          <button onClick={() => handleTabChange('chat')} className={`flex flex-col items-center gap-1 transition active:scale-95 cursor-pointer px-1 ${currentTab === 'chat' ? 'text-orange-500 font-bold' : 'text-neutral-500 hover:text-neutral-300'}`}>
-            <MessageCircle className="w-5 h-5" />
-            <span className="text-[10px]" data-testid="chat-label">Chat</span>
-          </button>
-
-          <button onClick={() => handleTabChange('profile')} className={`flex flex-col items-center gap-1 transition active:scale-95 cursor-pointer px-1 ${currentTab === 'profile' ? 'text-orange-500 font-bold' : 'text-neutral-500 hover:text-neutral-300'}`}>
+          <button 
+            onClick={() => handleTabChange('profile')} 
+            className={`flex flex-col items-center gap-1 transition active:scale-95 cursor-pointer px-3 ${currentTab === 'profile' || currentTab === 'chat' || currentTab === 'buddy' ? 'text-orange-500 font-bold' : 'text-neutral-500 hover:text-neutral-300'}`}
+          >
             <User className="w-5 h-5" />
-            <span className="text-[10px]">Profil</span>
+            <span className="text-[10px]">Profil & QG</span>
           </button>
         </nav>
       </div>
