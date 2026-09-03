@@ -7,49 +7,47 @@ interface AnatomicIllustrationProps {
 }
 
 export default function AnatomicIllustration({ muscleGroup, exerciseName = '', className = "w-full h-36" }: AnatomicIllustrationProps) {
-  // Convertit le nom de l'exercice au format de la base de données open-source (ex: "Bench Press" -> "Barbell_Bench_Press")
+  // Génère l'URL de l'illustration anatomique 3D correspondante depuis la base open-source gratuite
   const getAnatomicImageUrl = () => {
-    const query = exerciseName.toLowerCase().trim();
+    const name = (exerciseName || '').toLowerCase().trim();
 
-    // Quelques correspondances directes avec la base open-source gratuite
-    if (query.includes('couché') || query.includes('bench')) {
+    if (name.includes('couché') || name.includes('bench press')) {
       return 'https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Barbell_Bench_Press/0.jpg';
     }
-    if (query.includes('incliné')) {
+    if (name.includes('incliné')) {
       return 'https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Barbell_Incline_Bench_Press/0.jpg';
     }
-    if (query.includes('squat')) {
+    if (name.includes('squat')) {
       return 'https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Barbell_Squat/0.jpg';
     }
-    if (query.includes('soulevé') || query.includes('deadlift')) {
+    if (name.includes('soulevé') || name.includes('deadlift')) {
       return 'https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Barbell_Deadlift/0.jpg';
     }
-    if (query.includes('curl') || query.includes('biceps')) {
+    if (name.includes('curl') || name.includes('biceps')) {
       return 'https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Dumbbell_Biceps_Curl/0.jpg';
     }
-    if (query.includes('traction') || query.includes('pull-up')) {
+    if (name.includes('traction') || name.includes('pull-up')) {
       return 'https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Pull-up/0.jpg';
     }
-    if (query.includes('développé militaire') || query.includes('overhead')) {
+    if (name.includes('élévation') || name.includes('latérale') || name.includes('épaule')) {
+      return 'https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Dumbbell_Lateral_Raise/0.jpg';
+    }
+    if (name.includes('développé militaire') || name.includes('shoulder')) {
       return 'https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Barbell_Military_Press/0.jpg';
     }
 
-    // Image anatomique par défaut générique si l'exercice n'a pas de correspondance exacte
+    // Image anatomique universelle par défaut
     return 'https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Pushup/0.jpg';
   };
 
   return (
     <div className={`relative bg-neutral-950 border border-neutral-800 rounded-2xl flex flex-col items-center justify-center p-2 overflow-hidden shadow-xl ${className}`}>
-      {/* Conteneur de l'image anatomique 3D open-source */}
-      <div className="w-full h-28 flex items-center justify-center relative rounded-xl overflow-hidden bg-neutral-900/90 border border-neutral-800/60 p-1">
+      {/* Conteneur de l'illustration anatomique 3D propre sur fond neutre */}
+      <div className="w-full h-32 flex items-center justify-center relative rounded-xl overflow-hidden bg-white/5 border border-neutral-800/80 p-1">
         <img 
           src={getAnatomicImageUrl()} 
           alt={exerciseName || muscleGroup} 
-          className="w-full h-full object-contain filter brightness-95 hover:scale-105 transition duration-300"
-          onError={(e) => {
-            // Solution de repli si une image ne charge pas
-            (e.target as HTMLElement).style.display = 'none';
-          }}
+          className="w-full h-full object-contain filter contrast-125 brightness-95 hover:scale-105 transition duration-300"
         />
       </div>
 
