@@ -59,7 +59,7 @@ export default function App() {
   const [isSignUpMode, setIsSignUpMode] = useState(false);
   const [acceptCgu, setAcceptCgu] = useState(false);
 
-  // Nouvel état pour le Mode Focus (Pilier 3)
+  // État pour le Mode Focus dynamique (Pilier 3)
   const [activeFocusMode, setActiveFocusMode] = useState<'hybrid' | 'running' | 'strength'>('hybrid');
 
   const [currentTab, setCurrentTab] = useState<'today' | 'community' | 'profile' | 'feed' | 'buddy' | 'workout' | 'exercises' | 'chat' | 'calculator' | 'paces' | 'live_tracker' | 'rest_timer' | 'notifications' | 'leaderboard' | 'boxwars' | 'running' | 'readiness' | 'hall_of_fame' | 'fitbot'>(() => {
