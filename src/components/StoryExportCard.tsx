@@ -1,6 +1,5 @@
-import { useState, useRef } from 'react';
-import { Download, Share2, Zap, X, Trophy } from 'lucide-react';
-import html2canvas from 'html2canvas';
+import { useState } from 'react';
+import { Share2, Zap, X, Trophy, Check } from 'lucide-react';
 
 interface StoryExportCardProps {
   isOpen: boolean;
@@ -12,30 +11,17 @@ interface StoryExportCardProps {
 }
 
 export default function StoryExportCard({ isOpen, onClose, workoutTitle, scoreText, username, scaleMode }: StoryExportCardProps) {
-  const cardRef = useRef<HTMLDivElement>(null);
-  const [generating, setGenerating] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   if (!isOpen) return null;
 
-  const handleDownloadStory = async () => {
-    if (!cardRef.current) return;
-    setGenerating(true);
-    try {
-      const canvas = await html2canvas(cardRef.current, {
-        scale: 3, // Haute résolution pour Instagram
-        useCORS: true,
-        backgroundColor: '#0a0a0a'
-      });
-      const image = canvas.toDataURL('image/png');
-      const a = document.createElement('a');
-      a.href = image;
-      a.download = `FitPulse_Story_${Date.now()}.png`;
-      a.click();
-    } catch (err) {
-      alert("Erreur lors de la génération de l'image.");
-    } finally {
-      setGenerating(false);
-    }
+  // Copie un résumé stylisé dans le presse-papier pour le coller directement sur Instagram
+  const handleCopyForStory = () => {
+    const textToShare = `⚡ FITPULSE BOXWARS ⚡\n\n🎯 ${workoutTitle}\n🏆 Score : ${scoreText}\n🏷️ Mode : ${scaleMode}\n\n👤 Athlète : @${username}\n#BoxWars #HybridAthlete`;
+    
+    navigator.clipboard.writeText(textToShare);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 3000);
   };
 
   return (
@@ -43,20 +29,16 @@ export default function StoryExportCard({ isOpen, onClose, workoutTitle, scoreTe
       <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-sm w-full p-5 space-y-4 shadow-2xl relative">
         <div className="flex items-center justify-between">
           <h3 className="font-extrabold text-sm text-white flex items-center gap-2">
-            <Share2 className="w-4 h-4 text-orange-500" /> Export Story Instagram
+            <Share2 className="w-4 h-4 text-orange-500" /> Partager en Story Instagram
           </h3>
           <button onClick={onClose} className="p-1.5 text-neutral-400 hover:text-white rounded-xl cursor-pointer">
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* CONTENEUR DE LA CARTE AU FORMAT STORY (9:16 stylisé) */}
+        {/* CARTE VISUELLE STYLE STORY */}
         <div className="flex justify-center overflow-hidden py-2">
-          <div 
-            ref={cardRef}
-            className="w-[280px] h-[480px] bg-gradient-to-br from-neutral-950 via-neutral-900 to-orange-950/40 border border-orange-500/40 rounded-3xl p-6 flex flex-col justify-between shadow-2xl relative overflow-hidden select-none"
-          >
-            {/* Effet de lueur en arrière-plan */}
+          <div className="w-[280px] h-[440px] bg-gradient-to-br from-neutral-950 via-neutral-900 to-orange-950/40 border border-orange-500/40 rounded-3xl p-6 flex flex-col justify-between shadow-2xl relative overflow-hidden select-none">
             <div className="absolute -right-12 -top-12 w-40 h-40 bg-orange-500/20 rounded-full blur-3xl pointer-events-none" />
 
             <div className="flex justify-between items-center relative z-10">
@@ -84,18 +66,17 @@ export default function StoryExportCard({ isOpen, onClose, workoutTitle, scoreTe
 
             <div className="pt-4 border-t border-neutral-800/80 flex justify-between items-center relative z-10">
               <span className="text-xs font-bold text-neutral-300">@{username}</span>
-              <span className="text-[9px] text-neutral-500 font-mono">#BoxWars #HybridAthlete</span>
+              <span className="text-[9px] text-neutral-500 font-mono">#BoxWars</span>
             </div>
           </div>
         </div>
 
         <button
-          onClick={handleDownloadStory}
-          disabled={generating}
-          className="w-full py-3.5 bg-orange-600 hover:bg-orange-500 text-white font-black rounded-2xl text-xs flex items-center justify-center gap-2 shadow-xl transition cursor-pointer disabled:opacity-50"
+          onClick={handleCopyForStory}
+          className="w-full py-3.5 bg-orange-600 hover:bg-orange-500 text-white font-black rounded-2xl text-xs flex items-center justify-center gap-2 shadow-xl transition cursor-pointer"
         >
-          <Download className="w-4 h-4" />
-          {generating ? "Génération de l'image..." : "Télécharger pour Story Insta 📸"}
+          {copied ? <Check className="w-4 h-4 text-white" /> : <Share2 className="w-4 h-4" />}
+          {copied ? "Copié pour ta Story Insta ! 🚀" : "Copier le texte et les stats 📋"}
         </button>
       </div>
     </div>
