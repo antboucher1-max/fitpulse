@@ -1,6 +1,5 @@
 import { useState, useMemo } from 'react';
 import { Calendar as CalendarIcon, Dumbbell, Activity, Trophy, ChevronLeft, ChevronRight, Plus, X } from 'lucide-react';
-import { supabase } from '../supabaseClient';
 
 interface HybridCalendarProps {
   posts: any[];
@@ -18,10 +17,21 @@ export default function HybridCalendar({ posts, currentUserId, onRefresh }: Hybr
   const [description, setDescription] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // Filtrer les posts de l'utilisateur connecté
+  // Charger les événements locaux stockés dans le navigateur
+  const [localEvents, setLocalEvents] = useState<any[]>(() => {
+    try {
+      const saved = localStorage.getItem('fitpulse_local_events');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  // Fusionner les posts de Supabase et les événements locaux de l'utilisateur
   const userActivities = useMemo(() => {
-    return posts.filter(p => p.user_id === currentUserId);
-  }, [posts, currentUserId]);
+    const remote = posts.filter(p => p.user_id === currentUserId);
+    return [...remote, ...localEvents];
+  }, [posts, currentUserId, localEvents]);
 
   // Générer les jours du mois en cours
   const year = currentDate.getFullYear();
@@ -63,39 +73,29 @@ export default function HybridCalendar({ posts, currentUserId, onRefresh }: Hybr
     setIsModalOpen(true);
   };
 
-  const handleSaveSession = async (e: React.FormEvent) => {
+  const handleSaveSession = (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentUserId || !selectedDateStr) return;
 
     setLoading(true);
     try {
-      const payload = {
+      const newEvent = {
+        id: 'local_' + Date.now(),
         user_id: currentUserId,
-        username: 'Planificateur',
-        avatar_url: '',
-        club_name: 'Tournai',
         session_type: `📅 [Prévu] ${sessionType}`,
-        caption: description || 'Séance ou événement programmé dans le calendrier',
-        exercises: [],
-        likes_count: 0,
-        comments_count: 0,
-        is_private: false,
+        caption: description || 'Séance ou événement programmé',
         created_at: `${selectedDateStr}T08:00:00.000Z`
       };
 
-      const { error } = await supabase.from('posts').insert([payload]);
-
-      if (error) {
-        console.error("Erreur Supabase détaillée :", error);
-        throw new Error(error.message);
-      }
+      const updatedEvents = [...localEvents, newEvent];
+      setLocalEvents(updatedEvents);
+      localStorage.setItem('fitpulse_local_events', JSON.stringify(updatedEvents));
 
       setIsModalOpen(false);
       setDescription('');
       if (onRefresh) onRefresh();
-      window.location.reload();
     } catch (err: any) {
-      alert("Erreur lors de la programmation : " + (err.message || "Impossible de joindre le serveur"));
+      alert("Erreur lors de la programmation : " + err.message);
     } finally {
       setLoading(false);
     }
@@ -205,7 +205,7 @@ export default function HybridCalendar({ posts, currentUserId, onRefresh }: Hybr
         })}
       </div>
 
-      {/* MODALE DE PROGRAMMATION AU CLIC (LISTE À PLAT SANS BUG) */}
+      {/* MODALE DE PROGRAMMATION AU CLIC */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4 animate-fadeIn">
           <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-sm w-full p-6 space-y-4 shadow-2xl">
