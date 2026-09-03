@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Calendar as CalendarIcon, Dumbbell, Activity, ChevronLeft, ChevronRight, Plus, X } from 'lucide-react';
+import { Calendar as CalendarIcon, Dumbbell, Activity, Trophy, ChevronLeft, ChevronRight, Plus, X } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 
 interface HybridCalendarProps {
@@ -75,7 +75,7 @@ export default function HybridCalendar({ posts, currentUserId, onRefresh }: Hybr
         avatar_url: '',
         club_name: 'Tournai',
         session_type: `📅 [Prévu] ${sessionType}`,
-        caption: description || 'Séance programmée dans le calendrier',
+        caption: description || 'Séance ou événement programmé dans le calendrier',
         exercises: [],
         likes_count: 0,
         comments_count: 0,
@@ -124,10 +124,11 @@ export default function HybridCalendar({ posts, currentUserId, onRefresh }: Hybr
       </div>
 
       {/* Légende rapide */}
-      <div className="flex items-center justify-between border-b border-neutral-800 pb-3 text-[10px] font-bold text-neutral-400">
-        <div className="flex items-center gap-4">
+      <div className="flex flex-wrap items-center justify-between border-b border-neutral-800 pb-3 text-[10px] font-bold text-neutral-400 gap-2">
+        <div className="flex items-center gap-3">
           <span className="flex items-center gap-1"><Dumbbell className="w-3.5 h-3.5 text-orange-500" /> Force</span>
           <span className="flex items-center gap-1"><Activity className="w-3.5 h-3.5 text-emerald-400" /> Cardio</span>
+          <span className="flex items-center gap-1"><Trophy className="w-3.5 h-3.5 text-amber-400" /> Events</span>
         </div>
         <span className="text-neutral-500 italic">Clique sur un jour pour programmer 💡</span>
       </div>
@@ -151,8 +152,9 @@ export default function HybridCalendar({ posts, currentUserId, onRefresh }: Hybr
           const dateString = `${year}-${formattedMonth}-${formattedDay}`;
           
           const dayActivities = activitiesByDate[dateString] || [];
-          const hasRunning = dayActivities.some(a => a.session_type?.toLowerCase().includes('cardio') || a.session_type?.toLowerCase().includes('running') || a.session_type?.toLowerCase().includes('footing') || a.session_type?.toLowerCase().includes('prévu'));
-          const hasMuscu = dayActivities.some(a => !hasRunning);
+          const hasCompetition = dayActivities.some(a => a.session_type?.toLowerCase().includes('marathon') || a.session_type?.toLowerCase().includes('course') || a.session_type?.toLowerCase().includes('hyrox') || a.session_type?.toLowerCase().includes('crossfit') || a.session_type?.toLowerCase().includes('concours'));
+          const hasRunning = dayActivities.some(a => (a.session_type?.toLowerCase().includes('cardio') || a.session_type?.toLowerCase().includes('running') || a.session_type?.toLowerCase().includes('footing') || a.session_type?.toLowerCase().includes('prévu')) && !hasCompetition);
+          const hasMuscu = dayActivities.some(a => !hasRunning && !hasCompetition);
 
           const isToday = new Date().toISOString().split('T')[0] === dateString;
 
@@ -175,14 +177,19 @@ export default function HybridCalendar({ posts, currentUserId, onRefresh }: Hybr
                 <Plus className="w-3 h-3 text-neutral-600 opacity-0 group-hover:opacity-100 transition" />
               </div>
 
-              {/* Indicateurs d'activités unifiées */}
+              {/* Indicateurs d'activités et compétitions unifiées */}
               <div className="flex flex-col gap-0.5 mt-auto">
-                {hasMuscu && dayActivities.length > 0 && (
+                {hasCompetition && (
+                  <div className="bg-amber-500/20 border border-amber-500/40 rounded px-1 py-0.5 flex items-center gap-1 text-[8px] font-bold text-amber-400 truncate">
+                    <Trophy className="w-2.5 h-2.5 flex-shrink-0" /> Event
+                  </div>
+                )}
+                {hasMuscu && dayActivities.length > 0 && !hasCompetition && (
                   <div className="bg-orange-500/20 border border-orange-500/40 rounded px-1 py-0.5 flex items-center gap-1 text-[8px] font-bold text-orange-400 truncate">
                     <Dumbbell className="w-2.5 h-2.5 flex-shrink-0" /> Force
                   </div>
                 )}
-                {hasRunning && (
+                {hasRunning && !hasCompetition && (
                   <div className="bg-emerald-500/20 border border-emerald-500/40 rounded px-1 py-0.5 flex items-center gap-1 text-[8px] font-bold text-emerald-400 truncate">
                     <Activity className="w-2.5 h-2.5 flex-shrink-0" /> Cardio
                   </div>
@@ -193,7 +200,7 @@ export default function HybridCalendar({ posts, currentUserId, onRefresh }: Hybr
         })}
       </div>
 
-      {/* MODALE DE PROGRAMMATION AU CLIC */}
+      {/* MODALE DE PROGRAMMATION AU CLIC (AVEC COURSES & COMPÉTITIONS) */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4 animate-fadeIn">
           <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-sm w-full p-6 space-y-4 shadow-2xl">
@@ -208,19 +215,27 @@ export default function HybridCalendar({ posts, currentUserId, onRefresh }: Hybr
 
             <form onSubmit={handleSaveSession} className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-neutral-400 mb-1">Type de séance :</label>
+                <label className="block text-xs font-semibold text-neutral-400 mb-1">Type de séance ou Compétition :</label>
                 <select 
                   value={sessionType} 
                   onChange={(e) => setSessionType(e.target.value)} 
                   className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3.5 py-3 text-xs text-white focus:outline-none"
                 >
-                  <option value="Musculation Full Body">💪 Musculation Full Body</option>
-                  <option value="Push / Force">🏋️‍♂️ Push / Force</option>
-                  <option value="Pull / Dos">🦾 Pull / Dos</option>
-                  <option value="Jambes / Squat">🦵 Jambes / Squat</option>
-                  <option value="Footing / VMA">🏃‍♂️ Footing / VMA</option>
-                  <option value="WOD / Crossfit">⚡ WOD / Crossfit</option>
-                  <option value="Repos / Mobilité">🧘‍♂️ Repos / Mobilité</option>
+                  <optgroup label="Entraînements">
+                    <option value="Musculation Full Body">💪 Musculation Full Body</option>
+                    <option value="Push / Force">🏋️‍♂️ Push / Force</option>
+                    <option value="Pull / Dos">🦾 Pull / Dos</option>
+                    <option value="Jambes / Squat">🦵 Jambes / Squat</option>
+                    <option value="Footing / VMA">🏃‍♂️ Footing / VMA</option>
+                    <option value="WOD / Crossfit">⚡ WOD / Crossfit</option>
+                    <option value="Repos / Mobilité">🧘‍♂️ Repos / Mobilité</option>
+                  </optgroup>
+                  <optgroup label="Courses & Compétitions 🏆">
+                    <option value="🏁 Marathon / Semi-Marathon">🏁 Marathon / Semi-Marathon</option>
+                    <option value="🏃 Course officielle (10k / 20k)">🏃 Course officielle (10k / 20k)</option>
+                    <option value="⚡ Compétition Hyrox">⚡ Compétition Hyrox</option>
+                    <option value="🏋️‍♂️ Concours CrossFit / WOD Battle">🏋️‍♂️ Concours CrossFit / WOD Battle</option>
+                  </optgroup>
                 </select>
               </div>
 
@@ -228,7 +243,7 @@ export default function HybridCalendar({ posts, currentUserId, onRefresh }: Hybr
                 <label className="block text-xs font-semibold text-neutral-400 mb-1">Détails ou Objectif :</label>
                 <textarea 
                   rows={3} 
-                  placeholder="Ex: 10km allure marathon ou série lourde au squat..." 
+                  placeholder="Ex: Objectif sub 3h30 au marathon ou heat 2 en Hyrox..." 
                   value={description} 
                   onChange={(e) => setDescription(e.target.value)} 
                   className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-xs text-white focus:outline-none" 
@@ -240,7 +255,7 @@ export default function HybridCalendar({ posts, currentUserId, onRefresh }: Hybr
                 disabled={loading}
                 className="w-full py-3.5 bg-orange-600 hover:bg-orange-500 text-white font-black rounded-2xl text-xs shadow-xl transition cursor-pointer disabled:opacity-50"
               >
-                {loading ? "Programmation..." : "Valider et planifier la séance 🚀"}
+                {loading ? "Programmation..." : "Valider et planifier l'événement 🚀"}
               </button>
             </form>
           </div>
