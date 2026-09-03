@@ -87,7 +87,7 @@ export default function HybridCalendar({ posts, currentUserId, onRefresh }: Hybr
     setIsModalOpen(true);
   };
 
-  // FONCTION 1 : PROGRAMMER UNE NOUVELLE SÉANCE (L'ancien comportement)
+  // FONCTION 1 : PROGRAMMER UNE NOUVELLE SÉANCE (Sans rechargement brutal)
   const handleSaveSession = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentUserId || !selectedDateStr) return;
@@ -120,29 +120,26 @@ export default function HybridCalendar({ posts, currentUserId, onRefresh }: Hybr
       const { error } = await supabase.from('posts').insert([payload]);
       if (error) throw new Error(error.message);
 
-      setIsModalOpen(false);
       setDescription('');
+      setIsModalOpen(false);
       if (onRefresh) onRefresh();
-      window.location.reload(); 
     } catch (err: any) {
+      console.error("🔥 CRASH PLANIFICATION :", err);
       alert("Erreur lors de la programmation : " + err.message);
     } finally {
       setLoading(false);
     }
   };
 
-  // FONCTION 2 : VALIDATION ZERO-FRICTION D'UNE SÉANCE PRÉVUE
+  // FONCTION 2 : VALIDATION ZERO-FRICTION D'UNE SÉANCE PRÉVUE (Sans rechargement brutal)
   const handleCompleteSession = async (act: any) => {
     setCompletingId(act.id);
     try {
-      // Nettoie le titre pour enlever le tag de planification
       const cleanSessionType = act.session_type.replace('📅 [Prévu] ', '');
       
-      // Ajoute la donnée RPE à la description de manière propre
       const rpeLabel = rpe <= 3 ? "🟢 Facile" : rpe <= 6 ? "🟡 Moyen" : rpe <= 8 ? "🟠 Difficile" : "🔴 Extrême";
       const newCaption = `${act.caption === 'EMPTY' ? '' : act.caption}\n\n🔥 Intensité : ${rpe}/10 (${rpeLabel})`;
 
-      // Fait un UPDATE au lieu d'un INSERT
       const { error } = await supabase
         .from('posts')
         .update({ 
@@ -155,8 +152,8 @@ export default function HybridCalendar({ posts, currentUserId, onRefresh }: Hybr
 
       setIsModalOpen(false);
       if (onRefresh) onRefresh();
-      window.location.reload();
     } catch (err: any) {
+      console.error("🔥 CRASH VALIDATION :", err);
       alert("Erreur lors de la validation : " + err.message);
     } finally {
       setCompletingId(null);
@@ -219,7 +216,6 @@ export default function HybridCalendar({ posts, currentUserId, onRefresh }: Hybr
           const hasRunning = dayActivities.some(a => (a.session_type?.toLowerCase().includes('cardio') || a.session_type?.toLowerCase().includes('running') || a.session_type?.toLowerCase().includes('prévu')) && !hasCompetition);
           const hasMuscu = dayActivities.some(a => !hasRunning && !hasCompetition);
           
-          // Vérifie si la journée contient des séances à valider (statut [Prévu])
           const hasPending = dayActivities.some(a => a.session_type?.includes('[Prévu]'));
           const isToday = new Date().toISOString().split('T')[0] === dateString;
 
@@ -235,7 +231,6 @@ export default function HybridCalendar({ posts, currentUserId, onRefresh }: Hybr
                 <span className={`text-[10px] font-bold ${isToday ? 'text-orange-400 font-black' : 'text-neutral-400'}`}>
                   {dayNum}
                 </span>
-                {/* Icône d'alerte si une séance est en attente de validation */}
                 {hasPending ? (
                   <CheckCircle2 className="w-3 h-3 text-emerald-500 animate-pulse" />
                 ) : (
@@ -279,7 +274,7 @@ export default function HybridCalendar({ posts, currentUserId, onRefresh }: Hybr
               </button>
             </div>
 
-            {/* SECTION 1 : VALIDATION RAPIDE (S'il y a des séances prévues ce jour-là) */}
+            {/* SECTION 1 : VALIDATION RAPIDE */}
             {plannedActs.length > 0 && (
               <div className="space-y-3 mb-6">
                 <div className="text-xs font-bold text-emerald-400 uppercase tracking-wider mb-2">À valider aujourd'hui</div>
