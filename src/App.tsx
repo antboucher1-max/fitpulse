@@ -29,6 +29,7 @@ import FitBotTab from './components/FitBotTab';
 import SpotSearchInput from './components/SpotSearchInput';
 import HybridCalendar from './components/HybridCalendar';
 import OnboardingWizard from './components/OnboardingWizard';
+import PaywallGate from './components/PaywallGate';
 
 import FatigueDashboardCard from './components/FatigueDashboardCard';
 import FloatingWodTimer from './components/FloatingWodTimer';
@@ -626,25 +627,28 @@ export default function App() {
                 <FloatingWodTimer />
               </div>
 
-              <div 
-                onClick={() => handleTabChange('fitbot')}
-                className="bg-gradient-to-r from-cyan-950/60 via-neutral-900 to-neutral-900 border border-cyan-500/40 hover:border-cyan-400 rounded-3xl p-4 flex items-center gap-3.5 shadow-lg relative overflow-hidden cursor-pointer transition group"
-              >
-                <div className="absolute right-0 top-0 w-28 h-28 bg-cyan-500/10 rounded-full blur-2xl pointer-events-none" />
-                <div className="w-10 h-10 rounded-2xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center flex-shrink-0 border border-cyan-500/30 animate-pulse">
-                  <Bot className="w-5 h-5" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <h4 className="text-xs font-black text-white group-hover:text-cyan-300 transition">Coach FitBot AI</h4>
-                    <span className="text-[9px] bg-cyan-500/20 text-cyan-400 font-extrabold px-2 py-0.5 rounded-md border border-cyan-500/30">Actif 🚀</span>
+              {/* 🔒 EXEMPLE DE VERROUILLAGE PRO AVEC PAYWALL GATE SUR LE FITBOT */}
+              <PaywallGate userId={user?.id} featureName="IA Coach Proactif">
+                <div 
+                  onClick={() => handleTabChange('fitbot')}
+                  className="bg-gradient-to-r from-cyan-950/60 via-neutral-900 to-neutral-900 border border-cyan-500/40 hover:border-cyan-400 rounded-3xl p-4 flex items-center gap-3.5 shadow-lg relative overflow-hidden cursor-pointer transition group"
+                >
+                  <div className="absolute right-0 top-0 w-28 h-28 bg-cyan-500/10 rounded-full blur-2xl pointer-events-none" />
+                  <div className="w-10 h-10 rounded-2xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center flex-shrink-0 border border-cyan-500/30 animate-pulse">
+                    <Bot className="w-5 h-5" />
                   </div>
-                  <p className="text-[11px] text-neutral-300 leading-snug pt-0.5">
-                    Discute avec ton coach IA pour recevoir des conseils sur-mesure en sport et en nutrition !
-                  </p>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <h4 className="text-xs font-black text-white group-hover:text-cyan-300 transition">Coach FitBot AI</h4>
+                      <span className="text-[9px] bg-cyan-500/20 text-cyan-400 font-extrabold px-2 py-0.5 rounded-md border border-cyan-500/30">Pro 🚀</span>
+                    </div>
+                    <p className="text-[11px] text-neutral-300 leading-snug pt-0.5">
+                      Discute avec ton coach IA pour recevoir des conseils sur-mesure en sport et en nutrition !
+                    </p>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-neutral-500 group-hover:text-cyan-400 transition flex-shrink-0" />
                 </div>
-                <ChevronRight className="w-4 h-4 text-neutral-500 group-hover:text-cyan-400 transition flex-shrink-0" />
-              </div>
+              </PaywallGate>
 
               {/* Affichage de la boîte à outils selon le mode focus */}
               <div className="pt-2">
@@ -683,7 +687,9 @@ export default function App() {
           )}
 
           {currentTab === 'fitbot' && (
-            <FitBotTab currentUserProfile={currentUserProfile} currentReadinessScore={currentReadinessScore} />
+            <PaywallGate userId={user?.id} featureName="IA Coach Proactif">
+              <FitBotTab currentUserProfile={currentUserProfile} currentReadinessScore={currentReadinessScore} />
+            </PaywallGate>
           )}
 
           {currentTab === 'community' && (
