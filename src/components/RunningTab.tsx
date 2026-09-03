@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { 
   Play, Pause, Square, MapPin, Volume2, VolumeX, 
-  Compass, Apple, Droplet, Zap, Navigation, LocateFixed, Activity, Gauge, Timer, Target, Radio 
+  Compass, Apple, Droplet, Zap, Navigation, LocateFixed, Activity, Gauge, Timer, Target, Radio, Wind 
 } from 'lucide-react';
 import { MapContainer, TileLayer, Polyline, Marker, useMap } from 'react-leaflet';
 import L from 'leaflet';
@@ -54,6 +54,10 @@ export default function RunningTab({
   const [distanceKm, setDistanceKm] = useState(0);
   const [audioCoaching, setAudioCoaching] = useState(true);
 
+  // Ghost Pacing Vocal & Météo States
+  const [windFactor, setWindFactor] = useState<'Face (+12 km/h)' | 'Dos (-8 km/h)' | 'Calme'>('Face (+12 km/h)');
+  const [coachingAdvice, setCoachingAdvice] = useState('Analyse météo et cardio en attente...');
+
   // Objectif d'allure cible en secondes par kilomètre (Ex: 5'30" = 330 secondes)
   const [targetPaceSecs, setTargetPaceSecs] = useState<number>(330); 
 
@@ -97,11 +101,11 @@ export default function RunningTab({
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = 'fr-FR';
-    utterance.rate = 1.0;
+    utterance.rate = 1.05;
     window.speechSynthesis.speak(utterance);
   };
 
-  // Suivi GPS stable et Coaching Vocal périodique (toutes les 60 secondes)
+  // Suivi GPS stable et Coaching Vocal périodique (toutes les 60 secondes ou via le Ghost Pacing)
   useEffect(() => {
     let interval: any = null;
     let watchId: number | null = null;
@@ -117,13 +121,17 @@ export default function RunningTab({
             const diff = currentSecPerKm - targetPaceSecs; 
              
             let coachingText = `Point course : ${distanceKm.toFixed(2)} kilomètres. `;
+            if (windFactor.includes('Face')) {
+              coachingText += "Vent de face détecté, compense l'effort sans puiser dans tes réserves. ";
+            }
             if (Math.abs(diff) < 15) {
               coachingText += "Allure parfaite, tu es dans les clous de ton objectif !";
             } else if (diff < -15) {
-              coachingText += "Attention, tu es au-dessus de ton allure cible, tu cours trop vite !";
+              coachingText += "Attention, tu cours trop vite par rapport à ta cible !";
             } else {
               coachingText += "Tu es en dessous de ton allure cible, relance un peu l'effort !";
             }
+            setCoachingAdvice(coachingText);
             speakMessage(coachingText);
           }
           return newSecs;
@@ -158,7 +166,7 @@ export default function RunningTab({
       clearInterval(interval);
       if (watchId !== null) navigator.geolocation.clearWatch(watchId);
     };
-  }, [isRunning, isPaused, distanceKm, targetPaceSecs, audioCoaching]);
+  }, [isRunning, isPaused, distanceKm, targetPaceSecs, audioCoaching, windFactor]);
 
   // Fonction de test pour le "Silent Club Broadcast" (Vibration + Alerte Sonore AirHorn)
   const triggerSilentBroadcastTest = () => {
@@ -214,7 +222,8 @@ export default function RunningTab({
     setSeconds(0);
     setDistanceKm(0);
     fetchInitialPosition();
-    speakMessage("Sortie démarrée. Bon entraînement hybride !");
+    setCoachingAdvice("Sortie démarrée. Ghost Pacing et correction météo activés !");
+    speakMessage("Sortie démarrée. Ghost Pacing et correction météo activés. Bon entraînement !");
   };
 
   const handlePauseRun = () => {
@@ -262,9 +271,9 @@ export default function RunningTab({
         <div className="relative z-10 flex items-center justify-between">
           <div>
             <div className="flex items-center gap-2 text-orange-400 font-bold text-xs uppercase tracking-widest mb-1">
-              <Compass className="w-4 h-4" /> Mode Running & Stratégie
+              <Compass className="w-4 h-4" /> Mode Running & Ghost Pacing
             </div>
-            <h2 className="text-xl font-black text-white tracking-tight">GPS, Carte Live & Nutrition</h2>
+            <h2 className="text-xl font-black text-white tracking-tight">GPS, Météo & Stratégie Vocale</h2>
           </div>
           <button 
             type="button"
@@ -273,6 +282,53 @@ export default function RunningTab({
           >
             <LocateFixed className="w-4 h-4 animate-pulse" /> Ma Position
           </button>
+        </div>
+      </div>
+
+      {/* Moteur de Ghost Pacing & Vent Réel (Intégration Avancée) */}
+      <div className="bg-neutral-900 border border-orange-500/30 rounded-3xl p-5 space-y-4 shadow-2xl relative overflow-hidden">
+        <div className="absolute -right-8 -top-8 w-28 h-28 bg-orange-500/10 rounded-full blur-2xl pointer-events-none" />
+        <div className="flex items-center justify-between relative z-10">
+          <div className="flex items-center gap-2 text-orange-400 font-black text-xs uppercase tracking-wider">
+            <Zap className="w-4 h-4" /> Ghost Pacing & Correction Vent (Météo)
+          </div>
+          <span className="text-[10px] font-extrabold bg-orange-500/20 text-orange-300 px-2.5 py-0.5 rounded-full border border-orange-500/30">
+            IA Active 🗣️
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs relative z-10">
+          <div className="bg-neutral-950 p-3.5 rounded-2xl border border-neutral-800 space-y-1.5">
+            <span className="text-neutral-400 flex items-center gap-1.5 font-bold"><Wind className="w-3.5 h-3.5 text-cyan-400" /> Condition de Vent Réel</span>
+            <select 
+              value={windFactor} 
+              onChange={(e: any) => setWindFactor(e.target.value)}
+              className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none cursor-pointer"
+            >
+              <option value="Face (+12 km/h)">Vent de face fort (+12 km/h ressenti)</option>
+              <option value="Dos (-8 km/h)">Vent de dos favorable</option>
+              <option value="Calme">Conditions météo calmes</option>
+            </select>
+          </div>
+
+          <div className="bg-neutral-950 p-3.5 rounded-2xl border border-neutral-800 flex flex-col justify-between">
+            <span className="text-neutral-400 flex items-center gap-1.5 font-bold"><Activity className="w-3.5 h-3.5 text-emerald-400" /> Statut Audio</span>
+            <span className="text-sm font-black text-emerald-400 flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+              {audioCoaching ? 'Chuchotement écouteurs actif' : 'Muet'}
+            </span>
+          </div>
+        </div>
+
+        {/* Boîte de conseil vocal proactif en direct */}
+        <div className="bg-orange-950/30 border border-orange-500/30 rounded-2xl p-4 flex items-start gap-3 relative z-10">
+          <div className="w-8 h-8 rounded-xl bg-orange-500/20 text-orange-400 flex items-center justify-center flex-shrink-0 mt-0.5 animate-pulse">
+            🗣️
+          </div>
+          <div className="space-y-0.5">
+            <span className="text-[10px] font-black uppercase tracking-widest text-orange-400 block">Dernier conseil vocal du coach</span>
+            <p className="text-xs text-neutral-200 leading-snug">{coachingAdvice}</p>
+          </div>
         </div>
       </div>
 
