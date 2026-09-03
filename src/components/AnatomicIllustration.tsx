@@ -12,7 +12,53 @@ export default function AnatomicIllustration({ muscleGroup, className = "w-full 
   const getAnatomicSketch = () => {
     if (normalize.includes('pectoral') || normalize.includes('chest') || normalize.includes('développé')) {
       return (
-        <svg viewBox="0 0 120 120" className="w-full h-full drop-shadow-md">
+        <svg viewBox="0 0 120 120" className="w-full h-full drop-shadow-md">import { Target } from 'lucide-react';
+
+interface AnatomicIllustrationProps {
+  muscleGroup: string;
+  exerciseName?: string;
+  className?: string;
+}
+
+export default function AnatomicIllustration({ muscleGroup, exerciseName = '', className = "w-full h-36" }: AnatomicIllustrationProps) {
+  // Mappage d'exemples d'images d'exercices libres au style anatomique 3D gris/rouge
+  const getExerciseImageUrl = () => {
+    const name = exerciseName.toLowerCase();
+    const muscle = muscleGroup.toLowerCase();
+
+    if (name.includes('développé couché') || name.includes('bench press')) {
+      return 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=400&auto=format&fit=crop&q=80'; // Remplaçable par un lien d'image anatomique directe
+    }
+    if (name.includes('élévation') || name.includes('épaule')) {
+      return 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?w=400&auto=format&fit=crop&q=80';
+    }
+    
+    // Par défaut, une illustration ou un rendu propre basé sur le muscle
+    return 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=400&auto=format&fit=crop&q=80';
+  };
+
+  return (
+    <div className={`relative bg-neutral-900 border border-neutral-800 rounded-2xl flex flex-col items-center justify-center p-2 overflow-hidden shadow-md ${className}`}>
+      {/* Conteneur de l'illustration anatomique */}
+      <div className="w-full h-24 flex items-center justify-center relative rounded-xl overflow-hidden bg-neutral-950">
+        <img 
+          src={getExerciseImageUrl()} 
+          alt={exerciseName || muscleGroup} 
+          className="w-full h-full object-contain opacity-90 hover:scale-105 transition duration-300"
+        />
+      </div>
+
+      <div className="w-full flex items-center justify-between text-[10px] text-neutral-300 font-bold pt-2 px-1">
+        <span className="flex items-center gap-1">
+          <Target className="w-3 h-3 text-orange-500" /> {muscleGroup}
+        </span>
+        <span className="text-[9px] text-orange-400 bg-orange-500/10 px-1.5 py-0.5 rounded border border-orange-500/20 uppercase font-black">
+          Anatomy 3D
+        </span>
+      </div>
+    </div>
+  );
+}
           {/* Corps / Banc esquissé en gris technique */}
           <path d="M40 85 L80 85 L75 105 L45 105 Z" fill="#262626" stroke="#404040" strokeWidth="1.5" />
           <path d="M45 45 C45 35 75 35 75 45 L70 85 L50 85 Z" fill="#333333" stroke="#525252" strokeWidth="1.5" />
