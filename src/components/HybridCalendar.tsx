@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Calendar as CalendarIcon, Dumbbell, Activity, Trophy, ChevronLeft, ChevronRight, Plus, X } from 'lucide-react';
 
 interface HybridCalendarProps {
@@ -32,6 +32,33 @@ export default function HybridCalendar({ posts, currentUserId, onRefresh }: Hybr
     const remote = posts.filter(p => p.user_id === currentUserId);
     return [...remote, ...localEvents];
   }, [posts, currentUserId, localEvents]);
+
+  // Système de rappel par notification native (Web Notifications)
+  useEffect(() => {
+    if ('Notification' in window && Notification.permission !== 'granted') {
+      Notification.requestPermission();
+    }
+
+    const todayStr = new Date().toISOString().split('T')[0];
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const tomorrowStr = tomorrow.toISOString().split('T')[0];
+
+    userActivities.forEach(act => {
+      if (!act.created_at) return;
+      const actDate = act.created_at.split('T')[0];
+
+      if ((actDate === todayStr || actDate === tomorrowStr) && 'Notification' in window && Notification.permission === 'granted') {
+        const notificationKey = `notified_${act.id || actDate}_${act.session_type}`;
+        if (!localStorage.getItem(notificationKey)) {
+          new Notification("⚡ Rappel FitPulse - Événement", {
+            body: `Rappel : ${act.session_type} prévu ${actDate === todayStr ? "aujourd'hui !" : "demain !"}`
+          });
+          localStorage.setItem(notificationKey, 'true');
+        }
+      }
+    });
+  }, [userActivities]);
 
   // Générer les jours du mois en cours
   const year = currentDate.getFullYear();
