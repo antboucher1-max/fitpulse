@@ -42,6 +42,7 @@ interface RunningTabProps {
 }
 
 export default function RunningTab({
+  currentUserId,
   shoes = [],
   onAddShoe = () => {},
   onDeleteShoe = () => {},
@@ -329,43 +330,45 @@ export default function RunningTab({
         </div>
       </div>
 
-      {/* Moteur de Ghost Pacing & Vent Réel API */}
-      <div className="bg-neutral-900 border border-orange-500/30 rounded-3xl p-5 space-y-4 shadow-2xl relative overflow-hidden">
-        <div className="absolute -right-8 -top-8 w-28 h-28 bg-orange-500/10 rounded-full blur-2xl pointer-events-none" />
-        <div className="flex items-center justify-between relative z-10">
-          <div className="flex items-center gap-2 text-orange-400 font-black text-xs uppercase tracking-wider">
-            <Zap className="w-4 h-4" /> Ghost Pacing & Vent Météo en Direct
-          </div>
-          <span className="text-[10px] font-extrabold bg-orange-500/20 text-orange-300 px-2.5 py-0.5 rounded-full border border-orange-500/30">
-            Open-Meteo API 🛰️
-          </span>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs relative z-10">
-          <div className="bg-neutral-950 p-3.5 rounded-2xl border border-neutral-800 space-y-1">
-            <span className="text-neutral-400 flex items-center gap-1.5 font-bold"><Wind className="w-3.5 h-3.5 text-cyan-400" /> Analyse Vent Satellite</span>
-            <div className="text-sm font-black text-white pt-1">{windDescription}</div>
-          </div>
-
-          <div className="bg-neutral-950 p-3.5 rounded-2xl border border-neutral-800 flex flex-col justify-between">
-            <span className="text-neutral-400 flex items-center gap-1.5 font-bold"><Activity className="w-3.5 h-3.5 text-emerald-400" /> Orientation & Vitesse</span>
-            <span className="text-sm font-black text-emerald-400">
-              {windSpeedKmh} km/h (Cap {windDirectionDeg}°)
+      {/* Moteur de Ghost Pacing & Vent Réel API (PROTÉGÉ PAR LE PAYWALL) */}
+      <PaywallGate userId={currentUserId} featureName="Ghost Pacing Météo & Vocal">
+        <div className="bg-neutral-900 border border-orange-500/30 rounded-3xl p-5 space-y-4 shadow-2xl relative overflow-hidden">
+          <div className="absolute -right-8 -top-8 w-28 h-28 bg-orange-500/10 rounded-full blur-2xl pointer-events-none" />
+          <div className="flex items-center justify-between relative z-10">
+            <div className="flex items-center gap-2 text-orange-400 font-black text-xs uppercase tracking-wider">
+              <Zap className="w-4 h-4" /> Ghost Pacing & Vent Météo en Direct
+            </div>
+            <span className="text-[10px] font-extrabold bg-orange-500/20 text-orange-300 px-2.5 py-0.5 rounded-full border border-orange-500/30">
+              Pro 🛰️
             </span>
           </div>
-        </div>
 
-        {/* Boîte de conseil vocal proactif en direct */}
-        <div className="bg-orange-950/30 border border-orange-500/30 rounded-2xl p-4 flex items-start gap-3 relative z-10">
-          <div className="w-8 h-8 rounded-xl bg-orange-500/20 text-orange-400 flex items-center justify-center flex-shrink-0 mt-0.5 animate-pulse">
-            🗣️
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs relative z-10">
+            <div className="bg-neutral-950 p-3.5 rounded-2xl border border-neutral-800 space-y-1">
+              <span className="text-neutral-400 flex items-center gap-1.5 font-bold"><Wind className="w-3.5 h-3.5 text-cyan-400" /> Analyse Vent Satellite</span>
+              <div className="text-sm font-black text-white pt-1">{windDescription}</div>
+            </div>
+
+            <div className="bg-neutral-950 p-3.5 rounded-2xl border border-neutral-800 flex flex-col justify-between">
+              <span className="text-neutral-400 flex items-center gap-1.5 font-bold"><Activity className="w-3.5 h-3.5 text-emerald-400" /> Orientation & Vitesse</span>
+              <span className="text-sm font-black text-emerald-400">
+                {windSpeedKmh} km/h (Cap {windDirectionDeg}°)
+              </span>
+            </div>
           </div>
-          <div className="space-y-0.5">
-            <span className="text-[10px] font-black uppercase tracking-widest text-orange-400 block">Dernier conseil vocal du coach</span>
-            <p className="text-xs text-neutral-200 leading-snug">{coachingAdvice}</p>
+
+          {/* Boîte de conseil vocal proactif en direct */}
+          <div className="bg-orange-950/30 border border-orange-500/30 rounded-2xl p-4 flex items-start gap-3 relative z-10">
+            <div className="w-8 h-8 rounded-xl bg-orange-500/20 text-orange-400 flex items-center justify-center flex-shrink-0 mt-0.5 animate-pulse">
+              🗣️
+            </div>
+            <div className="space-y-0.5">
+              <span className="text-[10px] font-black uppercase tracking-widest text-orange-400 block">Dernier conseil vocal du coach</span>
+              <p className="text-xs text-neutral-200 leading-snug">{coachingAdvice}</p>
+            </div>
           </div>
         </div>
-      </div>
+      </PaywallGate>
 
       {/* Widget Intégré : Contrôle de Récupération & Charge (Readiness / Load Score) */}
       <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4 shadow-xl">
