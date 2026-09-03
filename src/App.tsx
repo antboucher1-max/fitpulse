@@ -288,7 +288,6 @@ export default function App() {
       })
       .subscribe();
 
-    // Abonnement temps réel pour rafraîchir les points et classements instantanément
     const profilesChannel = supabase
       .channel('public:profiles')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => {
@@ -296,7 +295,6 @@ export default function App() {
       })
       .subscribe();
 
-    // Abonnement temps réel pour rafraîchir les évolutions automatiquement
     const transformationsChannel = supabase
       .channel('public:transformations')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'transformations' }, () => {
@@ -490,8 +488,6 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col font-sans select-none antialiased relative">
-      <FloatingWodTimer />
-
       <div className="w-full max-w-md mx-auto min-h-screen bg-neutral-950 flex flex-col shadow-2xl sm:border-x sm:border-neutral-900 relative">
         <header className="sticky top-0 z-40 bg-neutral-950/80 backdrop-blur-md border-b border-neutral-900 px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
@@ -731,6 +727,13 @@ export default function App() {
             <RunningTab currentUserId={user?.id} currentUsername={currentUsername} selectedClub={selectedClub} currentUserProfile={currentUserProfile} userAvatarUrl={userAvatarUrl} onRefreshFeed={() => { fetchCloudPosts(); if (user) fetchUserShoes(user.id); }} />
           )}
         </main>
+
+        {/* ⚡ Chrono flottant encapsulé avec gestion des clics pour libérer les onglets du bas */}
+        <div className="absolute bottom-20 left-4 right-4 z-50 flex justify-center pointer-events-none">
+          <div className="pointer-events-auto">
+            <FloatingWodTimer />
+          </div>
+        </div>
 
         {isActionMenuOpen && (
           <div className="fixed inset-0 z-50 bg-black/90 flex items-end justify-center p-4 pb-24 sm:items-center animate-fadeIn" onClick={() => setIsActionMenuOpen(false)}>
