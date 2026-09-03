@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { Calendar as CalendarIcon, Dumbbell, Activity, Trophy, ChevronLeft, ChevronRight, Plus, X } from 'lucide-react';
+import { supabase } from '../supabaseClient'; // ⚠️ N'oublie pas l'import de Supabase !
 
 interface HybridCalendarProps {
   posts: any[];
@@ -17,21 +18,10 @@ export default function HybridCalendar({ posts, currentUserId, onRefresh }: Hybr
   const [description, setDescription] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // Charger les événements locaux stockés dans le navigateur
-  const [localEvents, setLocalEvents] = useState<any[]>(() => {
-    try {
-      const saved = localStorage.getItem('fitpulse_local_events');
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  });
-
-  // Fusionner les posts de Supabase et les événements locaux de l'utilisateur
+  // Filtrer UNIQUEMENT les posts de Supabase (fini le localStorage)
   const userActivities = useMemo(() => {
-    const remote = posts.filter(p => p.user_id === currentUserId);
-    return [...remote, ...localEvents];
-  }, [posts, currentUserId, localEvents]);
+    return posts.filter(p => p.user_id === currentUserId);
+  }, [posts, currentUserId]);
 
   // Système de rappel par notification native (Web Notifications)
   useEffect(() => {
@@ -100,29 +90,49 @@ export default function HybridCalendar({ posts, currentUserId, onRefresh }: Hybr
     setIsModalOpen(true);
   };
 
-  const handleSaveSession = (e: React.FormEvent) => {
+  // FONCTION D'INSERTION SUPABASE BLINDÉE (Adieu le bug de Fetch)
+  const handleSaveSession = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentUserId || !selectedDateStr) return;
 
     setLoading(true);
     try {
-      const newEvent = {
-        id: 'local_' + Date.now(),
+      const payload = {
         user_id: currentUserId,
+        username: 'Planificateur',
+        avatar_url: '',
+        partner_name: null,
+        club_name: 'Tournai', 
         session_type: `📅 [Prévu] ${sessionType}`,
-        caption: description || 'Séance ou événement programmé',
+        caption: description || 'EMPTY',
+        duration_minutes: 60,
+        calories_burned: 0,
+        exercises: [],
+        image_url: null,
+        image_zoom: 1,
+        image_pos_x: 0,
+        image_pos_y: 0,
+        likes_count: 0,
+        comments_count: 0,
+        comments: [],
+        is_private: false,
+        liked_by: [],
         created_at: `${selectedDateStr}T08:00:00.000Z`
       };
 
-      const updatedEvents = [...localEvents, newEvent];
-      setLocalEvents(updatedEvents);
-      localStorage.setItem('fitpulse_local_events', JSON.stringify(updatedEvents));
+      const { error } = await supabase.from('posts').insert([payload]);
+
+      if (error) {
+        console.error("Erreur Supabase détaillée :", error);
+        throw new Error(error.message);
+      }
 
       setIsModalOpen(false);
       setDescription('');
       if (onRefresh) onRefresh();
+      window.location.reload(); 
     } catch (err: any) {
-      alert("Erreur lors de la programmation : " + err.message);
+      alert("Erreur lors de la programmation : " + (err.message || "Problème de connexion"));
     } finally {
       setLoading(false);
     }
