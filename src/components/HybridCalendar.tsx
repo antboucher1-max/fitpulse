@@ -318,18 +318,18 @@ export default function HybridCalendar({ posts, currentUserId, onRefresh }: Hybr
               <div>
                 <label className="block text-xs font-semibold text-neutral-400 mb-1">Type de séance ou Compétition :</label>
                 <select value={sessionType} onChange={(e) => setSessionType(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3.5 py-3 text-xs text-white focus:outline-none">
-                  <option value="Musculation Full Body">💪 Musculation Full Body</option>
-                  <option value="Push / Force">🏋️‍♂️ Push / Force</option>
-                  <option value="Pull / Dos">🦾 Pull / Dos</option>
-                  <option value="Jambes / Squat">🦵 Jambes / Squat</option>
-                  <option value="Footing / VMA">🏃‍♂️ Footing / VMA</option>
-                  <option value="WOD / Crossfit">⚡ WOD / Crossfit</option>
-                  <option value="Repos / Mobilité">🧘‍♂️ Repos / Mobilité</option>
-                  <option value="🏁 Marathon / Semi-Marathon">🏁 Marathon / Semi-Marathon</option>
-                  <option value="🏃 Course officielle (10k / 20k)">🏃 Course officielle (10k / 20k)</option>
-                  <option value="⚡ Compétition Hyrox">⚡ Compétition Hyrox</option>
-                  <option value="🏋️‍♂️ Concours CrossFit / WOD Battle">🏋️‍♂️ Concours CrossFit / WOD Battle</option>
-                </select>
+  <option value="Musculation Full Body">Musculation Full Body</option>
+  <option value="Push / Force">Push / Force</option>
+  <option value="Pull / Dos">Pull / Dos</option>
+  <option value="Jambes / Squat">Jambes / Squat</option>
+  <option value="Footing / VMA">Footing / VMA</option>
+  <option value="WOD / Crossfit">WOD / Crossfit</option>
+  <option value="Repos / Mobilité">Repos / Mobilité</option>
+  <option value="Marathon / Semi-Marathon">Marathon / Semi-Marathon</option>
+  <option value="Course officielle (10k / 20k)">Course officielle (10k / 20k)</option>
+  <option value="Compétition Hyrox">Competition Hyrox</option>
+  <option value="Concours CrossFit / WOD Battle">Concours CrossFit / WOD Battle</option>
+</select>
               </div>
 
               <div>
