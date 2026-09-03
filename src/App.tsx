@@ -251,7 +251,7 @@ export default function App() {
     return streak > 0 ? streak : 1;
   };
 
-  // Initialisation Auth & Données (Exécuté 1 seule fois au montage)
+  // Initialisation Auth & Données
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
@@ -285,6 +285,8 @@ export default function App() {
           setPosts(prev => prev.map(p => p.id === payload.new.id ? (payload.new as Post) : p));
         } else if (payload.eventType === 'INSERT') {
           setPosts(prev => [payload.new as Post, ...prev]);
+        } else if (payload.eventType === 'DELETE') {
+          setPosts(prev => prev.filter(p => p.id !== payload.old.id));
         }
       })
       .subscribe();
@@ -343,6 +345,20 @@ export default function App() {
      
     setPosts(prev => prev.map(p => p.id === postId ? { ...p, likes_count: newCount, liked_by: updatedLikedBy } : p));
     await supabase.from('posts').update({ likes_count: newCount, liked_by: updatedLikedBy }).eq('id', postId);
+  };
+
+  // Suppression d'une publication (post)
+  const handleDeletePost = async (postId: string) => {
+    if (!user) return;
+    const confirmDelete = window.confirm("Es-tu sûr de vouloir supprimer cette publication ?");
+    if (!confirmDelete) return;
+
+    const { error } = await supabase.from('posts').delete().eq('id', postId);
+    if (!error) {
+      setPosts(prev => prev.filter(p => p.id !== postId));
+    } else {
+      alert("Erreur lors de la suppression : " + error.message);
+    }
   };
 
   const handlePostImageFileSelect = (e: ChangeEvent<HTMLInputElement>) => {
@@ -645,7 +661,7 @@ export default function App() {
                 <button onClick={() => setCurrentTab('hall_of_fame')} className="flex-1 py-2 rounded-xl text-[11px] font-black bg-red-950/50 border border-red-500/40 text-red-400 hover:bg-red-900/40 cursor-pointer flex items-center justify-center gap-1 shadow-sm"><Skull className="w-3.5 h-3.5" /> Galères</button>
                 <button onClick={() => setCurrentTab('buddy')} className="flex-1 py-2 rounded-xl text-[11px] font-bold bg-neutral-950 border border-neutral-800 text-orange-400 hover:bg-neutral-800 cursor-pointer flex items-center justify-center gap-1"><Users className="w-3.5 h-3.5" /> Match</button>
               </div>
-              <FeedTab posts={displayedPosts} registeredUsers={registeredUsers} friendRequests={friendRequests} currentUserId={user?.id} userDiscipline={(currentUserProfile as any)?.discipline} feedLoading={feedLoading} calculateStreak={calculateUserStreak} onCreateStoryClick={() => setIsActionMenuOpen(true)} onToggleLike={handleToggleLike} onOpenComments={(id) => setActiveCommentPostId(id)} onReportPost={() => {}} onDeletePost={() => {}} onSelectProfile={(u) => setViewingProfileUser(u)} onStartRestTimer={() => handleTabChange('rest_timer')} onNavigateTab={handleTabChange} />
+              <FeedTab posts={displayedPosts} registeredUsers={registeredUsers} friendRequests={friendRequests} currentUserId={user?.id} userDiscipline={(currentUserProfile as any)?.discipline} feedLoading={feedLoading} calculateStreak={calculateUserStreak} onCreateStoryClick={() => setIsActionMenuOpen(true)} onToggleLike={handleToggleLike} onOpenComments={(id) => setActiveCommentPostId(id)} onReportPost={() => { alert("Publication signalée aux modérateurs."); }} onDeletePost={handleDeletePost} onSelectProfile={(u) => setViewingProfileUser(u)} onStartRestTimer={() => handleTabChange('rest_timer')} onNavigateTab={handleTabChange} />
             </div>
           )}
 
@@ -657,7 +673,7 @@ export default function App() {
                 <button onClick={() => setCurrentTab('hall_of_fame')} className="flex-1 py-2 rounded-xl text-[11px] font-black bg-red-950/50 border border-red-500/40 text-red-400 hover:bg-red-900/40 cursor-pointer flex items-center justify-center gap-1 shadow-sm"><Skull className="w-3.5 h-3.5" /> Galères</button>
                 <button onClick={() => setCurrentTab('buddy')} className="flex-1 py-2 rounded-xl text-[11px] font-bold bg-neutral-950 border border-neutral-800 text-orange-400 hover:bg-neutral-800 cursor-pointer flex items-center justify-center gap-1"><Users className="w-3.5 h-3.5" /> Match</button>
               </div>
-              <FeedTab posts={displayedPosts} registeredUsers={registeredUsers} friendRequests={friendRequests} currentUserId={user?.id} userDiscipline={(currentUserProfile as any)?.discipline} feedLoading={feedLoading} calculateStreak={calculateUserStreak} onCreateStoryClick={() => setIsActionMenuOpen(true)} onToggleLike={handleToggleLike} onOpenComments={(id) => setActiveCommentPostId(id)} onReportPost={() => {}} onDeletePost={() => {}} onSelectProfile={(u) => setViewingProfileUser(u)} onStartRestTimer={() => handleTabChange('rest_timer')} onNavigateTab={handleTabChange} />
+              <FeedTab posts={displayedPosts} registeredUsers={registeredUsers} friendRequests={friendRequests} currentUserId={user?.id} userDiscipline={(currentUserProfile as any)?.discipline} feedLoading={feedLoading} calculateStreak={calculateUserStreak} onCreateStoryClick={() => setIsActionMenuOpen(true)} onToggleLike={handleToggleLike} onOpenComments={(id) => setActiveCommentPostId(id)} onReportPost={() => { alert("Publication signalée aux modérateurs."); }} onDeletePost={handleDeletePost} onSelectProfile={(u) => setViewingProfileUser(u)} onStartRestTimer={() => handleTabChange('rest_timer')} onNavigateTab={handleTabChange} />
             </div>
           )}
 
@@ -677,7 +693,7 @@ export default function App() {
                   Ici, pas de filtre ni de performance parfaite. On célèbre les pires courbatures, les barres ratées et l'autodérision pure !
                 </p>
               </div>
-              <FeedTab posts={displayedPosts.filter(p => p.session_type?.includes('Pain & Gain'))} registeredUsers={registeredUsers} friendRequests={friendRequests} currentUserId={user?.id} userDiscipline={(currentUserProfile as any)?.discipline} feedLoading={feedLoading} calculateStreak={calculateUserStreak} onCreateStoryClick={() => setIsActionMenuOpen(true)} onToggleLike={handleToggleLike} onOpenComments={(id) => setActiveCommentPostId(id)} onReportPost={() => {}} onDeletePost={() => {}} onSelectProfile={(u) => setViewingProfileUser(u)} onStartRestTimer={() => handleTabChange('rest_timer')} onNavigateTab={handleTabChange} />
+              <FeedTab posts={displayedPosts.filter(p => p.session_type?.includes('Pain & Gain'))} registeredUsers={registeredUsers} friendRequests={friendRequests} currentUserId={user?.id} userDiscipline={(currentUserProfile as any)?.discipline} feedLoading={feedLoading} calculateStreak={calculateUserStreak} onCreateStoryClick={() => setIsActionMenuOpen(true)} onToggleLike={handleToggleLike} onOpenComments={(id) => setActiveCommentPostId(id)} onReportPost={() => { alert("Publication signalée."); }} onDeletePost={handleDeletePost} onSelectProfile={(u) => setViewingProfileUser(u)} onStartRestTimer={() => handleTabChange('rest_timer')} onNavigateTab={handleTabChange} />
             </div>
           )}
 
@@ -724,7 +740,96 @@ export default function App() {
           {currentTab === 'chat' && <ChatTab currentUserId={user?.id} selectedBuddyChat={selectedBuddyChat} setSelectedBuddyChat={handleOpenChatWithUser} activeChatUsers={activeChatUsers} currentChatMessages={currentChatMessages} currentMessageInput={currentMessageInput} onInputChange={(e) => setCurrentMessageInput(e.target.value)} onSendMessage={handleSendMessage} onSelectBuddy={(f) => handleOpenChatWithUser(f)} onDeleteConversation={() => {}} onReportConversation={() => {}} isOtherUserTyping={isOtherUserTyping} isMessageLimitReached={false} lastReadTimestamps={lastReadTimestamps} messagesEndRef={messagesEndRef} allMessages={allMessages} />}
            
           {currentTab === 'profile' && (
-            <ProfileTab user={user} currentUserProfile={currentUserProfile} userAvatarUrl={currentUserProfile?.avatar_url || userAvatarUrl} isAdmin={isAdmin} registeredUsers={registeredUsers} transformations={transformations} posts={posts} shoes={userShoes} onAddShoe={handleAddShoe} onDeleteShoe={handleDeleteShoe} onSetActiveShoe={handleSetActiveShoe} newTransBefore={newTransBefore} newTransAfter={newTransAfter} newTransWeight={newTransWeight} newTransNote={newTransNote} newTransIsPrivate={newTransIsPrivate} setNewTransWeight={setNewTransWeight} setNewTransNote={setNewTransNote} setNewTransIsPrivate={setNewTransIsPrivate} onAvatarClick={() => profileAvatarInputRef.current?.click()} onCameraStart={() => {}} onBeforeFileSelect={() => {}} onAfterFileSelect={() => {}} onAddTransformation={async (e) => { e.preventDefault(); if (!user || newTransWeight === '') return; await supabase.from('transformations').insert([{ user_id: user.id, before_url: newTransBefore || '', after_url: newTransAfter || '', date: new Date().toISOString().split('T')[0], weight: Number(newTransWeight), note: newTransNote || 'Évolution', is_private: newTransIsPrivate }]); await addPointsToUser(user.id, 25); fetchTransformations(user.id); setNewTransWeight(''); setNewTransNote(''); }} onShareTransformation={() => {}} onUpdatePasswordSubmit={async (e) => { e.preventDefault(); await supabase.auth.updateUser({}); }} password={password} setPassword={setPassword} confirmPassword={confirmPassword} setConfirmPassword={setConfirmPassword} isPrivateMode={isPrivateMode} setIsPrivateMode={setIsPrivateMode} onSignOut={async () => { await supabase.auth.signOut(); setUser(null); localStorage.clear(); window.location.reload(); }} onToggleVerifyAdmin={async (uId, status) => { await supabase.from('profiles').update({ is_verified: !status }).eq('id', uId); fetchRealUsers(); }} onUpdateProfile={async (updatedData) => { if (!user) return; await supabase.from('profiles').upsert({ id: user.id, ...updatedData }); fetchRealUsers(); }} beforeFileInputRef={beforeFileInputRef} afterFileInputRef={afterFileInputRef} />
+            <ProfileTab 
+              user={user} 
+              currentUserProfile={currentUserProfile} 
+              userAvatarUrl={currentUserProfile?.avatar_url || userAvatarUrl} 
+              isAdmin={isAdmin} 
+              registeredUsers={registeredUsers} 
+              transformations={transformations} 
+              posts={posts} 
+              shoes={userShoes} 
+              onAddShoe={handleAddShoe} 
+              onDeleteShoe={handleDeleteShoe} 
+              onSetActiveShoe={handleSetActiveShoe} 
+              newTransBefore={newTransBefore} 
+              newTransAfter={newTransAfter} 
+              newTransWeight={newTransWeight} 
+              newTransNote={newTransNote} 
+              newTransIsPrivate={newTransIsPrivate} 
+              setNewTransWeight={setNewTransWeight} 
+              setNewTransNote={setNewTransNote} 
+              setNewTransIsPrivate={setNewTransIsPrivate} 
+              onAvatarClick={() => profileAvatarInputRef.current?.click()} 
+              onCameraStart={() => { profileAvatarInputRef.current?.click(); }} 
+              onBeforeFileSelect={(e) => {
+                const file = e.target.files?.[0];
+                if (file) {
+                  const reader = new FileReader();
+                  reader.onloadend = () => setNewTransBefore(reader.result as string);
+                  reader.readAsDataURL(file);
+                }
+              }} 
+              onAfterFileSelect={(e) => {
+                const file = e.target.files?.[0];
+                if (file) {
+                  const reader = new FileReader();
+                  reader.onloadend = () => setNewTransAfter(reader.result as string);
+                  reader.readAsDataURL(file);
+                }
+              }} 
+              onAddTransformation={async (e) => { 
+                e.preventDefault(); 
+                if (!user || newTransWeight === '') return; 
+                await supabase.from('transformations').insert([{ 
+                  user_id: user.id, 
+                  before_url: newTransBefore || '', 
+                  after_url: newTransAfter || '', 
+                  date: new Date().toISOString().split('T')[0], 
+                  weight: Number(newTransWeight), 
+                  note: newTransNote || 'Évolution', 
+                  is_private: newTransIsPrivate 
+                }]); 
+                await addPointsToUser(user.id, 25); 
+                fetchTransformations(user.id); 
+                setNewTransWeight(''); 
+                setNewTransNote(''); 
+                setNewTransBefore(null);
+                setNewTransAfter(null);
+              }} 
+              onShareTransformation={() => { alert("Transformation partagée sur le fil !"); }} 
+              onUpdatePasswordSubmit={async (e) => { 
+                e.preventDefault(); 
+                if (!password || password !== confirmPassword) {
+                  alert("Les mots de passe ne correspondent pas.");
+                  return;
+                }
+                const { error } = await supabase.auth.updateUser({ password }); 
+                if (!error) {
+                  alert("Mot de passe mis à jour avec succès !");
+                  setPassword('');
+                  setConfirmPassword('');
+                } else {
+                  alert("Erreur : " + error.message);
+                }
+              }} 
+              password={password} 
+              setPassword={setPassword} 
+              confirmPassword={confirmPassword} 
+              setConfirmPassword={setConfirmPassword} 
+              isPrivateMode={isPrivateMode} 
+              setIsPrivateMode={setIsPrivateMode} 
+              onSignOut={async () => { 
+                await supabase.auth.signOut(); 
+                setUser(null); 
+                localStorage.removeItem('fitpulse_active_tab');
+                window.location.reload(); 
+              }} 
+              onToggleVerifyAdmin={async (uId, status) => { await supabase.from('profiles').update({ is_verified: !status }).eq('id', uId); fetchRealUsers(); }} 
+              onUpdateProfile={async (updatedData) => { if (!user) return; await supabase.from('profiles').upsert({ id: user.id, ...updatedData }); fetchRealUsers(); }} 
+              beforeFileInputRef={beforeFileInputRef} 
+              afterFileInputRef={afterFileInputRef} 
+            />
           )}
 
           {currentTab === 'boxwars' && (
