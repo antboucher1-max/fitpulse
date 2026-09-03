@@ -97,6 +97,19 @@ export default function ProfileTab({
   const [isGarminConnected, setIsGarminConnected] = useState(false);
   const [garminSync, setGarminSync] = useState(true);
 
+  // Interception du retour OAuth Strava dans l'URL
+  useEffect(() => {
+    const queryParams = new URLSearchParams(window.location.search);
+    const code = queryParams.get('code');
+    
+    if (code) {
+      setIsStravaConnected(true);
+      localStorage.setItem('fitpulse_strava_connected', 'true');
+      showToast('Compte Strava lié avec succès ! 🚀');
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, []);
+
   useEffect(() => {
     setIsStravaConnected(localStorage.getItem('fitpulse_strava_connected') === 'true');
     setStravaSync(localStorage.getItem('fitpulse_strava_sync') !== 'false');
@@ -106,10 +119,18 @@ export default function ProfileTab({
   }, []);
 
   const toggleStrava = () => {
-    const nextState = !isStravaConnected;
-    setIsStravaConnected(nextState);
-    localStorage.setItem('fitpulse_strava_connected', String(nextState));
-    showToast(nextState ? 'Strava connecté avec succès' : 'Strava déconnecté');
+    if (isStravaConnected) {
+      const nextState = false;
+      setIsStravaConnected(nextState);
+      localStorage.setItem('fitpulse_strava_connected', 'false');
+      showToast('Strava déconnecté');
+    } else {
+      // Redirection vers l'authentification officielle Strava
+      // Remplace 'TON_CLIENT_ID_STRAVA' par ton ID fourni sur le dashboard développeur Strava
+      const clientId = 'TON_CLIENT_ID_STRAVA'; 
+      const redirectUri = window.location.origin + window.location.pathname;
+      window.location.href = `https://www.strava.com/oauth/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&approval_prompt=force&scope=read,activity:read_all`;
+    }
   };
 
   const toggleGarmin = () => {
