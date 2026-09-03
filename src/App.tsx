@@ -567,6 +567,51 @@ export default function App() {
                 </div>
               )}
 
+              {/* ⚡ WIDGET ÉTAT DE FORME (READINESS) INTERACTIF EN PREMIÈRE LIGNE */}
+              <div 
+                onClick={() => handleTabChange('readiness')}
+                className={`bg-gradient-to-br border rounded-[2rem] p-6 shadow-2xl relative overflow-hidden transition-all duration-500 cursor-pointer group ${
+                  currentReadinessScore < 50 
+                    ? 'from-neutral-900 via-red-950/30 to-red-950/60 border-red-500/40 hover:border-red-400' 
+                    : 'from-neutral-900 via-neutral-900 to-orange-950/40 border-orange-500/30 hover:border-orange-400'
+                }`}
+              >
+                <div className={`absolute -right-8 -top-8 w-36 h-36 rounded-full blur-3xl pointer-events-none ${currentReadinessScore < 50 ? 'bg-red-500/20' : 'bg-orange-500/10'}`} />
+                
+                <div className="flex items-center justify-between relative z-10 mb-4">
+                  <div className="flex items-center gap-2">
+                    <span className={`w-2.5 h-2.5 rounded-full animate-pulse ${currentReadinessScore < 50 ? 'bg-red-400' : 'bg-emerald-400'}`} />
+                    <span className={`text-[10px] font-black uppercase tracking-widest ${currentReadinessScore < 50 ? 'text-red-400' : 'text-emerald-400'}`}>
+                      État de Forme • {currentReadinessScore < 50 ? 'Fatigue / Attention' : 'Optimal'} ({currentReadinessScore}%)
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1 text-xs text-neutral-400 group-hover:text-white transition">
+                    <span>Gérer</span>
+                    <ChevronRight className="w-4 h-4" />
+                  </div>
+                </div>
+
+                <div className="relative z-10 space-y-1 mb-5">
+                  <h2 className="text-2xl font-black text-white tracking-tight">
+                    {currentReadinessScore < 50 ? "⚠️ Repos ou Mobilité conseillés" : "⚡ Prêt pour ta séance ?"}
+                  </h2>
+                  <p className="text-xs text-neutral-300 leading-relaxed">
+                    {currentReadinessScore < 50 
+                      ? "Ton organisme montre des signes de fatigue accumulée. Évite l'intensité aujourd'hui." 
+                      : "Ton niveau de récupération est au top. Clique ici pour voir ton plan de la semaine."}
+                  </p>
+                </div>
+
+                <div className="relative z-10 flex gap-2">
+                  <div className="flex-1 bg-neutral-950/80 border border-neutral-800 rounded-2xl p-3 flex items-center justify-between">
+                    <span className="text-[10px] text-neutral-400 font-bold uppercase">Recommandation du jour</span>
+                    <span className="text-xs font-extrabold text-orange-400">
+                      {currentReadinessScore < 50 ? 'Stretching / Off' : 'Séance Active'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
               {/* Affichage conditionnel selon le Mode Focus (Pilier 3) */}
               {(activeFocusMode === 'hybrid' || activeFocusMode === 'strength') && (
                 <HybridCalendar posts={posts} currentUserId={user?.id} onRefresh={fetchCloudPosts} />
@@ -579,56 +624,6 @@ export default function App() {
               {/* ⚡ Minuteur WOD */}
               <div className="flex justify-center my-2">
                 <FloatingWodTimer />
-              </div>
-
-              <div className={`bg-gradient-to-br border rounded-[2rem] p-6 shadow-2xl relative overflow-hidden transition-colors duration-500 ${currentReadinessScore < 50 ? 'from-neutral-900 to-red-950/40 border-red-500/30' : 'from-neutral-900 to-orange-950/40 border-orange-500/30'}`}>
-                <div className={`absolute -right-8 -top-8 w-36 h-36 rounded-full blur-3xl pointer-events-none ${currentReadinessScore < 50 ? 'bg-red-500/10' : 'bg-orange-500/10'}`} />
-                
-                <div className="flex items-center justify-between relative z-10 mb-4">
-                  <div className="flex items-center gap-2">
-                    <span className={`w-2.5 h-2.5 rounded-full animate-pulse ${currentReadinessScore < 50 ? 'bg-red-400' : 'bg-emerald-400'}`} />
-                    <span className={`text-[10px] font-black uppercase tracking-widest ${currentReadinessScore < 50 ? 'text-red-400' : 'text-emerald-400'}`}>
-                      État de Forme • {currentReadinessScore < 50 ? 'Fatigue' : 'Optimal'} ({currentReadinessScore}%)
-                    </span>
-                  </div>
-                  <span className="text-xs text-neutral-400 font-medium">
-                    {new Date().toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })}
-                  </span>
-                </div>
-
-                <div className="relative z-10 space-y-1 mb-6">
-                  <h2 className="text-2xl font-black text-white tracking-tight">
-                    {currentReadinessScore < 50 ? "Repos conseillé." : "Prêt pour ta séance ?"}
-                  </h2>
-                  <p className="text-xs text-neutral-300 leading-relaxed">
-                    {currentReadinessScore < 50 
-                      ? "Tu as déjà enregistré une activité forte récemment. Laisse tes muscles récupérer." 
-                      : "Ton organisme a bien récupéré. Feu vert pour une session active aujourd'hui."}
-                  </p>
-                </div>
-
-                <div className="relative z-10">
-                  <div className={`bg-neutral-950/90 border rounded-2xl p-5 flex flex-col gap-4 shadow-[0_8px_30px_rgba(0,0,0,0.5)] ${currentReadinessScore < 50 ? 'border-red-500/50' : 'border-orange-500/50'}`}>
-                    <div className="flex items-center gap-3.5">
-                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${currentReadinessScore < 50 ? 'bg-red-500/20 text-red-500' : 'bg-orange-500/20 text-orange-500'}`}>
-                        {currentReadinessScore < 50 ? <BatteryCharging className="w-6 h-6" /> : <Navigation className="w-6 h-6" />}
-                      </div>
-                      <div>
-                        <span className={`text-[10px] uppercase font-black tracking-widest block mb-0.5 ${currentReadinessScore < 50 ? 'text-red-400' : 'text-orange-400'}`}>Objectif du jour</span>
-                        <span className="text-sm font-black text-white">{currentReadinessScore < 50 ? 'Mobilité & Récupération' : 'Footing Actif ou GymLog'}</span>
-                      </div>
-                    </div>
-                    
-                    {currentReadinessScore >= 50 && (
-                      <button 
-                        onClick={() => handleTabChange('running')}
-                        className="w-full py-4 bg-orange-600 hover:bg-orange-500 text-white rounded-xl text-sm font-black flex items-center justify-center gap-2 transition shadow-[0_0_20px_rgba(234,88,12,0.4)] cursor-pointer"
-                      >
-                        Lancer l'entraînement <Play className="w-4 h-4 fill-current" />
-                      </button>
-                    )}
-                  </div>
-                </div>
               </div>
 
               <div 
