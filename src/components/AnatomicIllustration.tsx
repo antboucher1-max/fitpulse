@@ -1,4 +1,4 @@
-import { Dumbbell, Target, Flame, Activity } from 'lucide-react';
+import { Target } from 'lucide-react';
 
 interface AnatomicIllustrationProps {
   muscleGroup: string;
@@ -8,50 +8,76 @@ interface AnatomicIllustrationProps {
 export default function AnatomicIllustration({ muscleGroup, className = "w-full h-36" }: AnatomicIllustrationProps) {
   const normalize = muscleGroup?.toLowerCase() || '';
 
-  // Configuration visuelle selon la famille de muscles
-  const getBadgeDetails = () => {
-    if (normalize.includes('dos') || normalize.includes('back')) {
-      return { icon: Flame, color: 'text-amber-400', bg: 'bg-amber-500/10', border: 'border-amber-500/30', label: 'Grand Dorsal & Trapèzes' };
-    }
-    if (normalize.includes('jambe') || normalize.includes('cuisse') || normalize.includes('quadriceps') || normalize.includes('leg')) {
-      return { icon: Activity, color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/30', label: 'Quadriceps & Ischio-jambiers' };
-    }
+  // Style "Lyfta/ExRx" : silhouette anatomique technique grise avec accent rouge/orange sur le muscle cible
+  const getAnatomicSketch = () => {
     if (normalize.includes('pectoral') || normalize.includes('chest') || normalize.includes('développé')) {
-      return { icon: Dumbbell, color: 'text-orange-400', bg: 'bg-orange-500/10', border: 'border-orange-500/30', label: 'Pectoraux & Faisceaux' };
+      return (
+        <svg viewBox="0 0 120 120" className="w-full h-full drop-shadow-md">
+          {/* Corps / Banc esquissé en gris technique */}
+          <path d="M40 85 L80 85 L75 105 L45 105 Z" fill="#262626" stroke="#404040" strokeWidth="1.5" />
+          <path d="M45 45 C45 35 75 35 75 45 L70 85 L50 85 Z" fill="#333333" stroke="#525252" strokeWidth="1.5" />
+          <circle cx="60" cy="25" r="9" fill="#404040" stroke="#737373" strokeWidth="1.5" />
+          {/* Bras */}
+          <path d="M45 50 L25 55" stroke="#525252" strokeWidth="6" strokeLinecap="round" />
+          <path d="M75 50 L95 55" stroke="#525252" strokeWidth="6" strokeLinecap="round" />
+          {/* Pectoraux en surbrillance rouge/orange vif (style Lyfta) */}
+          <path d="M48 48 C48 44 60 42 60 48 C60 55 48 55 48 48 Z" fill="#ea580c" className="animate-pulse" />
+          <path d="M72 48 C72 44 60 42 60 48 C60 55 72 55 72 48 Z" fill="#ea580c" className="animate-pulse" />
+          {/* Barre */}
+          <rect x="15" y="52" width="90" height="4" rx="2" fill="#d4d4d4" />
+        </svg>
+      );
     }
-    if (normalize.includes('épaule') || normalize.includes('shoulder') || normalize.includes('deltoïde')) {
-      return { icon: Target, color: 'text-cyan-400', bg: 'bg-cyan-500/10', border: 'border-cyan-500/30', label: 'Deltoïdes & Coiffe' };
+
+    if (normalize.includes('dos') || normalize.includes('back')) {
+      return (
+        <svg viewBox="0 0 120 120" className="w-full h-full drop-shadow-md">
+          <circle cx="60" cy="22" r="9" fill="#404040" stroke="#737373" strokeWidth="1.5" />
+          <path d="M48 35 L72 35 L78 95 L42 95 Z" fill="#333333" stroke="#525252" strokeWidth="1.5" />
+          {/* Grand dorsal en surbrillance */}
+          <path d="M49 38 C45 45 46 65 52 75 L58 70 C54 60 53 48 51 38 Z" fill="#ea580c" className="animate-pulse" />
+          <path d="M71 38 C75 45 74 65 68 75 L62 70 C66 60 67 48 69 38 Z" fill="#ea580c" className="animate-pulse" />
+        </svg>
+      );
     }
-    if (normalize.includes('bras') || normalize.includes('biceps') || normalize.includes('triceps')) {
-      return { icon: Dumbbell, color: 'text-purple-400', bg: 'bg-purple-500/10', border: 'border-purple-500/30', label: 'Biceps & Triceps' };
+
+    if (normalize.includes('jambe') || normalize.includes('cuisse') || normalize.includes('quadriceps') || normalize.includes('leg')) {
+      return (
+        <svg viewBox="0 0 120 120" className="w-full h-full drop-shadow-md">
+          <circle cx="60" cy="20" r="8" fill="#404040" stroke="#737373" strokeWidth="1.5" />
+          <rect x="52" y="30" width="16" height="35" rx="4" fill="#333333" stroke="#525252" strokeWidth="1.5" />
+          {/* Quadriceps en surbrillance */}
+          <rect x="46" y="68" width="12" height="32" rx="5" fill="#ea580c" className="animate-pulse" />
+          <rect x="62" y="68" width="12" height="32" rx="5" fill="#ea580c" className="animate-pulse" />
+        </svg>
+      );
     }
-    return { icon: Dumbbell, color: 'text-orange-400', bg: 'bg-orange-500/10', border: 'border-orange-500/30', label: 'Renforcement Global' };
+
+    // Vue anatomique universelle
+    return (
+      <svg viewBox="0 0 120 120" className="w-full h-full drop-shadow-md">
+        <circle cx="60" cy="25" r="9" fill="#404040" stroke="#737373" strokeWidth="1.5" />
+        <path d="M48 38 L72 38 L75 95 L45 95 Z" fill="#333333" stroke="#525252" strokeWidth="1.5" />
+        <circle cx="60" cy="50" r="12" fill="#ea580c" className="animate-pulse" />
+      </svg>
+    );
   };
 
-  const details = getBadgeDetails();
-  const IconComponent = details.icon;
-
   return (
-    <div className={`relative bg-neutral-950 border border-neutral-800/80 rounded-2xl flex flex-col items-center justify-center p-4 overflow-hidden shadow-inner ${className}`}>
-      {/* Effet de lueur d'arrière-plan */}
-      <div className="absolute inset-0 bg-gradient-to-br from-neutral-900/50 via-neutral-950 to-neutral-950 pointer-events-none" />
+    <div className={`relative bg-neutral-950 border border-neutral-800 rounded-2xl flex flex-col items-center justify-center p-2 overflow-hidden shadow-inner ${className}`}>
+      <div className="absolute inset-0 bg-gradient-to-t from-neutral-900/60 to-transparent pointer-events-none" />
       
-      <div className="relative z-10 flex flex-col items-center space-y-2">
-        <div className={`w-14 h-14 rounded-2xl ${details.bg} ${details.border} border flex items-center justify-center shadow-lg transform hover:scale-105 transition`}>
-          <IconComponent className={`w-7 h-7 ${details.color}`} />
-        </div>
-        <div className="text-center">
-          <span className="text-xs font-black text-white tracking-wide block">{muscleGroup}</span>
-          <span className="text-[10px] text-neutral-400 font-medium">{details.label}</span>
-        </div>
+      {/* Conteneur de l'illustration technique */}
+      <div className="w-full h-24 flex items-center justify-center relative z-10">
+        {getAnatomicSketch()}
       </div>
 
-      <div className="absolute bottom-2.5 left-3 right-3 flex items-center justify-between text-[10px] text-neutral-400 font-bold z-10">
-        <span className="flex items-center gap-1 bg-neutral-900 px-2 py-0.5 rounded-lg border border-neutral-800">
-          <Target className="w-3 h-3 text-orange-500" /> Focus Cible
+      <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between text-[10px] text-neutral-300 font-bold z-10">
+        <span className="flex items-center gap-1 bg-neutral-900/90 px-2 py-0.5 rounded-lg border border-neutral-800">
+          <Target className="w-3 h-3 text-orange-500" /> {muscleGroup}
         </span>
-        <span className={`text-[9px] ${details.color} ${details.bg} px-2 py-0.5 rounded-md border ${details.border} font-black uppercase tracking-wider`}>
-          Pro-Anatomy ⚡
+        <span className="text-[9px] text-orange-400 bg-orange-500/10 px-1.5 py-0.5 rounded border border-orange-500/20 uppercase tracking-widest font-black">
+          Anatomy 3D
         </span>
       </div>
     </div>
