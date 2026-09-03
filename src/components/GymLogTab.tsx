@@ -239,7 +239,7 @@ export default function GymLogTab({ currentUserId, onStartRestTimer }: GymLogTab
                   </button>
                 </div>
 
-                <AnatomicIllustration muscleGroup={exercise.targetMuscle} className="w-full h-32" />
+                <AnatomicIllustration muscleGroup={exercise.targetMuscle} exerciseName={exercise.name} className="w-full h-32" />
 
                 <div className="space-y-2 pt-1">
                   <div className="grid grid-cols-12 gap-2 text-xs font-bold text-neutral-400 uppercase px-1">
