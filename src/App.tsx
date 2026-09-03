@@ -556,6 +556,21 @@ export default function App() {
 
           {currentTab === 'today' && (
             <div className="space-y-6 animate-fadeIn pb-12">
+              {/* 🌟 BANNEAU D'ACCUEIL / GUIDAGE POUR LES NOUVEAUX */}
+              <div className="bg-gradient-to-r from-orange-950/60 via-neutral-900 to-neutral-900 border border-orange-500/30 rounded-3xl p-4 flex items-start gap-3.5 shadow-lg relative">
+                <div className="w-10 h-10 rounded-2xl bg-orange-500/20 text-orange-400 flex items-center justify-center flex-shrink-0 border border-orange-500/30">
+                  <Sparkles className="w-5 h-5" />
+                </div>
+                <div className="flex-1 min-w-0 space-y-1">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-xs font-black text-white">Bienvenue sur FitPulse ⚡</h4>
+                  </div>
+                  <p className="text-[11px] text-neutral-300 leading-relaxed">
+                    Suis ta forme, enregistre tes scores et profite de ton <strong className="text-orange-400">Pass Pro 24h</strong> pour tester toutes les fonctionnalités avancées sans limite !
+                  </p>
+                </div>
+              </div>
+
               {inTaperingWeek && (
                 <div className="bg-amber-950/40 border border-amber-500/40 rounded-3xl p-5 text-center space-y-1 shadow-2xl">
                   <span className="text-[10px] font-black uppercase tracking-widest text-amber-400 bg-amber-500/20 px-3 py-1 rounded-full border border-amber-500/30">
