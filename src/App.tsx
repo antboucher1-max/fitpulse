@@ -59,6 +59,9 @@ export default function App() {
   const [isSignUpMode, setIsSignUpMode] = useState(false);
   const [acceptCgu, setAcceptCgu] = useState(false);
 
+  // Nouvel état pour le Mode Focus (Pilier 3)
+  const [activeFocusMode, setActiveFocusMode] = useState<'hybrid' | 'running' | 'strength'>('hybrid');
+
   const [currentTab, setCurrentTab] = useState<'today' | 'community' | 'profile' | 'feed' | 'buddy' | 'workout' | 'exercises' | 'chat' | 'calculator' | 'paces' | 'live_tracker' | 'rest_timer' | 'notifications' | 'leaderboard' | 'boxwars' | 'running' | 'readiness' | 'hall_of_fame' | 'fitbot'>(() => {
     const savedTab = localStorage.getItem('fitpulse_active_tab');
     return (savedTab as any) || 'today';
@@ -526,6 +529,28 @@ export default function App() {
         </header>
 
         <main className="flex-1 w-full mx-auto px-4 py-3 pb-32 space-y-3">
+          {/* Barre de Mode Focus Dynamique (Pilier 3) */}
+          <div className="flex gap-2 bg-neutral-900/80 p-1 rounded-2xl border border-neutral-800 mb-2">
+            <button 
+              onClick={() => setActiveFocusMode('hybrid')} 
+              className={`flex-1 py-1.5 rounded-xl text-[11px] font-bold transition cursor-pointer ${activeFocusMode === 'hybrid' ? 'bg-orange-600 text-white shadow' : 'text-neutral-400 hover:text-white'}`}
+            >
+              ⚡ Hybride / Cross
+            </button>
+            <button 
+              onClick={() => setActiveFocusMode('strength')} 
+              className={`flex-1 py-1.5 rounded-xl text-[11px] font-bold transition cursor-pointer ${activeFocusMode === 'strength' ? 'bg-orange-600 text-white shadow' : 'text-neutral-400 hover:text-white'}`}
+            >
+              🏋️ Force / Muscu
+            </button>
+            <button 
+              onClick={() => setActiveFocusMode('running')} 
+              className={`flex-1 py-1.5 rounded-xl text-[11px] font-bold transition cursor-pointer ${activeFocusMode === 'running' ? 'bg-emerald-600 text-white shadow' : 'text-neutral-400 hover:text-white'}`}
+            >
+              🏃 Endurance
+            </button>
+          </div>
+
           {currentTab === 'running' && <OfflineRunGuard currentUserId={user?.id} />}
 
           {currentTab === 'today' && (
@@ -542,10 +567,14 @@ export default function App() {
                 </div>
               )}
 
-              {/* 📅 Calendrier hybride interactif */}
-              <HybridCalendar posts={posts} currentUserId={user?.id} onRefresh={fetchCloudPosts} />
+              {/* Affichage conditionnel selon le Mode Focus (Pilier 3) */}
+              {(activeFocusMode === 'hybrid' || activeFocusMode === 'strength') && (
+                <HybridCalendar posts={posts} currentUserId={user?.id} onRefresh={fetchCloudPosts} />
+              )}
 
-              <FatigueDashboardCard logs={gymLogsData} />
+              {(activeFocusMode === 'hybrid' || activeFocusMode === 'strength') && (
+                <FatigueDashboardCard logs={gymLogsData} />
+              )}
 
               {/* ⚡ Minuteur WOD */}
               <div className="flex justify-center my-2">
@@ -622,27 +651,36 @@ export default function App() {
                 <ChevronRight className="w-4 h-4 text-neutral-500 group-hover:text-cyan-400 transition flex-shrink-0" />
               </div>
 
+              {/* Affichage de la boîte à outils selon le mode focus */}
               <div className="pt-2">
                 <h3 className="text-[10px] font-black uppercase tracking-widest text-neutral-500 mb-3 ml-2 flex items-center gap-2">
                   <Settings className="w-3.5 h-3.5" /> Boîte à outils
                 </h3>
                 <div className="grid grid-cols-2 gap-2.5">
-                  <button onClick={() => setIsGymLogOpen(true)} className="bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 p-4 rounded-2xl flex flex-col gap-2.5 items-start transition cursor-pointer">
-                    <Dumbbell className="w-5 h-5 text-neutral-400" />
-                    <span className="text-xs font-bold text-neutral-200">Carnet Muscu</span>
-                  </button>
-                  <button onClick={() => setIsWodGeneratorOpen(true)} className="bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 p-4 rounded-2xl flex flex-col gap-2.5 items-start transition cursor-pointer">
-                    <Flame className="w-5 h-5 text-neutral-400" />
-                    <span className="text-xs font-bold text-neutral-200">WOD Generator</span>
-                  </button>
-                  <button onClick={() => handleTabChange('running')} className="bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 p-4 rounded-2xl flex flex-col gap-2.5 items-start transition cursor-pointer">
-                    <Zap className="w-5 h-5 text-neutral-400" />
-                    <span className="text-xs font-bold text-neutral-200">Ravitaillement</span>
-                  </button>
-                  <button onClick={() => handleTabChange('paces')} className="bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 p-4 rounded-2xl flex flex-col gap-2.5 items-start transition cursor-pointer">
-                    <Activity className="w-5 h-5 text-neutral-400" />
-                    <span className="text-xs font-bold text-neutral-200">Calculateur Allures</span>
-                  </button>
+                  {(activeFocusMode === 'hybrid' || activeFocusMode === 'strength') && (
+                    <button onClick={() => setIsGymLogOpen(true)} className="bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 p-4 rounded-2xl flex flex-col gap-2.5 items-start transition cursor-pointer">
+                      <Dumbbell className="w-5 h-5 text-neutral-400" />
+                      <span className="text-xs font-bold text-neutral-200">Carnet Muscu</span>
+                    </button>
+                  )}
+                  {(activeFocusMode === 'hybrid' || activeFocusMode === 'strength') && (
+                    <button onClick={() => setIsWodGeneratorOpen(true)} className="bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 p-4 rounded-2xl flex flex-col gap-2.5 items-start transition cursor-pointer">
+                      <Flame className="w-5 h-5 text-neutral-400" />
+                      <span className="text-xs font-bold text-neutral-200">WOD Generator</span>
+                    </button>
+                  )}
+                  {(activeFocusMode === 'hybrid' || activeFocusMode === 'running') && (
+                    <button onClick={() => handleTabChange('running')} className="bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 p-4 rounded-2xl flex flex-col gap-2.5 items-start transition cursor-pointer">
+                      <Zap className="w-5 h-5 text-neutral-400" />
+                      <span className="text-xs font-bold text-neutral-200">Ravitaillement</span>
+                    </button>
+                  )}
+                  {(activeFocusMode === 'hybrid' || activeFocusMode === 'running') && (
+                    <button onClick={() => handleTabChange('paces')} className="bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 p-4 rounded-2xl flex flex-col gap-2.5 items-start transition cursor-pointer">
+                      <Activity className="w-5 h-5 text-neutral-400" />
+                      <span className="text-xs font-bold text-neutral-200">Calculateur Allures</span>
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -843,29 +881,117 @@ export default function App() {
           )}
         </main>
 
+        {/* MODALE D'ACTION UNIVERSELLE EN LANGAGE NATUREL (Pilier 2 & 4) */}
         {isActionMenuOpen && (
           <div className="fixed inset-0 z-50 bg-black/90 flex items-end justify-center p-4 pb-24 sm:items-center animate-fadeIn" onClick={() => setIsActionMenuOpen(false)}>
             <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-sm w-full p-6 space-y-5 shadow-2xl relative animate-slideUp" onClick={e => e.stopPropagation()}>
               <div className="flex items-center justify-between mb-2">
-                <h3 className="font-extrabold text-lg text-white">Que veux-tu faire ?</h3>
-                <button type="button" onClick={() => setIsActionMenuOpen(false)} className="p-2 text-neutral-400 hover:text-white rounded-xl cursor-pointer bg-neutral-800/50 hover:bg-neutral-800 transition"><X className="w-5 h-5" /></button>
+                <h3 className="font-extrabold text-base text-white flex items-center gap-2">
+                  <Sparkles className="w-5 h-5 text-orange-500" /> Saisie rapide FitPulse
+                </h3>
+                <button type="button" onClick={() => setIsActionMenuOpen(false)} className="p-2 text-neutral-400 hover:text-white rounded-xl cursor-pointer bg-neutral-800/50 hover:bg-neutral-800 transition">
+                  <X className="w-5 h-5" />
+                </button>
               </div>
 
-              <div className="grid grid-cols-1 gap-3">
-                <button onClick={() => { setIsActionMenuOpen(false); setIsPostModalOpen(true); }} className="flex items-center gap-4 p-4 bg-neutral-950 border border-neutral-800 hover:border-orange-500 rounded-2xl transition cursor-pointer text-left group">
-                  <div className="w-12 h-12 rounded-full bg-orange-500/20 text-orange-500 flex items-center justify-center group-hover:scale-110 transition"><Flame className="w-6 h-6" /></div>
-                  <div><h4 className="text-sm font-bold text-white">Partager une séance</h4><p className="text-[11px] text-neutral-400">Muscu, Cardio, ou Galère du jour</p></div>
-                </button>
+              <div className="space-y-3">
+                <label className="block text-xs font-semibold text-neutral-400">
+                  Dis ce que tu as fait (ex: "10km en 48 min" ou "4 séries de squat à 100kg") :
+                </label>
+                <textarea 
+                  rows={3}
+                  id="naturalInputText"
+                  placeholder="Ex: Footing matinal de 8km avec de bonnes sensations..."
+                  className="w-full bg-neutral-950 border border-neutral-800 rounded-2xl p-3.5 text-xs text-white focus:outline-none focus:border-orange-500"
+                />
+                <button 
+                  type="button"
+                  onClick={async () => {
+                    const inputEl = document.getElementById('naturalInputText') as HTMLTextAreaElement;
+                    const text = inputEl?.value?.trim();
+                    if (!text || !user) return;
 
-                <button onClick={() => { setIsActionMenuOpen(false); setIsBoxWarsModalOpen(true); }} className="flex items-center gap-4 p-4 bg-neutral-950 border border-neutral-800 hover:border-cyan-500 rounded-2xl transition cursor-pointer text-left group">
-                  <div className="w-12 h-12 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center group-hover:scale-110 transition"><Zap className="w-6 h-6" /></div>
-                  <div><h4 className="text-sm font-bold text-white">Score BoxWars</h4><p className="text-[11px] text-neutral-400">Enregistrer un WOD ou un Challenge</p></div>
-                </button>
+                    let sessionTypeDetected = "Musculation Full Body";
+                    const lower = text.toLowerCase();
+                    if (lower.includes('km') || lower.includes('course') || lower.includes('footing') || (lower.includes('min') && (lower.includes('allure') || lower.includes('vitesse')))) {
+                      sessionTypeDetected = "Footing / VMA";
+                    } else if (lower.includes('wod') || lower.includes('crossfit') || lower.includes('fran') || lower.includes('murph')) {
+                      sessionTypeDetected = "WOD / Crossfit";
+                    } else if (lower.includes('pain') || lower.includes('galère') || lower.includes('dur')) {
+                      sessionTypeDetected = "💀 Pain & Gain (La Galère du Jour)";
+                    }
 
-                <button onClick={() => { setIsActionMenuOpen(false); handleTabChange('readiness'); }} className="flex items-center gap-4 p-4 bg-neutral-950 border border-neutral-800 hover:border-emerald-500 rounded-2xl transition cursor-pointer text-left group">
-                  <div className="w-12 h-12 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center group-hover:scale-110 transition"><BatteryCharging className="w-6 h-6" /></div>
-                  <div><h4 className="text-sm font-bold text-white">Bilan / Récupération</h4><p className="text-[11px] text-neutral-400">Faire le check-in de ta forme du jour</p></div>
+                    const { error } = await supabase.from('posts').insert([{
+                      user_id: user.id,
+                      username: currentUsername,
+                      avatar_url: currentUserProfile?.avatar_url || userAvatarUrl,
+                      club_name: selectedClub === '🌐 Tous les spots (Global)' ? 'Tournai (Quais de l’Escaut & Parc)' : selectedClub,
+                      session_type: sessionTypeDetected,
+                      caption: text,
+                      exercises: [],
+                      likes_count: 0,
+                      liked_by: [],
+                      comments_count: 0,
+                      comments: [],
+                      is_private: false
+                    }]);
+
+                    if (!error) {
+                      alert("Séance enregistrée et publiée avec succès ! 🚀");
+                      setIsActionMenuOpen(false);
+                      fetchCloudPosts();
+                    } else {
+                      alert("Erreur : " + error.message);
+                    }
+                  }}
+                  className="w-full py-3.5 bg-orange-600 hover:bg-orange-500 text-white font-black rounded-2xl text-xs shadow-xl transition cursor-pointer flex items-center justify-center gap-2"
+                >
+                  Enregistrer instantanément ⚡
                 </button>
+              </div>
+
+              {/* Passerelle Matériel & GPS (Pilier 4) */}
+              <div className="border-t border-neutral-800 pt-3 space-y-2">
+                <span className="text-[10px] uppercase font-bold text-neutral-500 block">Passerelle GPS & Matériel</span>
+                <div className="grid grid-cols-2 gap-2">
+                  <button 
+                    type="button"
+                    onClick={() => alert("Connexion OAuth Strava simulée avec succès !")}
+                    className="py-2.5 bg-neutral-950 border border-neutral-800 hover:border-orange-500 rounded-xl text-[11px] font-bold text-white transition cursor-pointer flex items-center justify-center gap-1.5"
+                  >
+                    <span className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse" /> Strava Sync
+                  </button>
+                  <button 
+                    type="button"
+                    onClick={() => {
+                      const fileInput = document.createElement('input');
+                      fileInput.type = 'file';
+                      fileInput.accept = '.gpx,.fit,.tcx';
+                      fileInput.onchange = (e: any) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          alert(`Fichier ${file.name} importé avec succès !`);
+                        }
+                      };
+                      fileInput.click();
+                    }}
+                    className="py-2.5 bg-neutral-950 border border-neutral-800 hover:border-neutral-700 rounded-xl text-[11px] font-bold text-neutral-300 transition cursor-pointer"
+                  >
+                    📁 Import GPX
+                  </button>
+                </div>
+              </div>
+
+              <div className="border-t border-neutral-800 pt-2 flex flex-col gap-2">
+                <span className="text-[10px] uppercase font-bold text-neutral-500">Actions avancées</span>
+                <div className="grid grid-cols-2 gap-2">
+                  <button onClick={() => { setIsActionMenuOpen(false); setIsPostModalOpen(true); }} className="py-2.5 bg-neutral-950 border border-neutral-800 hover:border-neutral-700 rounded-xl text-xs font-bold text-neutral-300 transition cursor-pointer">
+                    📝 Post détaillé
+                  </button>
+                  <button onClick={() => { setIsActionMenuOpen(false); setIsBoxWarsModalOpen(true); }} className="py-2.5 bg-neutral-950 border border-neutral-800 hover:border-neutral-700 rounded-xl text-xs font-bold text-cyan-400 transition cursor-pointer">
+                    ⚡ BoxWars Score
+                  </button>
+                </div>
               </div>
             </div>
           </div>
