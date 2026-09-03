@@ -762,17 +762,19 @@ export default function App() {
               setNewTransIsPrivate={setNewTransIsPrivate} 
               onAvatarClick={() => profileAvatarInputRef.current?.click()} 
               onCameraStart={() => { profileAvatarInputRef.current?.click(); }} 
-              onBeforeFileSelect={(e) => {
-                const file = e.target.files?.[0];
-                if (file) {
+              onBeforeFileSelect={() => {
+                const input = beforeFileInputRef.current;
+                if (input?.files?.[0]) {
+                  const file = input.files[0];
                   const reader = new FileReader();
                   reader.onloadend = () => setNewTransBefore(reader.result as string);
                   reader.readAsDataURL(file);
                 }
               }} 
-              onAfterFileSelect={(e) => {
-                const file = e.target.files?.[0];
-                if (file) {
+              onAfterFileSelect={() => {
+                const input = afterFileInputRef.current;
+                if (input?.files?.[0]) {
+                  const file = input.files[0];
                   const reader = new FileReader();
                   reader.onloadend = () => setNewTransAfter(reader.result as string);
                   reader.readAsDataURL(file);
