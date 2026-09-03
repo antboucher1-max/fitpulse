@@ -1017,7 +1017,9 @@ export default function App() {
               <button type="button" onClick={() => setIsWodGeneratorOpen(false)} className="p-2 text-neutral-400 hover:text-white rounded-xl bg-neutral-800 transition cursor-pointer"><X className="w-5 h-5" /></button>
             </div>
             <div className="flex-1 overflow-y-auto p-4 bg-neutral-950">
-              <WodGenerator />
+              <PaywallGate userId={user?.id} featureName="Générateur de WOD Intelligent">
+                <WodGenerator />
+              </PaywallGate>
             </div>
           </div>
         )}
