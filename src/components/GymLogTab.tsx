@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Dumbbell, Plus, Trash2, Clock, CheckCircle2 } from 'lucide-react';
+import { Dumbbell, Plus, Trash2, Clock, CheckCircle2, Target } from 'lucide-react';
 import { createClient } from '@supabase/supabase-js';
 import ExerciseSelectorModal, { ExerciseItem } from './ExerciseSelectorModal';
+import AnatomicIllustration from './AnatomicIllustration';
 
 const supabaseUrl = 'https://obtahwmcoqrcauscpksv.supabase.co';
 const supabaseAnonKey = 'sb_publishable_O8CKhUtzgq9nO9lKavNE9A__fAdRWoB';
@@ -223,7 +224,7 @@ export default function GymLogTab({ currentUserId, onStartRestTimer }: GymLogTab
             </div>
           ) : (
             activeExercises.map((exercise) => (
-              <div key={exercise.id} className="bg-neutral-900 border border-neutral-800 rounded-xl p-3.5 space-y-2.5">
+              <div key={exercise.id} className="bg-neutral-900 border border-neutral-800 rounded-2xl p-4 space-y-3 shadow-md">
                 <div className="flex items-center justify-between">
                   <div>
                     <h4 className="text-xs font-black text-white">{exercise.name}</h4>
@@ -237,6 +238,9 @@ export default function GymLogTab({ currentUserId, onStartRestTimer }: GymLogTab
                     <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
+
+                {/* Illustration Anatomique Vectorielle 3D intégrée dynamiquement */}
+                <AnatomicIllustration muscleGroup={exercise.targetMuscle} className="w-full h-28" />
 
                 <div className="space-y-1.5 pt-1">
                   <div className="grid grid-cols-12 gap-2 text-[10px] font-bold text-neutral-500 uppercase px-1">
