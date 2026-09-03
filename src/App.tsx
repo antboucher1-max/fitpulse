@@ -526,6 +526,9 @@ export default function App() {
                 </div>
               )}
 
+              {/* 📅 Calendrier hybride interactif intégré sur l'accueil */}
+              <HybridCalendar posts={posts} currentUserId={user?.id} />
+
               <FatigueDashboardCard logs={gymLogsData} />
 
               {/* ⚡ Minuteur WOD inséré proprement dans le flux de la page d'accueil */}
@@ -983,7 +986,7 @@ export default function App() {
                           Ajouter en ami 🤝
                         </button>
                       ) : isAlreadyFriends ? (
-                        <button onClick={async () => { await supabase.from('friend_requests').delete().eq('id', friendship.id); if (user) fetchFriendRequests(user.id); }} className="flex-1 py-2.5 bg-neutral-800 hover:bg-red-500/20 hover:text-red-400 text-neutral-300 font-bold rounded-xl text-xs border border-neutral-700 transition cursor-pointer">
+                        <button onClick={async () => { await supabase.from('friend_requests').delete().eq('id', friendship.id); if (user) fetchFriendRequests(user.id); }} className="flex-1 py-2.5 bg-neutral-800 hover:bg-red-500/20 hover:text-red-400 text-neutral-300 font-bold rounded-2xl text-xs border border-neutral-700 transition cursor-pointer">
                           Retirer des amis ✓
                         </button>
                       ) : isPendingSent ? (
@@ -996,7 +999,7 @@ export default function App() {
                         </button>
                       ) : null}
 
-                      <button onClick={() => { setViewingProfileUser(null); handleOpenChatWithUser(viewingProfileUser); handleTabChange('chat'); }} className="px-4 py-2.5 bg-neutral-800 hover:bg-neutral-700 text-white font-bold rounded-xl text-xs border border-neutral-700 transition cursor-pointer">
+                      <button onClick={() => { setViewingProfileUser(null); handleOpenChatWithUser(viewingProfileUser); handleTabChange('chat'); }} className="px-4 py-2.5 bg-neutral-800 hover:bg-neutral-700 text-white font-bold rounded-2xl text-xs border border-neutral-700 transition cursor-pointer">
                         Message 💬
                       </button>
                     </div>
