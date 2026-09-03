@@ -71,13 +71,19 @@ export default function HybridCalendar({ posts, currentUserId, onRefresh }: Hybr
     try {
       const payload = {
         user_id: currentUserId,
-        session_type: sessionType,
-        notes: description || 'Séance ou événement programmé dans le calendrier',
-        date: selectedDateStr,
-        created_at: new Date().toISOString()
+        username: 'Planificateur',
+        avatar_url: '',
+        club_name: 'Tournai',
+        session_type: `📅 [Prévu] ${sessionType}`,
+        caption: description || 'Séance ou événement programmé dans le calendrier',
+        exercises: [],
+        likes_count: 0,
+        comments_count: 0,
+        is_private: false,
+        created_at: `${selectedDateStr}T08:00:00.000Z`
       };
 
-      const { error } = await supabase.from('training_sessions').insert([payload]);
+      const { error } = await supabase.from('posts').insert([payload]);
 
       if (error) {
         console.error("Erreur Supabase détaillée :", error);
@@ -199,7 +205,7 @@ export default function HybridCalendar({ posts, currentUserId, onRefresh }: Hybr
         })}
       </div>
 
-      {/* MODALE DE PROGRAMMATION AU CLIC */}
+      {/* MODALE DE PROGRAMMATION AU CLIC (LISTE À PLAT SANS BUG) */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4 animate-fadeIn">
           <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-sm w-full p-6 space-y-4 shadow-2xl">
@@ -220,21 +226,17 @@ export default function HybridCalendar({ posts, currentUserId, onRefresh }: Hybr
                   onChange={(e) => setSessionType(e.target.value)} 
                   className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3.5 py-3 text-xs text-white focus:outline-none"
                 >
-                  <optgroup label="Entraînements">
-                    <option value="Musculation Full Body">💪 Musculation Full Body</option>
-                    <option value="Push / Force">🏋️‍♂️ Push / Force</option>
-                    <option value="Pull / Dos">🦾 Pull / Dos</option>
-                    <option value="Jambes / Squat">🦵 Jambes / Squat</option>
-                    <option value="Footing / VMA">🏃‍♂️ Footing / VMA</option>
-                    <option value="WOD / Crossfit">⚡ WOD / Crossfit</option>
-                    <option value="Repos / Mobilité">🧘‍♂️ Repos / Mobilité</option>
-                  </optgroup>
-                  <optgroup label="Courses & Compétitions 🏆">
-                    <option value="🏁 Marathon / Semi-Marathon">🏁 Marathon / Semi-Marathon</option>
-                    <option value="🏃 Course officielle (10k / 20k)">🏃 Course officielle (10k / 20k)</option>
-                    <option value="⚡ Compétition Hyrox">⚡ Compétition Hyrox</option>
-                    <option value="🏋️‍♂️ Concours CrossFit / WOD Battle">🏋️‍♂️ Concours CrossFit / WOD Battle</option>
-                  </optgroup>
+                  <option value="Musculation Full Body">💪 Musculation Full Body</option>
+                  <option value="Push / Force">🏋️‍♂️ Push / Force</option>
+                  <option value="Pull / Dos">🦾 Pull / Dos</option>
+                  <option value="Jambes / Squat">🦵 Jambes / Squat</option>
+                  <option value="Footing / VMA">🏃‍♂️ Footing / VMA</option>
+                  <option value="WOD / Crossfit">⚡ WOD / Crossfit</option>
+                  <option value="Repos / Mobilité">🧘‍♂️ Repos / Mobilité</option>
+                  <option value="🏁 Marathon / Semi-Marathon">🏁 Marathon / Semi-Marathon</option>
+                  <option value="🏃 Course officielle (10k / 20k)">🏃 Course officielle (10k / 20k)</option>
+                  <option value="⚡ Compétition Hyrox">⚡ Compétition Hyrox</option>
+                  <option value="🏋️‍♂️ Concours CrossFit / WOD Battle">🏋️‍♂️ Concours CrossFit / WOD Battle</option>
                 </select>
               </div>
 
