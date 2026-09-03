@@ -1,4 +1,4 @@
-import { Target, Dumbbell } from 'lucide-react';
+import { Target, Dumbbell, Flame, Activity } from 'lucide-react';
 
 interface AnatomicIllustrationProps {
   muscleGroup: string;
@@ -7,63 +7,49 @@ interface AnatomicIllustrationProps {
 }
 
 export default function AnatomicIllustration({ muscleGroup, exerciseName = '', className = "w-full h-36" }: AnatomicIllustrationProps) {
-  const getAnatomicImageUrl = () => {
-    const name = (exerciseName || '').toLowerCase().trim();
-    const muscle = (muscleGroup || '').toLowerCase().trim();
+  const normalizeMuscle = (muscleGroup || '').toLowerCase();
+  const normalizeName = (exerciseName || '').toLowerCase();
 
-    if (name.includes('couché') || name.includes('bench')) {
-      return 'https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Barbell_Bench_Press/0.jpg';
+  // Détermine la couleur et le style selon le groupe musculaire
+  const getTheme = () => {
+    if (normalizeMuscle.includes('pectoraux') || normalizeName.includes('couché') || normalizeName.includes('bench')) {
+      return { color: 'text-orange-500', bg: 'from-orange-500/20 via-neutral-900 to-neutral-950', border: 'border-orange-500/40', label: 'Pectoraux • Force' };
     }
-    if (name.includes('incliné')) {
-      return 'https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Barbell_Incline_Bench_Press/0.jpg';
+    if (normalizeMuscle.includes('dos') || normalizeName.includes('traction') || normalizeName.includes('rowing')) {
+      return { color: 'text-amber-500', bg: 'from-amber-500/20 via-neutral-900 to-neutral-950', border: 'border-amber-500/40', label: 'Dos • Épaisseur' };
     }
-    if (name.includes('squat')) {
-      return 'https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Barbell_Squat/0.jpg';
+    if (normalizeMuscle.includes('jambe') || normalizeMuscle.includes('cuisse') || normalizeName.includes('squat')) {
+      return { color: 'text-emerald-500', bg: 'from-emerald-500/20 via-neutral-900 to-neutral-950', border: 'border-emerald-500/40', label: 'Membres inférieurs' };
     }
-    if (name.includes('soulevé') || name.includes('deadlift')) {
-      return 'https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Barbell_Deadlift/0.jpg';
+    if (normalizeMuscle.includes('épaule') || normalizeName.includes('élévation')) {
+      return { color: 'text-cyan-500', bg: 'from-cyan-500/20 via-neutral-900 to-neutral-950', border: 'border-cyan-500/40', label: 'Deltoïdes & Stabilité' };
     }
-    if (name.includes('curl') || name.includes('biceps')) {
-      return 'https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Dumbbell_Biceps_Curl/0.jpg';
-    }
-    if (name.includes('traction') || name.includes('pull-up')) {
-      return 'https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Pull-up/0.jpg';
-    }
-    if (name.includes('élévation') || name.includes('latérale') || name.includes('épaule')) {
-      return 'https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Dumbbell_Lateral_Raise/0.jpg';
-    }
-    if (muscle.includes('dos') || name.includes('rowing')) {
-      return 'https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Barbell_Row/0.jpg';
-    }
-    if (muscle.includes('jambe') || muscle.includes('quadriceps')) {
-      return 'https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Barbell_Squat/0.jpg';
-    }
-
-    // Image de repli sécurisée (Pushup)
-    return 'https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Pushup/0.jpg';
+    return { color: 'text-orange-500', bg: 'from-orange-500/20 via-neutral-900 to-neutral-950', border: 'border-orange-500/40', label: 'Renforcement Global' };
   };
 
+  const theme = getTheme();
+
   return (
-    <div className={`relative bg-neutral-950 border border-neutral-800 rounded-2xl flex flex-col items-center justify-center p-2 overflow-hidden shadow-xl ${className}`}>
-      {/* Conteneur image avec fond blanc cassé pour contraster avec le fond sombre de l'app */}
-      <div className="w-full h-32 flex items-center justify-center relative rounded-xl overflow-hidden bg-white/5 border border-neutral-800 p-1">
-        <img 
-          src={getAnatomicImageUrl()} 
-          alt={exerciseName || muscleGroup} 
-          className="w-full h-full object-contain filter contrast-125 brightness-95 hover:scale-105 transition duration-300"
-          onError={(e) => {
-            // Si le lien externe échoue, on masque l'image pour éviter le carré cassé
-            (e.currentTarget as HTMLElement).style.display = 'none';
-          }}
-        />
+    <div className={`relative bg-gradient-to-br ${theme.bg} border ${theme.border} rounded-2xl flex flex-col items-center justify-center p-4 overflow-hidden shadow-xl ${className}`}>
+      {/* Grille technique de fond style application haut de gamme */}
+      <div className="absolute inset-0 bg-[radial-gradient(#383838_1px,transparent_1px)] [background-size:16px_16px] opacity-30 pointer-events-none" />
+
+      <div className="relative z-10 flex flex-col items-center space-y-2 text-center">
+        <div className={`w-12 h-12 rounded-2xl bg-neutral-900/90 border ${theme.border} flex items-center justify-center shadow-lg`}>
+          <Dumbbell className={`w-6 h-6 ${theme.color}`} />
+        </div>
+        <div>
+          <span className="text-sm font-black text-white tracking-wide block">{exerciseName || muscleGroup}</span>
+          <span className="text-[11px] text-neutral-400 font-semibold">{theme.label}</span>
+        </div>
       </div>
 
-      <div className="w-full flex items-center justify-between text-xs text-neutral-300 font-bold pt-2 px-1">
-        <span className="flex items-center gap-1.5">
-          <Target className="w-3.5 h-3.5 text-orange-500" /> {muscleGroup}
+      <div className="absolute bottom-2 left-3 right-3 flex items-center justify-between text-[10px] text-neutral-300 font-bold z-10 pt-2 border-t border-neutral-800/80">
+        <span className="flex items-center gap-1">
+          <Target className={`w-3.5 h-3.5 ${theme.color}`} /> {muscleGroup}
         </span>
-        <span className="text-[10px] text-orange-400 bg-orange-500/10 px-2 py-0.5 rounded border border-orange-500/20 uppercase font-black tracking-wider">
-          Anatomy 3D ⚡
+        <span className={`text-[9px] ${theme.color} bg-neutral-900 px-2 py-0.5 rounded-md border ${theme.border} uppercase tracking-wider font-black`}>
+          Pro-Target ⚡
         </span>
       </div>
     </div>
