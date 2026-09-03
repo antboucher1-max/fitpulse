@@ -449,13 +449,13 @@ export default function App() {
               <Zap className="w-6 h-6" />
             </div>
             <h1 className="text-xl font-black text-white tracking-tight">FitPulse</h1>
-            <p className="text-xs text-orange-400 font-semibold">Trouve tes partenaires & Spots d'entraînement</p>
+            <p className="text-xs text-orange-400 font-semibold">Suivi d'entraînement, Communauté & Partenaires</p>
           </div>
 
           <form onSubmit={async (e) => {
             e.preventDefault();
             if (isSignUpMode) {
-              if (!acceptCgu) { alert("Veuillez accepter les CGU."); return; }
+              if (!acceptCgu) { alert("Veuillez accepter les conditions générales d'utilisation pour continuer."); return; }
               const { data, error } = await supabase.auth.signUp({ email: authEmail, password: authPassword });
               if (error) alert("Erreur : " + error.message);
               else if (data.session?.user) { setUser(data.session.user); }
@@ -467,26 +467,30 @@ export default function App() {
           }} className="space-y-4">
             <div>
               <label className="block text-xs font-semibold text-neutral-400 mb-1">E-mail :</label>
-              <input type="email" required placeholder="ton.email@exemple.com" value={authEmail} onChange={(e) => setAuthEmail(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none" />
+              <input type="email" required placeholder="ton.email@exemple.com" value={authEmail} onChange={(e) => setAuthEmail(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-orange-500" />
             </div>
             <div>
               <label className="block text-xs font-semibold text-neutral-400 mb-1">Mot de passe :</label>
-              <input type="password" required placeholder="••••••••" value={authPassword} onChange={(e) => setAuthPassword(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none" />
+              <input type="password" required placeholder="••••••••" value={authPassword} onChange={(e) => setAuthPassword(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-orange-500" />
             </div>
+
             {isSignUpMode && (
-              <div className="flex items-center gap-2">
-                <input type="checkbox" id="cgu" checked={acceptCgu} onChange={(e) => setAcceptCgu(e.target.checked)} className="rounded accent-orange-500" />
-                <label htmlFor="cgu" className="text-xs text-neutral-300">J'accepte les conditions d'utilisation.</label>
+              <div className="flex items-start gap-2 pt-1">
+                <input type="checkbox" id="cgu" checked={acceptCgu} onChange={(e) => setAcceptCgu(e.target.checked)} className="rounded accent-orange-500 mt-0.5 cursor-pointer" />
+                <label htmlFor="cgu" className="text-[11px] text-neutral-300 leading-tight cursor-pointer">
+                  J'accepte les <button type="button" onClick={() => alert("Conditions Générales d'Utilisation (CGU) :\n\n1. FitPulse est une application de suivi d'entraînement sportif.\n2. Vos données d'entraînement sont sécurisées et partagées uniquement au sein de votre communauté.\n3. Aucun remboursement des abonnements Pro n'est effectué après validation.")} className="text-orange-400 underline font-semibold">Conditions Générales d'Utilisation</button>.
+                </label>
               </div>
             )}
-            <button type="submit" className="w-full py-3.5 bg-orange-600 text-white font-bold rounded-2xl text-sm">
-              {isSignUpMode ? "S'inscrire 🚀" : "Se connecter ⚡"}
+
+            <button type="submit" className="w-full py-3.5 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-2xl text-sm transition shadow-lg cursor-pointer">
+              {isSignUpMode ? "Créer mon compte 🚀" : "Se connecter ⚡"}
             </button>
           </form>
 
           <div className="text-center">
-            <button type="button" onClick={() => setIsSignUpMode(!isSignUpMode)} className="text-xs text-orange-400 font-semibold cursor-pointer">
-              {isSignUpMode ? "Déjà un compte ? Connecte-toi" : "Pas encore de compte ? Inscris-toi"}
+            <button type="button" onClick={() => setIsSignUpMode(!isSignUpMode)} className="text-xs text-orange-400 font-semibold cursor-pointer hover:underline">
+              {isSignUpMode ? "Déjà un compte ? Connecte-toi" : "Pas encore de compte ? Inscris-toi gratuitement"}
             </button>
           </div>
         </div>
