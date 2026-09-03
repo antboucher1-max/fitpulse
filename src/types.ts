@@ -36,7 +36,7 @@ export interface Story {
 }
 
 export interface RealUser {
-  id: string; username: string; email: string; gender?: 'M' | 'F'; birth_date?: string; age: number; goal?: string; home_club: string; preferred_time?: string; avatar_url: string; last_seen?: string; is_verified?: boolean; is_admin?: boolean;
+  id: string; username: string; email: string; gender?: 'M' | 'F'; birth_date?: string; age: number; goal?: string; home_club: string; preferred_time?: string; avatar_url: string; cover_url?: string; last_seen?: string; is_verified?: boolean; is_admin?: boolean;
 }
 
 export interface FriendRequest {
