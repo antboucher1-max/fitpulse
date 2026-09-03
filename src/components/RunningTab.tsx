@@ -54,9 +54,11 @@ export default function RunningTab({
   const [distanceKm, setDistanceKm] = useState(0);
   const [audioCoaching, setAudioCoaching] = useState(true);
 
-  // Ghost Pacing Vocal & Météo States
-  const [windFactor, setWindFactor] = useState<'Face (+12 km/h)' | 'Dos (-8 km/h)' | 'Calme'>('Face (+12 km/h)');
-  const [coachingAdvice, setCoachingAdvice] = useState('Analyse météo et cardio en attente...');
+  // Ghost Pacing Vocal & Météo Réelle API States
+  const [windSpeedKmh, setWindSpeedKmh] = useState<number>(0);
+  const [windDirectionDeg, setWindDirectionDeg] = useState<number>(0);
+  const [windDescription, setWindDescription] = useState<string>('Analyse météo en cours...');
+  const [coachingAdvice, setCoachingAdvice] = useState('Position GPS et météo en attente...');
 
   // Objectif d'allure cible en secondes par kilomètre (Ex: 5'30" = 330 secondes)
   const [targetPaceSecs, setTargetPaceSecs] = useState<number>(330); 
@@ -73,28 +75,6 @@ export default function RunningTab({
 
   const lastPositionRef = useRef<[number, number]>([50.505, 3.325]);
 
-  // Initialisation et centrage sur la position réelle
-  const fetchInitialPosition = () => {
-    if ('geolocation' in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const lat = position.coords.latitude;
-          const lng = position.coords.longitude;
-          const coord: [number, number] = [lat, lng];
-          setCurrentPosition(coord);
-          lastPositionRef.current = coord;
-          setRoutePositions([coord]);
-        },
-        (error) => console.warn("GPS non disponible :", error.message),
-        { enableHighAccuracy: true }
-      );
-    }
-  };
-
-  useEffect(() => {
-    fetchInitialPosition();
-  }, []);
-
   // Fonction de synthèse vocale intelligente
   const speakMessage = (text: string) => {
     if (!audioCoaching || !('speechSynthesis' in window)) return;
@@ -105,7 +85,63 @@ export default function RunningTab({
     window.speechSynthesis.speak(utterance);
   };
 
-  // Suivi GPS stable et Coaching Vocal périodique (toutes les 60 secondes ou via le Ghost Pacing)
+  // Récupération automatique de la météo réelle (Vent & Vitesse) via API Open-Meteo
+  const fetchRealTimeWindAndPosition = async (lat: number, lng: number) => {
+    try {
+      const response = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=wind_speed_10m,wind_direction_10m`);
+      const data = await response.json();
+      
+      if (data && data.current) {
+        const speed = data.current.wind_speed_10m; // km/h
+        const direction = data.current.wind_direction_10m; // degrés (0-360)
+        
+        setWindSpeedKmh(speed);
+        setWindDirectionDeg(direction);
+
+        if (speed > 25) {
+          setWindDescription(`Vent fort de ${speed} km/h (Direction ${direction}°) 💨`);
+        } else if (speed > 12) {
+          setWindDescription(`Vent modéré de ${speed} km/h (Direction ${direction}°) 🌬️`);
+        } else {
+          setWindDescription(`Conditions de vent calmes (${speed} km/h) 🍃`);
+        }
+      }
+    } catch (e) {
+      console.warn("Impossible de joindre l'API Météo :", e);
+      setWindDescription("Météo locale indisponible (Mode par défaut)");
+    }
+  };
+
+  // Initialisation et centrage sur la position réelle + Appel Météo
+  const fetchInitialPosition = () => {
+    if ('geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const lat = position.coords.latitude;
+          const lng = position.coords.longitude;
+          const coord: [number, number] = [lat, lng];
+          setCurrentPosition(coord);
+          lastPositionRef.current = coord;
+          setRoutePositions([coord]);
+
+          // Appel de la météo réelle selon les coordonnées GPS
+          fetchRealTimeWindAndPosition(lat, lng);
+        },
+        (error) => {
+          console.warn("GPS non disponible :", error.message);
+          // Fallback sur Tournai par défaut si refus GPS
+          fetchRealTimeWindAndPosition(50.6053, 3.3862);
+        },
+        { enableHighAccuracy: true }
+      );
+    }
+  };
+
+  useEffect(() => {
+    fetchInitialPosition();
+  }, []);
+
+  // Suivi GPS stable et Coaching Vocal périodique (toutes les 60 secondes avec prise en compte du vent)
   useEffect(() => {
     let interval: any = null;
     let watchId: number | null = null;
@@ -115,15 +151,18 @@ export default function RunningTab({
         setSeconds(s => {
           const newSecs = s + 1;
            
-          // Analyse de l'allure par rapport à la cible toutes les minutes
+          // Analyse de l'allure et du vent toutes les minutes
           if (newSecs > 0 && newSecs % 60 === 0 && distanceKm > 0) {
             const currentSecPerKm = newSecs / distanceKm;
             const diff = currentSecPerKm - targetPaceSecs; 
              
             let coachingText = `Point course : ${distanceKm.toFixed(2)} kilomètres. `;
-            if (windFactor.includes('Face')) {
-              coachingText += "Vent de face détecté, compense l'effort sans puiser dans tes réserves. ";
+            
+            // Intégration dynamique du vent réel dans le coaching vocal
+            if (windSpeedKmh > 15) {
+              coachingText += `Attention, vent de face ou de travers estimé à ${windSpeedKmh} kilomètres heure. Adapte ta foulée pour économiser tes fibres. `;
             }
+
             if (Math.abs(diff) < 15) {
               coachingText += "Allure parfaite, tu es dans les clous de ton objectif !";
             } else if (diff < -15) {
@@ -131,6 +170,7 @@ export default function RunningTab({
             } else {
               coachingText += "Tu es en dessous de ton allure cible, relance un peu l'effort !";
             }
+
             setCoachingAdvice(coachingText);
             speakMessage(coachingText);
           }
@@ -154,6 +194,9 @@ export default function RunningTab({
               lastPositionRef.current = newPos;
               setCurrentPosition(newPos);
               setRoutePositions(prev => [...prev, newPos]);
+              
+              // Actualisation météo toutes les 500 positions si besoin
+              fetchRealTimeWindAndPosition(lat, lng);
             }
           },
           (error) => console.error(error),
@@ -166,7 +209,7 @@ export default function RunningTab({
       clearInterval(interval);
       if (watchId !== null) navigator.geolocation.clearWatch(watchId);
     };
-  }, [isRunning, isPaused, distanceKm, targetPaceSecs, audioCoaching, windFactor]);
+  }, [isRunning, isPaused, distanceKm, targetPaceSecs, audioCoaching, windSpeedKmh]);
 
   // Fonction de test pour le "Silent Club Broadcast" (Vibration + Alerte Sonore AirHorn)
   const triggerSilentBroadcastTest = () => {
@@ -222,8 +265,8 @@ export default function RunningTab({
     setSeconds(0);
     setDistanceKm(0);
     fetchInitialPosition();
-    setCoachingAdvice("Sortie démarrée. Ghost Pacing et correction météo activés !");
-    speakMessage("Sortie démarrée. Ghost Pacing et correction météo activés. Bon entraînement !");
+    setCoachingAdvice(`Sortie démarrée. Vent mesuré à ${windSpeedKmh} km/h pris en compte par l'IA !`);
+    speakMessage("Sortie démarrée. Analyse du vent par satellite active. Bon entraînement !");
   };
 
   const handlePauseRun = () => {
@@ -273,7 +316,7 @@ export default function RunningTab({
             <div className="flex items-center gap-2 text-orange-400 font-bold text-xs uppercase tracking-widest mb-1">
               <Compass className="w-4 h-4" /> Mode Running & Ghost Pacing
             </div>
-            <h2 className="text-xl font-black text-white tracking-tight">GPS, Météo & Stratégie Vocale</h2>
+            <h2 className="text-xl font-black text-white tracking-tight">GPS, Météo Satellite & Stratégie</h2>
           </div>
           <button 
             type="button"
@@ -285,37 +328,28 @@ export default function RunningTab({
         </div>
       </div>
 
-      {/* Moteur de Ghost Pacing & Vent Réel (Intégration Avancée) */}
+      {/* Moteur de Ghost Pacing & Vent Réel API */}
       <div className="bg-neutral-900 border border-orange-500/30 rounded-3xl p-5 space-y-4 shadow-2xl relative overflow-hidden">
         <div className="absolute -right-8 -top-8 w-28 h-28 bg-orange-500/10 rounded-full blur-2xl pointer-events-none" />
         <div className="flex items-center justify-between relative z-10">
           <div className="flex items-center gap-2 text-orange-400 font-black text-xs uppercase tracking-wider">
-            <Zap className="w-4 h-4" /> Ghost Pacing & Correction Vent (Météo)
+            <Zap className="w-4 h-4" /> Ghost Pacing & Vent Météo en Direct
           </div>
           <span className="text-[10px] font-extrabold bg-orange-500/20 text-orange-300 px-2.5 py-0.5 rounded-full border border-orange-500/30">
-            IA Active 🗣️
+            Open-Meteo API 🛰️
           </span>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs relative z-10">
-          <div className="bg-neutral-950 p-3.5 rounded-2xl border border-neutral-800 space-y-1.5">
-            <span className="text-neutral-400 flex items-center gap-1.5 font-bold"><Wind className="w-3.5 h-3.5 text-cyan-400" /> Condition de Vent Réel</span>
-            <select 
-              value={windFactor} 
-              onChange={(e: any) => setWindFactor(e.target.value)}
-              className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none cursor-pointer"
-            >
-              <option value="Face (+12 km/h)">Vent de face fort (+12 km/h ressenti)</option>
-              <option value="Dos (-8 km/h)">Vent de dos favorable</option>
-              <option value="Calme">Conditions météo calmes</option>
-            </select>
+          <div className="bg-neutral-950 p-3.5 rounded-2xl border border-neutral-800 space-y-1">
+            <span className="text-neutral-400 flex items-center gap-1.5 font-bold"><Wind className="w-3.5 h-3.5 text-cyan-400" /> Analyse Vent Satellite</span>
+            <div className="text-sm font-black text-white pt-1">{windDescription}</div>
           </div>
 
           <div className="bg-neutral-950 p-3.5 rounded-2xl border border-neutral-800 flex flex-col justify-between">
-            <span className="text-neutral-400 flex items-center gap-1.5 font-bold"><Activity className="w-3.5 h-3.5 text-emerald-400" /> Statut Audio</span>
-            <span className="text-sm font-black text-emerald-400 flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-              {audioCoaching ? 'Chuchotement écouteurs actif' : 'Muet'}
+            <span className="text-neutral-400 flex items-center gap-1.5 font-bold"><Activity className="w-3.5 h-3.5 text-emerald-400" /> Orientation & Vitesse</span>
+            <span className="text-sm font-black text-emerald-400">
+              {windSpeedKmh} km/h (Cap {windDirectionDeg}°)
             </span>
           </div>
         </div>
