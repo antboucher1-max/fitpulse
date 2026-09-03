@@ -29,7 +29,6 @@ import SpotSearchInput from './components/SpotSearchInput';
 import HybridCalendar from './components/HybridCalendar';
 import OnboardingWizard from './components/OnboardingWizard';
 
-// Nouveaux composants intégrés pour l'ACWR, la fatigue et l'overlay du chrono
 import FatigueDashboardCard from './components/FatigueDashboardCard';
 import FloatingWodTimer from './components/FloatingWodTimer';
 
@@ -85,7 +84,6 @@ export default function App() {
   const [isGymLogOpen, setIsGymLogOpen] = useState(false);
   const [isWodGeneratorOpen, setIsWodGeneratorOpen] = useState(false);
 
-  // État pour stocker les logs de musculation et alimenter la fatigue ACWR
   const [gymLogsData, setGymLogsData] = useState<any[]>([]);
 
   const [postSessionType, setPostSessionType] = useState('Musculation Full Body');
@@ -290,6 +288,7 @@ export default function App() {
       })
       .subscribe();
 
+    // Abonnement temps réel pour rafraîchir les points et classements instantanément
     const profilesChannel = supabase
       .channel('public:profiles')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => {
@@ -297,12 +296,21 @@ export default function App() {
       })
       .subscribe();
 
+    // Abonnement temps réel pour rafraîchir les évolutions automatiquement
+    const transformationsChannel = supabase
+      .channel('public:transformations')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'transformations' }, () => {
+        if (user) fetchTransformations(user.id);
+      })
+      .subscribe();
+
     return () => {
       supabase.removeChannel(postsChannel);
       supabase.removeChannel(messagesChannel);
       supabase.removeChannel(profilesChannel);
+      supabase.removeChannel(transformationsChannel);
     };
-  }, []);
+  }, [user]);
 
   const handleTabChange = (tab: any) => { 
     setCurrentTab(tab); 
@@ -482,7 +490,6 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col font-sans select-none antialiased relative">
-      {/* Minuteur WOD flottant permanent en overlay */}
       <FloatingWodTimer />
 
       <div className="w-full max-w-md mx-auto min-h-screen bg-neutral-950 flex flex-col shadow-2xl sm:border-x sm:border-neutral-900 relative">
@@ -523,7 +530,6 @@ export default function App() {
                 </div>
               )}
 
-              {/* Composant ACWR & Cartographie de Fatigue Musculaire */}
               <FatigueDashboardCard logs={gymLogsData} />
 
               <div className={`bg-gradient-to-br border rounded-[2rem] p-6 shadow-2xl relative overflow-hidden transition-colors duration-500 ${currentReadinessScore < 50 ? 'from-neutral-900 to-red-950/40 border-red-500/30' : 'from-neutral-900 to-orange-950/40 border-orange-500/30'}`}>
