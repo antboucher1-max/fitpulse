@@ -2,7 +2,8 @@ import { useState, useEffect, useRef, ChangeEvent, FormEvent } from 'react';
 import {
   Zap, User, MessageCircle, Home, Users, Plus, X, Camera, Flame, MapPin, Trophy, Navigation, Calendar, Skull, BatteryCharging, ArrowRight, Activity, Sparkles, Play, Dumbbell, Settings, ChevronRight, ChevronLeft, CheckCircle2, Bot, ArrowLeft
 } from 'lucide-react';
-import { createClient, User as SupabaseUser } from '@supabase/supabase-js';
+import { User as SupabaseUser } from '@supabase/supabase-js';
+import { supabase } from './supabaseClient';
 
 import { 
   TransformationPhoto, Post, RealUser, FriendRequest, DBMessage 
@@ -31,10 +32,6 @@ import OnboardingWizard from './components/OnboardingWizard';
 
 import FatigueDashboardCard from './components/FatigueDashboardCard';
 import FloatingWodTimer from './components/FloatingWodTimer';
-
-const supabaseUrl = 'https://obtahwmcoqrcauscpksv.supabase.co';
-const supabaseAnonKey = 'sb_publishable_O8CKhUtzgq9nO9lKavNE9A__fAdRWoB';
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 const isMatchingClub = (postClubName?: string, selectedClubName?: string): boolean => {
   if (!postClubName || !selectedClubName) return false;
@@ -254,6 +251,7 @@ export default function App() {
     return streak > 0 ? streak : 1;
   };
 
+  // Initialisation Auth & Données (Exécuté 1 seule fois au montage)
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
@@ -264,6 +262,16 @@ export default function App() {
         fetchGymLogsForUser(session.user.id);
       }
       setAuthLoading(false);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+      if (session?.user) {
+        fetchTransformations(session.user.id);
+        fetchFriendRequests(session.user.id);
+        fetchUserShoes(session.user.id);
+        fetchGymLogsForUser(session.user.id);
+      }
     });
 
     fetchCloudPosts();
@@ -295,20 +303,13 @@ export default function App() {
       })
       .subscribe();
 
-    const transformationsChannel = supabase
-      .channel('public:transformations')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'transformations' }, () => {
-        if (user) fetchTransformations(user.id);
-      })
-      .subscribe();
-
     return () => {
+      subscription.unsubscribe();
       supabase.removeChannel(postsChannel);
       supabase.removeChannel(messagesChannel);
       supabase.removeChannel(profilesChannel);
-      supabase.removeChannel(transformationsChannel);
     };
-  }, [user]);
+  }, []);
 
   const handleTabChange = (tab: any) => { 
     setCurrentTab(tab); 
@@ -437,11 +438,11 @@ export default function App() {
               if (!acceptCgu) { alert("Veuillez accepter les CGU."); return; }
               const { data, error } = await supabase.auth.signUp({ email: authEmail, password: authPassword });
               if (error) alert("Erreur : " + error.message);
-              else if (data.session?.user) { setUser(data.session.user); window.location.reload(); }
+              else if (data.session?.user) { setUser(data.session.user); }
             } else {
               const { data, error } = await supabase.auth.signInWithPassword({ email: authEmail, password: authPassword });
               if (error) alert("Erreur : " + error.message);
-              else if (data.session?.user) { setUser(data.session.user); window.location.reload(); }
+              else if (data.session?.user) { setUser(data.session.user); }
             }
           }} className="space-y-4">
             <div>
@@ -480,7 +481,6 @@ export default function App() {
         user={user} 
         onComplete={() => {
           fetchRealUsers();
-          window.location.reload();
         }} 
       />
     );
@@ -526,12 +526,12 @@ export default function App() {
                 </div>
               )}
 
-              {/* 📅 Calendrier hybride interactif intégré sur l'accueil */}
-              <HybridCalendar posts={posts} currentUserId={user?.id} />
+              {/* 📅 Calendrier hybride interactif */}
+              <HybridCalendar posts={posts} currentUserId={user?.id} onRefresh={fetchCloudPosts} />
 
               <FatigueDashboardCard logs={gymLogsData} />
 
-              {/* ⚡ Minuteur WOD inséré proprement dans le flux de la page d'accueil */}
+              {/* ⚡ Minuteur WOD */}
               <div className="flex justify-center my-2">
                 <FloatingWodTimer />
               </div>
@@ -714,7 +714,7 @@ export default function App() {
 
           {currentTab === 'readiness' && (
             <div className="space-y-4">
-              <HybridCalendar posts={posts} currentUserId={user?.id} />
+              <HybridCalendar posts={posts} currentUserId={user?.id} onRefresh={fetchCloudPosts} />
               <TrainingPlanTab currentUserId={user?.id} />
               <RoadbookTab currentUserId={user?.id} />
               <ReadinessCheckin currentUserId={user?.id} onUpdatePlan={(rec) => alert(rec)} />
@@ -853,7 +853,7 @@ export default function App() {
                 const selectWodType = (formElement.elements[0] as HTMLSelectElement).value;
                 const scoreInput = (formElement.elements[1] as HTMLInputElement).value;
                 const noteInput = (formElement.elements[2] as HTMLTextAreaElement).value;
-                 
+                  
                 const scaleMode = (formElement.elements.namedItem('scaleMode') as RadioNodeList).value;
 
                 if (!scoreInput.trim()) { alert("Veuillez indiquer un score ou un temps !"); return; }
@@ -916,7 +916,7 @@ export default function App() {
                 <div className="flex items-center gap-3 bg-neutral-950 border border-neutral-800 rounded-xl p-3">
                   <input type="radio" name="scaleMode" value="RX" id="rxMode" defaultChecked className="accent-cyan-500 w-4 h-4 cursor-pointer" />
                   <label htmlFor="rxMode" className="text-xs text-white font-bold mr-4 cursor-pointer">RX</label>
-                   
+                    
                   <input type="radio" name="scaleMode" value="SCALED" id="scaledMode" className="accent-neutral-500 w-4 h-4 cursor-pointer" />
                   <label htmlFor="scaledMode" className="text-xs text-white font-bold cursor-pointer">Scaled</label>
                 </div>
@@ -929,11 +929,11 @@ export default function App() {
           </div>
         )}
 
-        {/* 📸 VUE PROFIL IMMERSIVE COMPLÈTE (FAÇON PAGE FACEBOOK) */}
+        {/* 📸 VUE PROFIL */}
         {viewingProfileUser && (() => {
           const targetUserId = viewingProfileUser.id;
           const isSelf = user?.id === targetUserId;
-           
+            
           const friendship = friendRequests.find(
             req => (req.sender_id === user?.id && req.receiver_id === targetUserId) ||
                    (req.sender_id === targetUserId && req.receiver_id === user?.id)
@@ -948,7 +948,6 @@ export default function App() {
 
           return (
             <div className="fixed inset-0 z-50 bg-neutral-950 flex flex-col overflow-y-auto animate-fadeIn">
-              {/* Photo de couverture */}
               <div className="relative h-44 bg-gradient-to-r from-orange-600 via-neutral-800 to-cyan-600 flex-shrink-0">
                 <button 
                   type="button" 
@@ -1006,7 +1005,7 @@ export default function App() {
                   )}
                 </div>
 
-                {/* Transformations Avant/Après de l'utilisateur */}
+                {/* Transformations */}
                 {userTransformations.length > 0 && (
                   <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-3 shadow-xl">
                     <h3 className="text-xs font-black uppercase tracking-wider text-orange-400 flex items-center gap-1.5">
@@ -1071,7 +1070,7 @@ export default function App() {
             <Users className="w-5 h-5" />
             <span className="text-[10px]">Communauté</span>
           </button>
-           
+          
           <button onClick={() => setIsActionMenuOpen(true)} className="flex flex-col items-center justify-center w-12 h-12 rounded-full bg-orange-600 hover:bg-orange-500 text-white shadow-[0_0_15px_rgba(234,88,12,0.3)] transition transform hover:scale-105 active:scale-95 -mt-4 cursor-pointer flex-shrink-0 z-50 border-[3px] border-neutral-950">
             <Plus className="w-6 h-6 stroke-[3]" />
           </button>
