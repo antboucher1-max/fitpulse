@@ -29,6 +29,10 @@ import SpotSearchInput from './components/SpotSearchInput';
 import HybridCalendar from './components/HybridCalendar';
 import OnboardingWizard from './components/OnboardingWizard';
 
+// Nouveaux composants intégrés pour l'ACWR, la fatigue et l'overlay du chrono
+import FatigueDashboardCard from './components/FatigueDashboardCard';
+import FloatingWodTimer from './components/FloatingWodTimer';
+
 const supabaseUrl = 'https://obtahwmcoqrcauscpksv.supabase.co';
 const supabaseAnonKey = 'sb_publishable_O8CKhUtzgq9nO9lKavNE9A__fAdRWoB';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
@@ -53,7 +57,7 @@ const isMarathonWeek = (targetMarathonDate?: string): boolean => {
 export default function App() {
   const [user, setUser] = useState<SupabaseUser | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
-   
+    
   const [authEmail, setAuthEmail] = useState('');
   const [authPassword, setAuthPassword] = useState('');
   const [isSignUpMode, setIsSignUpMode] = useState(false);
@@ -68,7 +72,7 @@ export default function App() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [feedLoading, setFeedLoading] = useState(false);
   const [userAvatarUrl] = useState<string>('https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=150');
-   
+  
   const profileAvatarInputRef = useRef<HTMLInputElement>(null);
   const beforeFileInputRef = useRef<HTMLInputElement>(null);
   const afterFileInputRef = useRef<HTMLInputElement>(null);
@@ -80,6 +84,9 @@ export default function App() {
   
   const [isGymLogOpen, setIsGymLogOpen] = useState(false);
   const [isWodGeneratorOpen, setIsWodGeneratorOpen] = useState(false);
+
+  // État pour stocker les logs de musculation et alimenter la fatigue ACWR
+  const [gymLogsData, setGymLogsData] = useState<any[]>([]);
 
   const [postSessionType, setPostSessionType] = useState('Musculation Full Body');
   const [postCaption, setPostCaption] = useState('');
@@ -150,6 +157,11 @@ export default function App() {
   const fetchUserShoes = async (userId: string) => {
     const { data } = await supabase.from('running_shoes').select('*').eq('user_id', userId).order('created_at', { ascending: false });
     if (data) setUserShoes(data);
+  };
+
+  const fetchGymLogsForUser = async (userId: string) => {
+    const { data } = await supabase.from('gym_logs').select('*').eq('user_id', userId);
+    if (data) setGymLogsData(data);
   };
 
   const calculateDynamicReadiness = () => {
@@ -251,6 +263,7 @@ export default function App() {
         fetchTransformations(session.user.id);
         fetchFriendRequests(session.user.id);
         fetchUserShoes(session.user.id);
+        fetchGymLogsForUser(session.user.id);
       }
       setAuthLoading(false);
     });
@@ -405,7 +418,7 @@ export default function App() {
       <div className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col items-center justify-center font-sans p-4 select-none">
         <div className="w-full max-w-sm bg-neutral-900 border border-neutral-800 rounded-3xl p-6 space-y-6 shadow-2xl relative">
           <div className="text-center space-y-2">
-            <div className="w-12 h-12 rounded-2xl bg-orange-500/20 flex items-center justify-center text-orange-500 mx-auto">
+            <div className="w-12 h-12 rounded-2xl bg-orange-500/25 flex items-center justify-center text-orange-500 mx-auto">
               <Zap className="w-6 h-6" />
             </div>
             <h1 className="text-xl font-black text-white tracking-tight">FitPulse</h1>
@@ -445,7 +458,7 @@ export default function App() {
           </form>
 
           <div className="text-center">
-            <button type="button" onClick={() => setIsSignUpMode(!isSignUpMode)} className="text-xs text-orange-400 font-semibold">
+            <button type="button" onClick={() => setIsSignUpMode(!isSignUpMode)} className="text-xs text-orange-400 font-semibold cursor-pointer">
               {isSignUpMode ? "Déjà un compte ? Connecte-toi" : "Pas encore de compte ? Inscris-toi"}
             </button>
           </div>
@@ -469,6 +482,9 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col font-sans select-none antialiased relative">
+      {/* Minuteur WOD flottant permanent en overlay */}
+      <FloatingWodTimer />
+
       <div className="w-full max-w-md mx-auto min-h-screen bg-neutral-950 flex flex-col shadow-2xl sm:border-x sm:border-neutral-900 relative">
         <header className="sticky top-0 z-40 bg-neutral-950/80 backdrop-blur-md border-b border-neutral-900 px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
@@ -506,6 +522,9 @@ export default function App() {
                   </p>
                 </div>
               )}
+
+              {/* Composant ACWR & Cartographie de Fatigue Musculaire */}
+              <FatigueDashboardCard logs={gymLogsData} />
 
               <div className={`bg-gradient-to-br border rounded-[2rem] p-6 shadow-2xl relative overflow-hidden transition-colors duration-500 ${currentReadinessScore < 50 ? 'from-neutral-900 to-red-950/40 border-red-500/30' : 'from-neutral-900 to-orange-950/40 border-orange-500/30'}`}>
                 <div className={`absolute -right-8 -top-8 w-36 h-36 rounded-full blur-3xl pointer-events-none ${currentReadinessScore < 50 ? 'bg-red-500/10' : 'bg-orange-500/10'}`} />
@@ -739,10 +758,10 @@ export default function App() {
           <div className="fixed inset-0 z-50 bg-black/95 flex flex-col animate-fadeIn">
             <div className="flex items-center justify-between p-4 border-b border-neutral-800 bg-neutral-900">
               <div className="flex items-center gap-2 text-white font-black"><Dumbbell className="w-5 h-5 text-orange-500" /> Carnet de Musculation</div>
-              <button type="button" onClick={() => setIsGymLogOpen(false)} className="p-2 text-neutral-400 hover:text-white rounded-xl bg-neutral-800 transition cursor-pointer"><X className="w-5 h-5" /></button>
+              <button type="button" onClick={() => { setIsGymLogOpen(false); if (user) fetchGymLogsForUser(user.id); }} className="p-2 text-neutral-400 hover:text-white rounded-xl bg-neutral-800 transition cursor-pointer"><X className="w-5 h-5" /></button>
             </div>
             <div className="flex-1 overflow-y-auto p-4 bg-neutral-950">
-              <GymLogTab currentUserId={user?.id} onStartRestTimer={() => { setIsGymLogOpen(false); handleTabChange('rest_timer'); }} />
+              <GymLogTab currentUserId={user?.id} onStartRestTimer={() => { setIsGymLogOpen(false); if (user) fetchGymLogsForUser(user.id); handleTabChange('rest_timer'); }} />
             </div>
           </div>
         )}
