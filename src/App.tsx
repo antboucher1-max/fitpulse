@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, ChangeEvent, FormEvent } from 'react';
 import {
-  Zap, User, MessageCircle, Home, Users, Plus, X, Camera, Flame, MapPin, Trophy, Navigation, Calendar, Skull, BatteryCharging, ArrowRight, Activity, Sparkles, Play, Dumbbell, Settings, ChevronRight, ChevronLeft, CheckCircle2, Bot
+  Zap, User, MessageCircle, Home, Users, Plus, X, Camera, Flame, MapPin, Trophy, Navigation, Calendar, Skull, BatteryCharging, ArrowRight, Activity, Sparkles, Play, Dumbbell, Settings, ChevronRight, ChevronLeft, CheckCircle2, Bot, ArrowLeft
 } from 'lucide-react';
 import { createClient, User as SupabaseUser } from '@supabase/supabase-js';
 
@@ -528,6 +528,11 @@ export default function App() {
 
               <FatigueDashboardCard logs={gymLogsData} />
 
+              {/* ⚡ Minuteur WOD inséré proprement dans le flux de la page d'accueil */}
+              <div className="flex justify-center my-2">
+                <FloatingWodTimer />
+              </div>
+
               <div className={`bg-gradient-to-br border rounded-[2rem] p-6 shadow-2xl relative overflow-hidden transition-colors duration-500 ${currentReadinessScore < 50 ? 'from-neutral-900 to-red-950/40 border-red-500/30' : 'from-neutral-900 to-orange-950/40 border-orange-500/30'}`}>
                 <div className={`absolute -right-8 -top-8 w-36 h-36 rounded-full blur-3xl pointer-events-none ${currentReadinessScore < 50 ? 'bg-red-500/10' : 'bg-orange-500/10'}`} />
                 
@@ -728,13 +733,6 @@ export default function App() {
           )}
         </main>
 
-        {/* ⚡ Chrono flottant encapsulé avec gestion des clics pour libérer les onglets du bas */}
-        <div className="absolute bottom-20 left-4 right-4 z-50 flex justify-center pointer-events-none">
-          <div className="pointer-events-auto">
-            <FloatingWodTimer />
-          </div>
-        </div>
-
         {isActionMenuOpen && (
           <div className="fixed inset-0 z-50 bg-black/90 flex items-end justify-center p-4 pb-24 sm:items-center animate-fadeIn" onClick={() => setIsActionMenuOpen(false)}>
             <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-sm w-full p-6 space-y-5 shadow-2xl relative animate-slideUp" onClick={e => e.stopPropagation()}>
@@ -928,6 +926,7 @@ export default function App() {
           </div>
         )}
 
+        {/* 📸 VUE PROFIL IMMERSIVE COMPLÈTE (FAÇON PAGE FACEBOOK) */}
         {viewingProfileUser && (() => {
           const targetUserId = viewingProfileUser.id;
           const isSelf = user?.id === targetUserId;
@@ -942,23 +941,34 @@ export default function App() {
           const isPendingReceived = friendship?.status === 'pending' && friendship.receiver_id === user?.id;
 
           const userProfilePosts = posts.filter(p => p.user_id === targetUserId);
+          const userTransformations = transformations.filter(t => t.user_id === targetUserId);
 
           return (
-            <div className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
-              <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-md w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden animate-scaleUp">
-                <div className="relative h-32 bg-gradient-to-r from-orange-600 via-neutral-800 to-cyan-600 flex-shrink-0">
-                  <button type="button" onClick={() => setViewingProfileUser(null)} className="absolute top-3 right-3 p-2 bg-black/60 hover:bg-black text-white rounded-full z-10 transition cursor-pointer">
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
+            <div className="fixed inset-0 z-50 bg-neutral-950 flex flex-col overflow-y-auto animate-fadeIn">
+              {/* Photo de couverture */}
+              <div className="relative h-44 bg-gradient-to-r from-orange-600 via-neutral-800 to-cyan-600 flex-shrink-0">
+                <button 
+                  type="button" 
+                  onClick={() => setViewingProfileUser(null)} 
+                  className="absolute top-4 left-4 p-2.5 bg-black/60 hover:bg-black text-white rounded-full z-20 transition cursor-pointer flex items-center gap-1.5 text-xs font-bold px-3.5"
+                >
+                  <ArrowLeft className="w-4 h-4" /> Retour
+                </button>
+                {(viewingProfileUser as any).cover_url && (
+                  <img src={(viewingProfileUser as any).cover_url} alt="Couverture" className="w-full h-full object-cover opacity-80" />
+                )}
+              </div>
 
-                <div className="px-5 pb-5 -mt-12 flex-1 overflow-y-auto space-y-4">
-                  <div className="flex flex-col items-center sm:items-start sm:flex-row gap-4">
-                    <img src={viewingProfileUser.avatar_url || 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=150'} alt={viewingProfileUser.username} className="w-24 h-24 rounded-full object-cover border-4 border-neutral-900 shadow-xl bg-neutral-800" />
-                    <div className="flex-1 text-center sm:text-left pt-2">
-                      <h2 className="text-lg font-black text-white">{viewingProfileUser.username}</h2>
-                      <p className="text-xs text-orange-400 font-semibold">{viewingProfileUser.home_club || 'Spot non renseigné'}</p>
-                      <div className="flex justify-center sm:justify-start gap-3 mt-2 text-[11px] text-neutral-400 font-bold">
+              <div className="px-4 pb-16 -mt-12 space-y-4 relative z-10 max-w-md mx-auto w-full">
+                <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 shadow-2xl space-y-4">
+                  <div className="flex flex-col items-center sm:items-start text-center sm:text-left gap-3">
+                    <img src={viewingProfileUser.avatar_url || 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=150'} alt={viewingProfileUser.username} className="w-24 h-24 rounded-full object-cover border-4 border-neutral-900 shadow-2xl bg-neutral-800 -mt-12" />
+                    <div className="w-full space-y-1">
+                      <h2 className="text-xl font-black text-white">{viewingProfileUser.username}</h2>
+                      <p className="text-xs text-orange-400 font-semibold flex items-center justify-center sm:justify-start gap-1">
+                        <MapPin className="w-3.5 h-3.5" /> {viewingProfileUser.home_club || 'Spot non renseigné'}
+                      </p>
+                      <div className="flex justify-center sm:justify-start gap-3 mt-2 text-xs text-neutral-300">
                         <span>Objectif : <strong className="text-white">{viewingProfileUser.goal || 'Muscu'}</strong></span>
                         <span>•</span>
                         <span>Ligue : <strong className="text-cyan-400">{(viewingProfileUser as any).points || 0} pts ⚡</strong></span>
@@ -967,13 +977,13 @@ export default function App() {
                   </div>
 
                   {!isSelf && (
-                    <div className="flex gap-2 pt-1">
+                    <div className="flex gap-2 pt-2">
                       {!friendship ? (
                         <button onClick={async () => { if (!user) return; await supabase.from('friend_requests').insert([{ sender_id: user.id, receiver_id: targetUserId, status: 'pending' }]); fetchFriendRequests(user.id); }} className="flex-1 py-2.5 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-xl text-xs shadow-lg transition cursor-pointer">
                           Ajouter en ami 🤝
                         </button>
                       ) : isAlreadyFriends ? (
-                        <button onClick={async () => { await supabase.from('friend_requests').delete().eq('id', friendship.id); if (user) fetchFriendRequests(user.id); }} className="flex-1 py-2.5 bg-neutral-800 hover:bg-red-500/20 hover:text-red-400 text-neutral-300 font-bold rounded-2xl text-xs border border-neutral-700 transition cursor-pointer">
+                        <button onClick={async () => { await supabase.from('friend_requests').delete().eq('id', friendship.id); if (user) fetchFriendRequests(user.id); }} className="flex-1 py-2.5 bg-neutral-800 hover:bg-red-500/20 hover:text-red-400 text-neutral-300 font-bold rounded-xl text-xs border border-neutral-700 transition cursor-pointer">
                           Retirer des amis ✓
                         </button>
                       ) : isPendingSent ? (
@@ -986,36 +996,62 @@ export default function App() {
                         </button>
                       ) : null}
 
-                      <button onClick={() => { setViewingProfileUser(null); handleOpenChatWithUser(viewingProfileUser); handleTabChange('chat'); }} className="px-4 py-2.5 bg-neutral-800 hover:bg-neutral-700 text-white font-bold rounded-2xl text-xs border border-neutral-700 transition cursor-pointer">
+                      <button onClick={() => { setViewingProfileUser(null); handleOpenChatWithUser(viewingProfileUser); handleTabChange('chat'); }} className="px-4 py-2.5 bg-neutral-800 hover:bg-neutral-700 text-white font-bold rounded-xl text-xs border border-neutral-700 transition cursor-pointer">
                         Message 💬
                       </button>
                     </div>
                   )}
+                </div>
 
-                  <div className="space-y-3 pt-2">
-                    <h4 className="text-xs font-black uppercase tracking-wider text-neutral-400 border-b border-neutral-800 pb-2">
-                      Publications de {viewingProfileUser.username} ({userProfilePosts.length})
-                    </h4>
-
-                    {userProfilePosts.length === 0 ? (
-                      <p className="text-xs text-neutral-500 text-center py-6">Aucune publication pour le moment.</p>
-                    ) : (
-                      userProfilePosts.map(post => (
-                        <div key={post.id} className="bg-neutral-950 border border-neutral-800 p-3.5 rounded-2xl space-y-2">
-                          <div className="flex items-center justify-between text-[11px] text-neutral-400">
-                            <span className="font-bold text-orange-400">{post.session_type}</span>
-                            <span>{new Date(post.created_at).toLocaleDateString()}</span>
+                {/* Transformations Avant/Après de l'utilisateur */}
+                {userTransformations.length > 0 && (
+                  <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-3 shadow-xl">
+                    <h3 className="text-xs font-black uppercase tracking-wider text-orange-400 flex items-center gap-1.5">
+                      <Flame className="w-4 h-4" /> Transformations Avant / Après ({userTransformations.length})
+                    </h3>
+                    <div className="grid grid-cols-2 gap-3">
+                      {userTransformations.map(trans => (
+                        <div key={trans.id} className="bg-neutral-950 border border-neutral-800 rounded-2xl overflow-hidden p-2 space-y-2">
+                          <div className="grid grid-cols-2 gap-1 h-28">
+                            {trans.before_url && <img src={trans.before_url} alt="Avant" className="w-full h-full object-cover rounded-lg" />}
+                            {trans.after_url && <img src={trans.after_url} alt="Après" className="w-full h-full object-cover rounded-lg" />}
                           </div>
-                          <p className="text-xs text-neutral-200">{post.caption}</p>
-                          {post.image_url && (
-                            <div className="rounded-xl overflow-hidden h-36 border border-neutral-800">
-                              <img src={post.image_url} alt="" className="w-full h-full object-cover" />
-                            </div>
-                          )}
+                          <div className="text-[10px] text-neutral-400 flex justify-between font-bold px-1">
+                            <span>{trans.weight} kg</span>
+                            <span>{trans.date}</span>
+                          </div>
+                          <p className="text-[11px] text-neutral-200 px-1 truncate">{trans.note}</p>
                         </div>
-                      ))
-                    )}
+                      ))}
+                    </div>
                   </div>
+                )}
+
+                <div className="space-y-3">
+                  <h4 className="text-xs font-black uppercase tracking-wider text-neutral-400 ml-1">
+                    Publications de {viewingProfileUser.username} ({userProfilePosts.length})
+                  </h4>
+
+                  {userProfilePosts.length === 0 ? (
+                    <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-8 text-center text-neutral-500 text-xs">
+                      Aucune publication pour le moment.
+                    </div>
+                  ) : (
+                    userProfilePosts.map(post => (
+                      <div key={post.id} className="bg-neutral-900 border border-neutral-800 p-4 rounded-3xl space-y-3 shadow-xl">
+                        <div className="flex items-center justify-between text-xs text-neutral-400">
+                          <span className="font-bold text-orange-400">{post.session_type}</span>
+                          <span>{new Date(post.created_at).toLocaleDateString()}</span>
+                        </div>
+                        <p className="text-xs text-neutral-200 leading-relaxed">{post.caption}</p>
+                        {post.image_url && (
+                          <div className="rounded-2xl overflow-hidden h-48 border border-neutral-800">
+                            <img src={post.image_url} alt="" className="w-full h-full object-cover" />
+                          </div>
+                        )}
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
             </div>
