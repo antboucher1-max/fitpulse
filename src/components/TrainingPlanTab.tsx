@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Calendar, AlertCircle } from 'lucide-react';
+import { Calendar, AlertCircle, Sparkles } from 'lucide-react';
 import { createClient } from '@supabase/supabase-js';
+import { getAdaptiveTrainingPlan } from '../utils/adaptiveTrainer';
 
 const supabaseUrl = 'https://obtahwmcoqrcauscpksv.supabase.co';
 const supabaseAnonKey = 'sb_publishable_O8CKhUtzgq9nO9lKavNE9A__fAdRWoB';
@@ -25,6 +26,9 @@ export default function TrainingPlanTab({ currentUserId }: { currentUserId?: str
   const [sessions, setSessions] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [authStatus, setAuthStatus] = useState<string>("Vérification de l'auth...");
+
+  // État pour stocker les adaptations dynamiques des séances en fonction du carnet de muscu
+  const [adaptedSessions, setAdaptedSessions] = useState<Record<string, any>>({});
 
   useEffect(() => {
     async function resolveUser() {
@@ -68,6 +72,22 @@ export default function TrainingPlanTab({ currentUserId }: { currentUserId?: str
           return (DAY_ORDER[a.day_name] || 99) - (DAY_ORDER[b.day_name] || 99);
         });
         setSessions(sorted);
+
+        // Récupérer les gym_logs récents pour exécuter l'algorithme adaptatif
+        const { data: gymLogs } = await supabase
+          .from('gym_logs')
+          .select('*')
+          .eq('user_id', userId);
+
+        if (gymLogs) {
+          const adaptations: Record<string, any> = {};
+          sorted.forEach(session => {
+            const result = getAdaptiveTrainingPlan(gymLogs, session.session_type);
+            adaptations[session.id] = result;
+          });
+          setAdaptedSessions(adaptations);
+        }
+
       } else {
         setSessions([]);
       }
@@ -107,7 +127,7 @@ export default function TrainingPlanTab({ currentUserId }: { currentUserId?: str
         { day_name: 'Mardi', session_type: 'WOD / Fonctionnel', description: 'MetCon court & intensité élevée' },
         { day_name: 'Mercredi', session_type: 'Récupération Active', description: 'Mobilité & Core training léger' },
         { day_name: 'Jeudi', session_type: 'Musculation (Pull / Dos)', description: 'Dos / Biceps / Postérieur + isolation' },
-        { day_name: 'Vendredi', session_type: 'Cardio Hybride / Run', description: '30 min endurance fondamentale ou seuil' },
+        { day_name: 'Vendredi', session_type: 'Cardio Hybride / Fractionné VMA', description: '30 min endurance fondamentale ou seuil' },
         { day_name: 'Samedi', session_type: 'Jambes / Force Bas du corps', description: 'Squats, Deadlifts & hypertrophie' },
         { day_name: 'Dimanche', session_type: 'Repos total', description: 'Recharge & décompression' }
       ];
@@ -211,18 +231,35 @@ export default function TrainingPlanTab({ currentUserId }: { currentUserId?: str
           </div>
 
           <div className="space-y-2">
-            <h4 className="text-xs font-black uppercase tracking-wider text-neutral-400">Séances de la semaine :</h4>
-            {sessions.map((session) => (
-              <div key={session.id} className="bg-neutral-950 border border-neutral-800 p-3.5 rounded-2xl flex justify-between items-center">
-                <div>
-                  <span className="text-[10px] text-orange-400 font-bold block">{session.day_name} • {session.session_type}</span>
-                  <span className="text-xs font-bold text-white">{session.description}</span>
+            <h4 className="text-xs font-black uppercase tracking-wider text-neutral-400">Séances de la semaine (Adaptation IA) :</h4>
+            {sessions.map((session) => {
+              const adaptation = adaptedSessions[session.id];
+              const isModified = adaptation?.isModified;
+
+              return (
+                <div key={session.id} className={`bg-neutral-950 border p-3.5 rounded-2xl space-y-2 transition-all ${isModified ? 'border-amber-500/50 bg-amber-950/10' : 'border-neutral-800'}`}>
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <span className="text-[10px] text-orange-400 font-bold block">
+                        {session.day_name} • {isModified ? <span className="text-amber-400 font-extrabold">⚡ {adaptation.recommendedSession}</span> : session.session_type}
+                      </span>
+                      <span className="text-xs font-bold text-white">{session.description}</span>
+                    </div>
+                    <span className="text-[10px] bg-neutral-900 border border-neutral-800 text-neutral-400 px-2.5 py-1 rounded-xl font-bold">
+                      {session.status}
+                    </span>
+                  </div>
+
+                  {/* Alerte d'adaptation si l'algorithme a détecté une fatigue des jambes suite au GymLog */}
+                  {isModified && (
+                    <div className={`text-[10px] p-2 rounded-xl border flex items-start gap-1.5 ${adaptation.badgeColor}`}>
+                      <Sparkles className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                      <span>{adaptation.reason}</span>
+                    </div>
+                  )}
                 </div>
-                <span className="text-[10px] bg-neutral-900 border border-neutral-800 text-neutral-400 px-2.5 py-1 rounded-xl font-bold">
-                  {session.status}
-                </span>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
