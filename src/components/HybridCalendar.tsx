@@ -1,13 +1,22 @@
 import { useState, useMemo } from 'react';
-import { Calendar as CalendarIcon, Dumbbell, Activity, Flame, ChevronLeft, ChevronRight, CheckCircle2 } from 'lucide-react';
+import { Calendar as CalendarIcon, Dumbbell, Activity, ChevronLeft, ChevronRight, Plus, X } from 'lucide-react';
+import { supabase } from '../supabaseClient';
 
 interface HybridCalendarProps {
   posts: any[];
   currentUserId?: string;
+  onRefresh?: () => void;
 }
 
-export default function HybridCalendar({ posts, currentUserId }: HybridCalendarProps) {
+export default function HybridCalendar({ posts, currentUserId, onRefresh }: HybridCalendarProps) {
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [selectedDateStr, setSelectedDateStr] = useState<string | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  
+  // États du formulaire de programmation
+  const [sessionType, setSessionType] = useState('Musculation Full Body');
+  const [description, setDescription] = useState('');
+  const [loading, setLoading] = useState(false);
 
   // Filtrer les posts de l'utilisateur connecté
   const userActivities = useMemo(() => {
@@ -46,6 +55,47 @@ export default function HybridCalendar({ posts, currentUserId }: HybridCalendarP
     setCurrentDate(new Date(year, month + 1, 1));
   };
 
+  const handleDayClick = (dayNum: number) => {
+    const formattedMonth = (month + 1).toString().padStart(2, '0');
+    const formattedDay = dayNum.toString().padStart(2, '0');
+    const dateStr = `${year}-${formattedMonth}-${formattedDay}`;
+    setSelectedDateStr(dateStr);
+    setIsModalOpen(true);
+  };
+
+  const handleSaveSession = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentUserId || !selectedDateStr) return;
+
+    setLoading(true);
+    try {
+      const { error } = await supabase.from('posts').insert([{
+        user_id: currentUserId,
+        username: 'Planificateur',
+        avatar_url: '',
+        club_name: 'Tournai',
+        session_type: `📅 [Prévu] ${sessionType}`,
+        caption: description || 'Séance programmée dans le calendrier',
+        exercises: [],
+        likes_count: 0,
+        comments_count: 0,
+        is_private: false,
+        created_at: `${selectedDateStr}T08:00:00.000Z`
+      }]);
+
+      if (error) throw error;
+
+      setIsModalOpen(false);
+      setDescription('');
+      if (onRefresh) onRefresh();
+      window.location.reload();
+    } catch (err: any) {
+      alert("Erreur lors de la programmation : " + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 shadow-xl space-y-4">
       
@@ -74,9 +124,12 @@ export default function HybridCalendar({ posts, currentUserId }: HybridCalendarP
       </div>
 
       {/* Légende rapide */}
-      <div className="flex items-center gap-4 text-[10px] font-bold text-neutral-400 border-b border-neutral-800 pb-3">
-        <span className="flex items-center gap-1"><Dumbbell className="w-3.5 h-3.5 text-orange-500" /> Musculation / Force</span>
-        <span className="flex items-center gap-1"><Activity className="w-3.5 h-3.5 text-emerald-400" /> Course à pied / Cardio</span>
+      <div className="flex items-center justify-between border-b border-neutral-800 pb-3 text-[10px] font-bold text-neutral-400">
+        <div className="flex items-center gap-4">
+          <span className="flex items-center gap-1"><Dumbbell className="w-3.5 h-3.5 text-orange-500" /> Force</span>
+          <span className="flex items-center gap-1"><Activity className="w-3.5 h-3.5 text-emerald-400" /> Cardio</span>
+        </div>
+        <span className="text-neutral-500 italic">Clique sur un jour pour programmer 💡</span>
       </div>
 
       {/* Grille des jours de la semaine */}
@@ -98,7 +151,7 @@ export default function HybridCalendar({ posts, currentUserId }: HybridCalendarP
           const dateString = `${year}-${formattedMonth}-${formattedDay}`;
           
           const dayActivities = activitiesByDate[dateString] || [];
-          const hasRunning = dayActivities.some(a => a.session_type?.toLowerCase().includes('cardio') || a.session_type?.toLowerCase().includes('running') || a.session_type?.toLowerCase().includes('footing'));
+          const hasRunning = dayActivities.some(a => a.session_type?.toLowerCase().includes('cardio') || a.session_type?.toLowerCase().includes('running') || a.session_type?.toLowerCase().includes('footing') || a.session_type?.toLowerCase().includes('prévu'));
           const hasMuscu = dayActivities.some(a => !hasRunning);
 
           const isToday = new Date().toISOString().split('T')[0] === dateString;
@@ -106,17 +159,21 @@ export default function HybridCalendar({ posts, currentUserId }: HybridCalendarP
           return (
             <div 
               key={dateString}
-              className={`h-16 rounded-xl border p-1.5 flex flex-col justify-between transition relative overflow-hidden ${
+              onClick={() => handleDayClick(dayNum)}
+              className={`h-16 rounded-xl border p-1.5 flex flex-col justify-between transition relative overflow-hidden cursor-pointer group ${
                 isToday 
                   ? 'bg-neutral-800 border-orange-500 shadow-md' 
                   : dayActivities.length > 0 
-                    ? 'bg-neutral-950 border-neutral-700' 
-                    : 'bg-neutral-950/60 border-neutral-800/60'
+                    ? 'bg-neutral-950 border-neutral-700 hover:border-orange-500/50' 
+                    : 'bg-neutral-950/60 border-neutral-800/60 hover:border-neutral-700'
               }`}
             >
-              <span className={`text-[10px] font-bold ${isToday ? 'text-orange-400 font-black' : 'text-neutral-400'}`}>
-                {dayNum}
-              </span>
+              <div className="flex justify-between items-center w-full">
+                <span className={`text-[10px] font-bold ${isToday ? 'text-orange-400 font-black' : 'text-neutral-400'}`}>
+                  {dayNum}
+                </span>
+                <Plus className="w-3 h-3 text-neutral-600 opacity-0 group-hover:opacity-100 transition" />
+              </div>
 
               {/* Indicateurs d'activités unifiées */}
               <div className="flex flex-col gap-0.5 mt-auto">
@@ -135,6 +192,60 @@ export default function HybridCalendar({ posts, currentUserId }: HybridCalendarP
           );
         })}
       </div>
+
+      {/* MODALE DE PROGRAMMATION AU CLIC */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4 animate-fadeIn">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-sm w-full p-6 space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between">
+              <h3 className="font-extrabold text-sm text-white flex items-center gap-2">
+                <Plus className="w-4 h-4 text-orange-500" /> Programmer le {selectedDateStr}
+              </h3>
+              <button onClick={() => setIsModalOpen(false)} className="p-1.5 text-neutral-400 hover:text-white rounded-xl cursor-pointer">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveSession} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-neutral-400 mb-1">Type de séance :</label>
+                <select 
+                  value={sessionType} 
+                  onChange={(e) => setSessionType(e.target.value)} 
+                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3.5 py-3 text-xs text-white focus:outline-none"
+                >
+                  <option value="Musculation Full Body">💪 Musculation Full Body</option>
+                  <option value="Push / Force">🏋️‍♂️ Push / Force</option>
+                  <option value="Pull / Dos">🦾 Pull / Dos</option>
+                  <option value="Jambes / Squat">🦵 Jambes / Squat</option>
+                  <option value="Footing / VMA">🏃‍♂️ Footing / VMA</option>
+                  <option value="WOD / Crossfit">⚡ WOD / Crossfit</option>
+                  <option value="Repos / Mobilité">🧘‍♂️ Repos / Mobilité</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-neutral-400 mb-1">Détails ou Objectif :</label>
+                <textarea 
+                  rows={3} 
+                  placeholder="Ex: 10km allure marathon ou série lourde au squat..." 
+                  value={description} 
+                  onChange={(e) => setDescription(e.target.value)} 
+                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-xs text-white focus:outline-none" 
+                />
+              </div>
+
+              <button 
+                type="submit" 
+                disabled={loading}
+                className="w-full py-3.5 bg-orange-600 hover:bg-orange-500 text-white font-black rounded-2xl text-xs shadow-xl transition cursor-pointer disabled:opacity-50"
+              >
+                {loading ? "Programmation..." : "Valider et planifier la séance 🚀"}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
 
     </div>
   );
