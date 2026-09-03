@@ -69,28 +69,27 @@ export default function HybridCalendar({ posts, currentUserId, onRefresh }: Hybr
 
     setLoading(true);
     try {
-      const { error } = await supabase.from('posts').insert([{
+      const payload = {
         user_id: currentUserId,
-        username: 'Planificateur',
-        avatar_url: '',
-        club_name: 'Tournai',
-        session_type: `📅 [Prévu] ${sessionType}`,
-        caption: description || 'Séance ou événement programmé dans le calendrier',
-        exercises: [],
-        likes_count: 0,
-        comments_count: 0,
-        is_private: false,
-        created_at: `${selectedDateStr}T08:00:00.000Z`
-      }]);
+        session_type: sessionType,
+        notes: description || 'Séance ou événement programmé dans le calendrier',
+        date: selectedDateStr,
+        created_at: new Date().toISOString()
+      };
 
-      if (error) throw error;
+      const { error } = await supabase.from('training_sessions').insert([payload]);
+
+      if (error) {
+        console.error("Erreur Supabase détaillée :", error);
+        throw new Error(error.message);
+      }
 
       setIsModalOpen(false);
       setDescription('');
       if (onRefresh) onRefresh();
       window.location.reload();
     } catch (err: any) {
-      alert("Erreur lors de la programmation : " + err.message);
+      alert("Erreur lors de la programmation : " + (err.message || "Impossible de joindre le serveur"));
     } finally {
       setLoading(false);
     }
@@ -152,7 +151,7 @@ export default function HybridCalendar({ posts, currentUserId, onRefresh }: Hybr
           const dateString = `${year}-${formattedMonth}-${formattedDay}`;
           
           const dayActivities = activitiesByDate[dateString] || [];
-          const hasCompetition = dayActivities.some(a => a.session_type?.toLowerCase().includes('marathon') || a.session_type?.toLowerCase().includes('course') || a.session_type?.toLowerCase().includes('hyrox') || a.session_type?.toLowerCase().includes('crossfit') || a.session_type?.toLowerCase().includes('concours'));
+          const hasCompetition = dayActivities.some(a => a.session_type?.toLowerCase().includes('marathon') || a.session_type?.toLowerCase().includes('course') || a.session_type?.toLowerCase().includes('hyrox') || a.session_type?.toLowerCase().includes('crossfit') || a.session_type?.toLowerCase().includes('concours') || a.session_type?.toLowerCase().includes('event'));
           const hasRunning = dayActivities.some(a => (a.session_type?.toLowerCase().includes('cardio') || a.session_type?.toLowerCase().includes('running') || a.session_type?.toLowerCase().includes('footing') || a.session_type?.toLowerCase().includes('prévu')) && !hasCompetition);
           const hasMuscu = dayActivities.some(a => !hasRunning && !hasCompetition);
 
@@ -200,7 +199,7 @@ export default function HybridCalendar({ posts, currentUserId, onRefresh }: Hybr
         })}
       </div>
 
-      {/* MODALE DE PROGRAMMATION AU CLIC (AVEC COURSES & COMPÉTITIONS) */}
+      {/* MODALE DE PROGRAMMATION AU CLIC */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4 animate-fadeIn">
           <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-sm w-full p-6 space-y-4 shadow-2xl">
