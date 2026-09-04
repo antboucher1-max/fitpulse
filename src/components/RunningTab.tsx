@@ -39,7 +39,7 @@ interface RunningTabProps {
   onSetActiveShoe?: (shoeId: string) => void;
   onSaveRunPost?: (caption: string, km: number) => void;
   onNavigateTab?: (tab: string) => void;
-  onBack?: () => void; // 👈 Ajout de la prop retour
+  onBack?: () => void;
 }
 
 export default function RunningTab({
@@ -79,6 +79,42 @@ export default function RunningTab({
 
   const lastPositionRef = useRef<[number, number]>([50.505, 3.325]);
 
+  // --- OFFLINE RUN GUARD : Restauration d'une course non finalisée au chargement ---
+  useEffect(() => {
+    const savedRun = localStorage.getItem('fitpulse_offline_run');
+    if (savedRun) {
+      try {
+        const parsed = JSON.parse(savedRun);
+        if (parsed.distanceKm > 0 && confirm("⚡ [Mode Hors-Ligne] Une course interrompue a été détectée en local. Veux-tu récupérer ton tracé et tes données ?")) {
+          setRoutePositions(parsed.routePositions || [[50.505, 3.325]]);
+          setDistanceKm(parsed.distanceKm || 0);
+          setSeconds(parsed.seconds || 0);
+          if (parsed.routePositions?.length > 0) {
+            setCurrentPosition(parsed.routePositions[parsed.routePositions.length - 1]);
+            lastPositionRef.current = parsed.routePositions[parsed.routePositions.length - 1];
+          }
+        } else {
+          localStorage.removeItem('fitpulse_offline_run');
+        }
+      } catch (e) {
+        console.warn("Erreur lecture sauvegarde locale course :", e);
+        localStorage.removeItem('fitpulse_offline_run');
+      }
+    }
+  }, []);
+
+  // --- OFFLINE RUN GUARD : Sauvegarde incrémentielle en temps réel ---
+  useEffect(() => {
+    if (isRunning) {
+      localStorage.setItem('fitpulse_offline_run', JSON.stringify({
+        routePositions,
+        distanceKm,
+        seconds,
+        timestamp: Date.now()
+      }));
+    }
+  }, [routePositions, distanceKm, seconds, isRunning]);
+
   // Fonction de synthèse vocale intelligente
   const speakMessage = (text: string) => {
     if (!audioCoaching || !('speechSynthesis' in window)) return;
@@ -96,8 +132,8 @@ export default function RunningTab({
       const data = await response.json();
        
       if (data && data.current) {
-        const speed = data.current.wind_speed_10m; // km/h
-        const direction = data.current.wind_direction_10m; // degrés (0-360)
+        const speed = data.current.wind_speed_10m;
+        const direction = data.current.wind_direction_10m;
          
         setWindSpeedKmh(speed);
         setWindDirectionDeg(direction);
@@ -111,12 +147,11 @@ export default function RunningTab({
         }
       }
     } catch (e) {
-      console.warn("Impossible de joindre l'API Météo :", e);
-      setWindDescription("Météo locale indisponible (Mode par défaut)");
+      console.warn("Impossible de joindre l'API Météo (Zone blanche potentielle) :", e);
+      setWindDescription("Météo locale indisponible (Mode hors-ligne actif)");
     }
   };
 
-  // Initialisation et centrage sur la position réelle + Appel Météo
   const fetchInitialPosition = () => {
     if ('geolocation' in navigator) {
       navigator.geolocation.getCurrentPosition(
@@ -126,14 +161,13 @@ export default function RunningTab({
           const coord: [number, number] = [lat, lng];
           setCurrentPosition(coord);
           lastPositionRef.current = coord;
-          setRoutePositions([coord]);
-
-          // Appel de la météo réelle selon les coordonnées GPS
+          if (routePositions.length <= 1) {
+            setRoutePositions([coord]);
+          }
           fetchRealTimeWindAndPosition(lat, lng);
         },
         (error) => {
           console.warn("GPS non disponible :", error.message);
-          // Fallback sur Tournai par défaut si refus GPS
           fetchRealTimeWindAndPosition(50.6053, 3.3862);
         },
         { enableHighAccuracy: true }
@@ -145,7 +179,6 @@ export default function RunningTab({
     fetchInitialPosition();
   }, []);
 
-  // Suivi GPS stable et Coaching Vocal périodique (toutes les 60 secondes avec prise en compte du vent)
   useEffect(() => {
     let interval: any = null;
     let watchId: number | null = null;
@@ -155,24 +188,22 @@ export default function RunningTab({
         setSeconds(s => {
           const newSecs = s + 1;
            
-          // Analyse de l'allure et du vent toutes les minutes
           if (newSecs > 0 && newSecs % 60 === 0 && distanceKm > 0) {
             const currentSecPerKm = newSecs / distanceKm;
             const diff = currentSecPerKm - targetPaceSecs; 
              
             let coachingText = `Point course : ${distanceKm.toFixed(2)} kilomètres. `;
              
-            // Intégration dynamique du vent réel dans le coaching vocal
             if (windSpeedKmh > 15) {
-              coachingText += `Attention, vent de face ou de travers estimé à ${windSpeedKmh} kilomètres heure. Adapte ta foulée pour économiser tes fibres. `;
+              coachingText += `Attention, vent estimé à ${windSpeedKmh} kilomètres heure. Adapte ta foulée. `;
             }
 
             if (Math.abs(diff) < 15) {
-              coachingText += "Allure parfaite, tu es dans les clous de ton objectif !";
+              coachingText += "Allure parfaite, tu es dans les clous !";
             } else if (diff < -15) {
               coachingText += "Attention, tu cours trop vite par rapport à ta cible !";
             } else {
-              coachingText += "Tu es en dessous de ton allure cible, relance un peu l'effort !";
+              coachingText += "Tu es en dessous de ton allure cible, relance un peu !";
             }
 
             setCoachingAdvice(coachingText);
@@ -198,12 +229,10 @@ export default function RunningTab({
               lastPositionRef.current = newPos;
               setCurrentPosition(newPos);
               setRoutePositions(prev => [...prev, newPos]);
-               
-              // Actualisation météo toutes les 500 positions si besoin
               fetchRealTimeWindAndPosition(lat, lng);
             }
           },
-          (error) => console.error(error),
+          (error) => console.warn("GPS watch error (hors-ligne probable) :", error),
           { enableHighAccuracy: true, maximumAge: 3000, timeout: 5000 }
         );
       }
@@ -215,7 +244,6 @@ export default function RunningTab({
     };
   }, [isRunning, isPaused, distanceKm, targetPaceSecs, audioCoaching, windSpeedKmh]);
 
-  // Fonction de test pour le "Silent Club Broadcast" (Vibration + Alerte Sonore AirHorn)
   const triggerSilentBroadcastTest = () => {
     if ('vibrate' in navigator) {
       navigator.vibrate([200, 100, 400]);
@@ -246,10 +274,10 @@ export default function RunningTab({
         osc2.stop(audioContext.currentTime + 0.3);
       }, 200);
     } catch (e) {
-      console.warn("Audio context non supporté ou bloqué", e);
+      console.warn("Audio context non supporté", e);
     }
 
-    alert("📳 [Silent Broadcast] Un pote vient de t'envoyer un signal d'encouragement en direct ! (Vibration + Son)");
+    alert("📳 [Silent Broadcast] Signal d'encouragement reçu en direct !");
   };
 
   const formatTime = (totalSecs: number) => {
@@ -269,8 +297,8 @@ export default function RunningTab({
     setSeconds(0);
     setDistanceKm(0);
     fetchInitialPosition();
-    setCoachingAdvice(`Sortie démarrée. Vent mesuré à ${windSpeedKmh} km/h pris en compte par l'IA !`);
-    speakMessage("Sortie démarrée. Analyse du vent par satellite active. Bon entraînement !");
+    setCoachingAdvice(`Sortie démarrée. Sécurité hors-ligne active.`);
+    speakMessage("Sortie démarrée. Protection hors-ligne active. Bon entraînement !");
   };
 
   const handlePauseRun = () => {
@@ -282,12 +310,15 @@ export default function RunningTab({
     setIsRunning(false);
     setIsPaused(false);
     speakMessage("Séance terminée. Excellent travail !");
+    
     if (distanceKm > 0 && onSaveRunPost) {
       onSaveRunPost(`[Running] Sortie de ${distanceKm} km en ${formatTime(seconds)} 🏃‍♂️`, distanceKm);
     }
+
+    // Nettoyage de la sauvegarde locale après publication réussie
+    localStorage.removeItem('fitpulse_offline_run');
   };
 
-  // Calculs d'allure et vitesse en temps réel
   const currentHours = seconds / 3600;
   const currentSpeedKmh = currentHours > 0 && distanceKm > 0 ? (distanceKm / currentHours).toFixed(1) : '0.0';
    
@@ -332,7 +363,7 @@ export default function RunningTab({
             <div className="flex items-center gap-2 text-orange-400 font-bold text-xs uppercase tracking-widest mb-1">
               <Compass className="w-4 h-4" /> Mode Running & Ghost Pacing
             </div>
-            <h2 className="text-xl font-black text-white tracking-tight">GPS, Météo Satellite & Stratégie</h2>
+            <h2 className="text-xl font-black text-white tracking-tight">GPS, Météo Satellite & Sécurité Hors-Ligne</h2>
           </div>
           <button 
             type="button"
@@ -371,7 +402,6 @@ export default function RunningTab({
             </div>
           </div>
 
-          {/* Boîte de conseil vocal proactif en direct */}
           <div className="bg-orange-950/30 border border-orange-500/30 rounded-2xl p-4 flex items-start gap-3 relative z-10">
             <div className="w-8 h-8 rounded-xl bg-orange-500/20 text-orange-400 flex items-center justify-center flex-shrink-0 mt-0.5 animate-pulse">
               🗣️
@@ -384,7 +414,7 @@ export default function RunningTab({
         </div>
       </PaywallGate>
 
-      {/* Widget Intégré : Contrôle de Récupération & Charge (Readiness / Load Score) */}
+      {/* Widget Intégré : Contrôle de Récupération & Charge */}
       <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4 shadow-xl">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 text-emerald-400 font-bold text-xs uppercase tracking-wider">
@@ -422,11 +452,11 @@ export default function RunningTab({
         </div>
       </div>
 
-      {/* Carte GPS prenant tout le cadre avec suivi et marqueur */}
+      {/* Carte GPS */}
       <div className="bg-neutral-900 border border-neutral-800/80 rounded-3xl p-4 sm:p-6 space-y-4 shadow-xl">
         <div className="flex items-center justify-between px-1">
           <h3 className="text-xs font-black text-white flex items-center gap-2 uppercase tracking-wider">
-            <Navigation className="w-4 h-4 text-emerald-400 animate-pulse" /> Carte Live & Tracé Route
+            <Navigation className="w-4 h-4 text-emerald-400 animate-pulse" /> Carte Live & Tracé Route (Offline Safe)
           </h3>
           <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1 rounded-full">
             {isRunning ? 'Enregistrement actif...' : 'Prêt à démarrer'}
@@ -452,7 +482,6 @@ export default function RunningTab({
             <Marker position={currentPosition} icon={runnerIcon} />
           </MapContainer>
 
-          {/* Badge position GPS en temps réel sur la carte */}
           <div className="absolute bottom-3 left-3 z-[1000] bg-neutral-950/90 border border-neutral-800 backdrop-blur px-3 py-1.5 rounded-xl text-[10px] text-emerald-400 font-mono flex items-center gap-2 shadow-lg">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
             <span>Lat: {currentPosition[0].toFixed(4)}° N, Lng: {currentPosition[1].toFixed(4)}° E</span>
@@ -460,7 +489,7 @@ export default function RunningTab({
         </div>
       </div>
 
-      {/* Module GPS / Tracker Live avec Vitesse km/h et Allure min/km */}
+      {/* Module GPS / Tracker Live */}
       <div className="bg-neutral-900 border border-neutral-800/80 rounded-3xl p-6 space-y-5 shadow-xl">
         <div className="flex items-center justify-between">
           <h3 className="text-xs font-black text-white flex items-center gap-2 uppercase tracking-wider">
@@ -478,7 +507,6 @@ export default function RunningTab({
           </button>
         </div>
 
-        {/* Paramétrage de l'allure cible pour le coach vocal */}
         <div className="bg-neutral-950 p-3.5 rounded-2xl border border-neutral-800 flex items-center justify-between">
           <span className="text-xs font-bold text-neutral-300 flex items-center gap-1.5">
             <Target className="w-4 h-4 text-orange-400" /> Objectif d'allure cible :
@@ -495,7 +523,6 @@ export default function RunningTab({
           </select>
         </div>
 
-        {/* Grille des 4 indicateurs clés : Distance, Vitesse (km/h), Allure (min/km), Chrono */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <div className="bg-neutral-950 p-3 rounded-2xl border border-neutral-800 space-y-1">
             <span className="text-[10px] text-neutral-400 font-semibold block uppercase">Distance</span>
@@ -519,7 +546,6 @@ export default function RunningTab({
           </div>
         </div>
 
-        {/* Bouton de test du Silent Club Broadcast */}
         <button 
           type="button"
           onClick={triggerSilentBroadcastTest}
@@ -559,7 +585,7 @@ export default function RunningTab({
         </div>
       </div>
 
-      {/* Planificateur de Ravitaillement Intégré */}
+      {/* Planificateur de Ravitaillement */}
       <div className="bg-neutral-900 border border-neutral-800/80 rounded-3xl p-6 space-y-5 shadow-xl">
         <div className="flex items-center gap-2 text-orange-400 font-bold text-xs uppercase tracking-widest">
           <Zap className="w-4 h-4" /> Planificateur de Ravitaillement
