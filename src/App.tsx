@@ -32,6 +32,7 @@ import OnboardingWizard from './components/OnboardingWizard';
 import PaywallGate from './components/PaywallGate';
 import FridgeScannerTab from './components/FridgeScannerTab';
 import HybridShareCard from './components/HybridShareCard';
+import LiveCoachEngine from './components/LiveCoachEngine';
 
 import FatigueDashboardCard from './components/FatigueDashboardCard';
 
@@ -552,7 +553,13 @@ export default function App() {
         </header>
 
         <main className="flex-1 w-full mx-auto px-4 py-3 pb-32 space-y-3">
-          {currentTab === 'running' && <OfflineRunGuard currentUserId={user?.id} />}
+          {currentTab === 'running' && (
+            <div className="space-y-4 animate-fadeIn">
+              <OfflineRunGuard currentUserId={user?.id} />
+              {/* ⚡ MODULE DE COACH VOCAL & MÉTÉO ADAPTATIVE INTÉGRÉ EN LIVE */}
+              <LiveCoachEngine currentKm={5.2} currentPaceSeconds={295} isRunActive={true} />
+            </div>
+          )}
 
           {/* 🌟 ÉCRAN D'ACCUEIL ÉPURÉ (CORE LOOP) */}
           {currentTab === 'today' && (
