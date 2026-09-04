@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Share2, Trophy, Flame, Zap, CheckCircle2, Download } from 'lucide-react';
+import { Share2 } from 'lucide-react';
 
 interface HybridShareCardProps {
   username?: string;
