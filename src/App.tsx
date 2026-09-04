@@ -348,7 +348,6 @@ export default function App() {
     await supabase.from('posts').update({ likes_count: newCount, liked_by: updatedLikedBy }).eq('id', postId);
   };
 
-  // Suppression d'une publication (post)
   const handleDeletePost = async (postId: string) => {
     if (!user) return;
     const confirmDelete = window.confirm("Es-tu sûr de vouloir supprimer cette publication ?");
@@ -553,49 +552,22 @@ export default function App() {
         <main className="flex-1 w-full mx-auto px-4 py-3 pb-32 space-y-3">
           {currentTab === 'running' && <OfflineRunGuard currentUserId={user?.id} />}
 
+          {/* 🌟 ÉCRAN D'ACCUEIL ÉPURÉ (CORE LOOP) */}
           {currentTab === 'today' && (
-            <div className="space-y-6 animate-fadeIn pb-12">
-              {/* 🌟 BANNEAU D'ACCUEIL / GUIDAGE */}
-              <div className="bg-gradient-to-r from-orange-950/60 via-neutral-900 to-neutral-900 border border-orange-500/30 rounded-3xl p-4 flex items-start gap-3.5 shadow-lg relative">
-                <div className="w-10 h-10 rounded-2xl bg-orange-500/20 text-orange-400 flex items-center justify-center flex-shrink-0 border border-orange-500/30">
-                  <Sparkles className="w-5 h-5" />
+            <div className="space-y-5 animate-fadeIn pb-12">
+              
+              {/* Étape 1 : Forme & Readiness */}
+              <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-3 shadow-xl relative overflow-hidden">
+                <div className="absolute -right-8 -top-8 w-28 h-28 bg-orange-500/10 rounded-full blur-2xl pointer-events-none" />
+                <div className="flex items-center justify-between relative z-10">
+                  <span className="text-xs font-black uppercase tracking-wider text-orange-400 flex items-center gap-2">
+                    <Activity className="w-4 h-4" /> Forme & Readiness du jour
+                  </span>
+                  <span className="text-[10px] bg-orange-500/20 text-orange-400 font-bold px-2.5 py-0.5 rounded-full border border-orange-500/30">
+                    Core Loop • Étape 1
+                  </span>
                 </div>
-                <div className="flex-1 min-w-0 space-y-1">
-                  <h4 className="text-xs font-black text-white">Bienvenue sur FitPulse ⚡</h4>
-                  <p className="text-[11px] text-neutral-300 leading-relaxed">
-                    Choisis ta discipline ci-dessous pour accéder instantanément à ton espace dédié.
-                  </p>
-                </div>
-              </div>
-
-              {/* 🎯 LES 3 BOUTONS D'ACCÈS DIRECT (Muscu, CrossFit, Course) */}
-              <div className="grid grid-cols-3 gap-2">
-                {/* Bouton Muscu : Ouvre directement le carnet de muscu */}
-                <button 
-                  onClick={() => setIsGymLogOpen(true)} 
-                  className="py-3 px-2 bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 hover:border-orange-500/50 rounded-2xl text-xs font-black text-white transition cursor-pointer flex flex-col items-center gap-1.5 shadow-lg group"
-                >
-                  <span className="text-lg">🏋️‍♂️</span>
-                  <span className="group-hover:text-orange-400 transition">Muscu</span>
-                </button>
-
-                {/* Bouton CrossFit : Bascule directement vers le panneau complet BoxWars / CrossFit */}
-                <button 
-                  onClick={() => handleTabChange('boxwars')} 
-                  className="py-3 px-2 bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 hover:border-cyan-500/50 rounded-2xl text-xs font-black text-white transition cursor-pointer flex flex-col items-center gap-1.5 shadow-lg group"
-                >
-                  <span className="text-lg">🥵</span>
-                  <span className="group-hover:text-cyan-400 transition">CrossFit</span>
-                </button>
-
-                {/* Bouton Course : Bascule l'onglet sur la vue Running complète */}
-                <button 
-                  onClick={() => handleTabChange('running')} 
-                  className="py-3 px-2 bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 hover:border-emerald-500/50 rounded-2xl text-xs font-black text-white transition cursor-pointer flex flex-col items-center gap-1.5 shadow-lg group"
-                >
-                  <span className="text-lg">🏃‍♂️</span>
-                  <span className="group-hover:text-emerald-400 transition">Course</span>
-                </button>
+                <ReadinessCheckin currentUserId={user?.id} onUpdatePlan={(rec) => alert(rec)} />
               </div>
 
               {inTaperingWeek && (
@@ -610,80 +582,83 @@ export default function App() {
                 </div>
               )}
 
-              {/* 📸 ACCÈS DIRECT AU SCAN FRIGO PRO */}
-              <PaywallGate userId={user?.id} featureName="Scan Post-WOD de la Faim">
-                <div 
-                  onClick={() => handleTabChange('fridge_scanner')}
-                  className="bg-gradient-to-r from-orange-950/60 via-neutral-900 to-neutral-900 border border-orange-500/40 hover:border-orange-400 rounded-3xl p-4 flex items-center gap-3.5 shadow-lg relative overflow-hidden cursor-pointer transition group"
-                >
-                  <div className="absolute right-0 top-0 w-28 h-28 bg-orange-500/10 rounded-full blur-2xl pointer-events-none" />
-                  <div className="w-10 h-10 rounded-2xl bg-orange-500/20 text-orange-400 flex items-center justify-center flex-shrink-0 border border-orange-500/30">
-                    <span className="text-lg">📸</span>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <h4 className="text-xs font-black text-white group-hover:text-orange-300 transition">Scan Post-WOD de la Faim</h4>
-                      <span className="text-[9px] bg-orange-500/20 text-orange-400 font-extrabold px-2 py-0.5 rounded-md border border-orange-500/30">Pro 🚀</span>
-                    </div>
-                    <p className="text-[11px] text-neutral-300 leading-snug pt-0.5">
-                      Prends ton frigo en photo : le FitBot te génère une recette express en 5 min selon tes macros !
-                    </p>
-                  </div>
-                  <ChevronRight className="w-4 h-4 text-neutral-500 group-hover:text-orange-400 transition flex-shrink-0" />
-                </div>
-              </PaywallGate>
+              {/* Étape 2 : Lancer l'entraînement hybride */}
+              <div className="space-y-2">
+                <span className="text-[10px] font-black uppercase tracking-widest text-neutral-500 px-1 block">
+                  Étape 2 : Lancer l'entraînement hybride
+                </span>
+                <div className="grid grid-cols-3 gap-2">
+                  <button 
+                    onClick={() => setIsGymLogOpen(true)} 
+                    className="py-4 px-2 bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 hover:border-orange-500/50 rounded-2xl text-xs font-black text-white transition cursor-pointer flex flex-col items-center gap-2 shadow-lg group"
+                  >
+                    <span className="text-xl">🏋️‍♂️</span>
+                    <span className="group-hover:text-orange-400 transition">Muscu</span>
+                  </button>
 
-              {/* 📋 CHECK-IN OBLIGATOIRE DU JOUR & CALENDRIER */}
-              <div className="space-y-4">
-                <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-3 shadow-xl">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-black uppercase tracking-wider text-orange-400 flex items-center gap-2">
-                      <Activity className="w-4 h-4" /> Check-in & Forme du jour
-                    </span>
-                    <span className="text-[10px] bg-orange-500/20 text-orange-400 font-bold px-2 py-0.5 rounded-full border border-orange-500/30">
-                      Obligatoire ⚡
-                    </span>
-                  </div>
-                  <ReadinessCheckin currentUserId={user?.id} onUpdatePlan={(rec) => alert(rec)} />
-                </div>
+                  <button 
+                    onClick={() => handleTabChange('boxwars')} 
+                    className="py-4 px-2 bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 hover:border-cyan-500/50 rounded-2xl text-xs font-black text-white transition cursor-pointer flex flex-col items-center gap-2 shadow-lg group"
+                  >
+                    <span className="text-xl">🥵</span>
+                    <span className="group-hover:text-cyan-400 transition">CrossFit</span>
+                  </button>
 
-                <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-4 space-y-3 shadow-xl">
-                  <span className="text-xs font-black uppercase tracking-wider text-neutral-400 flex items-center gap-2 ml-1">
-                    <Calendar className="w-4 h-4 text-orange-500" /> Planning de la semaine
-                  </span>
-                  <HybridCalendar posts={posts} currentUserId={user?.id} onRefresh={fetchCloudPosts} />
+                  <button 
+                    onClick={() => handleTabChange('running')} 
+                    className="py-4 px-2 bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 hover:border-emerald-500/50 rounded-2xl text-xs font-black text-white transition cursor-pointer flex flex-col items-center gap-2 shadow-lg group"
+                  >
+                    <span className="text-xl">🏃‍♂️</span>
+                    <span className="group-hover:text-emerald-400 transition">Course</span>
+                  </button>
                 </div>
               </div>
 
-              {/* 🔒 EXEMPLE DE VERROUILLAGE PRO AVEC PAYWALL GATE SUR LE FITBOT */}
-              <PaywallGate userId={user?.id} featureName="IA Coach Proactif">
-                <div 
-                  onClick={() => handleTabChange('fitbot')}
-                  className="bg-gradient-to-r from-cyan-950/60 via-neutral-900 to-neutral-900 border border-cyan-500/40 hover:border-cyan-400 rounded-3xl p-4 flex items-center gap-3.5 shadow-lg relative overflow-hidden cursor-pointer transition group"
-                >
-                  <div className="absolute right-0 top-0 w-28 h-28 bg-cyan-500/10 rounded-full blur-2xl pointer-events-none" />
-                  <div className="w-10 h-10 rounded-2xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center flex-shrink-0 border border-cyan-500/30 animate-pulse">
-                    <Bot className="w-5 h-5" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <h4 className="text-xs font-black text-white group-hover:text-cyan-300 transition">Coach FitBot AI</h4>
-                      <span className="text-[9px] bg-cyan-500/20 text-cyan-400 font-extrabold px-2 py-0.5 rounded-md border border-cyan-500/30">Pro 🚀</span>
+              {/* Étape 3 : Restitution IA & Scan Frigo */}
+              <PaywallGate userId={user?.id} featureName="IA Coach Proactif & Scan Frigo">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div 
+                    onClick={() => handleTabChange('fitbot')}
+                    className="bg-neutral-900 hover:bg-neutral-850 border border-cyan-500/30 hover:border-cyan-400 rounded-3xl p-4 flex items-center gap-3.5 shadow-lg cursor-pointer transition group"
+                  >
+                    <div className="w-10 h-10 rounded-2xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center flex-shrink-0 border border-cyan-500/30">
+                      <Bot className="w-5 h-5" />
                     </div>
-                    <p className="text-[11px] text-neutral-300 leading-snug pt-0.5">
-                      Discute avec ton coach IA pour recevoir des conseils sur-mesure en sport et en nutrition !
-                    </p>
+                    <div className="flex-1 min-w-0">
+                      <h4 className="text-xs font-black text-white group-hover:text-cyan-300 transition">FitBot AI</h4>
+                      <p className="text-[10px] text-neutral-400 truncate">Analyse de charge & conseils</p>
+                    </div>
                   </div>
-                  <ChevronRight className="w-4 h-4 text-neutral-500 group-hover:text-cyan-400 transition flex-shrink-0" />
+
+                  <div 
+                    onClick={() => handleTabChange('fridge_scanner')}
+                    className="bg-neutral-900 hover:bg-neutral-850 border border-orange-500/30 hover:border-orange-400 rounded-3xl p-4 flex items-center gap-3.5 shadow-lg cursor-pointer transition group"
+                  >
+                    <div className="w-10 h-10 rounded-2xl bg-orange-500/20 text-orange-400 flex items-center justify-center flex-shrink-0 border border-orange-500/30">
+                      <span className="text-base">📸</span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h4 className="text-xs font-black text-white group-hover:text-orange-300 transition">Scan Frigo</h4>
+                      <p className="text-[10px] text-neutral-400 truncate">Recette post-WOD instantanée</p>
+                    </div>
+                  </div>
                 </div>
               </PaywallGate>
+
+              {/* Vue d'ensemble de la semaine */}
+              <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-4 space-y-3 shadow-xl">
+                <span className="text-xs font-black uppercase tracking-wider text-neutral-400 flex items-center gap-2 ml-1">
+                  <Calendar className="w-4 h-4 text-orange-500" /> Vue d'ensemble de la semaine
+                </span>
+                <HybridCalendar posts={posts} currentUserId={user?.id} onRefresh={fetchCloudPosts} />
+              </div>
 
             </div>
           )}
 
           {currentTab === 'fitbot' && (
             <PaywallGate userId={user?.id} featureName="IA Coach Proactif">
-              <FitBotTab currentUserProfile={currentUserProfile} currentReadinessScore={currentReadinessScore} />
+              <FitBotTab currentUserProfile={currentUserProfile} currentReadinessScore={currentReadinessScore} onBack={() => handleTabChange('today')} />
             </PaywallGate>
           )}
 
@@ -761,7 +736,6 @@ export default function App() {
             </div>
           )}
 
-          {/* 💬 ONGLET MESSAGERIE DIRECTE CENTRALISÉ VIA CHATTAB */}
           {currentTab === 'chat' && (
             <ChatTab 
               currentUserId={user?.id} 
@@ -1019,7 +993,7 @@ export default function App() {
           </div>
         )}
 
-        {/* MODALE CARNET DE MUSCULATION AVEC BOUTON RETOUR */}
+        {/* MODALE CARNET DE MUSCULATION */}
         {isGymLogOpen && (
           <div className="fixed inset-0 z-50 bg-neutral-950 flex flex-col animate-fadeIn">
             <div className="flex items-center justify-between p-4 border-b border-neutral-800 bg-neutral-900">
@@ -1041,7 +1015,7 @@ export default function App() {
           </div>
         )}
 
-        {/* MODALE GÉNÉRATEUR DE WOD AVEC BOUTON RETOUR */}
+        {/* MODALE GÉNÉRATEUR DE WOD */}
         {isWodGeneratorOpen && (
           <div className="fixed inset-0 z-50 bg-neutral-950 flex flex-col animate-fadeIn">
             <div className="flex items-center justify-between p-4 border-b border-neutral-800 bg-neutral-900">
