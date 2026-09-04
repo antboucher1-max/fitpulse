@@ -32,7 +32,6 @@ import OnboardingWizard from './components/OnboardingWizard';
 import PaywallGate from './components/PaywallGate';
 
 import FatigueDashboardCard from './components/FatigueDashboardCard';
-import FloatingWodTimer from './components/FloatingWodTimer';
 
 const isMatchingClub = (postClubName?: string, selectedClubName?: string): boolean => {
   if (!postClubName || !selectedClubName) return false;
@@ -610,11 +609,6 @@ export default function App() {
                   </span>
                   <HybridCalendar posts={posts} currentUserId={user?.id} onRefresh={fetchCloudPosts} />
                 </div>
-              </div>
-
-              {/* ⚡ Minuteur WOD */}
-              <div className="flex justify-center my-2">
-                <FloatingWodTimer />
               </div>
 
               {/* 🔒 EXEMPLE DE VERROUILLAGE PRO AVEC PAYWALL GATE SUR LE FITBOT */}
