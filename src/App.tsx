@@ -895,11 +895,11 @@ export default function App() {
           )}
 
           {currentTab === 'boxwars' && (
-            <BoxWarsTab currentUserId={user?.id} currentUsername={currentUsername} registeredUsers={registeredUsers} posts={posts} />
+            <BoxWarsTab currentUserId={user?.id} currentUsername={currentUsername} registeredUsers={registeredUsers} posts={posts} onBack={() => handleTabChange('today')} />
           )}
 
           {currentTab === 'running' && (
-            <RunningTab currentUserId={user?.id} currentUsername={currentUsername} selectedClub={selectedClub} currentUserProfile={currentUserProfile} userAvatarUrl={userAvatarUrl} onRefreshFeed={() => { fetchCloudPosts(); if (user) fetchUserShoes(user.id); }} />
+            <RunningTab currentUserId={user?.id} currentUsername={currentUsername} selectedClub={selectedClub} currentUserProfile={currentUserProfile} userAvatarUrl={userAvatarUrl} onRefreshFeed={() => { fetchCloudPosts(); if (user) fetchUserShoes(user.id); }} onBack={() => handleTabChange('today')} />
           )}
         </main>
 
