@@ -731,6 +731,28 @@ export default function App() {
             </div>
           )}
 
+          {/* 💬 ONGLET MESSAGERIE DIRECTE CENTRALISÉ VIA CHATTAB */}
+          {currentTab === 'chat' && (
+            <ChatTab 
+              currentUserId={user?.id} 
+              selectedBuddyChat={selectedBuddyChat} 
+              setSelectedBuddyChat={handleOpenChatWithUser} 
+              activeChatUsers={activeChatUsers} 
+              currentChatMessages={currentChatMessages} 
+              currentMessageInput={currentMessageInput} 
+              onInputChange={(e) => setCurrentMessageInput(e.target.value)} 
+              onSendMessage={handleSendMessage} 
+              onSelectBuddy={(f) => handleOpenChatWithUser(f)} 
+              onDeleteConversation={() => {}} 
+              onReportConversation={() => {}} 
+              isOtherUserTyping={isOtherUserTyping} 
+              isMessageLimitReached={false} 
+              lastReadTimestamps={lastReadTimestamps} 
+              messagesEndRef={messagesEndRef} 
+              allMessages={allMessages} 
+            />
+          )}
+
           {currentTab === 'rest_timer' && <WodTimerTab />}
           {currentTab === 'calculator' && <CalculatorTab />}
            
@@ -746,8 +768,6 @@ export default function App() {
               <ReadinessCheckin currentUserId={user?.id} onUpdatePlan={(rec) => alert(rec)} />
             </div>
           )}
-
-          {currentTab === 'chat' && <ChatTab currentUserId={user?.id} selectedBuddyChat={selectedBuddyChat} setSelectedBuddyChat={handleOpenChatWithUser} activeChatUsers={activeChatUsers} currentChatMessages={currentChatMessages} currentMessageInput={currentMessageInput} onInputChange={(e) => setCurrentMessageInput(e.target.value)} onSendMessage={handleSendMessage} onSelectBuddy={(f) => handleOpenChatWithUser(f)} onDeleteConversation={() => {}} onReportConversation={() => {}} isOtherUserTyping={isOtherUserTyping} isMessageLimitReached={false} lastReadTimestamps={lastReadTimestamps} messagesEndRef={messagesEndRef} allMessages={allMessages} />}
            
           {currentTab === 'profile' && (
             <ProfileTab 
@@ -853,7 +873,7 @@ export default function App() {
           )}
         </main>
 
-        {/* MODALE D'ACTION UNIVERSELLE EN LANGAGE NATUREL (Pilier 2 & 4) */}
+        {/* MODALE D'ACTION UNIVERSELLE EN LANGAGE NATUREL */}
         {isActionMenuOpen && (
           <div className="fixed inset-0 z-50 bg-black/90 flex items-end justify-center p-4 pb-24 sm:items-center animate-fadeIn" onClick={() => setIsActionMenuOpen(false)}>
             <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-sm w-full p-6 space-y-5 shadow-2xl relative animate-slideUp" onClick={e => e.stopPropagation()}>
@@ -922,7 +942,7 @@ export default function App() {
                 </button>
               </div>
 
-              {/* Passerelle Matériel & GPS (Pilier 4) */}
+              {/* Passerelle Matériel & GPS */}
               <div className="border-t border-neutral-800 pt-3 space-y-2">
                 <span className="text-[10px] uppercase font-bold text-neutral-500 block">Passerelle GPS & Matériel</span>
                 <div className="grid grid-cols-2 gap-2">
@@ -1267,8 +1287,9 @@ export default function App() {
           );
         })()}
 
+        {/* 🧭 NAVIGATION DU BAS (BOTTOM NAV) AVEC ONGLET MESSAGERIE DÉDIÉ */}
         <nav className="sticky bottom-0 left-0 right-0 z-40 bg-neutral-950/95 backdrop-blur-xl border-t border-neutral-800 px-4 py-3 flex justify-around items-center">
-          <button onClick={() => handleTabChange('today')} className={`flex flex-col items-center gap-1 transition active:scale-95 cursor-pointer px-3 ${currentTab === 'today' || currentTab === 'running' || currentTab === 'readiness' ? 'text-orange-500 font-bold' : 'text-neutral-500 hover:text-neutral-300'}`}>
+          <button onClick={() => handleTabChange('today')} className={`flex flex-col items-center gap-1 transition active:scale-95 cursor-pointer px-3 ${currentTab === 'today' || currentTab === 'running' || currentTab === 'readiness' || currentTab === 'boxwars' ? 'text-orange-500 font-bold' : 'text-neutral-500 hover:text-neutral-300'}`}>
             <Home className="w-5 h-5" />
             <span className="text-[10px]">Aujourd'hui</span>
           </button>
@@ -1278,11 +1299,23 @@ export default function App() {
             <span className="text-[10px]">Communauté</span>
           </button>
           
+          {/* BOUTON CENTRAL D'ACTION RAPIDE */}
           <button onClick={() => setIsActionMenuOpen(true)} className="flex flex-col items-center justify-center w-12 h-12 rounded-full bg-orange-600 hover:bg-orange-500 text-white shadow-[0_0_15px_rgba(234,88,12,0.3)] transition transform hover:scale-105 active:scale-95 -mt-4 cursor-pointer flex-shrink-0 z-50 border-[3px] border-neutral-950">
             <Plus className="w-6 h-6 stroke-[3]" />
           </button>
 
-          <button onClick={() => handleTabChange('profile')} className={`flex flex-col items-center gap-1 transition active:scale-95 cursor-pointer px-3 ${currentTab === 'profile' || currentTab === 'chat' || currentTab === 'fitbot' ? 'text-orange-500 font-bold' : 'text-neutral-500 hover:text-neutral-300'}`}>
+          {/* ONGLET MESSAGERIE DIRECTE DÉDIÉ */}
+          <button onClick={() => handleTabChange('chat')} className={`flex flex-col items-center gap-1 transition active:scale-95 cursor-pointer px-3 relative ${currentTab === 'chat' ? 'text-orange-500 font-bold' : 'text-neutral-500 hover:text-neutral-300'}`}>
+            <MessageCircle className="w-5 h-5" />
+            <span className="text-[10px]">Messages</span>
+            {allMessages.filter(m => m.receiver_id === user?.id && !m.read).length > 0 && (
+              <span className="absolute -top-1 right-2 bg-orange-600 text-white font-black text-[9px] w-4 h-4 rounded-full flex items-center justify-center shadow">
+                {allMessages.filter(m => m.receiver_id === user?.id && !m.read).length}
+              </span>
+            )}
+          </button>
+
+          <button onClick={() => handleTabChange('profile')} className={`flex flex-col items-center gap-1 transition active:scale-95 cursor-pointer px-3 ${currentTab === 'profile' || currentTab === 'fitbot' ? 'text-orange-500 font-bold' : 'text-neutral-500 hover:text-neutral-300'}`}>
             <User className="w-5 h-5" />
             <span className="text-[10px]">Profil & QG</span>
           </button>
