@@ -2,7 +2,7 @@ import PaywallGate from './PaywallGate';
 import { useState, useEffect, useRef } from 'react';
 import { 
   Play, Pause, Square, MapPin, Volume2, VolumeX, 
-  Compass, Apple, Droplet, Zap, Navigation, LocateFixed, Activity, Gauge, Timer, Target, Radio, Wind 
+  Compass, Apple, Droplet, Zap, Navigation, LocateFixed, Activity, Gauge, Timer, Target, Radio, Wind, ArrowLeft 
 } from 'lucide-react';
 import { MapContainer, TileLayer, Polyline, Marker, useMap } from 'react-leaflet';
 import L from 'leaflet';
@@ -39,6 +39,7 @@ interface RunningTabProps {
   onSetActiveShoe?: (shoeId: string) => void;
   onSaveRunPost?: (caption: string, km: number) => void;
   onNavigateTab?: (tab: string) => void;
+  onBack?: () => void; // 👈 Ajout de la prop retour
 }
 
 export default function RunningTab({
@@ -48,7 +49,8 @@ export default function RunningTab({
   onDeleteShoe = () => {},
   onSetActiveShoe = () => {},
   onSaveRunPost,
-  onNavigateTab
+  onNavigateTab,
+  onBack
 }: RunningTabProps) {
   const [isRunning, setIsRunning] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
@@ -92,11 +94,11 @@ export default function RunningTab({
     try {
       const response = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=wind_speed_10m,wind_direction_10m`);
       const data = await response.json();
-      
+       
       if (data && data.current) {
         const speed = data.current.wind_speed_10m; // km/h
         const direction = data.current.wind_direction_10m; // degrés (0-360)
-        
+         
         setWindSpeedKmh(speed);
         setWindDirectionDeg(direction);
 
@@ -159,7 +161,7 @@ export default function RunningTab({
             const diff = currentSecPerKm - targetPaceSecs; 
              
             let coachingText = `Point course : ${distanceKm.toFixed(2)} kilomètres. `;
-            
+             
             // Intégration dynamique du vent réel dans le coaching vocal
             if (windSpeedKmh > 15) {
               coachingText += `Attention, vent de face ou de travers estimé à ${windSpeedKmh} kilomètres heure. Adapte ta foulée pour économiser tes fibres. `;
@@ -196,7 +198,7 @@ export default function RunningTab({
               lastPositionRef.current = newPos;
               setCurrentPosition(newPos);
               setRoutePositions(prev => [...prev, newPos]);
-              
+               
               // Actualisation météo toutes les 500 positions si besoin
               fetchRealTimeWindAndPosition(lat, lng);
             }
@@ -221,7 +223,7 @@ export default function RunningTab({
 
     try {
       const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-      
+       
       const osc1 = audioContext.createOscillator();
       const gain1 = audioContext.createGain();
       osc1.type = 'sawtooth';
@@ -310,6 +312,18 @@ export default function RunningTab({
 
   return (
     <div className="space-y-6 pb-24 animate-fadeIn">
+      
+      {/* 🔙 BOUTON RETOUR */}
+      {onBack && (
+        <button 
+          type="button" 
+          onClick={onBack} 
+          className="flex items-center gap-1.5 text-xs font-bold text-neutral-300 hover:text-white bg-neutral-900 border border-neutral-800 px-3 py-2 rounded-xl transition cursor-pointer w-fit"
+        >
+          <ArrowLeft className="w-4 h-4" /> Retour
+        </button>
+      )}
+
       {/* En-tête de section moderne */}
       <div className="bg-gradient-to-r from-neutral-900 via-neutral-900 to-orange-950/35 border border-neutral-800 rounded-3xl p-6 shadow-2xl relative overflow-hidden">
         <div className="absolute -right-6 -bottom-6 w-32 h-32 bg-orange-500/10 rounded-full blur-3xl pointer-events-none" />
