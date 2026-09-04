@@ -30,6 +30,7 @@ import SpotSearchInput from './components/SpotSearchInput';
 import HybridCalendar from './components/HybridCalendar';
 import OnboardingWizard from './components/OnboardingWizard';
 import PaywallGate from './components/PaywallGate';
+import FridgeScannerTab from './components/FridgeScannerTab';
 
 import FatigueDashboardCard from './components/FatigueDashboardCard';
 
@@ -59,7 +60,7 @@ export default function App() {
   const [isSignUpMode, setIsSignUpMode] = useState(false);
   const [acceptCgu, setAcceptCgu] = useState(false);
 
-  const [currentTab, setCurrentTab] = useState<'today' | 'community' | 'profile' | 'feed' | 'buddy' | 'workout' | 'exercises' | 'chat' | 'calculator' | 'paces' | 'live_tracker' | 'rest_timer' | 'notifications' | 'leaderboard' | 'boxwars' | 'running' | 'readiness' | 'hall_of_fame' | 'fitbot'>(() => {
+  const [currentTab, setCurrentTab] = useState<'today' | 'community' | 'profile' | 'feed' | 'buddy' | 'workout' | 'exercises' | 'chat' | 'calculator' | 'paces' | 'live_tracker' | 'rest_timer' | 'notifications' | 'leaderboard' | 'boxwars' | 'running' | 'readiness' | 'hall_of_fame' | 'fitbot' | 'fridge_scanner'>(() => {
     const savedTab = localStorage.getItem('fitpulse_active_tab');
     return (savedTab as any) || 'today';
   });
@@ -511,15 +512,15 @@ export default function App() {
       <div className="w-full max-w-md mx-auto min-h-screen bg-neutral-950 flex flex-col shadow-2xl sm:border-x sm:border-neutral-900 relative">
         <header className="sticky top-0 z-40 bg-neutral-950/80 backdrop-blur-md border-b border-neutral-900 px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className={`w-8 h-8 rounded-xl ${currentTab === 'boxwars' ? 'bg-cyan-500/20 text-cyan-400' : currentTab === 'running' ? 'bg-emerald-500/20 text-emerald-400' : currentTab === 'hall_of_fame' ? 'bg-red-500/20 text-red-400' : currentTab === 'buddy' ? 'bg-orange-500/20 text-orange-400' : currentTab === 'fitbot' ? 'bg-cyan-500/20 text-cyan-400' : 'bg-orange-500/20 text-orange-500'} flex items-center justify-center`}>
+            <div className={`w-8 h-8 rounded-xl ${currentTab === 'boxwars' ? 'bg-cyan-500/20 text-cyan-400' : currentTab === 'running' ? 'bg-emerald-500/20 text-emerald-400' : currentTab === 'hall_of_fame' ? 'bg-red-500/20 text-red-400' : currentTab === 'buddy' ? 'bg-orange-500/20 text-orange-400' : currentTab === 'fitbot' ? 'bg-cyan-500/20 text-cyan-400' : currentTab === 'fridge_scanner' ? 'bg-orange-500/20 text-orange-400' : 'bg-orange-500/20 text-orange-500'} flex items-center justify-center`}>
               <Zap className="w-5 h-5" />
             </div>
             <h1 className="text-base font-black tracking-tight leading-none text-white">
-              {currentTab === 'boxwars' ? 'BOXWARS' : currentTab === 'running' ? 'RUNNING' : currentTab === 'hall_of_fame' ? 'HALL OF FAME' : currentTab === 'buddy' ? 'BUDDIES & MATCH' : currentTab === 'fitbot' ? 'FITBOT AI' : 'FitPulse'}
+              {currentTab === 'boxwars' ? 'BOXWARS' : currentTab === 'running' ? 'RUNNING' : currentTab === 'hall_of_fame' ? 'HALL OF FAME' : currentTab === 'buddy' ? 'BUDDIES & MATCH' : currentTab === 'fitbot' ? 'FITBOT AI' : currentTab === 'fridge_scanner' ? 'SCAN FRIGO' : 'FitPulse'}
             </h1>
           </div>
 
-          {currentTab !== 'boxwars' && currentTab !== 'running' && currentTab !== 'readiness' && currentTab !== 'paces' && currentTab !== 'calculator' && currentTab !== 'hall_of_fame' && currentTab !== 'buddy' && currentTab !== 'fitbot' && (
+          {currentTab !== 'boxwars' && currentTab !== 'running' && currentTab !== 'readiness' && currentTab !== 'paces' && currentTab !== 'calculator' && currentTab !== 'hall_of_fame' && currentTab !== 'buddy' && currentTab !== 'fitbot' && currentTab !== 'fridge_scanner' && (
             <div className="w-[42%] sm:w-[40%]">
               <SpotSearchInput 
                 selectedSpot={selectedClub} 
@@ -609,6 +610,29 @@ export default function App() {
                 </div>
               )}
 
+              {/* 📸 ACCÈS DIRECT AU SCAN FRIGO PRO */}
+              <PaywallGate userId={user?.id} featureName="Scan Post-WOD de la Faim">
+                <div 
+                  onClick={() => handleTabChange('fridge_scanner')}
+                  className="bg-gradient-to-r from-orange-950/60 via-neutral-900 to-neutral-900 border border-orange-500/40 hover:border-orange-400 rounded-3xl p-4 flex items-center gap-3.5 shadow-lg relative overflow-hidden cursor-pointer transition group"
+                >
+                  <div className="absolute right-0 top-0 w-28 h-28 bg-orange-500/10 rounded-full blur-2xl pointer-events-none" />
+                  <div className="w-10 h-10 rounded-2xl bg-orange-500/20 text-orange-400 flex items-center justify-center flex-shrink-0 border border-orange-500/30">
+                    <span className="text-lg">📸</span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <h4 className="text-xs font-black text-white group-hover:text-orange-300 transition">Scan Post-WOD de la Faim</h4>
+                      <span className="text-[9px] bg-orange-500/20 text-orange-400 font-extrabold px-2 py-0.5 rounded-md border border-orange-500/30">Pro 🚀</span>
+                    </div>
+                    <p className="text-[11px] text-neutral-300 leading-snug pt-0.5">
+                      Prends ton frigo en photo : le FitBot te génère une recette express en 5 min selon tes macros !
+                    </p>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-neutral-500 group-hover:text-orange-400 transition flex-shrink-0" />
+                </div>
+              </PaywallGate>
+
               {/* 📋 CHECK-IN OBLIGATOIRE DU JOUR & CALENDRIER */}
               <div className="space-y-4">
                 <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-3 shadow-xl">
@@ -660,6 +684,12 @@ export default function App() {
           {currentTab === 'fitbot' && (
             <PaywallGate userId={user?.id} featureName="IA Coach Proactif">
               <FitBotTab currentUserProfile={currentUserProfile} currentReadinessScore={currentReadinessScore} />
+            </PaywallGate>
+          )}
+
+          {currentTab === 'fridge_scanner' && (
+            <PaywallGate userId={user?.id} featureName="Scan Post-WOD de la Faim">
+              <FridgeScannerTab onBack={() => handleTabChange('today')} />
             </PaywallGate>
           )}
 
@@ -1307,9 +1337,9 @@ export default function App() {
           );
         })()}
 
-        {/* 🧭 NAVIGATION DU BAS (BOTTOM NAV) AVEC ONGLET MESSAGERIE DÉDIÉ */}
+        {/* 🧭 NAVIGATION DU BAS (BOTTOM NAV) */}
         <nav className="sticky bottom-0 left-0 right-0 z-40 bg-neutral-950/95 backdrop-blur-xl border-t border-neutral-800 px-4 py-3 flex justify-around items-center">
-          <button onClick={() => handleTabChange('today')} className={`flex flex-col items-center gap-1 transition active:scale-95 cursor-pointer px-3 ${currentTab === 'today' || currentTab === 'running' || currentTab === 'readiness' || currentTab === 'boxwars' ? 'text-orange-500 font-bold' : 'text-neutral-500 hover:text-neutral-300'}`}>
+          <button onClick={() => handleTabChange('today')} className={`flex flex-col items-center gap-1 transition active:scale-95 cursor-pointer px-3 ${currentTab === 'today' || currentTab === 'running' || currentTab === 'readiness' || currentTab === 'boxwars' || currentTab === 'fridge_scanner' ? 'text-orange-500 font-bold' : 'text-neutral-500 hover:text-neutral-300'}`}>
             <Home className="w-5 h-5" />
             <span className="text-[10px]">Aujourd'hui</span>
           </button>
