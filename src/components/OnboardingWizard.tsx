@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ChevronRight, ChevronLeft, Zap, Target, Dumbbell, MapPin, CheckCircle2 } from 'lucide-react';
+import { ChevronRight, ChevronLeft, Zap, Target, Dumbbell, MapPin, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = 'https://obtahwmcoqrcauscpksv.supabase.co';
@@ -31,11 +31,16 @@ export default function OnboardingWizard({ user, onComplete }: OnboardingWizardP
   const [goal, setGoal] = useState('Prise de masse / Force');
   const [discipline, setDiscipline] = useState('Fitness / Musculation');
   const [spot, setSpot] = useState('');
+  const [acceptedMedical, setAcceptedMedical] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   const handleFinish = async () => {
     if (!spot.trim()) {
       alert("Merci d'indiquer ton spot ou ta ville principale !");
+      return;
+    }
+    if (!acceptedMedical) {
+      alert("Veuillez accepter l'avertissement de non-responsabilité médicale pour continuer.");
       return;
     }
 
@@ -83,16 +88,16 @@ export default function OnboardingWizard({ user, onComplete }: OnboardingWizardP
 
       <div className="w-full max-w-sm bg-neutral-900 border border-neutral-800 rounded-[2.5rem] p-6 space-y-6 shadow-2xl relative animate-slideUp">
         
-        {/* ÉTAPE 1 : IDENTITÉ */}
+        {/* ÉTAPE 1 : IDENTITÉ & GENRE ÉTENDU */}
         {step === 1 && (
           <div className="space-y-4 animate-fadeIn">
             <div className="text-center space-y-1">
               <span className="text-[10px] uppercase font-black tracking-widest text-orange-500 bg-orange-500/10 px-3 py-1 rounded-full border border-orange-500/20">Étape 1 sur 4</span>
               <h2 className="text-2xl font-black text-white pt-2">Comment t'appelles-tu ?</h2>
-              <p className="text-xs text-neutral-400">Entre ton pseudo pour ton profil d'athlète.</p>
+              <p className="text-xs text-neutral-400">Entre ton pseudo et ton identité pour ton profil.</p>
             </div>
 
-            <div className="space-y-4 pt-2">
+            <div className="space-y-3 pt-1">
               <div>
                 <label className="block text-xs font-bold text-neutral-400 mb-1.5">Ton Pseudo</label>
                 <input 
@@ -102,24 +107,29 @@ export default function OnboardingWizard({ user, onComplete }: OnboardingWizardP
                   placeholder="Ex: Antoine" 
                   value={username} 
                   onChange={(e) => setUsername(e.target.value)} 
-                  className="w-full bg-neutral-950 border border-neutral-800 focus:border-orange-500 rounded-2xl px-4 py-4 text-sm text-white transition outline-none shadow-inner" 
+                  className="w-full bg-neutral-950 border border-neutral-800 focus:border-orange-500 rounded-2xl px-4 py-3.5 text-sm text-white transition outline-none shadow-inner" 
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-neutral-400 mb-1.5">Genre</label>
-                <div className="grid grid-cols-2 gap-2.5">
-                  {['Homme', 'Femme'].map(g => (
+                <label className="block text-xs font-bold text-neutral-400 mb-1.5">Genre / Identité</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { id: 'Homme', label: '👨 Homme' },
+                    { id: 'Femme', label: '👩 Femme' },
+                    { id: 'Non-binaire', label: '⚡ Non-binaire' },
+                    { id: 'Non spécifié', label: '🔒 Préfère ne pas dire' }
+                  ].map(g => (
                     <div 
-                      key={g} 
-                      onClick={() => setGender(g)} 
-                      className={`p-4 rounded-2xl border text-center text-xs font-black cursor-pointer transition flex items-center justify-center gap-2 ${
-                        gender === g 
+                      key={g.id} 
+                      onClick={() => setGender(g.id)} 
+                      className={`p-3 rounded-2xl border text-center text-xs font-black cursor-pointer transition flex items-center justify-center gap-1.5 ${
+                        gender === g.id 
                           ? 'bg-orange-500/20 border-orange-500 text-orange-400 shadow-lg' 
                           : 'bg-neutral-950 border-neutral-800 text-neutral-400 hover:border-neutral-700'
                       }`}
                     >
-                      {g}
+                      {g.label}
                     </div>
                   ))}
                 </div>
@@ -128,7 +138,7 @@ export default function OnboardingWizard({ user, onComplete }: OnboardingWizardP
           </div>
         )}
 
-        {/* ÉTAPE 2 : OBJECTIF PRINCIPAL (Grosses cartes Noom-style) */}
+        {/* ÉTAPE 2 : OBJECTIF PRINCIPAL */}
         {step === 2 && (
           <div className="space-y-4 animate-fadeIn">
             <div className="text-center space-y-1">
@@ -137,12 +147,12 @@ export default function OnboardingWizard({ user, onComplete }: OnboardingWizardP
               <p className="text-xs text-neutral-400">Choisis l'orientation principale de ta préparation.</p>
             </div>
 
-            <div className="space-y-2.5 pt-1 max-h-[50vh] overflow-y-auto pr-1">
+            <div className="space-y-2 pt-1 max-h-[45vh] overflow-y-auto pr-1">
               {GOALS.map(item => (
                 <div
                   key={item.id}
                   onClick={() => setGoal(item.id)}
-                  className={`p-4 rounded-2xl border cursor-pointer transition flex flex-col gap-1 ${
+                  className={`p-3.5 rounded-2xl border cursor-pointer transition flex flex-col gap-1 ${
                     goal === item.id 
                       ? 'bg-orange-600/20 border-orange-500 text-white shadow-lg' 
                       : 'bg-neutral-950 border-neutral-800 text-neutral-300 hover:border-neutral-700'
@@ -187,41 +197,63 @@ export default function OnboardingWizard({ user, onComplete }: OnboardingWizardP
           </div>
         )}
 
-        {/* ÉTAPE 4 : LE SPOT / QG */}
+        {/* ÉTAPE 4 : LE SPOT & DISCLAIMER MÉDICAL */}
         {step === 4 && (
-          <div className="space-y-4 animate-fadeIn">
-            <div className="text-center space-y-1">
+          <div className="space-y-3.5 animate-fadeIn">
+            <div className="text-center space-y-0.5">
               <span className="text-[10px] uppercase font-black tracking-widest text-orange-500 bg-orange-500/10 px-3 py-1 rounded-full border border-orange-500/20">Étape 4 sur 4</span>
-              <h2 className="text-2xl font-black text-white pt-2">Ton QG d'entraînement ?</h2>
-              <p className="text-xs text-neutral-400">Indique ta ville ou ta salle principale pour trouver des partenaires proches.</p>
+              <h2 className="text-xl font-black text-white pt-1">Ton QG & Sécurité</h2>
+              <p className="text-[11px] text-neutral-400">Finalise ton profil pour rejoindre la communauté.</p>
             </div>
 
-            <div className="space-y-4 pt-2">
+            <div className="space-y-3">
               <div>
-                <label className="block text-xs font-bold text-neutral-400 mb-1.5 flex items-center gap-1">
-                  <MapPin className="w-3.5 h-3.5 text-orange-500" /> Ville, Salle ou Spot
+                <label className="block text-[11px] font-bold text-neutral-400 mb-1 flex items-center gap-1">
+                  <MapPin className="w-3 h-3 text-orange-500" /> Ville, Salle ou Spot principal
                 </label>
                 <input 
                   type="text" 
                   autoFocus 
                   required 
-                  placeholder="Ex: Paris, Montréal, Tournai, Basic-Fit..." 
+                  placeholder="Ex: Tournai, Paris, Basic-Fit..." 
                   value={spot} 
                   onChange={(e) => setSpot(e.target.value)} 
-                  className="w-full bg-neutral-950 border border-neutral-800 focus:border-orange-500 rounded-2xl px-4 py-4 text-sm text-white transition outline-none shadow-inner" 
+                  className="w-full bg-neutral-950 border border-neutral-800 focus:border-orange-500 rounded-xl px-3.5 py-3 text-xs text-white transition outline-none shadow-inner" 
                 />
+              </div>
+
+              {/* ⚠️ DISCLAIMER LÉGAL DE NON-RESPONSABILITÉ MÉDICALE */}
+              <div className="bg-neutral-950 border border-neutral-800 rounded-2xl p-3 space-y-2">
+                <div className="flex items-center gap-1.5 text-amber-400 font-black text-[10px] uppercase tracking-wider">
+                  <AlertTriangle className="w-3.5 h-3.5" /> Avertissement Santé & Non-Médical
+                </div>
+                <p className="text-[10px] text-neutral-400 leading-relaxed">
+                  <strong className="text-neutral-200">FitPulse</strong> est un outil de suivi sportif et de communauté. L'application <strong className="text-neutral-200">n'est pas un dispositif médical</strong> et ne remplace pas un avis professionnel. En cas de douleur ou de pathologie, consultez toujours un médecin.
+                </p>
+                <div className="flex items-start gap-2 pt-1 border-t border-neutral-900">
+                  <input 
+                    type="checkbox" 
+                    id="medicalCheck" 
+                    checked={acceptedMedical}
+                    onChange={(e) => setAcceptedMedical(e.target.checked)}
+                    className="rounded accent-orange-500 mt-0.5 cursor-pointer" 
+                  />
+                  <label htmlFor="medicalCheck" className="text-[10px] text-neutral-300 cursor-pointer leading-tight">
+                    Je comprends que FitPulse est un assistant sportif et non un substitut médical.
+                  </label>
+                </div>
               </div>
             </div>
           </div>
         )}
 
         {/* Boutons de Navigation */}
-        <div className="flex items-center gap-3 pt-4 border-t border-neutral-800/80">
+        <div className="flex items-center gap-3 pt-3 border-t border-neutral-800/80">
           {step > 1 && (
             <button 
               type="button" 
               onClick={() => setStep(prev => prev - 1)} 
-              className="p-4 bg-neutral-800 hover:bg-neutral-700 text-white rounded-2xl transition cursor-pointer"
+              className="p-3.5 bg-neutral-800 hover:bg-neutral-700 text-white rounded-2xl transition cursor-pointer"
             >
               <ChevronLeft className="w-5 h-5" />
             </button>
@@ -234,6 +266,10 @@ export default function OnboardingWizard({ user, onComplete }: OnboardingWizardP
                 alert("Entre un pseudo pour continuer !");
                 return;
               }
+              if (step === 4 && !acceptedMedical) {
+                alert("Veuillez accepter l'avertissement de santé pour valider votre inscription.");
+                return;
+              }
               if (step < 4) {
                 setStep(prev => prev + 1);
               } else {
@@ -241,7 +277,7 @@ export default function OnboardingWizard({ user, onComplete }: OnboardingWizardP
               }
             }}
             disabled={submitting}
-            className="flex-1 py-4 bg-orange-600 hover:bg-orange-500 text-white font-black rounded-2xl text-sm transition shadow-[0_0_20px_rgba(234,88,12,0.4)] flex items-center justify-center gap-2 cursor-pointer"
+            className="flex-1 py-3.5 bg-orange-600 hover:bg-orange-500 text-white font-black rounded-2xl text-xs transition shadow-[0_0_20px_rgba(234,88,12,0.4)] flex items-center justify-center gap-2 cursor-pointer"
           >
             {step < 4 ? "Continuer" : submitting ? "Création..." : "Rejoindre la meute 🚀"}
             {step < 4 && <ChevronRight className="w-4 h-4" />}
