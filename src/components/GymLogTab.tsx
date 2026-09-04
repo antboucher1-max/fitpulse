@@ -16,7 +16,7 @@ interface ExerciseLog {
 
 export default function GymLogTab({ currentUserId, onStartRestTimer }: GymLogTabProps) {
   const [activeSessionName, setActiveSessionName] = useState('Full Body Force & Puissance');
-  const [exercises, setExercises] = ExerciseState([] as ExerciseLog[]);
+  const [exercises, setExercises] = useState([] as ExerciseLog[]);
   const [isSessionActive, setIsSessionActive] = useState(false);
   const [sessionTimer, setSessionTimer] = useState(0);
 
