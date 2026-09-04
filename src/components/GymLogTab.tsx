@@ -1,5 +1,5 @@
 import { useState, useEffect, FormEvent } from 'react';
-import { Dumbbell, Plus, Trash2, Trophy, Flame, Play, CheckCircle2, Activity, ArrowRight, ShieldAlert } from 'lucide-react';
+import { Dumbbell, Plus, Trash2, Trophy, Flame, Play, CheckCircle2, Activity, ShieldAlert, History } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 
 interface GymLogTabProps {
@@ -11,6 +11,7 @@ interface ExerciseLog {
   id: string;
   exerciseName: string;
   category: 'Jambes' | 'Pecs/Triceps' | 'Dos/Biceps' | 'Épaules/Abdos' | 'Mobilité Hybride';
+  previousBest?: string; // Ex: "100kg x 5"
   sets: Array<{ weight: number; reps: number; completed: boolean }>;
 }
 
@@ -23,6 +24,15 @@ export default function GymLogTab({ currentUserId, onStartRestTimer }: GymLogTab
   // État d'ajout d'un nouvel exercice
   const [newExName, setNewExName] = useState('');
   const [newExCategory, setNewExCategory] = useState<'Jambes' | 'Pecs/Triceps' | 'Dos/Biceps' | 'Épaules/Abdos' | 'Mobilité Hybride'>('Jambes');
+
+  // Bibliothèque rapide d'exercices hybrides pré-configurés
+  const hybridPresets = [
+    { name: 'Back Squat (Force)', category: 'Jambes' as const, prev: '100kg x 5' },
+    { name: 'Soulevé de Terre Roumain', category: 'Jambes' as const, prev: '90kg x 8' },
+    { name: 'Développé Couché Incliné', category: 'Pecs/Triceps' as const, prev: '75kg x 8' },
+    { name: 'Tractions Lestées', category: 'Dos/Biceps' as const, prev: 'PDC + 10kg x 5' },
+    { name: 'Gainage Pallof (Anti-rotation)', category: 'Mobilité Hybride' as const, prev: '20kg x 12' },
+  ];
 
   // Chronographe de séance
   useEffect(() => {
@@ -51,6 +61,7 @@ export default function GymLogTab({ currentUserId, onStartRestTimer }: GymLogTab
         id: '1',
         exerciseName: 'Back Squat (Force)',
         category: 'Jambes',
+        previousBest: '100kg x 5',
         sets: [
           { weight: 100, reps: 5, completed: true },
           { weight: 105, reps: 5, completed: false }
@@ -59,7 +70,18 @@ export default function GymLogTab({ currentUserId, onStartRestTimer }: GymLogTab
     ]);
   };
 
-  const handleAddExercise = (e: FormEvent) => {
+  const handleAddPresetExercise = (preset: typeof hybridPresets[0]) => {
+    const newExercise: ExerciseLog = {
+      id: Date.now().toString(),
+      exerciseName: preset.name,
+      category: preset.category,
+      previousBest: preset.prev,
+      sets: [{ weight: 60, reps: 8, completed: false }]
+    };
+    setExercises(prev => [...prev, newExercise]);
+  };
+
+  const handleAddCustomExercise = (e: FormEvent) => {
     e.preventDefault();
     if (!newExName.trim()) return;
 
@@ -67,6 +89,7 @@ export default function GymLogTab({ currentUserId, onStartRestTimer }: GymLogTab
       id: Date.now().toString(),
       exerciseName: newExName.trim(),
       category: newExCategory,
+      previousBest: 'Première perf 🚀',
       sets: [{ weight: 60, reps: 10, completed: false }]
     };
 
@@ -113,14 +136,13 @@ export default function GymLogTab({ currentUserId, onStartRestTimer }: GymLogTab
     }));
   };
 
-  // --- PILIER 1 : Calculateur de 1RM (Formule d'Epley : 1RM = Poids * (1 + Reps / 30)) ---
+  // Calculateur de 1RM (Formule d'Epley)
   const calculate1RM = (weight: number, reps: number) => {
     if (reps <= 0 || weight <= 0) return 0;
     if (reps === 1) return weight;
     return Math.round(weight * (1 + reps / 30));
   };
 
-  // Trouver la performance max de la session en 1RM estimé
   let sessionMax1RM = 0;
   exercises.forEach(ex => {
     ex.sets.forEach(set => {
@@ -129,13 +151,11 @@ export default function GymLogTab({ currentUserId, onStartRestTimer }: GymLogTab
     });
   });
 
-  // --- PILIER 3 : Calcul du volume hebdomadaire (Sets effectifs par groupe) ---
   const totalSetsCount = exercises.reduce((acc, ex) => acc + ex.sets.filter(s => s.completed).length, 0);
 
   const handleFinishWorkout = async () => {
     if (!currentUserId) return;
     
-    // Enregistrement en base de données Supabase
     const { error } = await supabase.from('gym_logs').insert([{
       user_id: currentUserId,
       session_name: activeSessionName,
@@ -163,7 +183,7 @@ export default function GymLogTab({ currentUserId, onStartRestTimer }: GymLogTab
           <div className="flex items-center gap-2 text-orange-400 font-bold text-xs uppercase tracking-widest mb-1">
             <Dumbbell className="w-4 h-4" /> Moteur Force & Hypertrophie
           </div>
-          <h2 className="text-lg font-black text-white tracking-tight">Carnet de Musculation Avancé</h2>
+          <h2 className="text-lg font-black text-white tracking-tight">Carnet de Musculation Hybride</h2>
         </div>
         
         {!isSessionActive ? (
@@ -172,7 +192,7 @@ export default function GymLogTab({ currentUserId, onStartRestTimer }: GymLogTab
             onClick={handleStartWorkout}
             className="py-3 px-5 bg-orange-600 hover:bg-orange-500 text-white font-black rounded-2xl text-xs uppercase tracking-wider flex items-center gap-2 shadow-xl transition cursor-pointer"
           >
-            <Play className="w-4 h-4 fill-white" /> Démarrer une Séance
+            <Play className="w-4 h-4 fill-white" /> Démarrer
           </button>
         ) : (
           <div className="flex items-center gap-3">
@@ -190,28 +210,27 @@ export default function GymLogTab({ currentUserId, onStartRestTimer }: GymLogTab
         )}
       </div>
 
-      {/* Si aucune séance n'est active : Présentation des stats et suggestions */}
       {!isSessionActive ? (
         <div className="space-y-4">
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             <div className="bg-neutral-900 border border-neutral-800 p-4 rounded-2xl space-y-1">
               <span className="text-[10px] uppercase font-bold text-neutral-400 block">1RM Estimé Max</span>
               <div className="text-xl font-black text-white">{sessionMax1RM > 0 ? `${sessionMax1RM} kg` : '-- kg'}</div>
-              <span className="text-[10px] text-neutral-500">Basé sur formule d'Epley</span>
+              <span className="text-[10px] text-neutral-500">Formule d'Epley active</span>
             </div>
 
             <div className="bg-neutral-900 border border-neutral-800 p-4 rounded-2xl space-y-1">
               <span className="text-[10px] uppercase font-bold text-neutral-400 block">Volume Hebdo</span>
               <div className="text-xl font-black text-orange-400">{totalSetsCount} <span className="text-xs font-normal text-neutral-400">séries</span></div>
-              <span className="text-[10px] text-neutral-500">Cible : 12-18 sets/groupe</span>
+              <span className="text-[10px] text-neutral-500">Objectif : 12-18 sets</span>
             </div>
 
             <div className="bg-neutral-900 border border-neutral-800 p-4 rounded-2xl col-span-2 sm:col-span-1 space-y-1">
               <span className="text-[10px] uppercase font-bold text-neutral-400 flex items-center gap-1">
-                <ShieldAlert className="w-3 h-3 text-cyan-400" /> Focus Hybride
+                <ShieldAlert className="w-3 h-3 text-cyan-400" /> Focus Athlète Hybride
               </span>
               <div className="text-xs text-neutral-300 pt-1 leading-snug">
-                Prévention des tensions lombaires & renforcement post-running actif.
+                Renfo orienté stabilité pelvienne & prévention des tendinites d'impact.
               </div>
             </div>
           </div>
@@ -220,9 +239,9 @@ export default function GymLogTab({ currentUserId, onStartRestTimer }: GymLogTab
             <div className="w-12 h-12 rounded-2xl bg-orange-500/20 text-orange-500 flex items-center justify-center mx-auto text-xl">
               🏋️‍♂️
             </div>
-            <h3 className="text-sm font-black text-white">Prêt à soulever de la fonte ?</h3>
+            <h3 className="text-sm font-black text-white">Prêt à valider tes perfs ?</h3>
             <p className="text-xs text-neutral-400 max-w-sm mx-auto">
-              Démarre une séance pour profiter de la surcharge progressive intelligente, du minuteur de repos automatique et du calcul de tes performances en direct.
+              Lance ta séance pour intégrer des exercices hybrides ciblés, suivre ton historique de surcharge et calculer ton 1RM en direct.
             </p>
             <button
               type="button"
@@ -234,7 +253,6 @@ export default function GymLogTab({ currentUserId, onStartRestTimer }: GymLogTab
           </div>
         </div>
       ) : (
-        /* --- MODE SÉANCE ACTIVE : LE CARNET D'ENTRAÎNEMENT INTERACTIF --- */
         <div className="space-y-4">
           
           <div className="bg-neutral-900 border border-neutral-800 p-4 rounded-2xl flex items-center justify-between">
@@ -249,13 +267,18 @@ export default function GymLogTab({ currentUserId, onStartRestTimer }: GymLogTab
             </span>
           </div>
 
-          {/* Liste des exercices de la séance */}
-          {exercises.map((ex, exIndex) => (
+          {/* Liste des exercices */}
+          {exercises.map((ex) => (
             <div key={ex.id} className="bg-neutral-900 border border-neutral-800 rounded-3xl p-4 sm:p-5 space-y-3 shadow-xl">
               <div className="flex items-center justify-between">
                 <div>
                   <span className="text-[10px] font-bold text-orange-400 uppercase tracking-wider block">{ex.category}</span>
                   <h4 className="text-sm font-black text-white">{ex.exerciseName}</h4>
+                  {ex.previousBest && (
+                    <span className="text-[10px] text-neutral-400 flex items-center gap-1 mt-0.5">
+                      <History className="w-3 h-3 text-cyan-400" /> Semaine dernière : <strong className="text-white">{ex.previousBest}</strong>
+                    </span>
+                  )}
                 </div>
                 <button
                   type="button"
@@ -315,7 +338,6 @@ export default function GymLogTab({ currentUserId, onStartRestTimer }: GymLogTab
                         </button>
                       </div>
 
-                      {/* Indicateur de 1RM estimé par série */}
                       {est1RM > 0 && (
                         <div className="col-span-12 text-[10px] text-neutral-500 text-right pr-2">
                           1RM estimé : <strong className="text-orange-400">{est1RM} kg</strong>
@@ -336,16 +358,39 @@ export default function GymLogTab({ currentUserId, onStartRestTimer }: GymLogTab
             </div>
           ))}
 
-          {/* Formulaire d'ajout d'exercice */}
-          <form onSubmit={handleAddExercise} className="bg-neutral-900 border border-neutral-800 rounded-3xl p-4 sm:p-5 space-y-3 shadow-xl">
+          {/* --- BIBLIOTHÈQUE RAPIDE D'EXERCICES HYBRIDES --- */}
+          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-4 sm:p-5 space-y-3 shadow-xl">
+            <h4 className="text-xs font-black uppercase tracking-wider text-cyan-400 flex items-center gap-1.5">
+              ⚡ Bibliothèque d'exercices Recommandés (Athlète Hybride)
+            </h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {hybridPresets.map((preset, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => handleAddPresetExercise(preset)}
+                  className="p-3 bg-neutral-950 hover:bg-neutral-850 border border-neutral-800 hover:border-cyan-500/50 rounded-2xl text-left transition cursor-pointer flex flex-col gap-1"
+                >
+                  <span className="text-xs font-black text-white">{preset.name}</span>
+                  <div className="flex justify-between items-center text-[10px] text-neutral-400">
+                    <span className="text-orange-400 font-bold">{preset.category}</span>
+                    <span>Ref : {preset.prev}</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Formulaire d'ajout personnalisé */}
+          <form onSubmit={handleAddCustomExercise} className="bg-neutral-900 border border-neutral-800 rounded-3xl p-4 sm:p-5 space-y-3 shadow-xl">
             <h4 className="text-xs font-black uppercase tracking-wider text-orange-400 flex items-center gap-1.5">
-              <Plus className="w-4 h-4" /> Ajouter un exercice à la séance
+              <Plus className="w-4 h-4" /> Ajouter un exercice personnalisé
             </h4>
             
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <input 
                 type="text"
-                placeholder="Nom (ex: Développé Couché, Tractions)..."
+                placeholder="Nom personnalisé..."
                 value={newExName}
                 onChange={(e) => setNewExName(e.target.value)}
                 className="w-full bg-neutral-950 border border-neutral-800 rounded-2xl px-4 py-3 text-xs text-white focus:outline-none focus:border-orange-500"
@@ -355,10 +400,10 @@ export default function GymLogTab({ currentUserId, onStartRestTimer }: GymLogTab
                 onChange={(e: any) => setNewExCategory(e.target.value)}
                 className="w-full bg-neutral-950 border border-neutral-800 rounded-2xl px-4 py-3 text-xs text-white focus:outline-none focus:border-orange-500 cursor-pointer"
               >
-                <option value="Jambes">Jambes (Squat, Soulevé de terre)</option>
-                <option value="Pecs/Triceps">Pecs / Triceps (Push)</option>
-                <option value="Dos/Biceps">Dos / Biceps (Pull)</option>
-                <option value="Épaules/Abdos">Épaules / Abdos / Core</option>
+                <option value="Jambes">Jambes</option>
+                <option value="Pecs/Triceps">Pecs / Triceps</option>
+                <option value="Dos/Biceps">Dos / Biceps</option>
+                <option value="Épaules/Abdos">Épaules / Core</option>
                 <option value="Mobilité Hybride">Mobilité & Renfo Coureurs</option>
               </select>
             </div>
