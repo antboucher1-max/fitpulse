@@ -60,9 +60,6 @@ export default function App() {
   const [isSignUpMode, setIsSignUpMode] = useState(false);
   const [acceptCgu, setAcceptCgu] = useState(false);
 
-  // État des 3 grands univers : 'strength' (Muscu), 'crossfit' (CrossFit), 'running' (Course)
-  const [activeUniverse, setActiveUniverse] = useState<'strength' | 'crossfit' | 'running'>('strength');
-
   const [currentTab, setCurrentTab] = useState<'today' | 'community' | 'profile' | 'feed' | 'buddy' | 'workout' | 'exercises' | 'chat' | 'calculator' | 'paces' | 'live_tracker' | 'rest_timer' | 'notifications' | 'leaderboard' | 'boxwars' | 'running' | 'readiness' | 'hall_of_fame' | 'fitbot'>(() => {
     const savedTab = localStorage.getItem('fitpulse_active_tab');
     return (savedTab as any) || 'today';
@@ -546,30 +543,38 @@ export default function App() {
                 <div className="flex-1 min-w-0 space-y-1">
                   <h4 className="text-xs font-black text-white">Bienvenue sur FitPulse ⚡</h4>
                   <p className="text-[11px] text-neutral-300 leading-relaxed">
-                    Sélectionne ton univers ci-dessous pour accéder directement à tes outils dédiés (Muscu, CrossFit ou Course).
+                    Clique sur un univers ci-dessous pour accéder directement à ton espace dédié (Muscu, CrossFit ou Course).
                   </p>
                 </div>
               </div>
 
-              {/* 🎯 LES 3 ONGLETS D'UNIVERS (Muscu, CrossFit, Course) */}
-              <div className="flex gap-1.5 bg-neutral-900/90 p-1.5 rounded-2xl border border-neutral-800">
+              {/* 🎯 LES 3 BOUTONS D'ACCÈS DIRECT (Muscu, CrossFit, Course) */}
+              <div className="grid grid-cols-3 gap-2">
+                {/* Bouton Muscu : Ouvre directement le carnet de muscu */}
                 <button 
-                  onClick={() => setActiveUniverse('strength')} 
-                  className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1.5 ${activeUniverse === 'strength' ? 'bg-orange-600 text-white shadow-md' : 'text-neutral-400 hover:text-white'}`}
+                  onClick={() => setIsGymLogOpen(true)} 
+                  className="py-3 px-2 bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 hover:border-orange-500/50 rounded-2xl text-xs font-black text-white transition cursor-pointer flex flex-col items-center gap-1.5 shadow-lg group"
                 >
-                  🏋️ Muscu
+                  <span className="text-lg">🏋️‍♂️</span>
+                  <span className="group-hover:text-orange-400 transition">Muscu</span>
                 </button>
+
+                {/* Bouton CrossFit : Ouvre directement le générateur de WOD */}
                 <button 
-                  onClick={() => setActiveUniverse('crossfit')} 
-                  className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1.5 ${activeUniverse === 'crossfit' ? 'bg-orange-600 text-white shadow-md' : 'text-neutral-400 hover:text-white'}`}
+                  onClick={() => setIsWodGeneratorOpen(true)} 
+                  className="py-3 px-2 bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 hover:border-cyan-500/50 rounded-2xl text-xs font-black text-white transition cursor-pointer flex flex-col items-center gap-1.5 shadow-lg group"
                 >
-                  🥵 CrossFit
+                  <span className="text-lg">🥵</span>
+                  <span className="group-hover:text-cyan-400 transition">CrossFit</span>
                 </button>
+
+                {/* Bouton Course : Bascule l'onglet sur la vue Running complète */}
                 <button 
-                  onClick={() => setActiveUniverse('running')} 
-                  className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1.5 ${activeUniverse === 'running' ? 'bg-emerald-600 text-white shadow-md' : 'text-neutral-400 hover:text-white'}`}
+                  onClick={() => handleTabChange('running')} 
+                  className="py-3 px-2 bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 hover:border-emerald-500/50 rounded-2xl text-xs font-black text-white transition cursor-pointer flex flex-col items-center gap-1.5 shadow-lg group"
                 >
-                  🏃 Course
+                  <span className="text-lg">🏃‍♂️</span>
+                  <span className="group-hover:text-emerald-400 transition">Course</span>
                 </button>
               </div>
 
@@ -634,45 +639,6 @@ export default function App() {
                   <ChevronRight className="w-4 h-4 text-neutral-500 group-hover:text-cyan-400 transition flex-shrink-0" />
                 </div>
               </PaywallGate>
-
-              {/* 🛠️ OUTILS DÉDIÉS À L'UNIVERS SÉLECTIONNÉ (Muscu / CrossFit / Course) */}
-              <div className="pt-2">
-                <h3 className="text-[10px] font-black uppercase tracking-widest text-neutral-500 mb-3 ml-2 flex items-center gap-2">
-                  <Settings className="w-3.5 h-3.5" /> Espace dédié : {activeUniverse === 'strength' ? '🏋️ Musculation & Charges' : activeUniverse === 'crossfit' ? '🥵 CrossFit & WODs' : '🏃 Course, Allures & Nutrition'}
-                </h3>
-                <div className="grid grid-cols-2 gap-2.5">
-                  {activeUniverse === 'strength' && (
-                    <button onClick={() => setIsGymLogOpen(true)} className="bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 p-4 rounded-2xl flex flex-col gap-2.5 items-start transition cursor-pointer">
-                      <Dumbbell className="w-5 h-5 text-orange-400" />
-                      <span className="text-xs font-bold text-neutral-200">Carnet de Muscu</span>
-                    </button>
-                  )}
-                  {activeUniverse === 'crossfit' && (
-                    <>
-                      <button onClick={() => setIsWodGeneratorOpen(true)} className="bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 p-4 rounded-2xl flex flex-col gap-2.5 items-start transition cursor-pointer">
-                        <Flame className="w-5 h-5 text-cyan-400" />
-                        <span className="text-xs font-bold text-neutral-200">Générateur WOD</span>
-                      </button>
-                      <button onClick={() => handleTabChange('boxwars')} className="bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 p-4 rounded-2xl flex flex-col gap-2.5 items-start transition cursor-pointer">
-                        <Trophy className="w-5 h-5 text-cyan-400" />
-                        <span className="text-xs font-bold text-neutral-200">BoxWars Scores</span>
-                      </button>
-                    </>
-                  )}
-                  {activeUniverse === 'running' && (
-                    <>
-                      <button onClick={() => handleTabChange('running')} className="bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 p-4 rounded-2xl flex flex-col gap-2.5 items-start transition cursor-pointer">
-                        <Zap className="w-5 h-5 text-emerald-400" />
-                        <span className="text-xs font-bold text-neutral-200">Ravitaillement & Course</span>
-                      </button>
-                      <button onClick={() => handleTabChange('paces')} className="bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 p-4 rounded-2xl flex flex-col gap-2.5 items-start transition cursor-pointer">
-                        <Activity className="w-5 h-5 text-emerald-400" />
-                        <span className="text-xs font-bold text-neutral-200">Calculateur Allures (VMA)</span>
-                      </button>
-                    </>
-                  )}
-                </div>
-              </div>
 
             </div>
           )}
