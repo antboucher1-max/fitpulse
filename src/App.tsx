@@ -60,8 +60,8 @@ export default function App() {
   const [isSignUpMode, setIsSignUpMode] = useState(false);
   const [acceptCgu, setAcceptCgu] = useState(false);
 
-  // État pour le Mode Focus dynamique (Pilier 3)
-  const [activeFocusMode, setActiveFocusMode] = useState<'hybrid' | 'running' | 'strength'>('hybrid');
+  // État pour les 3 onglets de discipline (Muscu, Hyrox, Course)
+  const [activeFocusMode, setActiveFocusMode] = useState<'strength' | 'hybrid' | 'running'>('strength');
 
   const [currentTab, setCurrentTab] = useState<'today' | 'community' | 'profile' | 'feed' | 'buddy' | 'workout' | 'exercises' | 'chat' | 'calculator' | 'paces' | 'live_tracker' | 'rest_timer' | 'notifications' | 'leaderboard' | 'boxwars' | 'running' | 'readiness' | 'hall_of_fame' | 'fitbot'>(() => {
     const savedTab = localStorage.getItem('fitpulse_active_tab');
@@ -534,28 +534,6 @@ export default function App() {
         </header>
 
         <main className="flex-1 w-full mx-auto px-4 py-3 pb-32 space-y-3">
-          {/* Barre de Mode Focus Dynamique (Pilier 3) */}
-          <div className="flex gap-2 bg-neutral-900/80 p-1 rounded-2xl border border-neutral-800 mb-2">
-            <button 
-              onClick={() => setActiveFocusMode('hybrid')} 
-              className={`flex-1 py-1.5 rounded-xl text-[11px] font-bold transition cursor-pointer ${activeFocusMode === 'hybrid' ? 'bg-orange-600 text-white shadow' : 'text-neutral-400 hover:text-white'}`}
-            >
-              ⚡ Hybride / Cross
-            </button>
-            <button 
-              onClick={() => setActiveFocusMode('strength')} 
-              className={`flex-1 py-1.5 rounded-xl text-[11px] font-bold transition cursor-pointer ${activeFocusMode === 'strength' ? 'bg-orange-600 text-white shadow' : 'text-neutral-400 hover:text-white'}`}
-            >
-              🏋️ Force / Muscu
-            </button>
-            <button 
-              onClick={() => setActiveFocusMode('running')} 
-              className={`flex-1 py-1.5 rounded-xl text-[11px] font-bold transition cursor-pointer ${activeFocusMode === 'running' ? 'bg-emerald-600 text-white shadow' : 'text-neutral-400 hover:text-white'}`}
-            >
-              🏃 Endurance
-            </button>
-          </div>
-
           {currentTab === 'running' && <OfflineRunGuard currentUserId={user?.id} />}
 
           {currentTab === 'today' && (
@@ -570,9 +548,31 @@ export default function App() {
                     <h4 className="text-xs font-black text-white">Bienvenue sur FitPulse ⚡</h4>
                   </div>
                   <p className="text-[11px] text-neutral-300 leading-relaxed">
-                    Suis ta forme, enregistre tes scores et profite de ton <strong className="text-orange-400">Pass Pro 24h</strong> pour tester toutes les fonctionnalités avancées sans limite !
+                    Ton QG d'entraînement hybride. Fais ton check-in, consulte ton planning et choisis ta discipline du jour !
                   </p>
                 </div>
+              </div>
+
+              {/* 🎯 LES 3 ONGLETS DE DISCIPLINE (Muscu, Hyrox, Course) */}
+              <div className="flex gap-1.5 bg-neutral-900/90 p-1.5 rounded-2xl border border-neutral-800">
+                <button 
+                  onClick={() => setActiveFocusMode('strength')} 
+                  className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1.5 ${activeFocusMode === 'strength' ? 'bg-orange-600 text-white shadow-md' : 'text-neutral-400 hover:text-white'}`}
+                >
+                  🏋️ Muscu
+                </button>
+                <button 
+                  onClick={() => setActiveFocusMode('hybrid')} 
+                  className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1.5 ${activeFocusMode === 'hybrid' ? 'bg-orange-600 text-white shadow-md' : 'text-neutral-400 hover:text-white'}`}
+                >
+                  🥵 Hyrox
+                </button>
+                <button 
+                  onClick={() => setActiveFocusMode('running')} 
+                  className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1.5 ${activeFocusMode === 'running' ? 'bg-emerald-600 text-white shadow-md' : 'text-neutral-400 hover:text-white'}`}
+                >
+                  🏃 Course
+                </button>
               </div>
 
               {inTaperingWeek && (
@@ -587,59 +587,27 @@ export default function App() {
                 </div>
               )}
 
-              {/* ⚡ WIDGET ÉTAT DE FORME (READINESS) INTERACTIF EN PREMIÈRE LIGNE */}
-              <div 
-                onClick={() => handleTabChange('readiness')}
-                className={`bg-gradient-to-br border rounded-[2rem] p-6 shadow-2xl relative overflow-hidden transition-all duration-500 cursor-pointer group ${
-                  currentReadinessScore < 50 
-                    ? 'from-neutral-900 via-red-950/30 to-red-950/60 border-red-500/40 hover:border-red-400' 
-                    : 'from-neutral-900 via-neutral-900 to-orange-950/40 border-orange-500/30 hover:border-orange-400'
-                }`}
-              >
-                <div className={`absolute -right-8 -top-8 w-36 h-36 rounded-full blur-3xl pointer-events-none ${currentReadinessScore < 50 ? 'bg-red-500/20' : 'bg-orange-500/10'}`} />
-                
-                <div className="flex items-center justify-between relative z-10 mb-4">
-                  <div className="flex items-center gap-2">
-                    <span className={`w-2.5 h-2.5 rounded-full animate-pulse ${currentReadinessScore < 50 ? 'bg-red-400' : 'bg-emerald-400'}`} />
-                    <span className={`text-[10px] font-black uppercase tracking-widest ${currentReadinessScore < 50 ? 'text-red-400' : 'text-emerald-400'}`}>
-                      État de Forme • {currentReadinessScore < 50 ? 'Fatigue / Attention' : 'Optimal'} ({currentReadinessScore}%)
+              {/* 📋 CHECK-IN OBLIGATOIRE DU JOUR & CALENDRIER */}
+              <div className="space-y-4">
+                <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-3 shadow-xl">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-black uppercase tracking-wider text-orange-400 flex items-center gap-2">
+                      <Activity className="w-4 h-4" /> Check-in & Forme du jour
+                    </span>
+                    <span className="text-[10px] bg-orange-500/20 text-orange-400 font-bold px-2 py-0.5 rounded-full border border-orange-500/30">
+                      Obligatoire ⚡
                     </span>
                   </div>
-                  <div className="flex items-center gap-1 text-xs text-neutral-400 group-hover:text-white transition">
-                    <span>Gérer</span>
-                    <ChevronRight className="w-4 h-4" />
-                  </div>
+                  <ReadinessCheckin currentUserId={user?.id} onUpdatePlan={(rec) => alert(rec)} />
                 </div>
 
-                <div className="relative z-10 space-y-1 mb-5">
-                  <h2 className="text-2xl font-black text-white tracking-tight">
-                    {currentReadinessScore < 50 ? "⚠️ Repos ou Mobilité conseillés" : "⚡ Prêt pour ta séance ?"}
-                  </h2>
-                  <p className="text-xs text-neutral-300 leading-relaxed">
-                    {currentReadinessScore < 50 
-                      ? "Ton organisme montre des signes de fatigue accumulée. Évite l'intensité aujourd'hui." 
-                      : "Ton niveau de récupération est au top. Clique ici pour voir ton plan de la semaine."}
-                  </p>
-                </div>
-
-                <div className="relative z-10 flex gap-2">
-                  <div className="flex-1 bg-neutral-950/80 border border-neutral-800 rounded-2xl p-3 flex items-center justify-between">
-                    <span className="text-[10px] text-neutral-400 font-bold uppercase">Recommandation du jour</span>
-                    <span className="text-xs font-extrabold text-orange-400">
-                      {currentReadinessScore < 50 ? 'Stretching / Off' : 'Séance Active'}
-                    </span>
-                  </div>
+                <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-4 space-y-3 shadow-xl">
+                  <span className="text-xs font-black uppercase tracking-wider text-neutral-400 flex items-center gap-2 ml-1">
+                    <Calendar className="w-4 h-4 text-orange-500" /> Planning de la semaine
+                  </span>
+                  <HybridCalendar posts={posts} currentUserId={user?.id} onRefresh={fetchCloudPosts} />
                 </div>
               </div>
-
-              {/* Affichage conditionnel selon le Mode Focus (Pilier 3) */}
-              {(activeFocusMode === 'hybrid' || activeFocusMode === 'strength') && (
-                <HybridCalendar posts={posts} currentUserId={user?.id} onRefresh={fetchCloudPosts} />
-              )}
-
-              {(activeFocusMode === 'hybrid' || activeFocusMode === 'strength') && (
-                <FatigueDashboardCard logs={gymLogsData} />
-              )}
 
               {/* ⚡ Minuteur WOD */}
               <div className="flex justify-center my-2">
@@ -669,35 +637,35 @@ export default function App() {
                 </div>
               </PaywallGate>
 
-              {/* Affichage de la boîte à outils selon le mode focus */}
+              {/* 🛠️ BOÎTE À OUTILS ADAPTÉE SELON L'ESPACE SÉLECTIONNÉ */}
               <div className="pt-2">
                 <h3 className="text-[10px] font-black uppercase tracking-widest text-neutral-500 mb-3 ml-2 flex items-center gap-2">
-                  <Settings className="w-3.5 h-3.5" /> Boîte à outils
+                  <Settings className="w-3.5 h-3.5" /> Outils Rapides ({activeFocusMode === 'strength' ? 'Muscu' : activeFocusMode === 'hybrid' ? 'Hyrox' : 'Course'})
                 </h3>
                 <div className="grid grid-cols-2 gap-2.5">
-                  {(activeFocusMode === 'hybrid' || activeFocusMode === 'strength') && (
+                  {activeFocusMode === 'strength' && (
                     <button onClick={() => setIsGymLogOpen(true)} className="bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 p-4 rounded-2xl flex flex-col gap-2.5 items-start transition cursor-pointer">
-                      <Dumbbell className="w-5 h-5 text-neutral-400" />
-                      <span className="text-xs font-bold text-neutral-200">Carnet Muscu</span>
+                      <Dumbbell className="w-5 h-5 text-orange-400" />
+                      <span className="text-xs font-bold text-neutral-200">Carnet de Muscu</span>
                     </button>
                   )}
-                  {(activeFocusMode === 'hybrid' || activeFocusMode === 'strength') && (
+                  {activeFocusMode === 'hybrid' && (
                     <button onClick={() => setIsWodGeneratorOpen(true)} className="bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 p-4 rounded-2xl flex flex-col gap-2.5 items-start transition cursor-pointer">
-                      <Flame className="w-5 h-5 text-neutral-400" />
-                      <span className="text-xs font-bold text-neutral-200">WOD Generator</span>
+                      <Flame className="w-5 h-5 text-cyan-400" />
+                      <span className="text-xs font-bold text-neutral-200">Générateur WOD / Hyrox</span>
                     </button>
                   )}
-                  {(activeFocusMode === 'hybrid' || activeFocusMode === 'running') && (
-                    <button onClick={() => handleTabChange('running')} className="bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 p-4 rounded-2xl flex flex-col gap-2.5 items-start transition cursor-pointer">
-                      <Zap className="w-5 h-5 text-neutral-400" />
-                      <span className="text-xs font-bold text-neutral-200">Ravitaillement</span>
-                    </button>
-                  )}
-                  {(activeFocusMode === 'hybrid' || activeFocusMode === 'running') && (
-                    <button onClick={() => handleTabChange('paces')} className="bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 p-4 rounded-2xl flex flex-col gap-2.5 items-start transition cursor-pointer">
-                      <Activity className="w-5 h-5 text-neutral-400" />
-                      <span className="text-xs font-bold text-neutral-200">Calculateur Allures</span>
-                    </button>
+                  {activeFocusMode === 'running' && (
+                    <>
+                      <button onClick={() => handleTabChange('running')} className="bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 p-4 rounded-2xl flex flex-col gap-2.5 items-start transition cursor-pointer">
+                        <Zap className="w-5 h-5 text-emerald-400" />
+                        <span className="text-xs font-bold text-neutral-200">Ravitaillement</span>
+                      </button>
+                      <button onClick={() => handleTabChange('paces')} className="bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 p-4 rounded-2xl flex flex-col gap-2.5 items-start transition cursor-pointer">
+                        <Activity className="w-5 h-5 text-emerald-400" />
+                        <span className="text-xs font-bold text-neutral-200">Calculateur Allures</span>
+                      </button>
+                    </>
                   )}
                 </div>
               </div>
