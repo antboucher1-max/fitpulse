@@ -559,9 +559,9 @@ export default function App() {
                   <span className="group-hover:text-orange-400 transition">Muscu</span>
                 </button>
 
-                {/* Bouton CrossFit : Ouvre directement la modale de génération de WOD */}
+                {/* Bouton CrossFit : Bascule directement vers le panneau complet BoxWars / CrossFit */}
                 <button 
-                  onClick={() => setIsWodGeneratorOpen(true)} 
+                  onClick={() => handleTabChange('boxwars')} 
                   className="py-3 px-2 bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 hover:border-cyan-500/50 rounded-2xl text-xs font-black text-white transition cursor-pointer flex flex-col items-center gap-1.5 shadow-lg group"
                 >
                   <span className="text-lg">🥵</span>
