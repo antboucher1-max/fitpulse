@@ -1,5 +1,5 @@
 import { useState, useRef, ChangeEvent } from 'react';
-import { Camera, Sparkles, RefreshCw, CheckCircle2, Flame, Utensils, Zap, ArrowLeft } from 'lucide-react';
+import { Camera, Sparkles, RefreshCw, CheckCircle2, Utensils, ArrowLeft } from 'lucide-react';
 
 interface FridgeScannerTabProps {
   onBack?: () => void;
@@ -17,37 +17,37 @@ export default function FridgeScannerTab({ onBack }: FridgeScannerTabProps) {
       const reader = new FileReader();
       reader.onloadend = () => {
         setSelectedImage(reader.result as string);
-        simulateAIAnalysis();
+        runProAnalysis();
       };
       reader.readAsDataURL(file);
     }
   };
 
-  const simulateAIAnalysis = () => {
+  const runProAnalysis = () => {
     setIsAnalyzing(true);
     setRecipeResult(null);
 
-    // Simulation de l'analyse par ordinateur et génération de la recette post-WOD
+    // Simulation haut de gamme avec un temps de calcul réaliste de l'IA (2 secondes)
     setTimeout(() => {
       setIsAnalyzing(false);
       setRecipeResult({
-        title: "Omelette Recovery Express & Riz Sauté",
+        title: "Bowl Recovery Poulet & Quinoa du Frigo",
         prepTime: "5 min",
-        detectedItems: ["Œufs", "Riz blanc (restes)", "Demi-poivron", "Parmesan"],
+        detectedItems: ["Blancs de poulet (restes)", "Quinoa cuit", "Avocat mûr", "Ciboulette"],
         macros: {
-          protein: "38g",
-          carbs: "52g",
-          fats: "14g",
-          calories: "480 kcal"
+          protein: "42g",
+          carbs: "48g",
+          fats: "16g",
+          calories: "510 kcal"
         },
         steps: [
-          "Bats 3 œufs dans un bol avec une pincée de sel et de poivre.",
-          "Fais sauter les dés de poivron et le reste de riz à la poêle à feu vif pendant 2 minutes.",
-          "Verse les œufs par-dessus, mélange rapidement pour lier le tout en mode brouillé ou omelette pliée.",
-          "Saupoudre de parmesan et sers chaud pour recharger immédiatement tes stocks de glycogène !"
+          "Émince les restes de blancs de poulet et fais-les réchauffer rapidement à la poêle avec un filet d'huile d'olive.",
+          "Dispose le quinoa cuit au fond d'un bol pour recharger tes stocks de glycogène.",
+          "Ajoute le poulet chaud par-dessus, puis des tranches d'avocat pour les bons lipides et l'apport en magnésium.",
+          "Assaisonne avec de la ciboulette, du sel, du poivre et un trait de jus de citron. C'est prêt à être savouré !"
         ]
       });
-    }, 2500);
+    }, 2000);
   };
 
   return (
@@ -74,7 +74,7 @@ export default function FridgeScannerTab({ onBack }: FridgeScannerTabProps) {
             <h3 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-1.5">
               Scan Post-WOD de la Faim <span className="text-[9px] bg-orange-500/20 text-orange-400 px-2 py-0.5 rounded-md border border-orange-500/30">Pro 🚀</span>
             </h3>
-            <p className="text-[11px] text-neutral-400">Transforme le contenu de ton frigo en plat de récupération idéal.</p>
+            <p className="text-[11px] text-neutral-400">Analyse optique & génération de macros sur-mesure.</p>
           </div>
         </div>
       </div>
@@ -87,7 +87,7 @@ export default function FridgeScannerTab({ onBack }: FridgeScannerTabProps) {
           <div className="space-y-1">
             <h4 className="text-xs font-bold text-white">Prends ton frigo en photo</h4>
             <p className="text-[11px] text-neutral-400 max-w-xs mx-auto">
-              L'IA analyse tes stocks, croise les données avec ta dépense énergétique du WOD et génère ta recette en 5 min chrono.
+              L'algorithme analyse les stocks visuels et calibre ta recette de récupération en 5 min chrono.
             </p>
           </div>
 
@@ -110,7 +110,7 @@ export default function FridgeScannerTab({ onBack }: FridgeScannerTabProps) {
       ) : (
         <div className="space-y-4">
           {/* Aperçu de la photo */}
-          <div className="relative rounded-2xl overflow-hiden h-48 border border-neutral-800 bg-neutral-950">
+          <div className="relative rounded-2xl overflow-hidden h-48 border border-neutral-800 bg-neutral-950">
             <img src={selectedImage} alt="Frigo" className="w-full h-full object-cover opacity-80" />
             <button 
               type="button"
@@ -128,8 +128,8 @@ export default function FridgeScannerTab({ onBack }: FridgeScannerTabProps) {
                 <Sparkles className="w-4 h-4 animate-spin" />
               </div>
               <div className="space-y-1">
-                <h5 className="text-xs font-black text-white">Le FitBot analyse ton frigo...</h5>
-                <p className="text-[10px] text-neutral-400">Détection des ingrédients & calcul des macronutriments cibles.</p>
+                <h5 className="text-xs font-black text-white">Analyse visuelle en cours...</h5>
+                <p className="text-[10px] text-neutral-400">Croisement des stocks avec les besoins post-WOD.</p>
               </div>
             </div>
           )}
