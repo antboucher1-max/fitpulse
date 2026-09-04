@@ -520,13 +520,33 @@ export default function App() {
           </div>
 
           {currentTab !== 'boxwars' && currentTab !== 'running' && currentTab !== 'readiness' && currentTab !== 'paces' && currentTab !== 'calculator' && currentTab !== 'hall_of_fame' && currentTab !== 'buddy' && currentTab !== 'fitbot' && (
-            <div className="w-[52%] sm:w-[45%]">
+            <div className="w-[42%] sm:w-[40%]">
               <SpotSearchInput 
                 selectedSpot={selectedClub} 
                 onSelectSpot={(spot) => setSelectedClub(spot)} 
               />
             </div>
           )}
+
+          {/* 🔔 BOUTON DE NOTIFICATION STYLE FACEBOOK / INSTA */}
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={() => alert("Aucune nouvelle notification pour le moment.")} 
+              className="relative p-2 rounded-xl bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 text-neutral-300 hover:text-white transition cursor-pointer"
+              title="Notifications"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+              </svg>
+              
+              {/* Badge rouge dynamique pour les demandes d'amis en attente */}
+              {(friendRequests.filter(r => r.receiver_id === user?.id && r.status === 'pending').length > 0) && (
+                <span className="absolute -top-1 -right-1 bg-red-600 text-white font-black text-[10px] w-4 h-4 rounded-full flex items-center justify-center shadow-md animate-pulse">
+                  {friendRequests.filter(r => r.receiver_id === user?.id && r.status === 'pending').length}
+                </span>
+              )}
+            </button>
+          </div>
         </header>
 
         <main className="flex-1 w-full mx-auto px-4 py-3 pb-32 space-y-3">
