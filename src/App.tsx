@@ -60,7 +60,7 @@ export default function App() {
   const [isSignUpMode, setIsSignUpMode] = useState(false);
   const [acceptCgu, setAcceptCgu] = useState(false);
 
-  // État pour les 3 onglets de discipline (Muscu, Hyrox, Course)
+  // État pour les 3 onglets (Muscu, Hyrox, Course)
   const [activeFocusMode, setActiveFocusMode] = useState<'strength' | 'hybrid' | 'running'>('strength');
 
   const [currentTab, setCurrentTab] = useState<'today' | 'community' | 'profile' | 'feed' | 'buddy' | 'workout' | 'exercises' | 'chat' | 'calculator' | 'paces' | 'live_tracker' | 'rest_timer' | 'notifications' | 'leaderboard' | 'boxwars' | 'running' | 'readiness' | 'hall_of_fame' | 'fitbot'>(() => {
@@ -548,7 +548,7 @@ export default function App() {
                     <h4 className="text-xs font-black text-white">Bienvenue sur FitPulse ⚡</h4>
                   </div>
                   <p className="text-[11px] text-neutral-300 leading-relaxed">
-                    Ton QG d'entraînement hybride. Fais ton check-in, consulte ton planning et choisis ta discipline du jour !
+                    Ton QG d'entraînement hybride. Fais ton check-in, consulte ton planning et choisis ta discipline ci-dessous !
                   </p>
                 </div>
               </div>
@@ -637,10 +637,10 @@ export default function App() {
                 </div>
               </PaywallGate>
 
-              {/* 🛠️ BOÎTE À OUTILS ADAPTÉE SELON L'ESPACE SÉLECTIONNÉ */}
+              {/* 🛠️ BOÎTE À OUTILS CORRESPONDANTE AUX 3 ONGLETS (Muscu / Hyrox / Course) */}
               <div className="pt-2">
                 <h3 className="text-[10px] font-black uppercase tracking-widest text-neutral-500 mb-3 ml-2 flex items-center gap-2">
-                  <Settings className="w-3.5 h-3.5" /> Outils Rapides ({activeFocusMode === 'strength' ? 'Muscu' : activeFocusMode === 'hybrid' ? 'Hyrox' : 'Course'})
+                  <Settings className="w-3.5 h-3.5" /> Outils dédiés : {activeFocusMode === 'strength' ? 'Musculation & Charges' : activeFocusMode === 'hybrid' ? 'Hyrox & WODs' : 'Course & Nutrition'}
                 </h3>
                 <div className="grid grid-cols-2 gap-2.5">
                   {activeFocusMode === 'strength' && (
@@ -659,7 +659,7 @@ export default function App() {
                     <>
                       <button onClick={() => handleTabChange('running')} className="bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 p-4 rounded-2xl flex flex-col gap-2.5 items-start transition cursor-pointer">
                         <Zap className="w-5 h-5 text-emerald-400" />
-                        <span className="text-xs font-bold text-neutral-200">Ravitaillement</span>
+                        <span className="text-xs font-bold text-neutral-200">Ravitaillement & Course</span>
                       </button>
                       <button onClick={() => handleTabChange('paces')} className="bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 p-4 rounded-2xl flex flex-col gap-2.5 items-start transition cursor-pointer">
                         <Activity className="w-5 h-5 text-emerald-400" />
