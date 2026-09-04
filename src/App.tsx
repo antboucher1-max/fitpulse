@@ -543,7 +543,7 @@ export default function App() {
                 <div className="flex-1 min-w-0 space-y-1">
                   <h4 className="text-xs font-black text-white">Bienvenue sur FitPulse ⚡</h4>
                   <p className="text-[11px] text-neutral-300 leading-relaxed">
-                    Clique sur un univers ci-dessous pour accéder directement à ton espace dédié (Muscu, CrossFit ou Course).
+                    Choisis ta discipline ci-dessous pour accéder instantanément à ton espace dédié.
                   </p>
                 </div>
               </div>
@@ -559,7 +559,7 @@ export default function App() {
                   <span className="group-hover:text-orange-400 transition">Muscu</span>
                 </button>
 
-                {/* Bouton CrossFit : Ouvre directement le générateur de WOD */}
+                {/* Bouton CrossFit : Ouvre directement la modale de génération de WOD */}
                 <button 
                   onClick={() => setIsWodGeneratorOpen(true)} 
                   className="py-3 px-2 bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 hover:border-cyan-500/50 rounded-2xl text-xs font-black text-white transition cursor-pointer flex flex-col items-center gap-1.5 shadow-lg group"
