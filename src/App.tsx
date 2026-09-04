@@ -33,6 +33,7 @@ import PaywallGate from './components/PaywallGate';
 import FridgeScannerTab from './components/FridgeScannerTab';
 import HybridShareCard from './components/HybridShareCard';
 import LiveCoachEngine from './components/LiveCoachEngine';
+import HuaweiSyncModal from './components/HuaweiSyncModal';
 
 import FatigueDashboardCard from './components/FatigueDashboardCard';
 
@@ -81,6 +82,7 @@ export default function App() {
   const [isPostModalOpen, setIsPostModalOpen] = useState(false);
   const [isBoxWarsModalOpen, setIsBoxWarsModalOpen] = useState(false);
   const [isHybridShareOpen, setIsHybridShareOpen] = useState(false);
+  const [isHuaweiSyncOpen, setIsHuaweiSyncOpen] = useState(false);
   
   const [isGymLogOpen, setIsGymLogOpen] = useState(false);
   const [isWodGeneratorOpen, setIsWodGeneratorOpen] = useState(false);
@@ -908,6 +910,18 @@ export default function App() {
           />
         )}
 
+        {/* MODALE DE SYNCHRONISATION MONTRE HUAWEI */}
+        {isHuaweiSyncOpen && (
+          <HuaweiSyncModal 
+            currentUserId={user?.id}
+            onClose={() => setIsHuaweiSyncOpen(false)}
+            onSynced={() => {
+              fetchCloudPosts();
+              alert("Séance Huawei importée et publiée sur le fil avec succès ! 🚀");
+            }}
+          />
+        )}
+
         {/* MODALE D'ACTION UNIVERSELLE EN LANGAGE NATUREL */}
         {isActionMenuOpen && (
           <div className="fixed inset-0 z-50 bg-black/90 flex items-end justify-center p-4 pb-24 sm:items-center animate-fadeIn" onClick={() => setIsActionMenuOpen(false)}>
@@ -983,10 +997,10 @@ export default function App() {
                 <div className="grid grid-cols-2 gap-2">
                   <button 
                     type="button"
-                    onClick={() => alert("Connexion OAuth Strava simulée avec succès !")}
-                    className="py-2.5 bg-neutral-950 border border-neutral-800 hover:border-orange-500 rounded-xl text-[11px] font-bold text-white transition cursor-pointer flex items-center justify-center gap-1.5"
+                    onClick={() => { setIsActionMenuOpen(false); setIsHuaweiSyncOpen(true); }}
+                    className="py-2.5 bg-neutral-950 border border-neutral-800 hover:border-red-500 rounded-xl text-[11px] font-bold text-white transition cursor-pointer flex items-center justify-center gap-1.5"
                   >
-                    <span className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse" /> Strava Sync
+                    <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" /> Watch Huawei Sync
                   </button>
                   <button 
                     type="button"
