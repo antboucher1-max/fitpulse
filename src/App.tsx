@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, ChangeEvent, FormEvent } from 'react';
 import {
-  Zap, User, MessageCircle, Home, Users, Plus, X, Camera, Flame, MapPin, Trophy, Navigation, Calendar, Skull, BatteryCharging, ArrowRight, Activity, Sparkles, Play, Dumbbell, Settings, ChevronRight, ChevronLeft, CheckCircle2, Bot, ArrowLeft
+  Zap, User, MessageCircle, Home, Users, Plus, X, Camera, Flame, MapPin, Trophy, Navigation, Calendar, Skull, BatteryCharging, ArrowRight, Activity, Sparkles, Play, Dumbbell, Settings, ChevronRight, ChevronLeft, CheckCircle2, Bot, ArrowLeft, Share2
 } from 'lucide-react';
 import { User as SupabaseUser } from '@supabase/supabase-js';
 import { supabase } from './supabaseClient';
@@ -31,6 +31,7 @@ import HybridCalendar from './components/HybridCalendar';
 import OnboardingWizard from './components/OnboardingWizard';
 import PaywallGate from './components/PaywallGate';
 import FridgeScannerTab from './components/FridgeScannerTab';
+import HybridShareCard from './components/HybridShareCard';
 
 import FatigueDashboardCard from './components/FatigueDashboardCard';
 
@@ -78,6 +79,7 @@ export default function App() {
   const [isActionMenuOpen, setIsActionMenuOpen] = useState(false);
   const [isPostModalOpen, setIsPostModalOpen] = useState(false);
   const [isBoxWarsModalOpen, setIsBoxWarsModalOpen] = useState(false);
+  const [isHybridShareOpen, setIsHybridShareOpen] = useState(false);
   
   const [isGymLogOpen, setIsGymLogOpen] = useState(false);
   const [isWodGeneratorOpen, setIsWodGeneratorOpen] = useState(false);
@@ -645,6 +647,15 @@ export default function App() {
                 </div>
               </PaywallGate>
 
+              {/* ⚡ BOUTON D'ACCÈS CARTE VIRALE HYBRIDE */}
+              <button
+                type="button"
+                onClick={() => setIsHybridShareOpen(true)}
+                className="w-full py-4 bg-gradient-to-r from-orange-600 via-amber-600 to-orange-700 hover:opacity-95 text-white font-black rounded-3xl text-xs uppercase tracking-wider shadow-xl transition flex items-center justify-center gap-2 cursor-pointer border border-orange-500/40"
+              >
+                <Share2 className="w-4 h-4" /> Générer ma Carte Hybrid Apex (Partage Viral) 🚀
+              </button>
+
               {/* Vue d'ensemble de la semaine */}
               <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-4 space-y-3 shadow-xl">
                 <span className="text-xs font-black uppercase tracking-wider text-neutral-400 flex items-center gap-2 ml-1">
@@ -876,6 +887,19 @@ export default function App() {
             <RunningTab currentUserId={user?.id} currentUsername={currentUsername} selectedClub={selectedClub} currentUserProfile={currentUserProfile} userAvatarUrl={userAvatarUrl} onRefreshFeed={() => { fetchCloudPosts(); if (user) fetchUserShoes(user.id); }} onBack={() => handleTabChange('today')} />
           )}
         </main>
+
+        {/* MODALE DE CARTE DE PARTAGE VIRAL HYBRIDE */}
+        {isHybridShareOpen && (
+          <HybridShareCard 
+            username={currentUsername}
+            runKm={10.5}
+            runTime="48:15"
+            squatKg={125}
+            wodName="FRAN"
+            wodScore="3:55"
+            onClose={() => setIsHybridShareOpen(false)}
+          />
+        )}
 
         {/* MODALE D'ACTION UNIVERSELLE EN LANGAGE NATUREL */}
         {isActionMenuOpen && (
