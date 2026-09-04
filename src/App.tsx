@@ -60,8 +60,8 @@ export default function App() {
   const [isSignUpMode, setIsSignUpMode] = useState(false);
   const [acceptCgu, setAcceptCgu] = useState(false);
 
-  // État pour les 3 onglets (Muscu, Hyrox, Course)
-  const [activeFocusMode, setActiveFocusMode] = useState<'strength' | 'hybrid' | 'running'>('strength');
+  // État des 3 grands univers : 'strength' (Muscu), 'crossfit' (CrossFit), 'running' (Course)
+  const [activeUniverse, setActiveUniverse] = useState<'strength' | 'crossfit' | 'running'>('strength');
 
   const [currentTab, setCurrentTab] = useState<'today' | 'community' | 'profile' | 'feed' | 'buddy' | 'workout' | 'exercises' | 'chat' | 'calculator' | 'paces' | 'live_tracker' | 'rest_timer' | 'notifications' | 'leaderboard' | 'boxwars' | 'running' | 'readiness' | 'hall_of_fame' | 'fitbot'>(() => {
     const savedTab = localStorage.getItem('fitpulse_active_tab');
@@ -538,38 +538,36 @@ export default function App() {
 
           {currentTab === 'today' && (
             <div className="space-y-6 animate-fadeIn pb-12">
-              {/* 🌟 BANNEAU D'ACCUEIL / GUIDAGE POUR LES NOUVEAUX */}
+              {/* 🌟 BANNEAU D'ACCUEIL / GUIDAGE */}
               <div className="bg-gradient-to-r from-orange-950/60 via-neutral-900 to-neutral-900 border border-orange-500/30 rounded-3xl p-4 flex items-start gap-3.5 shadow-lg relative">
                 <div className="w-10 h-10 rounded-2xl bg-orange-500/20 text-orange-400 flex items-center justify-center flex-shrink-0 border border-orange-500/30">
                   <Sparkles className="w-5 h-5" />
                 </div>
                 <div className="flex-1 min-w-0 space-y-1">
-                  <div className="flex items-center justify-between">
-                    <h4 className="text-xs font-black text-white">Bienvenue sur FitPulse ⚡</h4>
-                  </div>
+                  <h4 className="text-xs font-black text-white">Bienvenue sur FitPulse ⚡</h4>
                   <p className="text-[11px] text-neutral-300 leading-relaxed">
-                    Ton QG d'entraînement hybride. Fais ton check-in, consulte ton planning et choisis ta discipline ci-dessous !
+                    Sélectionne ton univers ci-dessous pour accéder directement à tes outils dédiés (Muscu, CrossFit ou Course).
                   </p>
                 </div>
               </div>
 
-              {/* 🎯 LES 3 ONGLETS DE DISCIPLINE (Muscu, Hyrox, Course) */}
+              {/* 🎯 LES 3 ONGLETS D'UNIVERS (Muscu, CrossFit, Course) */}
               <div className="flex gap-1.5 bg-neutral-900/90 p-1.5 rounded-2xl border border-neutral-800">
                 <button 
-                  onClick={() => setActiveFocusMode('strength')} 
-                  className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1.5 ${activeFocusMode === 'strength' ? 'bg-orange-600 text-white shadow-md' : 'text-neutral-400 hover:text-white'}`}
+                  onClick={() => setActiveUniverse('strength')} 
+                  className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1.5 ${activeUniverse === 'strength' ? 'bg-orange-600 text-white shadow-md' : 'text-neutral-400 hover:text-white'}`}
                 >
                   🏋️ Muscu
                 </button>
                 <button 
-                  onClick={() => setActiveFocusMode('hybrid')} 
-                  className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1.5 ${activeFocusMode === 'hybrid' ? 'bg-orange-600 text-white shadow-md' : 'text-neutral-400 hover:text-white'}`}
+                  onClick={() => setActiveUniverse('crossfit')} 
+                  className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1.5 ${activeUniverse === 'crossfit' ? 'bg-orange-600 text-white shadow-md' : 'text-neutral-400 hover:text-white'}`}
                 >
-                  🥵 Hyrox
+                  🥵 CrossFit
                 </button>
                 <button 
-                  onClick={() => setActiveFocusMode('running')} 
-                  className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1.5 ${activeFocusMode === 'running' ? 'bg-emerald-600 text-white shadow-md' : 'text-neutral-400 hover:text-white'}`}
+                  onClick={() => setActiveUniverse('running')} 
+                  className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1.5 ${activeUniverse === 'running' ? 'bg-emerald-600 text-white shadow-md' : 'text-neutral-400 hover:text-white'}`}
                 >
                   🏃 Course
                 </button>
@@ -637,25 +635,31 @@ export default function App() {
                 </div>
               </PaywallGate>
 
-              {/* 🛠️ BOÎTE À OUTILS CORRESPONDANTE AUX 3 ONGLETS (Muscu / Hyrox / Course) */}
+              {/* 🛠️ OUTILS DÉDIÉS À L'UNIVERS SÉLECTIONNÉ (Muscu / CrossFit / Course) */}
               <div className="pt-2">
                 <h3 className="text-[10px] font-black uppercase tracking-widest text-neutral-500 mb-3 ml-2 flex items-center gap-2">
-                  <Settings className="w-3.5 h-3.5" /> Outils dédiés : {activeFocusMode === 'strength' ? 'Musculation & Charges' : activeFocusMode === 'hybrid' ? 'Hyrox & WODs' : 'Course & Nutrition'}
+                  <Settings className="w-3.5 h-3.5" /> Espace dédié : {activeUniverse === 'strength' ? '🏋️ Musculation & Charges' : activeUniverse === 'crossfit' ? '🥵 CrossFit & WODs' : '🏃 Course, Allures & Nutrition'}
                 </h3>
                 <div className="grid grid-cols-2 gap-2.5">
-                  {activeFocusMode === 'strength' && (
+                  {activeUniverse === 'strength' && (
                     <button onClick={() => setIsGymLogOpen(true)} className="bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 p-4 rounded-2xl flex flex-col gap-2.5 items-start transition cursor-pointer">
                       <Dumbbell className="w-5 h-5 text-orange-400" />
                       <span className="text-xs font-bold text-neutral-200">Carnet de Muscu</span>
                     </button>
                   )}
-                  {activeFocusMode === 'hybrid' && (
-                    <button onClick={() => setIsWodGeneratorOpen(true)} className="bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 p-4 rounded-2xl flex flex-col gap-2.5 items-start transition cursor-pointer">
-                      <Flame className="w-5 h-5 text-cyan-400" />
-                      <span className="text-xs font-bold text-neutral-200">Générateur WOD / Hyrox</span>
-                    </button>
+                  {activeUniverse === 'crossfit' && (
+                    <>
+                      <button onClick={() => setIsWodGeneratorOpen(true)} className="bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 p-4 rounded-2xl flex flex-col gap-2.5 items-start transition cursor-pointer">
+                        <Flame className="w-5 h-5 text-cyan-400" />
+                        <span className="text-xs font-bold text-neutral-200">Générateur WOD</span>
+                      </button>
+                      <button onClick={() => handleTabChange('boxwars')} className="bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 p-4 rounded-2xl flex flex-col gap-2.5 items-start transition cursor-pointer">
+                        <Trophy className="w-5 h-5 text-cyan-400" />
+                        <span className="text-xs font-bold text-neutral-200">BoxWars Scores</span>
+                      </button>
+                    </>
                   )}
-                  {activeFocusMode === 'running' && (
+                  {activeUniverse === 'running' && (
                     <>
                       <button onClick={() => handleTabChange('running')} className="bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 p-4 rounded-2xl flex flex-col gap-2.5 items-start transition cursor-pointer">
                         <Zap className="w-5 h-5 text-emerald-400" />
@@ -663,7 +667,7 @@ export default function App() {
                       </button>
                       <button onClick={() => handleTabChange('paces')} className="bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 p-4 rounded-2xl flex flex-col gap-2.5 items-start transition cursor-pointer">
                         <Activity className="w-5 h-5 text-emerald-400" />
-                        <span className="text-xs font-bold text-neutral-200">Calculateur Allures</span>
+                        <span className="text-xs font-bold text-neutral-200">Calculateur Allures (VMA)</span>
                       </button>
                     </>
                   )}
