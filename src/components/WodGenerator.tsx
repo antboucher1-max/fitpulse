@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Zap, Activity, Dumbbell, RefreshCw, Flame, BatteryWarning } from 'lucide-react';
+import { Zap, Activity, Dumbbell, RefreshCw, Flame, BatteryWarning, ArrowLeft } from 'lucide-react';
 
 const WOD_DATABASE = {
   high: [
@@ -19,7 +19,12 @@ const WOD_DATABASE = {
   ]
 };
 
-export default function WodGenerator() {
+interface WodGeneratorProps {
+  onAcceptWod?: (wod: any) => void;
+  onBack?: () => void;
+}
+
+export default function WodGenerator({ onAcceptWod, onBack }: WodGeneratorProps) {
   const [generatedWod, setGeneratedWod] = useState<any>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [simulatedReadiness, setSimulatedReadiness] = useState<'high' | 'medium' | 'low'>('medium');
@@ -37,8 +42,27 @@ export default function WodGenerator() {
     }, 1200);
   };
 
+  const handleAccept = () => {
+    if (onAcceptWod && generatedWod) {
+      onAcceptWod(generatedWod);
+    }
+    alert("Séance enregistrée dans ton planning du jour ! 🚀");
+  };
+
   return (
-    <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4 shadow-xl">
+    <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4 shadow-xl relative">
+      
+      {/* 🔙 BOUTON RETOUR */}
+      {onBack && (
+        <button 
+          type="button" 
+          onClick={onBack} 
+          className="flex items-center gap-1.5 text-xs font-bold text-neutral-300 hover:text-white bg-neutral-800 px-3 py-2 rounded-xl transition cursor-pointer w-fit mb-1"
+        >
+          <ArrowLeft className="w-4 h-4" /> Retour
+        </button>
+      )}
+
       <div className="flex items-center justify-between">
         <h3 className="text-xs font-black text-white uppercase tracking-wider flex items-center gap-2">
           <Zap className="w-4 h-4 text-cyan-400" /> Générateur de Séance
@@ -99,7 +123,10 @@ export default function WodGenerator() {
             </p>
           </div>
 
-          <button className="w-full py-2.5 bg-neutral-800 hover:bg-neutral-700 text-white font-bold rounded-xl text-xs transition border border-neutral-700 cursor-pointer">
+          <button 
+            onClick={handleAccept}
+            className="w-full py-2.5 bg-neutral-800 hover:bg-neutral-700 text-white font-bold rounded-xl text-xs transition border border-neutral-700 cursor-pointer"
+          >
             Accepter cette séance ✅
           </button>
         </div>
