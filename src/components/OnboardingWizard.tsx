@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ChevronRight, ChevronLeft, Zap, Target, Dumbbell, MapPin, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { ChevronRight, ChevronLeft, Zap, Target, Dumbbell, MapPin, CheckCircle2, AlertTriangle, Calendar } from 'lucide-react';
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = 'https://obtahwmcoqrcauscpksv.supabase.co';
@@ -28,6 +28,7 @@ export default function OnboardingWizard({ user, onComplete }: OnboardingWizardP
   const [step, setStep] = useState(1);
   const [username, setUsername] = useState('');
   const [gender, setGender] = useState('Homme');
+  const [age, setAge] = useState<number | ''>(32);
   const [goal, setGoal] = useState('Prise de masse / Force');
   const [discipline, setDiscipline] = useState('Fitness / Musculation');
   const [spot, setSpot] = useState('');
@@ -37,6 +38,10 @@ export default function OnboardingWizard({ user, onComplete }: OnboardingWizardP
   const handleFinish = async () => {
     if (!spot.trim()) {
       alert("Merci d'indiquer ton spot ou ta ville principale !");
+      return;
+    }
+    if (age === '' || Number(age) < 15 || Number(age) > 99) {
+      alert("Merci d'indiquer un âge valide (entre 15 et 99 ans) pour le calcul de votre charge et le matching !");
       return;
     }
     if (!acceptedMedical) {
@@ -49,6 +54,7 @@ export default function OnboardingWizard({ user, onComplete }: OnboardingWizardP
       const profileData = {
         id: user.id,
         username: username.trim() || 'Athlète',
+        age: Number(age),
         home_club: spot.trim(),
         goal,
         gender,
@@ -88,13 +94,13 @@ export default function OnboardingWizard({ user, onComplete }: OnboardingWizardP
 
       <div className="w-full max-w-sm bg-neutral-900 border border-neutral-800 rounded-[2.5rem] p-6 space-y-6 shadow-2xl relative animate-slideUp">
         
-        {/* ÉTAPE 1 : IDENTITÉ & GENRE ÉTENDU */}
+        {/* ÉTAPE 1 : IDENTITÉ, GENRE & ÂGE */}
         {step === 1 && (
           <div className="space-y-4 animate-fadeIn">
             <div className="text-center space-y-1">
               <span className="text-[10px] uppercase font-black tracking-widest text-orange-500 bg-orange-500/10 px-3 py-1 rounded-full border border-orange-500/20">Étape 1 sur 4</span>
-              <h2 className="text-2xl font-black text-white pt-2">Comment t'appelles-tu ?</h2>
-              <p className="text-xs text-neutral-400">Entre ton pseudo et ton identité pour ton profil.</p>
+              <h2 className="text-2xl font-black text-white pt-2">Qui es-tu ?</h2>
+              <p className="text-xs text-neutral-400">Entre ton pseudo, ton genre et ton âge pour calibrer ton profil.</p>
             </div>
 
             <div className="space-y-3 pt-1">
@@ -109,6 +115,23 @@ export default function OnboardingWizard({ user, onComplete }: OnboardingWizardP
                   onChange={(e) => setUsername(e.target.value)} 
                   className="w-full bg-neutral-950 border border-neutral-800 focus:border-orange-500 rounded-2xl px-4 py-3.5 text-sm text-white transition outline-none shadow-inner" 
                 />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-neutral-400 mb-1.5">Ton Âge</label>
+                <div className="relative">
+                  <input 
+                    type="number" 
+                    min="15" 
+                    max="99" 
+                    value={age} 
+                    onChange={(e) => setAge(e.target.value ? Number(e.target.value) : '')}
+                    placeholder="Ex: 32"
+                    className="w-full bg-neutral-950 border border-neutral-800 focus:border-orange-500 rounded-2xl px-4 py-3.5 text-sm text-white transition outline-none shadow-inner"
+                    required
+                  />
+                  <span className="absolute right-4 top-3.5 text-xs text-neutral-500 font-semibold">ans</span>
+                </div>
               </div>
 
               <div>
@@ -262,9 +285,15 @@ export default function OnboardingWizard({ user, onComplete }: OnboardingWizardP
           <button 
             type="button" 
             onClick={() => {
-              if (step === 1 && !username.trim()) {
-                alert("Entre un pseudo pour continuer !");
-                return;
+              if (step === 1) {
+                if (!username.trim()) {
+                  alert("Entre un pseudo pour continuer !");
+                  return;
+                }
+                if (age === '' || Number(age) < 15 || Number(age) > 99) {
+                  alert("Merci d'indiquer un âge valide !");
+                  return;
+                }
               }
               if (step === 4 && !acceptedMedical) {
                 alert("Veuillez accepter l'avertissement de santé pour valider votre inscription.");
