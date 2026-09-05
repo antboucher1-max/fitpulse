@@ -2,7 +2,7 @@ import PaywallGate from './PaywallGate';
 import { useState, useEffect, useRef } from 'react';
 import { 
   Play, Pause, Square, MapPin, Volume2, VolumeX, 
-  Compass, Apple, Droplet, Zap, Navigation, LocateFixed, Activity, Gauge, Timer, Target, Radio, Wind, ArrowLeft, Share2, EyeOff, X, Upload, Mountain, Compass as CompassIcon, Trophy, Award, Flame, Send 
+  Compass, Apple, Droplet, Zap, Navigation, LocateFixed, Activity, Gauge, Timer, Target, Radio, Wind, ArrowLeft, Share2, EyeOff, X, Upload, Mountain, Compass as CompassIcon, Trophy, Award, Flame, Send, Ghost 
 } from 'lucide-react';
 import { MapContainer, TileLayer, Polyline, Marker, useMap } from 'react-leaflet';
 import L from 'leaflet';
@@ -15,6 +15,14 @@ const runnerIcon = L.divIcon({
   html: `<div style="width: 20px; height: 20px; background: #10b981; border: 4px solid #ffffff; border-radius: 50%; box-shadow: 0 0 16px #10b981, 0 0 4px rgba(0,0,0,0.8);"></div>`,
   iconSize: [20, 20],
   iconAnchor: [10, 10]
+});
+
+// Icône distincte pour le marqueur Fantôme (Ghost Pacer) en rouge/orange vif
+const ghostIcon = L.divIcon({
+  className: 'custom-ghost-marker',
+  html: `<div style="width: 18px; height: 18px; background: #ef4444; border: 3px solid #ffffff; border-radius: 50%; box-shadow: 0 0 14px #ef4444, 0 0 4px rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; font-size: 8px; color: white; font-weight: bold;">👻</div>`,
+  iconSize: [18, 18],
+  iconAnchor: [9, 9]
 });
 
 function MapController({ center, plannedRoute }: { center: [number, number], plannedRoute?: Array<[number, number]> }) {
@@ -73,6 +81,9 @@ export default function RunningTab({
   const [plannedRoutePositions, setPlannedRoutePositions] = useState<Array<[number, number]>>([]);
   const [plannedDistanceKm, setPlannedDistanceKm] = useState<number>(0);
   const [circuitType, setCircuitType] = useState<'route' | 'bois' | 'carriere'>('route');
+
+  // État pour le Ghost Pacer interactif sur la carte
+  const [ghostPosition, setGhostPosition] = useState<[number, number] | null>(null);
 
   const [windSpeedKmh, setWindSpeedKmh] = useState<number>(0);
   const [windDirectionDeg, setWindDirectionDeg] = useState<number>(0);
@@ -319,6 +330,25 @@ export default function RunningTab({
     const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) * Math.sin(dLon / 2) ** 2;
     return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   };
+
+  // --- LOGIQUE DU GHOST PACER (Calcul de la progression sur la trace cible) ---
+  useEffect(() => {
+    if (isRunning && !isPaused && plannedRoutePositions.length > 0 && plannedDistanceKm > 0) {
+      // Distance que le fantôme est censé parcourir en fonction du temps et de l'allure cible (targetPaceSecs)
+      // targetPaceSecs = secondes par km. Donc vitesse fantôme = 1 km / targetPaceSecs secondes.
+      const ghostDistanceKm = seconds / targetPaceSecs; 
+      
+      // Proportion de la distance parcourue par rapport au circuit total (entre 0 et 1)
+      let ratio = ghostDistanceKm / plannedDistanceKm;
+      if (ratio > 1) ratio = 1; // Boucle terminée ou atteinte maximale
+
+      // Index correspondant dans le tableau des points du circuit cible
+      const targetIndex = Math.floor(ratio * (plannedRoutePositions.length - 1));
+      setGhostPosition(plannedRoutePositions[targetIndex]);
+    } else if (!isRunning) {
+      setGhostPosition(null);
+    }
+  }, [seconds, isRunning, isPaused, plannedRoutePositions, plannedDistanceKm, targetPaceSecs]);
 
   useEffect(() => {
     let interval: any = null;
@@ -668,10 +698,10 @@ export default function RunningTab({
       <div className="bg-neutral-900 border border-neutral-800/80 rounded-3xl p-4 sm:p-6 space-y-4 shadow-xl">
         <div className="flex items-center justify-between px-1">
           <h3 className="text-xs font-black text-white flex items-center gap-2 uppercase tracking-wider">
-            <Navigation className="w-4 h-4 text-emerald-400 animate-pulse" /> Carte Live & Circuit Cible (Offline Safe)
+            <Navigation className="w-4 h-4 text-emerald-400 animate-pulse" /> Carte Live & Circuit Cible (Ghost Pacer)
           </h3>
           <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1 rounded-full">
-            {isRunning ? 'Enregistrement actif...' : plannedDistanceKm > 0 ? `Circuit ${plannedDistanceKm} km prêt` : 'Prêt à démarrer'}
+            {isRunning ? 'Enregistrement & Fantôme actifs...' : plannedDistanceKm > 0 ? `Circuit ${plannedDistanceKm} km prêt` : 'Prêt à démarrer'}
           </span>
         </div>
 
@@ -679,11 +709,20 @@ export default function RunningTab({
           <MapContainer center={currentPosition} zoom={16} scrollWheelZoom={true} style={{ width: '100%', height: '100%', background: '#0a0a0a' }}>
             <MapController center={currentPosition} plannedRoute={plannedRoutePositions} />
             <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+            
+            {/* Tracé théorique / Circuit planifié en bleu */}
             {plannedRoutePositions.length > 0 && (
               <Polyline positions={plannedRoutePositions} pathOptions={{ color: '#38bdf8', weight: 4, opacity: 0.8, dashArray: '6, 6', lineCap: 'round', lineJoin: 'round' }} />
             )}
+
+            {/* Tracé réel de course en vert */}
             <Polyline positions={routePositions} pathOptions={{ color: '#10b981', weight: 6, opacity: 0.95, lineCap: 'round', lineJoin: 'round' }} />
+
+            {/* Marqueur coureur actuel */}
             <Marker position={currentPosition} icon={runnerIcon} />
+
+            {/* Marqueur Fantôme (Ghost Pacer en rouge) */}
+            {ghostPosition && <Marker position={ghostPosition} icon={ghostIcon} />}
           </MapContainer>
 
           <div className="absolute bottom-3 left-3 z-[1000] bg-neutral-950/90 border border-neutral-800 backdrop-blur px-3 py-1.5 rounded-xl text-[10px] text-emerald-400 font-mono flex items-center gap-2 shadow-lg">
