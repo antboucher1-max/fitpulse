@@ -474,15 +474,19 @@ export default function RunningTab({
     paceFormatted = `${rawMins}'${rawSecs < 10 ? '0' : ''}${rawSecs}"`;
   }
 
-  const totalHours = durationHours + durationMins / 60;
+  // --- SYNCHRONISATION TEMPS RÉEL DU RAVITAILLEMENT ---
+  const activeHours = isRunning ? Math.floor(seconds / 3600) : durationHours;
+  const activeMins = isRunning ? Math.floor((seconds % 3600) / 60) : durationMins;
+  const totalActiveHours = activeHours + activeMins / 60;
+
   let carbsPerHour = 60;
   if (intensity === 'modere') carbsPerHour = 45;
   if (intensity === 'soutenu') carbsPerHour = 65;
   if (intensity === 'maximal') carbsPerHour = 90;
 
-  const totalCarbs = Math.round(carbsPerHour * totalHours);
+  const totalCarbs = Math.round(carbsPerHour * (totalActiveHours > 0 ? totalActiveHours : 0.1));
   const waterPerception = intensity === 'maximal' ? 750 : 600;
-  const totalWaterMl = Math.round(waterPerception * totalHours);
+  const totalWaterMl = Math.round(waterPerception * (totalActiveHours > 0 ? totalActiveHours : 0.1));
   const standardGelsCount = Math.round(totalCarbs / 25);
 
   return (
@@ -864,9 +868,10 @@ export default function RunningTab({
               type="number" 
               min="0" 
               max="12"
-              value={durationHours}
+              value={activeHours}
+              disabled={isRunning}
               onChange={(e) => setDurationHours(Number(e.target.value))}
-              className="w-full bg-neutral-950 border border-neutral-800 rounded-2xl px-4 py-3 text-xs text-white focus:border-orange-500 focus:outline-none"
+              className={`w-full bg-neutral-950 border border-neutral-800 rounded-2xl px-4 py-3 text-xs text-white focus:border-orange-500 focus:outline-none ${isRunning ? 'opacity-60 cursor-not-allowed' : ''}`}
             />
           </div>
           <div>
@@ -876,9 +881,10 @@ export default function RunningTab({
               min="0" 
               max="55"
               step="5"
-              value={durationMins}
+              value={activeMins}
+              disabled={isRunning}
               onChange={(e) => setDurationMins(Number(e.target.value))}
-              className="w-full bg-neutral-950 border border-neutral-800 rounded-2xl px-4 py-3 text-xs text-white focus:border-orange-500 focus:outline-none"
+              className={`w-full bg-neutral-950 border border-neutral-800 rounded-2xl px-4 py-3 text-xs text-white focus:border-orange-500 focus:outline-none ${isRunning ? 'opacity-60 cursor-not-allowed' : ''}`}
             />
           </div>
         </div>
@@ -932,7 +938,7 @@ export default function RunningTab({
         <div className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 space-y-2 text-xs">
           <span className="font-bold text-orange-400 block">Stratégie de course :</span>
           <p className="text-neutral-300 leading-relaxed">
-            Pour cette sortie de <strong>{durationHours}h{durationMins > 0 ? durationMins : ''}</strong>, prévois environ <strong>{standardGelsCount} gels énergétiques</strong> à répartir toutes les 30 à 45 minutes, accompagnés de petites gorgées d'eau régulièrement.
+            Pour cette sortie de <strong>{activeHours}h{activeMins > 0 ? `${activeMins}m` : ''}</strong>, prévois environ <strong>{standardGelsCount} gels énergétiques</strong> à répartir toutes les 30 à 45 minutes, accompagnés de petites gorgées d'eau régulièrement.
           </p>
         </div>
       </div>
