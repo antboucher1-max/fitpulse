@@ -220,6 +220,21 @@ export default function App() {
     }
   };
 
+  const addPointsToUser = async (userId: string, pointsToAdd: number) => {
+    const targetUser = registeredUsers.find(u => u.id === userId);
+    const currentPoints = (targetUser as any)?.points || 0;
+    const newTotalPoints = currentPoints + pointsToAdd;
+
+    const { error } = await supabase
+      .from('profiles')
+      .update({ points: newTotalPoints })
+      .eq('id', userId);
+
+    if (!error) {
+      fetchRealUsers();
+    }
+  };
+
   const calculateUserStreak = (targetUserId: string) => {
     if (!user || !targetUserId) return 0;
     const convo = allMessages.filter(
@@ -255,7 +270,6 @@ export default function App() {
         fetchUserShoes(session.user.id);
         fetchGymLogsForUser(session.user.id);
 
-        // Vérifier si le guide d'accueil a déjà été vu
         const welcomeSeen = localStorage.getItem('fitpulse_welcome_seen');
         if (!welcomeSeen) {
           setIsWelcomeModalOpen(true);
