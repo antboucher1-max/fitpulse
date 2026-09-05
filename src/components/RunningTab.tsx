@@ -179,6 +179,19 @@ export default function RunningTab({
     fetchInitialPosition();
   }, []);
 
+  // Calculateur de distance Haversine entre deux points GPS réels
+  const calculateHaversineDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+    const R = 6371; // Rayon de la Terre en km
+    const dLat = (lat2 - lat1) * (Math.PI / 180);
+    const dLon = (lon2 - lon1) * (Math.PI / 180);
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
+      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  };
+
   useEffect(() => {
     let interval: any = null;
     let watchId: number | null = null;
@@ -211,8 +224,6 @@ export default function RunningTab({
           }
           return newSecs;
         });
-
-        setDistanceKm(d => Number((d + 0.0033).toFixed(2)));
       }, 1000);
 
       if ('geolocation' in navigator) {
@@ -223,12 +234,14 @@ export default function RunningTab({
             const newPos: [number, number] = [lat, lng];
 
             const last = lastPositionRef.current;
-            const distanceMoved = Math.hypot(newPos[0] - last[0], newPos[1] - last[1]);
+            const deltaKm = calculateHaversineDistance(last[0], last[1], newPos[0], newPos[1]);
 
-            if (distanceMoved > 0.00001) {
+            // Filtrer les micro-sauts GPS aberrants (< 2 mètres)
+            if (deltaKm > 0.002) {
               lastPositionRef.current = newPos;
               setCurrentPosition(newPos);
               setRoutePositions(prev => [...prev, newPos]);
+              setDistanceKm(d => Number((d + deltaKm).toFixed(2)));
               fetchRealTimeWindAndPosition(lat, lng);
             }
           },
@@ -297,8 +310,8 @@ export default function RunningTab({
     setSeconds(0);
     setDistanceKm(0);
     fetchInitialPosition();
-    setCoachingAdvice(`Sortie démarrée. Sécurité hors-ligne active.`);
-    speakMessage("Sortie démarrée. Protection hors-ligne active. Bon entraînement !");
+    setCoachingAdvice(`Sortie démarrée. GPS réel et sécurité hors-ligne actifs.`);
+    speakMessage("Sortie démarrée. GPS réel activé. Bon entraînement !");
   };
 
   const handlePauseRun = () => {
@@ -310,9 +323,9 @@ export default function RunningTab({
     setIsRunning(false);
     setIsPaused(false);
     speakMessage("Séance terminée. Excellent travail !");
-    
+     
     if (distanceKm > 0 && onSaveRunPost) {
-      onSaveRunPost(`[Running] Sortie de ${distanceKm} km en ${formatTime(seconds)} 🏃‍♂️`, distanceKm);
+      onSaveRunPost(`[Running] Sortie GPS de ${distanceKm} km en ${formatTime(seconds)} 🏃‍♂️`, distanceKm);
     }
 
     // Nettoyage de la sauvegarde locale après publication réussie
@@ -363,7 +376,7 @@ export default function RunningTab({
             <div className="flex items-center gap-2 text-orange-400 font-bold text-xs uppercase tracking-widest mb-1">
               <Compass className="w-4 h-4" /> Mode Running & Ghost Pacing
             </div>
-            <h2 className="text-xl font-black text-white tracking-tight">GPS, Météo Satellite & Sécurité Hors-Ligne</h2>
+            <h2 className="text-xl font-black text-white tracking-tight">GPS Réel, Météo Satellite & Sécurité Hors-Ligne</h2>
           </div>
           <button 
             type="button"
