@@ -46,6 +46,7 @@ interface RunningTabProps {
 
 export default function RunningTab({
   currentUserId,
+  currentUserProfile,
   shoes = [],
   onAddShoe = () => {},
   onDeleteShoe = () => {},
@@ -579,8 +580,8 @@ export default function RunningTab({
         />
       </div>
 
-      {/* Moteur de Ghost Pacing & Vent Réel API (PROTÉGÉ PAR LE PAYWALL) */}
-      <PaywallGate userId={currentUserId} featureName="Ghost Pacing Météo & Vocal">
+      {/* Moteur de Ghost Pacing & Vent Réel API (PROTÉGÉ PAR LE PAYWALL avec currentUserProfile) */}
+      <PaywallGate userId={currentUserId} currentUserProfile={currentUserProfile} featureName="Ghost Pacing Météo & Vocal">
         <div className="bg-neutral-900 border border-orange-500/30 rounded-3xl p-5 space-y-4 shadow-2xl relative overflow-hidden">
           <div className="absolute -right-8 -top-8 w-28 h-28 bg-orange-500/10 rounded-full blur-2xl pointer-events-none" />
           <div className="flex items-center justify-between relative z-10">
