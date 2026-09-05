@@ -40,6 +40,7 @@ import NutritionTab from './components/NutritionTab';
 import PacingMatrixPlanner from './components/PacingMatrixPlanner';
 
 import FatigueDashboardCard from './components/FatigueDashboardCard';
+import { calculateApexScore } from './ApexScoreEngine';
 
 const isMatchingClub = (postClubName?: string, selectedClubName?: string): boolean => {
   if (!postClubName || !selectedClubName) return false;
@@ -181,6 +182,15 @@ export default function App() {
   };
 
   const currentReadinessScore = calculateDynamicReadiness();
+
+  // Calcul en direct du score Apex (type Yuka)
+  const todayApexData = calculateApexScore({
+    readinessScore: currentReadinessScore,
+    nutritionCompliance: true,
+    hydrationLiters: 2.2,
+    targetHydrationLiters: 3.0,
+    weeklyLoad: 45
+  });
 
   const handleAddShoe = async (brand: string, model: string, maxKm: number) => {
     if (!user) return;
@@ -566,6 +576,43 @@ export default function App() {
           {currentTab === 'today' && (
             <div className="space-y-4 animate-fadeIn pb-12">
                
+              {/* --- WIDGET INDEX APEX (Score Type Yuka) --- */}
+              <div className={`border rounded-3xl p-5 space-y-3 shadow-xl relative overflow-hidden transition-all ${
+                todayApexData.badgeColor === 'red' ? 'bg-red-950/30 border-red-500/50' : 
+                todayApexData.badgeColor === 'amber' ? 'bg-amber-950/30 border-amber-500/50' : 'bg-neutral-900 border-neutral-800'
+              }`}>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black uppercase tracking-wider text-orange-400 flex items-center gap-2">
+                    <Zap className="w-4 h-4" /> Index Apex (Score Global du Jour)
+                  </span>
+                  <span className={`text-xs font-black px-3 py-1 rounded-full border ${
+                    todayApexData.badgeColor === 'red' ? 'bg-red-500/20 text-red-400 border-red-500/30' : 
+                    todayApexData.badgeColor === 'amber' ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+                  }`}>
+                    {todayApexData.score} / 100 🎯
+                  </span>
+                </div>
+
+                <p className="text-xs text-neutral-300 leading-relaxed">
+                  {todayApexData.message}
+                </p>
+
+                <div className="grid grid-cols-3 gap-2 pt-1 text-center text-[10px]">
+                  <div className="bg-neutral-950 p-2.5 rounded-2xl border border-neutral-800">
+                    <span className="text-neutral-400 block font-semibold">SNC & Forme</span>
+                    <span className="font-black text-white text-xs">{todayApexData.breakdown.snc}%</span>
+                  </div>
+                  <div className="bg-neutral-950 p-2.5 rounded-2xl border border-neutral-800">
+                    <span className="text-neutral-400 block font-semibold">Fuel-Lock</span>
+                    <span className="font-black text-cyan-400 text-xs">{todayApexData.breakdown.nutrition}%</span>
+                  </div>
+                  <div className="bg-neutral-950 p-2.5 rounded-2xl border border-neutral-800">
+                    <span className="text-neutral-400 block font-semibold">Hydratation</span>
+                    <span className="font-black text-emerald-400 text-xs">{todayApexData.breakdown.hydration}%</span>
+                  </div>
+                </div>
+              </div>
+
               {/* --- 1. CARTE PRINCIPALE : Forme & Readiness --- */}
               <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-3 shadow-xl relative overflow-hidden">
                 <div className="absolute -right-8 -top-8 w-28 h-28 bg-orange-500/10 rounded-full blur-2xl pointer-events-none" />
@@ -689,7 +736,7 @@ export default function App() {
               <button
                 type="button"
                 onClick={() => setIsHybridShareOpen(true)}
-                className="w-full py-4 bg-gradient-to-r from-orange-600 via-amber-600 to-orange-700 hover:opacity-95 text-white font-black rounded-3xl text-xs uppercase tracking-wider shadow-xl transition flex items-center justify-center gap-2 cursor-pointer border border-orange-500/30"
+                className="w-full py-4 bg-gradient-to-r from-orange-600 via-amber-600 to-orange-700 hover:opacity-95 text-white font-black rounded-3xl text-xs uppercase tracking-wider shadow-xl transition flex items-center justify-center gap-2 cursor-pointer border border-orange-500/40"
               >
                 <Share2 className="w-4 h-4" /> Générer ma Carte Hybrid Apex (Partage Viral) 🚀
               </button>
