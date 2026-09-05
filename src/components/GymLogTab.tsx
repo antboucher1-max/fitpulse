@@ -176,7 +176,7 @@ export default function GymLogTab({ currentUserId, onStartRestTimer }: GymLogTab
 
   return (
     <div className="space-y-6 pb-20 animate-fadeIn">
-      
+       
       {/* En-tête / Dashboard de Contrôle */}
       <div className="bg-gradient-to-r from-neutral-900 via-neutral-900 to-orange-950/40 border border-neutral-800 rounded-3xl p-5 shadow-xl flex items-center justify-between">
         <div>
@@ -208,6 +208,16 @@ export default function GymLogTab({ currentUserId, onStartRestTimer }: GymLogTab
             </button>
           </div>
         )}
+      </div>
+
+      {/* 💡 ENCART EXPLICITATIF / COMMENT ÇA MARCHE */}
+      <div className="bg-neutral-900/90 border border-neutral-800 rounded-3xl p-4 text-xs space-y-1.5 shadow-lg">
+        <div className="flex items-center gap-2 text-orange-400 font-bold">
+          <span>💡 Comment utiliser le Carnet Muscu ?</span>
+        </div>
+        <p className="text-neutral-400 leading-relaxed">
+          Note tes exercices, tes séries, tes charges et tes répétitions en direct pendant ta séance. Utilise le minuteur de repos intégré entre chaque série pour optimiser ta récupération et progresser d'une semaine sur l'autre. 🏋️‍♂️
+        </p>
       </div>
 
       {!isSessionActive ? (
@@ -254,7 +264,7 @@ export default function GymLogTab({ currentUserId, onStartRestTimer }: GymLogTab
         </div>
       ) : (
         <div className="space-y-4">
-          
+           
           <div className="bg-neutral-900 border border-neutral-800 p-4 rounded-2xl flex items-center justify-between">
             <input 
               type="text"
@@ -386,7 +396,7 @@ export default function GymLogTab({ currentUserId, onStartRestTimer }: GymLogTab
             <h4 className="text-xs font-black uppercase tracking-wider text-orange-400 flex items-center gap-1.5">
               <Plus className="w-4 h-4" /> Ajouter un exercice personnalisé
             </h4>
-            
+             
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <input 
                 type="text"
