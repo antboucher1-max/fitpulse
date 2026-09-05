@@ -15,6 +15,7 @@ import WodTimerTab from './components/WodTimerTab';
 import CalculatorTab from './components/CalculatorTab';
 import PaceCalculatorTab from './components/PaceCalculatorTab';
 import ChatTab from './components/ChatTab';
+import CleanReadinessTab from './components/CleanReadinessTab';
 import ProfileTab from './components/ProfileTab';
 import LeaderboardTab from './components/LeaderboardTab';
 import BoxWarsTab from './components/BoxWarsTab';
