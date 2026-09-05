@@ -2,7 +2,7 @@ import PaywallGate from './PaywallGate';
 import { useState, useEffect, useRef } from 'react';
 import { 
   Play, Pause, Square, MapPin, Volume2, VolumeX, 
-  Compass, Apple, Droplet, Zap, Navigation, LocateFixed, Activity, Gauge, Timer, Target, Radio, Wind, ArrowLeft 
+  Compass, Apple, Droplet, Zap, Navigation, LocateFixed, Activity, Gauge, Timer, Target, Radio, Wind, ArrowLeft, Share2, EyeOff, X 
 } from 'lucide-react';
 import { MapContainer, TileLayer, Polyline, Marker, useMap } from 'react-leaflet';
 import L from 'leaflet';
@@ -57,6 +57,9 @@ export default function RunningTab({
   const [seconds, setSeconds] = useState(0);
   const [distanceKm, setDistanceKm] = useState(0);
   const [audioCoaching, setAudioCoaching] = useState(true);
+
+  // État pour afficher la modale de choix de partage fin de course
+  const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
 
   // Ghost Pacing Vocal & Météo Réelle API States
   const [windSpeedKmh, setWindSpeedKmh] = useState<number>(0);
@@ -322,17 +325,29 @@ export default function RunningTab({
     speakMessage(isPaused ? "Reprise de la course." : "Chrono en pause.");
   };
 
-  const handleStopRun = () => {
+  // Étape 1 du clic sur Terminer : on ouvre la modale de choix
+  const handleOpenSaveModal = () => {
     setIsRunning(false);
     setIsPaused(false);
     speakMessage("Séance terminée. Excellent travail !");
-     
+    setIsSaveModalOpen(true);
+  };
+
+  // Option A : Sauvegarde en privé (pas de publication sur le fil)
+  const handleSavePrivate = () => {
+    setIsSaveModalOpen(false);
+    localStorage.removeItem('fitpulse_offline_run');
+    alert("Course enregistrée en mode privé dans votre historique ! 🔒");
+  };
+
+  // Option B : Sauvegarde et Partage sur le fil communautaire
+  const handleSavePublic = () => {
+    setIsSaveModalOpen(false);
     if (distanceKm > 0 && onSaveRunPost) {
       onSaveRunPost(`[Running] Sortie GPS de ${distanceKm} km en ${formatTime(seconds)} 🏃‍♂️`, distanceKm);
     }
-
-    // Nettoyage de la sauvegarde locale après publication réussie
     localStorage.removeItem('fitpulse_offline_run');
+    alert("Course enregistrée et publiée sur le fil d'actualité ! 🚀");
   };
 
   const currentHours = seconds / 3600;
@@ -591,15 +606,63 @@ export default function RunningTab({
               </button>
               <button 
                 type="button"
-                onClick={handleStopRun}
+                onClick={handleOpenSaveModal}
                 className="flex-1 py-4 bg-red-950/60 border border-red-900/50 hover:bg-red-900/60 text-red-400 font-black rounded-2xl text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition cursor-pointer"
               >
-                <Square className="w-4 h-4 fill-red-400" /> Terminer & Publier
+                <Square className="w-4 h-4 fill-red-400" /> Terminer la course
               </button>
             </>
           )}
         </div>
       </div>
+
+      {/* MODALE DE CHOIX DE SAUVEGARDE FIN DE COURSE */}
+      {isSaveModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-sm w-full p-6 space-y-5 shadow-2xl relative">
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-black text-white flex items-center gap-2">
+                🏁 Fin de course
+              </h3>
+              <button 
+                type="button" 
+                onClick={() => setIsSaveModalOpen(false)} 
+                className="p-2 text-neutral-400 hover:text-white rounded-xl bg-neutral-800/50 transition cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 text-center space-y-1">
+              <span className="text-[10px] uppercase font-bold text-neutral-400 block">Résumé de votre sortie</span>
+              <div className="text-2xl font-black text-white">{distanceKm.toFixed(2)} km</div>
+              <p className="text-xs text-neutral-400">Temps : {formatTime(seconds)} • Allure : {paceFormatted}</p>
+            </div>
+
+            <p className="text-xs text-neutral-300 text-center leading-relaxed">
+              Souhaitez-vous partager cette performance sur le fil d'actualité ou la conserver en privé ?
+            </p>
+
+            <div className="space-y-2.5 pt-1">
+              <button 
+                type="button"
+                onClick={handleSavePublic}
+                className="w-full py-3.5 bg-orange-600 hover:bg-orange-500 text-white font-black rounded-2xl text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition cursor-pointer shadow-lg"
+              >
+                <Share2 className="w-4 h-4" /> Partager sur le fil (Public) 🚀
+              </button>
+
+              <button 
+                type="button"
+                onClick={handleSavePrivate}
+                className="w-full py-3 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 font-bold rounded-2xl text-xs flex items-center justify-center gap-2 transition cursor-pointer"
+              >
+                <EyeOff className="w-4 h-4" /> Enregistrer en privé uniquement 🔒
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Planificateur de Ravitaillement */}
       <div className="bg-neutral-900 border border-neutral-800/80 rounded-3xl p-6 space-y-5 shadow-xl">
