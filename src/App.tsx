@@ -38,6 +38,7 @@ import HuaweiSyncModal from './components/HuaweiSyncModal';
 import FitBotProactiveCoach from './components/FitBotProactiveCoach';
 import NutritionTab from './components/NutritionTab';
 import PacingMatrixPlanner from './components/PacingMatrixPlanner';
+import BioSyncTab from './components/BioSyncTab';
 
 import FatigueDashboardCard from './components/FatigueDashboardCard';
 import { calculateApexScore } from './ApexScoreEngine';
@@ -70,7 +71,7 @@ export default function App() {
 
   const [isWelcomeModalOpen, setIsWelcomeModalOpen] = useState(false);
 
-  const [currentTab, setCurrentTab] = useState<'today' | 'community' | 'profile' | 'feed' | 'buddy' | 'workout' | 'exercises' | 'chat' | 'calculator' | 'paces' | 'live_tracker' | 'rest_timer' | 'notifications' | 'leaderboard' | 'boxwars' | 'running' | 'readiness' | 'hall_of_fame' | 'fitbot' | 'fridge_scanner' | 'fitbot_pro' | 'nutrition' | 'matrix'>(() => {
+  const [currentTab, setCurrentTab] = useState<'today' | 'community' | 'profile' | 'feed' | 'buddy' | 'workout' | 'exercises' | 'chat' | 'calculator' | 'paces' | 'live_tracker' | 'rest_timer' | 'notifications' | 'leaderboard' | 'boxwars' | 'running' | 'readiness' | 'hall_of_fame' | 'fitbot' | 'fridge_scanner' | 'fitbot_pro' | 'nutrition' | 'matrix' | 'biosync'>(() => {
     const savedTab = localStorage.getItem('fitpulse_active_tab');
     return (savedTab as any) || 'today';
   });
@@ -536,15 +537,15 @@ export default function App() {
       <div className="w-full max-w-md mx-auto min-h-screen bg-neutral-950 flex flex-col shadow-2xl sm:border-x sm:border-neutral-900 relative">
         <header className="sticky top-0 z-40 bg-neutral-950/80 backdrop-blur-md border-b border-neutral-900 px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className={`w-8 h-8 rounded-xl ${currentTab === 'boxwars' ? 'bg-cyan-500/20 text-cyan-400' : currentTab === 'running' ? 'bg-emerald-500/20 text-emerald-400' : currentTab === 'hall_of_fame' ? 'bg-red-500/20 text-red-400' : currentTab === 'buddy' ? 'bg-orange-500/20 text-orange-400' : currentTab === 'fitbot' || currentTab === 'fitbot_pro' ? 'bg-cyan-500/20 text-cyan-400' : currentTab === 'fridge_scanner' || currentTab === 'nutrition' ? 'bg-emerald-500/20 text-emerald-400' : currentTab === 'matrix' ? 'bg-orange-500/20 text-orange-400' : 'bg-orange-500/20 text-orange-500'} flex items-center justify-center`}>
+            <div className={`w-8 h-8 rounded-xl ${currentTab === 'boxwars' ? 'bg-cyan-500/20 text-cyan-400' : currentTab === 'running' ? 'bg-emerald-500/20 text-emerald-400' : currentTab === 'hall_of_fame' ? 'bg-red-500/20 text-red-400' : currentTab === 'buddy' ? 'bg-orange-500/20 text-orange-400' : currentTab === 'fitbot' || currentTab === 'fitbot_pro' ? 'bg-cyan-500/20 text-cyan-400' : currentTab === 'fridge_scanner' || currentTab === 'nutrition' || currentTab === 'biosync' ? 'bg-emerald-500/20 text-emerald-400' : currentTab === 'matrix' ? 'bg-orange-500/20 text-orange-400' : 'bg-orange-500/20 text-orange-500'} flex items-center justify-center`}>
               <Zap className="w-5 h-5" />
             </div>
             <h1 className="text-base font-black tracking-tight leading-none text-white">
-              {currentTab === 'boxwars' ? 'BOXWARS' : currentTab === 'running' ? 'RUNNING' : currentTab === 'hall_of_fame' ? 'HALL OF FAME' : currentTab === 'buddy' ? 'BUDDIES & MATCH' : currentTab === 'fitbot' || currentTab === 'fitbot_pro' ? 'FITBOT AI' : currentTab === 'fridge_scanner' ? 'SCAN FRIGO' : currentTab === 'nutrition' ? 'NUTRITION LAB' : currentTab === 'matrix' ? 'PACING MATRIX' : 'FitPulse'}
+              {currentTab === 'boxwars' ? 'BOXWARS' : currentTab === 'running' ? 'RUNNING' : currentTab === 'hall_of_fame' ? 'HALL OF FAME' : currentTab === 'buddy' ? 'BUDDIES & MATCH' : currentTab === 'fitbot' || currentTab === 'fitbot_pro' ? 'FITBOT AI' : currentTab === 'fridge_scanner' ? 'SCAN FRIGO' : currentTab === 'nutrition' ? 'NUTRITION LAB' : currentTab === 'biosync' ? 'BIO-SYNC' : currentTab === 'matrix' ? 'PACING MATRIX' : 'FitPulse'}
             </h1>
           </div>
 
-          {currentTab !== 'boxwars' && currentTab !== 'running' && currentTab !== 'readiness' && currentTab !== 'paces' && currentTab !== 'calculator' && currentTab !== 'hall_of_fame' && currentTab !== 'buddy' && currentTab !== 'fitbot' && currentTab !== 'fitbot_pro' && currentTab !== 'fridge_scanner' && currentTab !== 'nutrition' && currentTab !== 'matrix' && (
+          {currentTab !== 'boxwars' && currentTab !== 'running' && currentTab !== 'readiness' && currentTab !== 'paces' && currentTab !== 'calculator' && currentTab !== 'hall_of_fame' && currentTab !== 'buddy' && currentTab !== 'fitbot' && currentTab !== 'fitbot_pro' && currentTab !== 'fridge_scanner' && currentTab !== 'nutrition' && currentTab !== 'biosync' && currentTab !== 'matrix' && (
             <div className="w-[42%] sm:w-[40%]">
               <SpotSearchInput 
                 selectedSpot={selectedClub} 
@@ -689,7 +690,7 @@ export default function App() {
                   <span className="text-[10px] font-black uppercase tracking-widest text-neutral-400 px-1 block">
                     Intelligence Artificielle & Nutrition
                   </span>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
                     <div 
                       onClick={() => handleTabChange('fitbot')}
                       className="bg-neutral-950 hover:bg-neutral-900 border border-neutral-800 hover:border-cyan-500/40 rounded-2xl p-3.5 flex items-center gap-3 cursor-pointer transition group"
@@ -728,6 +729,19 @@ export default function App() {
                         <p className="text-[10px] text-neutral-400 truncate">Recette post-WOD</p>
                       </div>
                     </div>
+
+                    <div 
+                      onClick={() => handleTabChange('biosync')}
+                      className="bg-neutral-950 hover:bg-neutral-900 border border-neutral-800 hover:border-emerald-500/40 rounded-2xl p-3.5 flex items-center gap-3 cursor-pointer transition group"
+                    >
+                      <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center flex-shrink-0">
+                        <Sparkles className="w-4 h-4" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="text-xs font-bold text-white group-hover:text-emerald-300">Bio-Sync</h4>
+                        <p className="text-[10px] text-neutral-400 truncate">Chronobiologie</p>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </PaywallGate>
@@ -763,6 +777,10 @@ export default function App() {
               </button>
               <PacingMatrixPlanner currentWeeklyKm={35} currentLoad={currentReadinessScore} />
             </div>
+          )}
+
+          {currentTab === 'biosync' && (
+            <BioSyncTab currentSncScore={currentReadinessScore} onBack={() => handleTabChange('today')} />
           )}
 
           {currentTab === 'fitbot' && (
@@ -1532,7 +1550,7 @@ export default function App() {
         })()}
 
         <nav className="sticky bottom-0 left-0 right-0 z-40 bg-neutral-950/95 backdrop-blur-xl border-t border-neutral-800 px-4 py-3 flex justify-around items-center">
-          <button onClick={() => handleTabChange('today')} className={`flex flex-col items-center gap-1 transition active:scale-95 cursor-pointer px-2 ${currentTab === 'today' || currentTab === 'running' || currentTab === 'readiness' || currentTab === 'boxwars' || currentTab === 'fridge_scanner' || currentTab === 'fitbot_pro' || currentTab === 'matrix' ? 'text-orange-500 font-bold' : 'text-neutral-500 hover:text-neutral-300'}`}>
+          <button onClick={() => handleTabChange('today')} className={`flex flex-col items-center gap-1 transition active:scale-95 cursor-pointer px-2 ${currentTab === 'today' || currentTab === 'running' || currentTab === 'readiness' || currentTab === 'boxwars' || currentTab === 'fridge_scanner' || currentTab === 'fitbot_pro' || currentTab === 'matrix' || currentTab === 'biosync' ? 'text-orange-500 font-bold' : 'text-neutral-500 hover:text-neutral-300'}`}>
             <Home className="w-5 h-5" />
             <span className="text-[10px]">Aujourd'hui</span>
           </button>
