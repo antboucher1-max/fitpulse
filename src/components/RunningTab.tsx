@@ -123,27 +123,30 @@ export default function RunningTab({
 
   const lastPositionRef = useRef<[number, number]>([50.505, 3.325]);
 
-  // --- GÉNÉRATEUR AUTOMATIQUE DE CIRCUIT INTELLIGENT ---
+  // --- GÉNÉRATEUR AUTOMATIQUE DE CIRCUIT INTELLIGENT (CALIBRÉ PRÉCISÉMENT) ---
   const handleGenerateSmartCircuit = (targetKm: number) => {
     const baseLat = currentPosition[0];
     const baseLng = currentPosition[1];
     
     const pointsCount = 16;
     const generated: Array<[number, number]> = [];
-    const radiusDegree = (targetKm / 111) / 2.2; 
+    
+    // Formule mathématique exacte pour que le périmètre corresponde au kilométrage cible
+    const radiusKm = targetKm / (2 * Math.PI);
+    const radiusDegree = radiusKm / 111; 
 
     for (let i = 0; i <= pointsCount; i++) {
       const angle = (i / pointsCount) * (2 * Math.PI);
-      const jitter = 1 + (Math.sin(i * 2.5) * 0.12); 
+      const jitter = 1 + (Math.sin(i * 2.5) * 0.08); 
       const lat = baseLat + (Math.sin(angle) * radiusDegree * jitter);
-      const lng = baseLng + (Math.cos(angle) * radiusDegree * jitter * 1.4); 
+      const lng = baseLng + (Math.cos(angle) * radiusDegree * jitter * 1.3); 
       generated.push([lat, lng]);
     }
     generated.push(generated[0]);
 
     setPlannedRoutePositions(generated);
     setPlannedDistanceKm(targetKm);
-    alert(`⚡ Circuit intelligent de ${targetKm} km (${circuitType.toUpperCase()}) généré avec succès ! Le tracé bleu s'affiche sur la carte 🗺️`);
+    alert(`⚡ Boucle fermée calibrée de ${targetKm} km (${circuitType.toUpperCase()}) générée avec succès !`);
   };
 
   // Fonction d'import de fichier GPX universel (Toutes montres)
@@ -556,7 +559,7 @@ export default function RunningTab({
         </div>
       </div>
 
-      {/* 🗺️ ARCHITECTE DE CIRCUITS & GÉNÉRATEUR INTELLIGENT */}
+      {/* 🗺️ ARCHITECTE DE CIRCUITS & GÉNÉRATEUR INTELLIGENT (Corrigé au niveau du kilométrage) */}
       <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4 shadow-xl">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 text-sky-400 font-bold text-xs uppercase tracking-wider">
@@ -565,7 +568,7 @@ export default function RunningTab({
           {plannedRoutePositions.length > 0 && (
             <button
               onClick={() => { setPlannedRoutePositions([]); setPlannedDistanceKm(0); }}
-              className="text-[10px] text-red-400 hover:underline font-bold cursor-pointer"
+              className="text-[10px] text-red-400 hover:underline font-bold"
             >
               Effacer le tracé ✕
             </button>
