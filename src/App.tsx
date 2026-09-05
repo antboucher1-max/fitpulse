@@ -555,14 +555,6 @@ export default function App() {
         </header>
 
         <main className="flex-1 w-full mx-auto px-4 py-3 pb-32 space-y-3">
-          {currentTab === 'running' && (
-            <div className="space-y-4 animate-fadeIn">
-              <OfflineRunGuard currentUserId={user?.id} />
-              {/* ⚡ MODULE DE COACH VOCAL & MÉTÉO ADAPTATIVE INTÉGRÉ EN LIVE */}
-              <LiveCoachEngine currentKm={5.2} currentPaceSeconds={295} isRunActive={true} />
-            </div>
-          )}
-
           {/* 🌟 ÉCRAN D'ACCUEIL ÉPURÉ (CORE LOOP) */}
           {currentTab === 'today' && (
             <div className="space-y-5 animate-fadeIn pb-12">
@@ -893,7 +885,18 @@ export default function App() {
           )}
 
           {currentTab === 'running' && (
-            <RunningTab currentUserId={user?.id} currentUsername={currentUsername} selectedClub={selectedClub} currentUserProfile={currentUserProfile} userAvatarUrl={userAvatarUrl} onRefreshFeed={() => { fetchCloudPosts(); if (user) fetchUserShoes(user.id); }} onBack={() => handleTabChange('today')} />
+            <RunningTab 
+              currentUserId={user?.id} 
+              currentUsername={currentUsername} 
+              selectedClub={selectedClub} 
+              currentUserProfile={currentUserProfile} 
+              userAvatarUrl={userAvatarUrl} 
+              onRefreshFeed={() => { 
+                fetchCloudPosts(); 
+                if (user) fetchUserShoes(user.id); 
+              }} 
+              onBack={() => handleTabChange('today')} 
+            />
           )}
         </main>
 
@@ -1356,7 +1359,7 @@ export default function App() {
           );
         })()}
 
-        {/* 🧭 NAVIGATION DU BAS (BOTTOM NAV) */}
+        {/* 🧭 NAVIGATION DU BOTTOM NAV */}
         <nav className="sticky bottom-0 left-0 right-0 z-40 bg-neutral-950/95 backdrop-blur-xl border-t border-neutral-800 px-4 py-3 flex justify-around items-center">
           <button onClick={() => handleTabChange('today')} className={`flex flex-col items-center gap-1 transition active:scale-95 cursor-pointer px-3 ${currentTab === 'today' || currentTab === 'running' || currentTab === 'readiness' || currentTab === 'boxwars' || currentTab === 'fridge_scanner' ? 'text-orange-500 font-bold' : 'text-neutral-500 hover:text-neutral-300'}`}>
             <Home className="w-5 h-5" />
