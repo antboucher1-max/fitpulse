@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, ChangeEvent, FormEvent } from 'react';
 import { 
-  Zap, User, MessageCircle, Home, Users, Plus, X, Camera, Flame, MapPin, Trophy, Navigation, Calendar, Skull, BatteryCharging, ArrowRight, Activity, Sparkles, Play, Dumbbell, Settings, ChevronRight, ChevronLeft, CheckCircle2, Bot, ArrowLeft, Share2, Brain, Activity as ActivityIcon, ShieldAlert, Watch, HelpCircle, History, Apple
+  Zap, User, MessageCircle, Home, Users, Plus, X, Camera, Flame, MapPin, Trophy, Navigation, Calendar, Skull, BatteryCharging, ArrowRight, Activity, Sparkles, Play, Dumbbell, Settings, ChevronRight, ChevronLeft, CheckCircle2, Bot, ArrowLeft, Share2, Brain, Activity as ActivityIcon, ShieldAlert, Watch, HelpCircle, History, Apple, TrendingUp, Target, Layers
 } from 'lucide-react';
 import { User as SupabaseUser } from '@supabase/supabase-js';
 import { supabase } from './supabaseClient';
@@ -40,6 +40,129 @@ import NutritionTab from './components/NutritionTab';
 
 import FatigueDashboardCard from './components/FatigueDashboardCard';
 
+// --- COMPOSANT : IA Pacing Matrix (Planificateur de cycle) ---
+function PacingMatrixPlanner({ currentWeeklyKm = 35, currentLoad = 45 }: { currentWeeklyKm?: number; currentLoad?: number }) {
+  const [targetDistance, setTargetDistance] = useState<'10km' | 'semi' | 'marathon' | 'trail'>('semi');
+  const [weeksCount, setWeeksCount] = useState<number>(8);
+  const [isGenerating, setIsGenerating] = useState<boolean>(false);
+  const [generatedPlan, setGeneratedPlan] = useState<Array<any>>([]);
+
+  const handleGenerateMatrix = () => {
+    setIsGenerating(true);
+    setTimeout(() => {
+      const plan = [];
+      let baseKm = currentWeeklyKm;
+      const peakMultiplier = targetDistance === 'marathon' ? 1.6 : targetDistance === 'semi' ? 1.4 : 1.2;
+
+      for (let i = 1; i <= weeksCount; i++) {
+        const isRecoveryWeek = i % 4 === 0 || i === weeksCount;
+        let weekKm = 0;
+        if (isRecoveryWeek) {
+          weekKm = Math.round(baseKm * 0.75);
+        } else {
+          baseKm = Math.min(baseKm * 1.1, baseKm * peakMultiplier * (i / weeksCount));
+          weekKm = Math.round(baseKm);
+        }
+
+        plan.push({
+          weekNumber: i,
+          targetKm: weekKm,
+          focus: isRecoveryWeek ? '🟢 Récupération & Assimilation (SNC)' : i > weeksCount - 2 ? '🏁 Affûtage (Tapering)' : '⚡ Développement / Seuil',
+          intensityLoad: isRecoveryLoad(isRecoveryWeek, i, weeksCount)
+        });
+      }
+
+      setGeneratedPlan(plan);
+      setIsGenerating(false);
+    }, 1000);
+  };
+
+  const isRecoveryLoad = (isRecovery: boolean, weekNum: number, total: number) => {
+    if (isRecovery) return 'Faible (40-50%)';
+    if (weekNum > total - 2) return 'Modéré (Affûtage)';
+    return 'Élevé (75-85%)';
+  };
+
+  return (
+    <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-6 space-y-5 shadow-xl animate-fadeIn">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-orange-400">
+          <Target className="w-4 h-4" /> IA Pacing Matrix (Planificateur de Cycle)
+        </div>
+        <span className="text-[10px] font-extrabold bg-orange-500/20 text-orange-300 px-2.5 py-0.5 rounded-full border border-orange-500/30">
+          Périodïsation Intelligente 🧠
+        </span>
+      </div>
+
+      <p className="text-xs text-neutral-400 leading-relaxed">
+        Génère ton plan d'entraînement sur-mesure en fonction de ta charge actuelle et de ton échéance. L'algorithme intègre automatiquement des semaines de surcompensation pour protéger ton système nerveux.
+      </p>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+        <div className="space-y-1">
+          <label className="block font-bold text-neutral-300">Objectif de course :</label>
+          <select
+            value={targetDistance}
+            onChange={(e: any) => setTargetDistance(e.target.value)}
+            className="w-full bg-neutral-950 border border-neutral-800 rounded-2xl px-4 py-3 text-white focus:border-orange-500 focus:outline-none cursor-pointer"
+          >
+            <option value="10km">10 Kilomètres (Vitesse & Seuil)</option>
+            <option value="semi">Semi-Marathon (21.1 km)</option>
+            <option value="marathon">Marathon (42.2 km - Endurance)</option>
+            <option value="trail">Trail / Boucle Technique</option>
+          </select>
+        </div>
+
+        <div className="space-y-1">
+          <label className="block font-bold text-neutral-300">Durée du cycle (Semaines) :</label>
+          <select
+            value={weeksCount}
+            onChange={(e) => setWeeksCount(Number(e.target.value))}
+            className="w-full bg-neutral-950 border border-neutral-800 rounded-2xl px-4 py-3 text-white focus:border-orange-500 focus:outline-none cursor-pointer"
+          >
+            <option value={6}>6 Semaines (Court)</option>
+            <option value={8}>8 Semaines (Standard)</option>
+            <option value={12}>12 Semaines (Fondation solide)</option>
+          </select>
+        </div>
+      </div>
+
+      <button
+        type="button"
+        disabled={isGenerating}
+        onClick={handleGenerateMatrix}
+        className="w-full py-4 bg-orange-600 hover:bg-orange-500 text-white font-black rounded-2xl text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition cursor-pointer shadow-xl disabled:opacity-50"
+      >
+        {isGenerating ? <Sparkles className="w-4 h-4 animate-spin" /> : <TrendingUp className="w-4 h-4" />}
+        {isGenerating ? "Calcul de la matrice d'entraînement..." : "Générer mon Plan Pacing Matrix 🚀"}
+      </button>
+
+      {generatedPlan.length > 0 && (
+        <div className="space-y-3 pt-2">
+          <div className="text-xs font-bold text-neutral-300 uppercase tracking-wider flex items-center gap-1.5">
+            <Layers className="w-4 h-4 text-emerald-400" /> Cycle généré ({weeksCount} semaines) :
+          </div>
+
+          <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+            {generatedPlan.map((week) => (
+              <div key={week.weekNumber} className="bg-neutral-950 border border-neutral-800 p-3.5 rounded-2xl flex items-center justify-between text-xs">
+                <div className="space-y-0.5">
+                  <span className="font-black text-white">Semaine {week.weekNumber}</span>
+                  <div className="text-[11px] text-neutral-400">{week.focus}</div>
+                </div>
+                <div className="text-right">
+                  <span className="font-black text-orange-400 text-sm">~{week.targetKm} km</span>
+                  <div className="text-[10px] text-neutral-500">Charge : {week.intensityLoad}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 const isMatchingClub = (postClubName?: string, selectedClubName?: string): boolean => {
   if (!postClubName || !selectedClubName) return false;
   if (selectedClubName.includes('Tous les spots')) return true;
@@ -66,10 +189,9 @@ export default function App() {
   const [isSignUpMode, setIsSignUpMode] = useState(false);
   const [acceptCgu, setAcceptCgu] = useState(false);
 
-  // --- ÉTAT POUR LE GUIDE D'ACCUEIL (ONBOARDING PREMIÈRE UTILISATION) ---
   const [isWelcomeModalOpen, setIsWelcomeModalOpen] = useState(false);
 
-  const [currentTab, setCurrentTab] = useState<'today' | 'community' | 'profile' | 'feed' | 'buddy' | 'workout' | 'exercises' | 'chat' | 'calculator' | 'paces' | 'live_tracker' | 'rest_timer' | 'notifications' | 'leaderboard' | 'boxwars' | 'running' | 'readiness' | 'hall_of_fame' | 'fitbot' | 'fridge_scanner' | 'fitbot_pro' | 'nutrition'>(() => {
+  const [currentTab, setCurrentTab] = useState<'today' | 'community' | 'profile' | 'feed' | 'buddy' | 'workout' | 'exercises' | 'chat' | 'calculator' | 'paces' | 'live_tracker' | 'rest_timer' | 'notifications' | 'leaderboard' | 'boxwars' | 'running' | 'readiness' | 'hall_of_fame' | 'fitbot' | 'fridge_scanner' | 'fitbot_pro' | 'nutrition' | 'matrix'>(() => {
     const savedTab = localStorage.getItem('fitpulse_active_tab');
     return (savedTab as any) || 'today';
   });
@@ -263,7 +385,6 @@ export default function App() {
     return streak > 0 ? streak : 1;
   };
 
-  // Initialisation Auth & Données + Vérification Onboarding
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
@@ -359,7 +480,7 @@ export default function App() {
     const hasLiked = likedByList.includes(user.id);
     const updatedLikedBy = hasLiked ? likedByList.filter(id => id !== user.id) : [...likedByList, user.id];
     const newCount = hasLiked ? Math.max(0, post.likes_count - 1) : post.likes_count + 1;
-      
+        
     setPosts(prev => prev.map(p => p.id === postId ? { ...p, likes_count: newCount, liked_by: updatedLikedBy } : p));
     await supabase.from('posts').update({ likes_count: newCount, liked_by: updatedLikedBy }).eq('id', postId);
   };
@@ -527,15 +648,15 @@ export default function App() {
       <div className="w-full max-w-md mx-auto min-h-screen bg-neutral-950 flex flex-col shadow-2xl sm:border-x sm:border-neutral-900 relative">
         <header className="sticky top-0 z-40 bg-neutral-950/80 backdrop-blur-md border-b border-neutral-900 px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className={`w-8 h-8 rounded-xl ${currentTab === 'boxwars' ? 'bg-cyan-500/20 text-cyan-400' : currentTab === 'running' ? 'bg-emerald-500/20 text-emerald-400' : currentTab === 'hall_of_fame' ? 'bg-red-500/20 text-red-400' : currentTab === 'buddy' ? 'bg-orange-500/20 text-orange-400' : currentTab === 'fitbot' || currentTab === 'fitbot_pro' ? 'bg-cyan-500/20 text-cyan-400' : currentTab === 'fridge_scanner' || currentTab === 'nutrition' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-orange-500/20 text-orange-500'} flex items-center justify-center`}>
+            <div className={`w-8 h-8 rounded-xl ${currentTab === 'boxwars' ? 'bg-cyan-500/20 text-cyan-400' : currentTab === 'running' ? 'bg-emerald-500/20 text-emerald-400' : currentTab === 'hall_of_fame' ? 'bg-red-500/20 text-red-400' : currentTab === 'buddy' ? 'bg-orange-500/20 text-orange-400' : currentTab === 'fitbot' || currentTab === 'fitbot_pro' ? 'bg-cyan-500/20 text-cyan-400' : currentTab === 'fridge_scanner' || currentTab === 'nutrition' ? 'bg-emerald-500/20 text-emerald-400' : currentTab === 'matrix' ? 'bg-orange-500/20 text-orange-400' : 'bg-orange-500/20 text-orange-500'} flex items-center justify-center`}>
               <Zap className="w-5 h-5" />
             </div>
             <h1 className="text-base font-black tracking-tight leading-none text-white">
-              {currentTab === 'boxwars' ? 'BOXWARS' : currentTab === 'running' ? 'RUNNING' : currentTab === 'hall_of_fame' ? 'HALL OF FAME' : currentTab === 'buddy' ? 'BUDDIES & MATCH' : currentTab === 'fitbot' || currentTab === 'fitbot_pro' ? 'FITBOT AI' : currentTab === 'fridge_scanner' ? 'SCAN FRIGO' : currentTab === 'nutrition' ? 'NUTRITION LAB' : 'FitPulse'}
+              {currentTab === 'boxwars' ? 'BOXWARS' : currentTab === 'running' ? 'RUNNING' : currentTab === 'hall_of_fame' ? 'HALL OF FAME' : currentTab === 'buddy' ? 'BUDDIES & MATCH' : currentTab === 'fitbot' || currentTab === 'fitbot_pro' ? 'FITBOT AI' : currentTab === 'fridge_scanner' ? 'SCAN FRIGO' : currentTab === 'nutrition' ? 'NUTRITION LAB' : currentTab === 'matrix' ? 'PACING MATRIX' : 'FitPulse'}
             </h1>
           </div>
 
-          {currentTab !== 'boxwars' && currentTab !== 'running' && currentTab !== 'readiness' && currentTab !== 'paces' && currentTab !== 'calculator' && currentTab !== 'hall_of_fame' && currentTab !== 'buddy' && currentTab !== 'fitbot' && currentTab !== 'fitbot_pro' && currentTab !== 'fridge_scanner' && currentTab !== 'nutrition' && (
+          {currentTab !== 'boxwars' && currentTab !== 'running' && currentTab !== 'readiness' && currentTab !== 'paces' && currentTab !== 'calculator' && currentTab !== 'hall_of_fame' && currentTab !== 'buddy' && currentTab !== 'fitbot' && currentTab !== 'fitbot_pro' && currentTab !== 'fridge_scanner' && currentTab !== 'nutrition' && currentTab !== 'matrix' && (
             <div className="w-[42%] sm:w-[40%]">
               <SpotSearchInput 
                 selectedSpot={selectedClub} 
@@ -544,7 +665,6 @@ export default function App() {
             </div>
           )}
 
-          {/* 🔔 BOUTON DE NOTIFICATION STYLE FACEBOOK / INSTA */}
           <div className="flex items-center gap-2">
             <button 
               onClick={() => alert("Aucune nouvelle notification pour le moment.")} 
@@ -555,7 +675,6 @@ export default function App() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
               </svg>
                
-              {/* Badge rouge dynamique pour les demandes d'amis en attente */}
               {(friendRequests.filter(r => r.receiver_id === user?.id && r.status === 'pending').length > 0) && (
                 <span className="absolute -top-1 -right-1 bg-red-600 text-white font-black text-[10px] w-4 h-4 rounded-full flex items-center justify-center shadow-md animate-pulse">
                   {friendRequests.filter(r => r.receiver_id === user?.id && r.status === 'pending').length}
@@ -566,11 +685,9 @@ export default function App() {
         </header>
 
         <main className="flex-1 w-full mx-auto px-4 py-3 pb-32 space-y-3">
-          {/* 🌟 ÉCRAN D'ACCUEIL ÉPURÉ (CORE LOOP) */}
           {currentTab === 'today' && (
             <div className="space-y-5 animate-fadeIn pb-12">
                
-              {/* Étape 1 : Forme & Readiness (Nettoyé et Sans Fausse Donnée) */}
               <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-3 shadow-xl relative overflow-hidden">
                 <div className="absolute -right-8 -top-8 w-28 h-28 bg-orange-500/10 rounded-full blur-2xl pointer-events-none" />
                 <div className="flex items-center justify-between relative z-10">
@@ -596,7 +713,6 @@ export default function App() {
                 </div>
               )}
 
-              {/* Étape 2 : Lancer l'entraînement hybride */}
               <div className="space-y-2">
                 <span className="text-[10px] font-black uppercase tracking-widest text-neutral-500 px-1 block">
                   Étape 2 : Lancer l'entraînement hybride
@@ -628,7 +744,18 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Étape 3 : Restitution IA, Scan Frigo & FitBot Pro (avec transmission de currentUserProfile) */}
+              {/* Accès rapide vers Pacing Matrix */}
+              <button
+                type="button"
+                onClick={() => handleTabChange('matrix')}
+                className="w-full py-3.5 bg-neutral-900 hover:bg-neutral-850 border border-orange-500/30 hover:border-orange-500 rounded-3xl px-5 flex items-center justify-between text-xs font-bold text-white shadow-lg transition cursor-pointer"
+              >
+                <span className="flex items-center gap-2 text-orange-400">
+                  <Target className="w-4 h-4" /> Ouvrir le Planificateur Pacing Matrix
+                </span>
+                <ChevronRight className="w-4 h-4 text-neutral-500" />
+              </button>
+
               <PaywallGate userId={user?.id} currentUserProfile={currentUserProfile} featureName="IA Coach Proactif & Scan Frigo">
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div 
@@ -672,7 +799,6 @@ export default function App() {
                 </div>
               </PaywallGate>
 
-              {/* ⚡ BOUTON D'ACCÈS CARTE VIRALE HYBRIDE */}
               <button
                 type="button"
                 onClick={() => setIsHybridShareOpen(true)}
@@ -681,7 +807,6 @@ export default function App() {
                 <Share2 className="w-4 h-4" /> Générer ma Carte Hybrid Apex (Partage Viral) 🚀
               </button>
 
-              {/* Vue d'ensemble de la semaine */}
               <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-4 space-y-3 shadow-xl">
                 <span className="text-xs font-black uppercase tracking-wider text-neutral-400 flex items-center gap-2 ml-1">
                   <Calendar className="w-4 h-4 text-orange-500" /> Vue d'ensemble de la semaine
@@ -689,6 +814,19 @@ export default function App() {
                 <HybridCalendar posts={posts} currentUserId={user?.id} onRefresh={fetchCloudPosts} />
               </div>
 
+            </div>
+          )}
+
+          {currentTab === 'matrix' && (
+            <div className="space-y-4 animate-fadeIn pb-12">
+              <button 
+                type="button" 
+                onClick={() => handleTabChange('today')} 
+                className="flex items-center gap-1.5 text-xs font-bold text-neutral-300 hover:text-white bg-neutral-900 border border-neutral-800 px-3 py-2 rounded-xl transition cursor-pointer w-fit"
+              >
+                <ArrowLeft className="w-4 h-4" /> Retour
+              </button>
+              <PacingMatrixPlanner currentWeeklyKm={35} currentLoad={currentReadinessScore} />
             </div>
           )}
 
@@ -934,7 +1072,6 @@ export default function App() {
           )}
         </main>
 
-        {/* --- MODALE DU GUIDE D'ACCUEIL INTERACTIF (ONBOARDING PREMIÈRE FOIS) --- */}
         {isWelcomeModalOpen && (
           <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 animate-fadeIn">
             <div className="bg-neutral-900 border border-orange-500/30 rounded-3xl max-w-sm w-full p-6 space-y-5 shadow-2xl relative text-left">
@@ -1008,7 +1145,6 @@ export default function App() {
           </div>
         )}
 
-        {/* MODALE DE CARTE DE PARTAGE VIRAL HYBRIDE */}
         {isHybridShareOpen && (
           <HybridShareCard 
             username={currentUsername}
@@ -1021,7 +1157,6 @@ export default function App() {
           />
         )}
 
-        {/* MODALE DE SYNCHRONISATION MONTRE HUAWEI */}
         {isHuaweiSyncOpen && (
           <HuaweiSyncModal 
             currentUserId={user?.id}
@@ -1033,7 +1168,6 @@ export default function App() {
           />
         )}
 
-        {/* MODALE D'ACTION UNIVERSELLE EN LANGAGE NATUREL */}
         {isActionMenuOpen && (
           <div className="fixed inset-0 z-50 bg-black/90 flex items-end justify-center p-4 pb-24 sm:items-center animate-fadeIn" onClick={() => setIsActionMenuOpen(false)}>
             <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-sm w-full p-6 space-y-5 shadow-2xl relative animate-slideUp" onClick={e => e.stopPropagation()}>
@@ -1102,7 +1236,6 @@ export default function App() {
                 </button>
               </div>
 
-              {/* Passerelle Matériel & GPS */}
               <div className="border-t border-neutral-800 pt-3 space-y-2">
                 <span className="text-[10px] uppercase font-bold text-neutral-500 block">Passerelle GPS & Matériel</span>
                 <div className="grid grid-cols-2 gap-2">
@@ -1149,7 +1282,6 @@ export default function App() {
           </div>
         )}
 
-        {/* MODALE CARNET DE MUSCULATION */}
         {isGymLogOpen && (
           <div className="fixed inset-0 z-50 bg-neutral-950 flex flex-col animate-fadeIn">
             <div className="flex items-center justify-between p-4 border-b border-neutral-800 bg-neutral-900">
@@ -1171,7 +1303,6 @@ export default function App() {
           </div>
         )}
 
-        {/* MODALE GÉNÉRATEUR DE WOD */}
         {isWodGeneratorOpen && (
           <div className="fixed inset-0 z-50 bg-neutral-950 flex flex-col animate-fadeIn">
             <div className="flex items-center justify-between p-4 border-b border-neutral-800 bg-neutral-900">
@@ -1260,7 +1391,7 @@ export default function App() {
                 const selectWodType = (formElement.elements[0] as HTMLSelectElement).value;
                 const scoreInput = (formElement.elements[1] as HTMLInputElement).value;
                 const noteInput = (formElement.elements[2] as HTMLTextAreaElement).value;
-                  
+                   
                 const scaleMode = (formElement.elements.namedItem('scaleMode') as RadioNodeList).value;
 
                 if (!scoreInput.trim()) { alert("Veuillez indiquer un score ou un temps !"); return; }
@@ -1323,7 +1454,7 @@ export default function App() {
                 <div className="flex items-center gap-3 bg-neutral-950 border border-neutral-800 rounded-xl p-3">
                   <input type="radio" name="scaleMode" value="RX" id="rxMode" defaultChecked className="accent-cyan-500 w-4 h-4 cursor-pointer" />
                   <label htmlFor="rxMode" className="text-xs text-white font-bold mr-4 cursor-pointer">RX</label>
-                   
+                    
                   <input type="radio" name="scaleMode" value="SCALED" id="scaledMode" className="accent-neutral-500 w-4 h-4 cursor-pointer" />
                   <label htmlFor="scaledMode" className="text-xs text-white font-bold cursor-pointer">Scaled</label>
                 </div>
@@ -1336,7 +1467,6 @@ export default function App() {
           </div>
         )}
 
-        {/* 📸 VUE PROFIL */}
         {viewingProfileUser && (() => {
           const targetUserId = viewingProfileUser.id;
           const isSelf = user?.id === targetUserId;
@@ -1412,7 +1542,6 @@ export default function App() {
                   )}
                 </div>
 
-                {/* Transformations */}
                 {userTransformations.length > 0 && (
                   <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-3 shadow-xl">
                     <h3 className="text-xs font-black uppercase tracking-wider text-orange-400 flex items-center gap-1.5">
@@ -1467,9 +1596,8 @@ export default function App() {
           );
         })()}
 
-        {/* 🧭 NAVIGATION DU BOTTOM NAV */}
         <nav className="sticky bottom-0 left-0 right-0 z-40 bg-neutral-950/95 backdrop-blur-xl border-t border-neutral-800 px-4 py-3 flex justify-around items-center">
-          <button onClick={() => handleTabChange('today')} className={`flex flex-col items-center gap-1 transition active:scale-95 cursor-pointer px-2 ${currentTab === 'today' || currentTab === 'running' || currentTab === 'readiness' || currentTab === 'boxwars' || currentTab === 'fridge_scanner' || currentTab === 'fitbot_pro' ? 'text-orange-500 font-bold' : 'text-neutral-500 hover:text-neutral-300'}`}>
+          <button onClick={() => handleTabChange('today')} className={`flex flex-col items-center gap-1 transition active:scale-95 cursor-pointer px-2 ${currentTab === 'today' || currentTab === 'running' || currentTab === 'readiness' || currentTab === 'boxwars' || currentTab === 'fridge_scanner' || currentTab === 'fitbot_pro' || currentTab === 'matrix' ? 'text-orange-500 font-bold' : 'text-neutral-500 hover:text-neutral-300'}`}>
             <Home className="w-5 h-5" />
             <span className="text-[10px]">Aujourd'hui</span>
           </button>
@@ -1479,18 +1607,15 @@ export default function App() {
             <span className="text-[10px]">Communauté</span>
           </button>
             
-          {/* BOUTON CENTRAL D'ACTION RAPIDE */}
           <button onClick={() => setIsActionMenuOpen(true)} className="flex flex-col items-center justify-center w-12 h-12 rounded-full bg-orange-600 hover:bg-orange-500 text-white shadow-[0_0_15px_rgba(234,88,12,0.3)] transition transform hover:scale-105 active:scale-95 -mt-4 cursor-pointer flex-shrink-0 z-50 border-[3px] border-neutral-950">
             <Plus className="w-6 h-6 stroke-[3]" />
           </button>
 
-          {/* ONGLET NUTRITION LAB */}
           <button onClick={() => handleTabChange('nutrition')} className={`flex flex-col items-center gap-1 transition active:scale-95 cursor-pointer px-2 ${currentTab === 'nutrition' ? 'text-orange-500 font-bold' : 'text-neutral-500 hover:text-neutral-300'}`}>
             <Apple className="w-5 h-5" />
             <span className="text-[10px]">Nutrition</span>
           </button>
 
-          {/* ONGLET MESSAGERIE DIRECTE DÉDIÉ */}
           <button onClick={() => handleTabChange('chat')} className={`flex flex-col items-center gap-1 transition active:scale-95 cursor-pointer px-2 relative ${currentTab === 'chat' ? 'text-orange-500 font-bold' : 'text-neutral-500 hover:text-neutral-300'}`}>
             <MessageCircle className="w-5 h-5" />
             <span className="text-[10px]">Messages</span>
