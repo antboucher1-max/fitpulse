@@ -2,7 +2,7 @@ import PaywallGate from './PaywallGate';
 import { useState, useEffect, useRef } from 'react';
 import { 
   Play, Pause, Square, MapPin, Volume2, VolumeX, 
-  Compass, Apple, Droplet, Zap, Navigation, LocateFixed, Activity, Gauge, Timer, Target, Radio, Wind, ArrowLeft, Share2, EyeOff, X, Upload, Mountain, Compass as CompassIcon 
+  Compass, Apple, Droplet, Zap, Navigation, LocateFixed, Activity, Gauge, Timer, Target, Radio, Wind, ArrowLeft, Share2, EyeOff, X, Upload, Mountain, Compass as CompassIcon, Trophy, Award, Flame 
 } from 'lucide-react';
 import { MapContainer, TileLayer, Polyline, Marker, useMap } from 'react-leaflet';
 import L from 'leaflet';
@@ -70,8 +70,8 @@ export default function RunningTab({
   // État du type de terrain sélectionné avant la course
   const [terrainType, setTerrainType] = useState<'route' | 'chemin' | 'trail' | 'carriere' | 'boue'>('route');
 
-  // État pour afficher la modale de choix de partage fin de course
-  const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
+  // État pour afficher la modale de rapport de fin de course / défi unifiée
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
 
   // --- ARCHITECTE DE CIRCUITS INTELLIGENTS ---
   const [plannedRoutePositions, setPlannedRoutePositions] = useState<Array<[number, number]>>([]);
@@ -461,12 +461,12 @@ export default function RunningTab({
     speakMessage(isPaused ? "Reprise de la course." : "Chrono en pause.");
   };
 
-  const handleOpenSaveModal = () => {
+  const handleOpenReportModal = () => {
     setIsRunning(false);
     setIsPaused(false);
     releaseWakeLock();
     speakMessage("Séance terminée. Excellent travail !");
-    setIsSaveModalOpen(true);
+    setIsReportModalOpen(true);
   };
 
   const applyMileageToActiveShoe = () => {
@@ -481,22 +481,22 @@ export default function RunningTab({
   };
 
   const handleSavePrivate = () => {
-    setIsSaveModalOpen(false);
+    setIsReportModalOpen(false);
     applyMileageToActiveShoe();
     localStorage.removeItem('fitpulse_offline_run');
     alert(`Course de ${distanceKm} km enregistrée en privé ! Kilométrage des chaussures actualisé 👟🔒`);
   };
 
-  const handleSavePublic = () => {
-    setIsSaveModalOpen(false);
+  const handlePublishChallenge = () => {
+    setIsReportModalOpen(false);
     if (distanceKm > 0) {
       if (onSaveRunPost) {
-        onSaveRunPost(`[Running] Sortie GPS (${terrainType}) de ${distanceKm} km en ${formatTime(seconds)} 🏃‍♂️`, distanceKm);
+        onSaveRunPost(`🎯 [DÉFI CLUB] Sortie GPS (${terrainType.toUpperCase()}) de ${distanceKm} km en ${formatTime(seconds)} (${paceFormatted}/km). Qui vient battre ce chrono ? 🚀`, distanceKm);
       }
       applyMileageToActiveShoe();
     }
     localStorage.removeItem('fitpulse_offline_run');
-    alert(`Course enregistrée, publiée et usure de vos chaussures mise à jour ! 🚀👟`);
+    alert(`Rapport publié sur le fil comme Défi Officiel du Club ! 🏆🔥`);
   };
 
   const currentHours = seconds / 3600;
@@ -547,7 +547,7 @@ export default function RunningTab({
             <div className="flex items-center gap-2 text-orange-400 font-bold text-xs uppercase tracking-widest mb-1">
               <Compass className="w-4 h-4" /> Mode Running & Ghost Pacing
             </div>
-            <h2 className="text-xl font-black text-white tracking-tight">GPS Réel, Météo Satellite & Sécurité Hors-Ligne</h2>
+            <h2 className="text-xl font-black text-white tracking-tight">GPS Réel, Rapports & Défis Club</h2>
           </div>
           <button 
             type="button"
@@ -559,7 +559,7 @@ export default function RunningTab({
         </div>
       </div>
 
-      {/* 🗺️ ARCHITECTE DE CIRCUITS & GÉNÉRATEUR INTELLIGENT (Corrigé au niveau du kilométrage) */}
+      {/* 🗺️ ARCHITECTE DE CIRCUITS & GÉNÉRATEUR INTELLIGENT (Calibré précisément) */}
       <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4 shadow-xl">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 text-sky-400 font-bold text-xs uppercase tracking-wider">
@@ -916,7 +916,7 @@ export default function RunningTab({
               </button>
               <button 
                 type="button"
-                onClick={handleOpenSaveModal}
+                onClick={handleOpenReportModal}
                 className="flex-1 py-4 bg-red-950/60 border border-red-900/50 hover:bg-red-900/60 text-red-400 font-black rounded-2xl text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition cursor-pointer"
               >
                 <Square className="w-4 h-4 fill-red-400" /> Terminer la course
@@ -926,24 +926,59 @@ export default function RunningTab({
         </div>
       </div>
 
-      {/* MODALE DE CHOIX DE SAUVEGARDE FIN DE COURSE */}
-      {isSaveModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn">
-          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-sm w-full p-6 space-y-5 shadow-2xl relative">
-            <div className="flex items-center justify-between">
-              <h3 className="text-base font-black text-white flex items-center gap-2">🏁 Fin de course</h3>
-              <button onClick={() => setIsSaveModalOpen(false)} className="p-2 text-neutral-400 hover:text-white rounded-xl bg-neutral-800/50 cursor-pointer">
+      {/* MODALE DE RAPPORT DE COURSE & DÉFI CLUB (UNIFIÉE) */}
+      {isReportModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 animate-fadeIn overflow-y-auto">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-lg w-full p-6 space-y-5 shadow-2xl relative my-8">
+            <div className="flex items-center justify-between border-b border-neutral-800 pb-3">
+              <h3 className="text-base font-black text-white flex items-center gap-2">
+                <Trophy className="w-5 h-5 text-orange-400" /> Rapport de Course & Défi Club
+              </h3>
+              <button onClick={() => setIsReportModalOpen(false)} className="p-2 text-neutral-400 hover:text-white rounded-xl bg-neutral-800/50 cursor-pointer">
                 <X className="w-4 h-4" />
               </button>
             </div>
-            <div className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 text-center space-y-1">
-              <span className="text-[10px] uppercase font-bold text-neutral-400 block">Résumé ({terrainType})</span>
-              <div className="text-2xl font-black text-white">{distanceKm.toFixed(2)} km équivalents</div>
-              <p className="text-xs text-neutral-400">Temps : {formatTime(seconds)} • Allure : {paceFormatted}</p>
+
+            {/* Carte de Synthèse Post-Course */}
+            <div className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 space-y-3">
+              <div className="flex justify-between items-center">
+                <span className="text-[10px] uppercase font-bold text-orange-400 bg-orange-500/10 px-2.5 py-1 rounded-full border border-orange-500/20">
+                  Terrain : {terrainType.toUpperCase()}
+                </span>
+                <span className="text-xs text-neutral-400">{formatTime(seconds)}</span>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2 text-center pt-1">
+                <div className="bg-neutral-900 p-2.5 rounded-xl border border-neutral-800">
+                  <span className="text-[9px] text-neutral-400 block uppercase font-bold">Distance</span>
+                  <span className="text-sm font-black text-white">{distanceKm.toFixed(2)} km</span>
+                </div>
+                <div className="bg-neutral-900 p-2.5 rounded-xl border border-neutral-800">
+                  <span className="text-[9px] text-neutral-400 block uppercase font-bold">Allure Brute</span>
+                  <span className="text-sm font-black text-orange-400">{paceFormatted}</span>
+                </div>
+                <div className="bg-neutral-900 p-2.5 rounded-xl border border-neutral-800">
+                  <span className="text-[9px] text-neutral-400 block uppercase font-bold">Vitesse Moy</span>
+                  <span className="text-sm font-black text-emerald-400">{currentSpeedKmh} km/h</span>
+                </div>
+              </div>
             </div>
-            <div className="space-y-2.5 pt-1">
-              <button onClick={handleSavePublic} className="w-full py-3.5 bg-orange-600 hover:bg-orange-500 text-white font-black rounded-2xl text-xs uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer shadow-lg">
-                <Share2 className="w-4 h-4" /> Partager sur le fil (Public) 🚀
+
+            {/* Analyse / Pénibilité */}
+            <div className="space-y-2 text-xs">
+              <span className="font-bold text-neutral-300 flex items-center gap-1.5">
+                <Flame className="w-4 h-4 text-orange-400" /> Analyse & Impact Forme :
+              </span>
+              <div className="bg-neutral-950 p-3.5 rounded-2xl border border-neutral-800 text-neutral-400 space-y-1.5 leading-relaxed">
+                <p>✅ <strong>Coefficient de terrain ({terrainType}) :</strong> Appliqué avec succès pour refléter l'effort réel sur le système cardiovasculaire et l'usure de vos chaussures.</p>
+                <p>⚡ <strong>Impact Récupération (Readiness) :</strong> Intégré dans l'historique de charge d'entraînement FitPulse.</p>
+              </div>
+            </div>
+
+            {/* Actions de Fin de Course */}
+            <div className="space-y-2.5 pt-2">
+              <button onClick={handlePublishChallenge} className="w-full py-4 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-white font-black rounded-2xl text-xs uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer shadow-xl">
+                <Award className="w-4 h-4" /> Publier comme Défi sur le Fil du Club 🏆
               </button>
               <button onClick={handleSavePrivate} className="w-full py-3 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 font-bold rounded-2xl text-xs flex items-center justify-center gap-2 cursor-pointer">
                 <EyeOff className="w-4 h-4" /> Enregistrer en privé uniquement 🔒
