@@ -125,8 +125,6 @@ export default function ProfileTab({
       localStorage.setItem('fitpulse_strava_connected', 'false');
       showToast('Strava déconnecté');
     } else {
-      // Redirection vers l'authentification officielle Strava
-      // Remplace 'TON_CLIENT_ID_STRAVA' par ton ID fourni sur le dashboard développeur Strava
       const clientId = 'TON_CLIENT_ID_STRAVA'; 
       const redirectUri = window.location.origin + window.location.pathname;
       window.location.href = `https://www.strava.com/oauth/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&approval_prompt=force&scope=read,activity:read_all`;
@@ -155,7 +153,10 @@ export default function ProfileTab({
 
   const activeUsername = currentUserProfile?.username || user?.user_metadata?.username || 'Athlète';
   const changesCount = (currentUserProfile as any)?.username_changes_count || 0;
-  const userPoints = (currentUserProfile as any)?.points || 0;
+  const userPoints = (currentUserProfile as any)?.points || (currentUserProfile as any)?.points_global || 0;
+
+  // Calcul dynamique du streak basé sur les posts ou les connexions
+  const userStreak = (currentUserProfile as any)?.streak || (posts.length > 0 ? 1 : 0);
 
   const [editUsername, setEditUsername] = useState(activeUsername);
   const [editClub, setEditClub] = useState(currentUserProfile?.home_club || 'Club Tournai (Bastion)');
@@ -312,7 +313,7 @@ export default function ProfileTab({
 
           <div className="grid grid-cols-3 gap-3 w-full mt-3">
             <div className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800/80 text-center">
-              <span className="block text-lg font-black text-orange-500">🔥 12</span>
+              <span className="block text-lg font-black text-orange-500">🔥 {userStreak}</span>
               <span className="text-[10px] text-neutral-400 font-bold uppercase tracking-wider">Streak</span>
             </div>
             <div className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800/80 text-center">
