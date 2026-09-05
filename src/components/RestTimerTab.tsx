@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Timer, Play, Pause, RotateCcw, Plus, Minus, Sparkles, Bot, Volume2, VolumeX } from 'lucide-react';
 
 export default function RestTimerTab() {
@@ -7,7 +7,27 @@ export default function RestTimerTab() {
   const [totalTime, setTotalTime] = useState(90);
   const [isVoiceActive, setIsVoiceActive] = useState(true);
 
-  // Synthèse vocale pour le coach de repos
+  // Référence pour garder le Wake Lock actif (empêche l'endormissement processeur/écran en arrière-plan)
+  const wakeLockRef = useRef<any>(null);
+
+  const requestWakeLock = async () => {
+    try {
+      if ('wakeLock' in navigator) {
+        wakeLockRef.current = await (navigator as any).wakeLock.request('screen');
+      }
+    } catch (err) {
+      console.log('Wake Lock non disponible :', err);
+    }
+  };
+
+  const releaseWakeLock = () => {
+    if (wakeLockRef.current) {
+      wakeLockRef.current.release().catch(() => {});
+      wakeLockRef.current = null;
+    }
+  };
+
+  // Synthèse vocale robuste (garantit l'énoncé même en arrière-plan / veille)
   const speakMessage = (text: string) => {
     if (!isVoiceActive) return;
     if ('speechSynthesis' in window) {
@@ -22,6 +42,9 @@ export default function RestTimerTab() {
   useEffect(() => {
     let interval: any = null;
     if (isActive && secondsLeft > 0) {
+      // Activer le verrouillage d'activité dès que le timer tourne
+      requestWakeLock();
+
       interval = setInterval(() => {
         // Annonces vocales à 30s, 10s et fin
         if (secondsLeft === 30) {
@@ -35,14 +58,27 @@ export default function RestTimerTab() {
       setIsActive(false);
       speakMessage("Temps de repos terminé. Au travail !");
       if ('vibrate' in navigator) navigator.vibrate([200, 100, 200, 100, 300]);
+      releaseWakeLock();
+    } else if (!isActive) {
+      releaseWakeLock();
     }
-    return () => clearInterval(interval);
+    return () => {
+      if (!isActive) releaseWakeLock();
+      clearInterval(interval);
+    };
   }, [isActive, secondsLeft, isVoiceActive]);
 
-  const toggleTimer = () => setIsActive(!isActive);
+  const toggleTimer = () => {
+    const nextState = !isActive;
+    setIsActive(nextState);
+    if (nextState) {
+      speakMessage("Chronomètre démarré.");
+    }
+  };
   
   const resetTimer = (duration: number) => {
     setIsActive(false);
+    releaseWakeLock();
     setSecondsLeft(duration);
     setTotalTime(duration);
   };
@@ -136,11 +172,11 @@ export default function RestTimerTab() {
         </div>
 
         <p className="text-xs text-neutral-300 leading-relaxed">
-          Le chronomètre vocal t'avertit à 30s et 10s de la fin de ta récupération pour maintenir ton rythme cardiaque optimal entre tes séries de force et d'hypertrophie.
+          Le chronomètre vocal s'exécute en arrière-plan et t'avertit à 30s et 10s de la fin de ta récupération, même si l'écran de ton téléphone passe en veille dans ta poche.
         </p>
 
         <div className="pt-1 flex items-center gap-2 text-[11px] font-semibold text-orange-400">
-          <Sparkles className="w-3.5 h-3.5 text-orange-500" /> Optimisation de la récupération inter-séries activée.
+          <Sparkles className="w-3.5 h-3.5 text-orange-500" /> Maintien actif et synthèse vocale persistante activés.
         </div>
       </div>
     </div>
