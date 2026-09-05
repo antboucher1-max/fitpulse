@@ -2,12 +2,13 @@ import PaywallGate from './PaywallGate';
 import { useState, useEffect, useRef } from 'react';
 import { 
   Play, Pause, Square, MapPin, Volume2, VolumeX, 
-  Compass, Apple, Droplet, Zap, Navigation, LocateFixed, Activity, Gauge, Timer, Target, Radio, Wind, ArrowLeft, Share2, EyeOff, X 
+  Compass, Apple, Droplet, Zap, Navigation, LocateFixed, Activity, Gauge, Timer, Target, Radio, Wind, ArrowLeft, Share2, EyeOff, X, Upload 
 } from 'lucide-react';
 import { MapContainer, TileLayer, Polyline, Marker, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import GearTrackerSection from './GearTrackerSection';
+import gpxParser from 'gpxparser';
 
 const runnerIcon = L.divIcon({
   className: 'custom-runner-marker',
@@ -81,6 +82,42 @@ export default function RunningTab({
   const [bodyWeight, setBodyWeight] = useState<number>(70);
 
   const lastPositionRef = useRef<[number, number]>([50.505, 3.325]);
+
+  // Fonction d'import de fichier GPX universel (Toutes montres)
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const content = e.target?.result as string;
+      
+      if (file.name.endsWith('.gpx')) {
+        const gpx = new gpxParser();
+        gpx.parse(content);
+        
+        const tracks = gpx.tracks[0];
+        if (tracks) {
+          const points: Array<[number, number]> = tracks.points.map((p: any) => [p.lat, p.lon]);
+          const totalDistanceMeters = tracks.distance.total; // en mètres
+          const km = Number((totalDistanceMeters / 1000).toFixed(2));
+
+          setRoutePositions(points.length > 0 ? points : [[50.505, 3.325]]);
+          setDistanceKm(km);
+          if (points.length > 0) {
+            setCurrentPosition(points[points.length - 1]);
+            lastPositionRef.current = points[points.length - 1];
+          }
+          alert(`Tracé GPX de montre importé avec succès ! Distance : ${km} km 🚀`);
+        } else {
+          alert("Aucune trace GPS valide trouvée dans ce fichier GPX.");
+        }
+      } else {
+        alert("Veuillez sélectionner un fichier au format .gpx valide.");
+      }
+    };
+    reader.readAsText(file);
+  };
 
   // --- OFFLINE RUN GUARD : Restauration d'une course non finalisée au chargement ---
   useEffect(() => {
@@ -374,7 +411,7 @@ export default function RunningTab({
 
   return (
     <div className="space-y-6 pb-24 animate-fadeIn">
-      
+       
       {/* 🔙 BOUTON RETOUR */}
       {onBack && (
         <button 
@@ -406,6 +443,22 @@ export default function RunningTab({
         </div>
       </div>
 
+      {/* 📥 MODULE D'IMPORT UNIVERSEL DE FICHIERS GPX (Toutes montres) */}
+      <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-3 shadow-xl">
+        <div className="flex items-center gap-2 text-orange-400 font-bold text-xs uppercase tracking-wider">
+          <Upload className="w-4 h-4" /> Import Universel Montre (.GPX)
+        </div>
+        <p className="text-xs text-neutral-400 leading-relaxed">
+          Importe directement le fichier d'export de ta montre (Garmin, Huawei, Polar, Coros, etc.) pour afficher instantanément ton tracé sur la carte et calculer ta distance.
+        </p>
+        <input 
+          type="file" 
+          accept=".gpx"
+          onChange={handleFileUpload}
+          className="w-full text-xs text-neutral-400 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-orange-600 file:text-white hover:file:bg-orange-500 cursor-pointer bg-neutral-950 border border-neutral-800 rounded-2xl p-2"
+        />
+      </div>
+
       {/* Moteur de Ghost Pacing & Vent Réel API (PROTÉGÉ PAR LE PAYWALL) */}
       <PaywallGate userId={currentUserId} featureName="Ghost Pacing Météo & Vocal">
         <div className="bg-neutral-900 border border-orange-500/30 rounded-3xl p-5 space-y-4 shadow-2xl relative overflow-hidden">
@@ -417,6 +470,7 @@ export default function RunningTab({
             <span className="text-[10px] font-extrabold bg-orange-500/20 text-orange-300 px-2.5 py-0.5 rounded-full border border-orange-500/30">
               Pro 🛰️
             </span>
+
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs relative z-10">
@@ -430,6 +484,7 @@ export default function RunningTab({
               <span className="text-sm font-black text-emerald-400">
                 {windSpeedKmh} km/h (Cap {windDirectionDeg}°)
               </span>
+
             </div>
           </div>
 
@@ -492,6 +547,7 @@ export default function RunningTab({
           <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1 rounded-full">
             {isRunning ? 'Enregistrement actif...' : 'Prêt à démarrer'}
           </span>
+
         </div>
 
         <div className="w-full h-80 rounded-2xl overflow-hidden border border-neutral-800 relative z-0">
