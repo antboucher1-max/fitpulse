@@ -20,60 +20,24 @@ export default function GymLogTab({ currentUserId, onStartRestTimer }: GymLogTab
   const [exercises, setExercises] = useState([] as ExerciseLog[]);
   const [isSessionActive, setIsSessionActive] = useState(false);
   const [sessionTimer, setSessionTimer] = useState(0);
+  const [historicalLogs, setHistoricalLogs] = useState<any[]>([]);
 
-  // État pour la sélection rapide mobile par filtre de muscle
-  const [selectedMuscleFilter, setSelectedMuscleFilter] = useState<string>('Jambes');
+  // Charger l'historique des séances depuis Supabase au montage
+  useEffect(() => {
+    if (currentUserId) {
+      fetchUserGymHistory(currentUserId);
+    }
+  }, [currentUserId]);
 
-  // État d'ajout d'un nouvel exercice personnalisé
-  const [newExName, setNewExName] = useState('');
-  const [newExCategory, setNewExCategory] = useState<'Jambes' | 'Pecs/Triceps' | 'Dos/Biceps' | 'Épaules/Abdos' | 'Mobilité Hybride' | 'Bras' | 'Fessiers'>('Jambes');
+  const fetchUserGymHistory = async (userId: string) => {
+    const { data, error } = await supabase
+      .from('gym_logs')
+      .select('*')
+      .filter('user_id', 'eq', userId);
 
-  // Bibliothèque d'exercices classés par groupe (optimisée tactile)
-  const muscleGroupsDatabase: Record<string, string[]> = {
-    'Jambes': [
-      'Back Squat (Force)',
-      'Front Squat',
-      'Presse à cuisses',
-      'Fentes bulgares',
-      'Leg Extension',
-      'Leg Curl ischio',
-      'Soulevé de Terre Roumain'
-    ],
-    'Fessiers': [
-      'Hip Thrust (Bassin)',
-      'Glute Bridge',
-      'Kickback poulie',
-      'Fentes marchées'
-    ],
-    'Dos/Biceps': [
-      'Tractions Lestées',
-      'Rowing barre',
-      'Rowing poulie basse',
-      'Tirage vertical',
-      'Curl Biceps'
-    ],
-    'Pecs/Triceps': [
-      'Développé Couché Incliné',
-      'Développé Couché plat',
-      'Dips',
-      'Écartés poulie',
-      'Extension Triceps'
-    ],
-    'Bras': [
-      'Curl haltères alternés',
-      'Curl Marteau',
-      'Extension corde triceps',
-      'Dips banc'
-    ],
-    'Épaules/Abdos': [
-      'Développé Militaire',
-      'Élévations latérales',
-      'Gainage Pallof'
-    ],
-    'Mobilité': [
-      'Mobilité hanche 90/90',
-      'Étirements chaîne post'
-    ]
+    if (!error && data) {
+      setHistoricalLogs(data);
+    }
   };
 
   // Chronographe de séance
@@ -118,7 +82,7 @@ export default function GymLogTab({ currentUserId, onStartRestTimer }: GymLogTab
       exerciseName: exerciseName,
       category: categoryKey as any,
       previousBest: 'Référence libre 🚀',
-      sets: [{ weight: 50, reps: 10, completed: false, status: 'pending' }]
+      sets: [{ weight: 0, reps: 0, completed: false, status: 'pending' }]
     };
     setExercises(prev => [...prev, newExercise]);
   };
@@ -132,7 +96,7 @@ export default function GymLogTab({ currentUserId, onStartRestTimer }: GymLogTab
       exerciseName: newExName.trim(),
       category: newExCategory,
       previousBest: 'Première perf 🚀',
-      sets: [{ weight: 60, reps: 10, completed: false, status: 'pending' }]
+      sets: [{ weight: 0, reps: 0, completed: false, status: 'pending' }]
     };
 
     setExercises(prev => [...prev, newExercise]);
@@ -145,7 +109,7 @@ export default function GymLogTab({ currentUserId, onStartRestTimer }: GymLogTab
         const lastSet = ex.sets[ex.sets.length - 1];
         return {
           ...ex,
-          sets: [...ex.sets, { weight: lastSet ? lastSet.weight : 50, reps: lastSet ? lastSet.reps : 10, completed: false, status: 'pending' }]
+          sets: [...ex.sets, { weight: lastSet ? lastSet.weight : 0, reps: lastSet ? lastSet.reps : 0, completed: false, status: 'pending' }]
         };
       }
       return ex;
@@ -159,16 +123,13 @@ export default function GymLogTab({ currentUserId, onStartRestTimer }: GymLogTab
         const currentStatus = newSets[setIndex].status || (newSets[setIndex].completed ? 'validated' : 'pending');
 
         if (currentStatus === 'pending') {
-          // Passe à "Commencer" (série en cours / active)
           newSets[setIndex] = { ...newSets[setIndex], status: 'active', completed: false };
         } else if (currentStatus === 'active') {
-          // Passe à "Valide" (série validée)
           newSets[setIndex] = { ...newSets[setIndex], status: 'validated', completed: true };
           if (onStartRestTimer) {
             onStartRestTimer();
           }
         } else {
-          // Rebascule en pending si on clique à nouveau
           newSets[setIndex] = { ...newSets[setIndex], status: 'pending', completed: false };
         }
 
@@ -189,47 +150,79 @@ export default function GymLogTab({ currentUserId, onStartRestTimer }: GymLogTab
     }));
   };
 
-  // Calculateur de 1RM (Formule d'Epley)
   const calculate1RM = (weight: number, reps: number) => {
     if (reps <= 0 || weight <= 0) return 0;
     if (reps === 1) return weight;
     return Math.round(weight * (1 + reps / 30));
   };
 
-  let sessionMax1RM = 0;
+  let maxHistorical1RM = 0;
+  let totalHistoricalSets = 0;
+
+  historicalLogs.forEach(log => {
+    totalHistoricalSets += (log.total_sets || 0);
+    if (Array.isArray(log.exercises_data)) {
+      log.exercises_data.forEach((ex: any) => {
+        if (Array.isArray(ex.sets)) {
+          ex.sets.forEach((set: any) => {
+            const rm = calculate1RM(set.weight, set.reps);
+            if (rm > maxHistorical1RM) maxHistorical1RM = rm;
+          });
+        }
+      });
+    }
+  });
+
   exercises.forEach(ex => {
     ex.sets.forEach(set => {
       const rm = calculate1RM(set.weight, set.reps);
-      if (rm > sessionMax1RM) sessionMax1RM = rm;
+      if (rm > maxHistorical1RM) maxHistorical1RM = rm;
     });
   });
 
-  const totalSetsCount = exercises.reduce((acc, ex) => acc + ex.sets.filter(s => s.completed || s.status === 'validated').length, 0);
+  const currentSessionSets = exercises.reduce((acc, ex) => acc + ex.sets.filter(s => s.completed || s.status === 'validated').length, 0);
+  const totalDisplaySets = totalHistoricalSets + currentSessionSets;
 
   const handleFinishWorkout = async () => {
     if (!currentUserId) return;
     
-    const { error } = await supabase.from('gym_logs').insert([{
+    const payload: any = {
       user_id: currentUserId,
       session_name: activeSessionName,
       duration_seconds: sessionTimer,
-      total_sets: totalSetsCount,
+      total_sets: currentSessionSets,
       exercises_data: exercises,
       date: new Date().toISOString()
-    }]);
+    };
+
+    const { error } = await supabase.from('gym_logs').insert([payload]);
 
     if (!error) {
-      alert(`🎉 Séance "${activeSessionName}" enregistrée avec succès ! Volume : ${totalSetsCount} séries validées.`);
+      alert(`🎉 Séance "${activeSessionName}" enregistrée avec succès ! Volume : ${currentSessionSets} séries validées.`);
       setIsSessionActive(false);
       setExercises([]);
+      fetchUserGymHistory(currentUserId);
     } else {
       alert("Erreur lors de l'enregistrement de la séance : " + error.message);
     }
   };
 
+  const muscleGroupsDatabase: Record<string, string[]> = {
+    'Jambes': ['Back Squat (Force)', 'Front Squat', 'Presse à cuisses', 'Fentes bulgares', 'Leg Extension', 'Leg Curl ischio', 'Soulevé de Terre Roumain'],
+    'Fessiers': ['Hip Thrust (Bassin)', 'Glute Bridge', 'Kickback poulie', 'Fentes marchées'],
+    'Dos/Biceps': ['Tractions Lestées', 'Rowing barre', 'Rowing poulie basse', 'Tirage vertical', 'Curl Biceps'],
+    'Pecs/Triceps': ['Développé Couché Incliné', 'Développé Couché plat', 'Dips', 'Écartés poulie', 'Extension Triceps'],
+    'Bras': ['Curl haltères alternés', 'Curl Marteau', 'Extension corde triceps', 'Dips banc'],
+    'Épaules/Abdos': ['Développé Militaire', 'Élévations latérales', 'Gainage Pallof'],
+    'Mobilité': ['Mobilité hanche 90/90', 'Étirements chaîne post']
+  };
+
+  const [selectedMuscleFilter, setSelectedMuscleFilter] = useState<string>('Jambes');
+  const [newExName, setNewExName] = useState('');
+  const [newExCategory, setNewExCategory] = useState<'Jambes' | 'Pecs/Triceps' | 'Dos/Biceps' | 'Épaules/Abdos' | 'Mobilité Hybride' | 'Bras' | 'Fessiers'>('Jambes');
+
   return (
     <div className="space-y-6 pb-20 animate-fadeIn">
-        
       {/* En-tête / Dashboard de Contrôle */}
       <div className="bg-gradient-to-r from-neutral-900 via-neutral-900 to-orange-950/40 border border-neutral-800 rounded-3xl p-5 shadow-xl flex items-center justify-between">
         <div>
@@ -268,13 +261,13 @@ export default function GymLogTab({ currentUserId, onStartRestTimer }: GymLogTab
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             <div className="bg-neutral-900 border border-neutral-800 p-4 rounded-2xl space-y-1">
               <span className="text-[10px] uppercase font-bold text-neutral-400 block">1RM Estimé Max</span>
-              <div className="text-xl font-black text-white">{sessionMax1RM > 0 ? `${sessionMax1RM} kg` : '-- kg'}</div>
+              <div className="text-xl font-black text-white">{maxHistorical1RM > 0 ? `${maxHistorical1RM} kg` : '-- kg'}</div>
               <span className="text-[10px] text-neutral-500">Formule d'Epley active</span>
             </div>
 
             <div className="bg-neutral-900 border border-neutral-800 p-4 rounded-2xl space-y-1">
               <span className="text-[10px] uppercase font-bold text-neutral-400 block">Volume Hebdo</span>
-              <div className="text-xl font-black text-orange-400">{totalSetsCount} <span className="text-xs font-normal text-neutral-400">séries</span></div>
+              <div className="text-xl font-black text-orange-400">{totalDisplaySets} <span className="text-xs font-normal text-neutral-400">séries</span></div>
               <span className="text-[10px] text-neutral-500">Objectif : 12-18 sets</span>
             </div>
 
@@ -294,7 +287,7 @@ export default function GymLogTab({ currentUserId, onStartRestTimer }: GymLogTab
             </div>
             <h3 className="text-sm font-black text-white">Prêt à valider tes perfs ?</h3>
             <p className="text-xs text-neutral-400 max-w-sm mx-auto">
-              Lance ta séance pour composer ton WOD sur-mesure (Jambes, Fessiers, Dos, Pecs, Bras) et suivre ton historique en direct.
+              Lance ta séance pour composer ton WOD sur-mesure et suivre ton historique en direct.
             </p>
             <button
               type="button"
@@ -307,7 +300,6 @@ export default function GymLogTab({ currentUserId, onStartRestTimer }: GymLogTab
         </div>
       ) : (
         <div className="space-y-4">
-           
           <div className="bg-neutral-900 border border-neutral-800 p-4 rounded-2xl flex items-center justify-between">
             <input 
               type="text"
@@ -320,18 +312,12 @@ export default function GymLogTab({ currentUserId, onStartRestTimer }: GymLogTab
             </span>
           </div>
 
-          {/* Liste des exercices actifs de la séance */}
           {exercises.map((ex) => (
             <div key={ex.id} className="bg-neutral-900 border border-neutral-800 rounded-3xl p-4 sm:p-5 space-y-3 shadow-xl">
               <div className="flex items-center justify-between">
                 <div>
                   <span className="text-[10px] font-bold text-orange-400 uppercase tracking-wider block">{ex.category}</span>
                   <h4 className="text-sm font-black text-white">{ex.exerciseName}</h4>
-                  {ex.previousBest && (
-                    <span className="text-[10px] text-neutral-400 flex items-center gap-1 pt-0.5">
-                      <History className="w-3 h-3 text-cyan-400" /> Semaine dernière : <strong className="text-white">{ex.previousBest}</strong>
-                    </span>
-                  )}
                 </div>
                 <button
                   type="button"
@@ -342,7 +328,6 @@ export default function GymLogTab({ currentUserId, onStartRestTimer }: GymLogTab
                 </button>
               </div>
 
-              {/* Tableau des séries */}
               <div className="space-y-2 pt-1">
                 <div className="grid grid-cols-12 gap-2 text-[10px] font-extrabold uppercase text-neutral-500 px-1">
                   <span className="col-span-2 text-center">Série</span>
@@ -360,7 +345,6 @@ export default function GymLogTab({ currentUserId, onStartRestTimer }: GymLogTab
                       <div className="col-span-2 text-center text-xs font-bold text-neutral-400">
                         #{setIndex + 1}
                       </div>
-                      
                       <div className="col-span-3">
                         <input 
                           type="number"
@@ -369,7 +353,6 @@ export default function GymLogTab({ currentUserId, onStartRestTimer }: GymLogTab
                           className="w-full bg-neutral-900 border border-neutral-700 rounded-xl py-1.5 text-center text-xs text-white font-bold focus:outline-none focus:border-orange-500"
                         />
                       </div>
-
                       <div className="col-span-3">
                         <input 
                           type="number"
@@ -378,7 +361,6 @@ export default function GymLogTab({ currentUserId, onStartRestTimer }: GymLogTab
                           className="w-full bg-neutral-900 border border-neutral-700 rounded-xl py-1.5 text-center text-xs text-white font-bold focus:outline-none focus:border-orange-500"
                         />
                       </div>
-
                       <div className="col-span-4 flex items-center justify-center gap-2">
                         <button
                           type="button"
@@ -423,13 +405,12 @@ export default function GymLogTab({ currentUserId, onStartRestTimer }: GymLogTab
             </div>
           ))}
 
-          {/* --- SÉLECTEUR TACTILE MOBILE PAR GROUPE MUSCULAIRE --- */}
+          {/* Sélection rapide par groupe musculaire */}
           <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-4 sm:p-5 space-y-3 shadow-xl">
             <h4 className="text-xs font-black uppercase tracking-wider text-cyan-400 flex items-center gap-1.5">
               ⚡ Ajouter un exercice rapide (Sélectionne ton muscle)
             </h4>
 
-            {/* Boutons de filtres tactiles horizontaux (très facile avec le pouce sur mobile) */}
             <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none">
               {Object.keys(muscleGroupsDatabase).map((muscleGroup) => (
                 <button
@@ -447,7 +428,6 @@ export default function GymLogTab({ currentUserId, onStartRestTimer }: GymLogTab
               ))}
             </div>
 
-            {/* Liste des exercices du groupe sélectionné en boutons tactiles */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
               {muscleGroupsDatabase[selectedMuscleFilter]?.map((exName, idx) => (
                 <button
@@ -463,7 +443,7 @@ export default function GymLogTab({ currentUserId, onStartRestTimer }: GymLogTab
             </div>
           </div>
 
-          {/* Formulaire d'ajout personnalisé */}
+          {/* Formulaire d'exercice personnalisé libre */}
           <form onSubmit={handleAddCustomExercise} className="bg-neutral-900 border border-neutral-800 rounded-3xl p-4 sm:p-5 space-y-3 shadow-xl">
             <h4 className="text-xs font-black uppercase tracking-wider text-orange-400 flex items-center gap-1.5">
               <Plus className="w-4 h-4" /> Exercice personnalisé libre
@@ -502,7 +482,6 @@ export default function GymLogTab({ currentUserId, onStartRestTimer }: GymLogTab
 
         </div>
       )}
-
     </div>
   );
 }
