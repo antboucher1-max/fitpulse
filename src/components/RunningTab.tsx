@@ -17,7 +17,6 @@ const runnerIcon = L.divIcon({
   iconAnchor: [10, 10]
 });
 
-// Contrôleur dynamique pour recentrer et redimensionner la carte automatiquement sur le circuit planifié
 function MapController({ center, plannedRoute }: { center: [number, number], plannedRoute?: Array<[number, number]> }) {
   const map = useMap();
   useEffect(() => {
@@ -67,31 +66,23 @@ export default function RunningTab({
   const [distanceKm, setDistanceKm] = useState(0);
   const [audioCoaching, setAudioCoaching] = useState(true);
 
-  // État du type de terrain sélectionné avant la course
   const [terrainType, setTerrainType] = useState<'route' | 'chemin' | 'trail' | 'carriere' | 'boue'>('route');
-
-  // État pour afficher la modale de rapport de fin de course / défi unifiée
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [isSavingRun, setIsSavingRun] = useState(false);
 
-  // --- ARCHITECTE DE CIRCUITS INTELLIGENTS (ROUTAGE RÉEL OSRM) ---
   const [plannedRoutePositions, setPlannedRoutePositions] = useState<Array<[number, number]>>([]);
   const [plannedDistanceKm, setPlannedDistanceKm] = useState<number>(0);
   const [circuitType, setCircuitType] = useState<'route' | 'bois' | 'carriere'>('route');
 
-  // Ghost Pacing Vocal & Météo Réelle API States
   const [windSpeedKmh, setWindSpeedKmh] = useState<number>(0);
   const [windDirectionDeg, setWindDirectionDeg] = useState<number>(0);
   const [windDescription, setWindDescription] = useState<string>('Analyse météo en cours...');
   const [coachingAdvice, setCoachingAdvice] = useState('En attente du démarrage de la course...');
 
-  // Objectif d'allure cible en secondes par kilomètre (Ex: 5'30" = 330 secondes)
   const [targetPaceSecs, setTargetPaceSecs] = useState<number>(330); 
+  const [minAllowedPaceSecs, setMinAllowedPaceSecs] = useState<number>(300);
+  const [maxAllowedPaceSecs, setMaxAllowedPaceSecs] = useState<number>(360);
 
-  // Fourchette d'allure personnalisable pour le Live Coach Vocal (min et max en secondes par km)
-  const [minAllowedPaceSecs, setMinAllowedPaceSecs] = useState<number>(300); // ex: 5'00"
-  const [maxAllowedPaceSecs, setMaxAllowedPaceSecs] = useState<number>(360); // ex: 6'00"
-
-  // Référence Wake Lock pour garder le GPS et l'écran actif en veille dans la poche
   const wakeLockRef = useRef<any>(null);
 
   const requestWakeLock = async () => {
@@ -123,24 +114,30 @@ export default function RunningTab({
 
   const lastPositionRef = useRef<[number, number]>([50.505, 3.325]);
 
-  // --- GÉNÉRATEUR DE CIRCUIT RÉEL (Basé sur le réseau de vraies routes via OSRM) ---
   const handleGenerateSmartCircuit = async (targetKm: number) => {
     const baseLat = currentPosition[0];
     const baseLng = currentPosition[1];
     
-    alert(`⏳ Calcul d'un vrai circuit routier de ${targetKm} km autour de votre position...`);
+    alert(`⏳ Calcul sécurisé du circuit de ${targetKm} km...`);
 
     try {
       const angleOffset = Math.random() * Math.PI; 
       const halfDistKm = targetKm / 2;
-      
       const latOffset = (halfDistKm / 111) * Math.cos(angleOffset);
       const lngOffset = (halfDistKm / 75) * Math.sin(angleOffset);
 
       const waypointLat = baseLat + latOffset;
       const waypointLng = baseLng + lngOffset;
 
-      const response = await fetch(`https://router.project-osrm.org/route/v1/foot/${baseLng},${baseLat};${waypointLng},${waypointLat};${baseLng},${baseLat}?overview=full&geometries=geojson`);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 6000);
+
+      const response = await fetch(
+        `https://router.project-osrm.org/route/v1/foot/${baseLng},${baseLat};${waypointLng},${waypointLat};${baseLng},${baseLat}?overview=full&geometries=geojson`,
+        { signal: controller.signal }
+      );
+      clearTimeout(timeoutId);
+
       const data = await response.json();
 
       if (data && data.routes && data.routes.length > 0) {
@@ -149,12 +146,12 @@ export default function RunningTab({
 
         setPlannedRoutePositions(coords);
         setPlannedDistanceKm(actualKm);
-        alert(`✅ Vrai circuit sur route généré avec succès ! Distance réelle calculée : ${actualKm} km 🗺️`);
-      } else {
-        throw new Error("Impossible de trouver un itinéraire via OSRM");
+        alert(`✅ Circuit routier validé : ${actualKm} km 🗺️`);
+        return;
       }
+      throw new Error("Réponse OSRM vide");
     } catch (e) {
-      console.warn("Erreur de routage réel, basculement sur la géométrie de secours :", e);
+      console.warn("Basculement sur le générateur géométrique de secours sécurisé :", e);
       
       const pointsCount = 20;
       const generated: Array<[number, number]> = [];
@@ -171,26 +168,24 @@ export default function RunningTab({
 
       setPlannedRoutePositions(generated);
       setPlannedDistanceKm(targetKm);
-      alert(`⚡ Mode Hors-Ligne : Boucle de secours de ${targetKm} km générée.`);
+      alert(`⚡ Mode Sécurisé Hors-Ligne : Boucle de ${targetKm} km générée.`);
     }
   };
 
-  // --- PARTAGER CE PARCOURS EN DÉFI AU CLUB ---
   const handleShareCircuitAsChallenge = () => {
     if (plannedRoutePositions.length === 0 || plannedDistanceKm <= 0) {
-      alert("Veuillez d'abord générer ou importer un circuit cible (ligne bleue) !");
+      alert("Veuillez d'abord générer ou importer un circuit cible !");
       return;
     }
 
     if (onSaveRunPost) {
       onSaveRunPost(`🗺️ [NOUVEAU PARCOURS DÉFI] Boucle de ${plannedDistanceKm} km (${circuitType.toUpperCase()}). Qui relève le défi de venir la courir ? 🚀`, plannedDistanceKm);
-      alert(`🎯 Parcours partagé avec succès sur le fil d'actualité du club ! Les autres membres peuvent désormais le relever 🏆`);
+      alert(`🎯 Parcours partagé avec succès sur le fil du club !`);
     } else {
-      alert(`🎯 Parcours de ${plannedDistanceKm} km (${circuitType.toUpperCase()}) prêt à être partagé au club !`);
+      alert(`🎯 Parcours de ${plannedDistanceKm} km prêt à être partagé !`);
     }
   };
 
-  // Fonction d'import GPX unifiée (Circuit cible ou Course réalisée)
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -198,71 +193,71 @@ export default function RunningTab({
     const reader = new FileReader();
     reader.onload = (e) => {
       const content = e.target?.result as string;
-      
       if (file.name.endsWith('.gpx')) {
-        const gpx = new gpxParser();
-        gpx.parse(content);
-        
-        const tracks = gpx.tracks[0];
-        if (tracks) {
-          const points: Array<[number, number]> = tracks.points.map((p: any) => [p.lat, p.lon]);
-          const totalDistanceMeters = tracks.distance.total; // en mètres
-          let km = Number((totalDistanceMeters / 1000).toFixed(2));
+        try {
+          const gpx = new gpxParser();
+          gpx.parse(content);
+          const tracks = gpx.tracks[0];
+          if (tracks && tracks.points?.length > 0) {
+            const points: Array<[number, number]> = tracks.points.map((p: any) => [p.lat, p.lon]);
+            let km = Number((tracks.distance.total / 1000).toFixed(2));
 
-          const isTargetCircuit = confirm(`Tracé GPX "${file.name}" chargé (${km} km). Veux-tu l'utiliser comme CIRCUIT CIBLE à suivre sur la carte (Ligne bleue) ? Clique sur 'Annuler' pour l'importer comme course réalisée.`);
+            const isTargetCircuit = confirm(`Tracé GPX chargé (${km} km). Utiliser comme CIRCUIT CIBLE (Ligne bleue) ? Annuler pour importer comme course réalisée.`);
 
-          if (isTargetCircuit) {
-            setPlannedRoutePositions(points);
-            setPlannedDistanceKm(km);
-            alert(`🗺️ Circuit cible importé avec succès ! Suivez la trace bleue sur la carte.`);
-          } else {
-            if (terrainType === 'trail') km *= 1.1;
-            else if (terrainType === 'carriere') km *= 1.15;
-            else if (terrainType === 'boue') km *= 1.25;
+            if (isTargetCircuit) {
+              setPlannedRoutePositions(points);
+              setPlannedDistanceKm(km);
+              alert(`🗺️ Circuit cible importé !`);
+            } else {
+              if (terrainType === 'trail') km *= 1.1;
+              else if (terrainType === 'carriere') km *= 1.15;
+              else if (terrainType === 'boue') km *= 1.25;
 
-            setRoutePositions(points.length > 0 ? points : [[50.505, 3.325]]);
-            setDistanceKm(Number(km.toFixed(2)));
-            if (points.length > 0) {
+              setRoutePositions(points);
+              setDistanceKm(Number(km.toFixed(2)));
               setCurrentPosition(points[points.length - 1]);
               lastPositionRef.current = points[points.length - 1];
+              alert(`🚀 Course GPX importée ! Distance d'effort : ${km.toFixed(2)} km`);
             }
-            alert(`🚀 Course GPX importée ! Distance d'effort corrigée : ${km.toFixed(2)} km`);
+          } else {
+            alert("Format GPX invalide ou vide.");
           }
-        } else {
-          alert("Aucune trace GPS valide trouvée dans ce fichier GPX.");
+        } catch (err) {
+          alert("Erreur lors de l'analyse du fichier GPX.");
         }
       } else {
-        alert("Veuillez sélectionner un fichier au format .gpx valide.");
+        alert("Veuillez sélectionner un fichier .gpx valide.");
       }
     };
     reader.readAsText(file);
   };
 
-  // --- OFFLINE RUN GUARD : Restauration d'une course non finalisée au chargement ---
   useEffect(() => {
     const savedRun = localStorage.getItem('fitpulse_offline_run');
     if (savedRun) {
       try {
         const parsed = JSON.parse(savedRun);
-        if (parsed.distanceKm > 0 && confirm("⚡ [Mode Hors-Ligne] Une course interrompue a été détectée en local. Veux-tu récupérer ton tracé et tes données ?")) {
-          setRoutePositions(parsed.routePositions || [[50.505, 3.325]]);
-          setDistanceKm(parsed.distanceKm || 0);
-          setSeconds(parsed.seconds || 0);
-          if (parsed.routePositions?.length > 0) {
-            setCurrentPosition(parsed.routePositions[parsed.routePositions.length - 1]);
-            lastPositionRef.current = parsed.routePositions[parsed.routePositions.length - 1];
+        if (parsed.distanceKm > 0 && Array.isArray(parsed.routePositions) && parsed.routePositions.length > 0) {
+          const validPositions = parsed.routePositions.filter((pt: any) => Array.isArray(pt) && pt.length === 2 && typeof pt[0] === 'number' && typeof pt[1] === 'number');
+          
+          if (validPositions.length > 0 && confirm("⚡ [Mode Hors-Ligne] Une course interrompue a été détectée. Veux-tu récupérer ton tracé ?")) {
+            setRoutePositions(validPositions);
+            setDistanceKm(parsed.distanceKm || 0);
+            setSeconds(parsed.seconds || 0);
+            setCurrentPosition(validPositions[validPositions.length - 1]);
+            lastPositionRef.current = validPositions[validPositions.length - 1];
+          } else {
+            localStorage.removeItem('fitpulse_offline_run');
           }
         } else {
           localStorage.removeItem('fitpulse_offline_run');
         }
       } catch (e) {
-        console.warn("Erreur lecture sauvegarde locale course :", e);
         localStorage.removeItem('fitpulse_offline_run');
       }
     }
   }, []);
 
-  // --- OFFLINE RUN GUARD : Sauvegarde incrémentielle en temps réel ---
   useEffect(() => {
     if (isRunning) {
       localStorage.setItem('fitpulse_offline_run', JSON.stringify({
@@ -274,7 +269,6 @@ export default function RunningTab({
     }
   }, [routePositions, distanceKm, seconds, isRunning]);
 
-  // Fonction de synthèse vocale intelligente
   const speakMessage = (text: string) => {
     if (!audioCoaching || !isRunning || !('speechSynthesis' in window)) return;
     window.speechSynthesis.cancel();
@@ -284,30 +278,19 @@ export default function RunningTab({
     window.speechSynthesis.speak(utterance);
   };
 
-  // Récupération automatique de la météo réelle (Vent & Vitesse) via API Open-Meteo
   const fetchRealTimeWindAndPosition = async (lat: number, lng: number) => {
     try {
       const response = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=wind_speed_10m,wind_direction_10m`);
       const data = await response.json();
-       
       if (data && data.current) {
-        const speed = data.current.wind_speed_10m;
-        const direction = data.current.wind_direction_10m;
-         
-        setWindSpeedKmh(speed);
-        setWindDirectionDeg(direction);
-
-        if (speed > 25) {
-          setWindDescription(`Vent fort de ${speed} km/h (Direction ${direction}°) 💨`);
-        } else if (speed > 12) {
-          setWindDescription(`Vent modéré de ${speed} km/h (Direction ${direction}°) 🌬️`);
-        } else {
-          setWindDescription(`Conditions de vent calmes (${speed} km/h) 🍃`);
-        }
+        setWindSpeedKmh(data.current.wind_speed_10m);
+        setWindDirectionDeg(data.current.wind_direction_10m);
+        if (data.current.wind_speed_10m > 25) setWindDescription(`Vent fort de ${data.current.wind_speed_10m} km/h 💨`);
+        else if (data.current.wind_speed_10m > 12) setWindDescription(`Vent modéré de ${data.current.wind_speed_10m} km/h 🌬️`);
+        else setWindDescription(`Vent calme (${data.current.wind_speed_10m} km/h) 🍃`);
       }
     } catch (e) {
-      console.warn("Impossible de joindre l'API Météo (Zone blanche potentielle) :", e);
-      setWindDescription("Météo locale indisponible (Mode hors-ligne actif)");
+      setWindDescription("Météo hors-ligne");
     }
   };
 
@@ -315,40 +298,26 @@ export default function RunningTab({
     if ('geolocation' in navigator) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
-          const lat = position.coords.latitude;
-          const lng = position.coords.longitude;
-          const coord: [number, number] = [lat, lng];
+          const coord: [number, number] = [position.coords.latitude, position.coords.longitude];
           setCurrentPosition(coord);
           lastPositionRef.current = coord;
-          if (routePositions.length <= 1) {
-            setRoutePositions([coord]);
-          }
-          fetchRealTimeWindAndPosition(lat, lng);
+          if (routePositions.length <= 1) setRoutePositions([coord]);
+          fetchRealTimeWindAndPosition(coord[0], coord[1]);
         },
-        (error) => {
-          console.warn("GPS non disponible :", error.message);
-          fetchRealTimeWindAndPosition(50.6053, 3.3862);
-        },
+        () => fetchRealTimeWindAndPosition(50.6053, 3.3862),
         { enableHighAccuracy: true }
       );
     }
   };
 
-  useEffect(() => {
-    fetchInitialPosition();
-  }, []);
+  useEffect(() => { fetchInitialPosition(); }, []);
 
-  // Calculateur de distance Haversine entre deux points GPS réels
   const calculateHaversineDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
-    const R = 6371; // Rayon de la Terre en km
+    const R = 6371;
     const dLat = (lat2 - lat1) * (Math.PI / 180);
     const dLon = (lon2 - lon1) * (Math.PI / 180);
-    const a =
-      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
-      Math.sin(dLon / 2) * Math.sin(dLon / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return R * c;
+    const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) * Math.sin(dLon / 2) ** 2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   };
 
   useEffect(() => {
@@ -357,12 +326,9 @@ export default function RunningTab({
 
     if (isRunning && !isPaused) {
       requestWakeLock();
-
       interval = setInterval(() => {
         setSeconds(s => {
           const newSecs = s + 1;
-           
-          // Vérification de l'allure instantanée par rapport à la fourchette personnalisée
           if (distanceKm > 0.1) {
             const currentSecPerKm = newSecs / distanceKm;
             if (currentSecPerKm < minAllowedPaceSecs) {
@@ -375,28 +341,6 @@ export default function RunningTab({
               speakMessage(alertText);
             }
           }
-
-          if (newSecs > 0 && newSecs % 60 === 0 && distanceKm > 0) {
-            const currentSecPerKm = newSecs / distanceKm;
-            const diff = currentSecPerKm - targetPaceSecs; 
-             
-            let coachingText = `Point course : ${distanceKm.toFixed(2)} kilomètres. `;
-             
-            if (windSpeedKmh > 15) {
-              coachingText += `Attention, vent estimé à ${windSpeedKmh} kilomètres heure. Adapte ta foulée. `;
-            }
-
-            if (Math.abs(diff) < 15) {
-              coachingText += "Allure parfaite, tu es dans les clous !";
-            } else if (diff < -15) {
-              coachingText += "Attention, tu cours trop vite par rapport à ta cible !";
-            } else {
-              coachingText += "Tu es en dessous de ton allure cible, relance un peu !";
-            }
-
-            setCoachingAdvice(coachingText);
-            speakMessage(coachingText);
-          }
           return newSecs;
         });
       }, 1000);
@@ -404,32 +348,25 @@ export default function RunningTab({
       if ('geolocation' in navigator) {
         watchId = navigator.geolocation.watchPosition(
           (position) => {
-            const lat = position.coords.latitude;
-            const lng = position.coords.longitude;
-            const newPos: [number, number] = [lat, lng];
+            const newPos: [number, number] = [position.coords.latitude, position.coords.longitude];
+            const deltaKm = calculateHaversineDistance(lastPositionRef.current[0], lastPositionRef.current[1], newPos[0], newPos[1]);
 
-            const last = lastPositionRef.current;
-            const deltaKm = calculateHaversineDistance(last[0], last[1], newPos[0], newPos[1]);
-
-            // Filtrer les micro-sauts GPS aberrants (< 2 mètres)
             if (deltaKm > 0.002) {
               lastPositionRef.current = newPos;
               setCurrentPosition(newPos);
               setRoutePositions(prev => [...prev, newPos]);
-              
-              // --- APPLICATION DU COEFFICIENT DE TERRAIN ---
-              let terrainMultiplier = 1.0;
-              if (terrainType === 'chemin') terrainMultiplier = 1.05;
-              if (terrainType === 'trail') terrainMultiplier = 1.1;
-              if (terrainType === 'carriere') terrainMultiplier = 1.15;
-              if (terrainType === 'boue') terrainMultiplier = 1.25;
 
-              const adjustedDelta = deltaKm * terrainMultiplier;
-              setDistanceKm(d => Number((d + adjustedDelta).toFixed(2)));
-              fetchRealTimeWindAndPosition(lat, lng);
+              let mult = 1.0;
+              if (terrainType === 'chemin') mult = 1.05;
+              if (terrainType === 'trail') mult = 1.1;
+              if (terrainType === 'carriere') mult = 1.15;
+              if (terrainType === 'boue') mult = 1.25;
+
+              setDistanceKm(d => Number((d + deltaKm * mult).toFixed(2)));
+              fetchRealTimeWindAndPosition(newPos[0], newPos[1]);
             }
           },
-          (error) => console.warn("GPS watch error (hors-ligne probable) :", error),
+          (error) => console.warn("GPS watch error :", error),
           { enableHighAccuracy: true, maximumAge: 3000, timeout: 5000 }
         );
       }
@@ -442,41 +379,10 @@ export default function RunningTab({
       if (watchId !== null) navigator.geolocation.clearWatch(watchId);
       releaseWakeLock();
     };
-  }, [isRunning, isPaused, distanceKm, targetPaceSecs, minAllowedPaceSecs, maxAllowedPaceSecs, audioCoaching, windSpeedKmh, terrainType]);
+  }, [isRunning, isPaused, distanceKm, minAllowedPaceSecs, maxAllowedPaceSecs, terrainType]);
 
   const triggerSilentBroadcastTest = () => {
-    if ('vibrate' in navigator) {
-      navigator.vibrate([200, 100, 400]);
-    }
-
-    try {
-      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-       
-      const osc1 = audioContext.createOscillator();
-      const gain1 = audioContext.createGain();
-      osc1.type = 'sawtooth';
-      osc1.frequency.setValueAtTime(587.33, audioContext.currentTime); 
-      gain1.gain.setValueAtTime(0.15, audioContext.currentTime);
-      osc1.connect(gain1);
-      gain1.connect(audioContext.destination);
-      osc1.start();
-      osc1.stop(audioContext.currentTime + 0.15);
-
-      setTimeout(() => {
-        const osc2 = audioContext.createOscillator();
-        const gain2 = audioContext.createGain();
-        osc2.type = 'square';
-        osc2.frequency.setValueAtTime(880, audioContext.currentTime); 
-        gain2.gain.setValueAtTime(0.2, audioContext.currentTime);
-        osc2.connect(gain2);
-        gain2.connect(audioContext.destination);
-        osc2.start();
-        osc2.stop(audioContext.currentTime + 0.3);
-      }, 200);
-    } catch (e) {
-      console.warn("Audio context non supporté", e);
-    }
-
+    if ('vibrate' in navigator) navigator.vibrate([200, 100, 400]);
     alert("📳 [Silent Broadcast] Signal d'encouragement reçu en direct !");
   };
 
@@ -484,17 +390,13 @@ export default function RunningTab({
     const mins = Math.floor(totalSecs / 60);
     const secs = totalSecs % 60;
     const hrs = Math.floor(mins / 60);
-    const remainingMins = mins % 60;
-    if (hrs > 0) {
-      return `${hrs}h ${remainingMins < 10 ? '0' : ''}${remainingMins}m ${secs < 10 ? '0' : ''}${secs}s`;
-    }
+    const remMins = mins % 60;
+    if (hrs > 0) return `${hrs}h ${remMins < 10 ? '0' : ''}${remMins}m ${secs < 10 ? '0' : ''}${secs}s`;
     return `${mins < 10 ? '0' : ''}${mins}:${secs < 10 ? '0' : ''}${secs}`;
   };
 
   const handleStartRun = () => {
-    if ('speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
-    }
+    if ('speechSynthesis' in window) window.speechSynthesis.cancel();
     setIsRunning(true);
     setIsPaused(false);
     setSeconds(0);
@@ -522,20 +424,23 @@ export default function RunningTab({
     const activeShoe = shoes.find((s: any) => s.is_active || s.active);
     if (activeShoe && onUpdateShoeKm) {
       const shoeId = activeShoe.id || activeShoe._id;
-      if (shoeId) {
-        onUpdateShoeKm(shoeId, distanceKm);
-      }
+      if (shoeId) onUpdateShoeKm(shoeId, distanceKm);
     }
   };
 
   const handleSavePrivate = () => {
+    if (isSavingRun) return;
+    setIsSavingRun(true);
     setIsReportModalOpen(false);
     applyMileageToActiveShoe();
     localStorage.removeItem('fitpulse_offline_run');
     alert(`Course de ${distanceKm} km enregistrée en privé ! Kilométrage des chaussures actualisé 👟🔒`);
+    setIsSavingRun(false);
   };
 
   const handlePublishChallenge = () => {
+    if (isSavingRun) return;
+    setIsSavingRun(true);
     setIsReportModalOpen(false);
     if (distanceKm > 0) {
       if (onSaveRunPost) {
@@ -545,6 +450,7 @@ export default function RunningTab({
     }
     localStorage.removeItem('fitpulse_offline_run');
     alert(`Rapport publié sur le fil comme Défi Officiel du Club ! 🏆🔥`);
+    setIsSavingRun(false);
   };
 
   const currentHours = seconds / 3600;
@@ -558,7 +464,6 @@ export default function RunningTab({
     paceFormatted = `${rawMins}'${rawSecs < 10 ? '0' : ''}${rawSecs}"`;
   }
 
-  // --- SYNCHRONISATION TEMPS RÉEL DU RAVITAILLEMENT ---
   const activeHours = isRunning ? Math.floor(seconds / 3600) : durationHours;
   const activeMins = isRunning ? Math.floor((seconds % 3600) / 60) : durationMins;
   const totalActiveHours = activeHours + activeMins / 60;
@@ -575,19 +480,12 @@ export default function RunningTab({
 
   return (
     <div className="space-y-6 pb-24 animate-fadeIn">
-       
-      {/* 🔙 BOUTON RETOUR */}
       {onBack && (
-        <button 
-          type="button" 
-          onClick={onBack} 
-          className="flex items-center gap-1.5 text-xs font-bold text-neutral-300 hover:text-white bg-neutral-900 border border-neutral-800 px-3 py-2 rounded-xl transition cursor-pointer w-fit"
-        >
+        <button type="button" onClick={onBack} className="flex items-center gap-1.5 text-xs font-bold text-neutral-300 hover:text-white bg-neutral-900 border border-neutral-800 px-3 py-2 rounded-xl transition cursor-pointer w-fit">
           <ArrowLeft className="w-4 h-4" /> Retour
         </button>
       )}
 
-      {/* En-tête de section moderne */}
       <div className="bg-gradient-to-r from-neutral-900 via-neutral-900 to-orange-950/35 border border-neutral-800 rounded-3xl p-6 shadow-2xl relative overflow-hidden">
         <div className="absolute -right-6 -bottom-6 w-32 h-32 bg-orange-500/10 rounded-full blur-3xl pointer-events-none" />
         <div className="relative z-10 flex items-center justify-between">
@@ -597,27 +495,19 @@ export default function RunningTab({
             </div>
             <h2 className="text-xl font-black text-white tracking-tight">GPS Réel, Rapports & Défis Club</h2>
           </div>
-          <button 
-            type="button"
-            onClick={fetchInitialPosition}
-            className="flex items-center gap-1.5 text-xs font-bold bg-neutral-950/90 border border-neutral-800 px-3.5 py-2 rounded-xl text-emerald-400 hover:bg-neutral-800 transition shadow-inner cursor-pointer"
-          >
+          <button type="button" onClick={fetchInitialPosition} className="flex items-center gap-1.5 text-xs font-bold bg-neutral-950/90 border border-neutral-800 px-3.5 py-2 rounded-xl text-emerald-400 hover:bg-neutral-800 transition shadow-inner cursor-pointer">
             <LocateFixed className="w-4 h-4 animate-pulse" /> Ma Position
           </button>
         </div>
       </div>
 
-      {/* 🗺️ ARCHITECTE DE CIRCUITS & ROUTAGE RÉEL OSRM + BOUTON PARTAGER DÉFI */}
       <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4 shadow-xl">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 text-sky-400 font-bold text-xs uppercase tracking-wider">
             <CompassIcon className="w-4 h-4" /> Architecte de Circuits & Itinéraires Réels ⚡
           </div>
           {plannedRoutePositions.length > 0 && (
-            <button
-              onClick={() => { setPlannedRoutePositions([]); setPlannedDistanceKm(0); }}
-              className="text-[10px] text-red-400 hover:underline font-bold"
-            >
+            <button onClick={() => { setPlannedRoutePositions([]); setPlannedDistanceKm(0); }} className="text-[10px] text-red-400 hover:underline font-bold">
               Effacer le tracé ✕
             </button>
           )}
@@ -635,9 +525,7 @@ export default function RunningTab({
                 type="button"
                 onClick={() => setCircuitType(type)}
                 className={`px-3 py-1 rounded-xl text-[10px] font-bold uppercase transition cursor-pointer border ${
-                  circuitType === type 
-                    ? 'bg-sky-600 text-white border-sky-500 shadow-md' 
-                    : 'bg-neutral-950 text-neutral-400 border-neutral-800 hover:text-white'
+                  circuitType === type ? 'bg-sky-600 text-white border-sky-500 shadow-md' : 'bg-neutral-950 text-neutral-400 border-neutral-800 hover:text-white'
                 }`}
               >
                 {type === 'route' ? '🛣️ Route' : type === 'bois' ? '🌲 Bois / Chemins' : '🏗️ Carrière'}
@@ -647,12 +535,7 @@ export default function RunningTab({
 
           <div className="grid grid-cols-4 gap-2">
             {[5, 10, 15, 21].map(km => (
-              <button
-                key={km}
-                type="button"
-                onClick={() => handleGenerateSmartCircuit(km)}
-                className="py-3 bg-neutral-950 hover:bg-neutral-800 border border-neutral-800 hover:border-sky-500/50 rounded-2xl text-xs font-black text-white transition cursor-pointer shadow-md flex flex-col items-center gap-1 group"
-              >
+              <button key={km} type="button" onClick={() => handleGenerateSmartCircuit(km)} className="py-3 bg-neutral-950 hover:bg-neutral-800 border border-neutral-800 hover:border-sky-500/50 rounded-2xl text-xs font-black text-white transition cursor-pointer shadow-md flex flex-col items-center gap-1 group">
                 <span className="text-sky-400 group-hover:scale-110 transition">{km} km</span>
                 <span className="text-[9px] text-neutral-400 uppercase">Boucle</span>
               </button>
@@ -660,18 +543,13 @@ export default function RunningTab({
           </div>
 
           {plannedRoutePositions.length > 0 && (
-            <button
-              type="button"
-              onClick={handleShareCircuitAsChallenge}
-              className="w-full py-3.5 bg-sky-600 hover:bg-sky-500 text-white font-black rounded-2xl text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition cursor-pointer shadow-lg"
-            >
+            <button type="button" onClick={handleShareCircuitAsChallenge} className="w-full py-3.5 bg-sky-600 hover:bg-sky-500 text-white font-black rounded-2xl text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition cursor-pointer shadow-lg">
               <Send className="w-4 h-4" /> Partager ce parcours en Défi au Club 🎯
             </button>
           )}
         </div>
       </div>
 
-      {/* 🏗️ SÉLECTEUR DE TYPE DE TERRAIN (Ajustement dynamique d'effort) */}
       <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-3 shadow-xl">
         <div className="flex items-center gap-2 text-cyan-400 font-bold text-xs uppercase tracking-wider">
           <Mountain className="w-4 h-4" /> Sélection du Type de Terrain (Correction d'effort)
@@ -694,9 +572,7 @@ export default function RunningTab({
               disabled={isRunning}
               onClick={() => setTerrainType(terrain.id as any)}
               className={`p-3 rounded-2xl border text-left transition cursor-pointer flex flex-col justify-between ${
-                terrainType === terrain.id
-                  ? 'bg-orange-600/20 border-orange-500 text-white shadow-md'
-                  : 'bg-neutral-950 border-neutral-800 text-neutral-400 hover:text-white'
+                terrainType === terrain.id ? 'bg-orange-600/20 border-orange-500 text-white shadow-md' : 'bg-neutral-950 border-neutral-800 text-neutral-400 hover:text-white'
               } ${isRunning ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               <span className="text-xs font-black">{terrain.label}</span>
@@ -706,7 +582,6 @@ export default function RunningTab({
         </div>
       </div>
 
-      {/* 💡 ENCART EXPLICITATIF / COMMENT ÇA MARCHE */}
       <div className="bg-neutral-900/90 border border-neutral-800 rounded-3xl p-4 text-xs space-y-1.5 shadow-lg">
         <div className="flex items-center gap-2 text-orange-400 font-bold">
           <span>💡 Comment utiliser l'onglet Running ?</span>
@@ -716,7 +591,6 @@ export default function RunningTab({
         </p>
       </div>
 
-      {/* 📥 MODULE D'IMPORT UNIVERSEL DE FICHIERS GPX (Toutes montres) */}
       <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-3 shadow-xl">
         <div className="flex items-center gap-2 text-orange-400 font-bold text-xs uppercase tracking-wider">
           <Upload className="w-4 h-4" /> Import Universel Montre (.GPX)
@@ -724,15 +598,9 @@ export default function RunningTab({
         <p className="text-xs text-neutral-400 leading-relaxed">
           Importe directement le fichier d'export de ta montre (Garmin, Huawei, Polar, Coros, etc.) pour afficher instantanément ton tracé sur la carte et calculer ta distance.
         </p>
-        <input 
-          type="file" 
-          accept=".gpx"
-          onChange={handleFileUpload}
-          className="w-full text-xs text-neutral-400 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-orange-600 file:text-white hover:file:bg-orange-500 cursor-pointer bg-neutral-950 border border-neutral-800 rounded-2xl p-2"
-        />
+        <input type="file" accept=".gpx" onChange={handleFileUpload} className="w-full text-xs text-neutral-400 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-orange-600 file:text-white hover:file:bg-orange-500 cursor-pointer bg-neutral-950 border border-neutral-800 rounded-2xl p-2" />
       </div>
 
-      {/* Moteur de Ghost Pacing & Vent Réel API (PROTÉGÉ PAR LE PAYWALL avec currentUserProfile) */}
       <PaywallGate userId={currentUserId} currentUserProfile={currentUserProfile} featureName="Ghost Pacing Météo & Vocal">
         <div className="bg-neutral-900 border border-orange-500/30 rounded-3xl p-5 space-y-4 shadow-2xl relative overflow-hidden">
           <div className="absolute -right-8 -top-8 w-28 h-28 bg-orange-500/10 rounded-full blur-2xl pointer-events-none" />
@@ -771,24 +639,12 @@ export default function RunningTab({
         </div>
       </PaywallGate>
 
-      {/* Widget Intégré : Contrôle de Récupération & Charge */}
       <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4 shadow-xl">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 text-emerald-400 font-bold text-xs uppercase tracking-wider">
             <Activity className="w-4 h-4" /> Statut de Forme & Fatigue du Jour
           </div>
-          <button 
-            type="button"
-            onClick={() => {
-              localStorage.setItem('fitpulse_active_tab', 'readiness');
-              if (onNavigateTab) {
-                onNavigateTab('readiness');
-              } else {
-                window.location.reload();
-              }
-            }}
-            className="text-[10px] font-bold text-orange-400 bg-orange-500/10 border border-orange-500/20 px-3 py-1 rounded-full hover:bg-orange-500/20 transition cursor-pointer"
-          >
+          <button type="button" onClick={() => { localStorage.setItem('fitpulse_active_tab', 'readiness'); if (onNavigateTab) onNavigateTab('readiness'); else window.location.reload(); }} className="text-[10px] font-bold text-orange-400 bg-orange-500/10 border border-orange-500/20 px-3 py-1 rounded-full hover:bg-orange-500/20 transition cursor-pointer">
             Faire un Check-in ⚡
           </button>
         </div>
@@ -809,7 +665,6 @@ export default function RunningTab({
         </div>
       </div>
 
-      {/* Carte GPS avec Zoom automatique sur le circuit */}
       <div className="bg-neutral-900 border border-neutral-800/80 rounded-3xl p-4 sm:p-6 space-y-4 shadow-xl">
         <div className="flex items-center justify-between px-1">
           <h3 className="text-xs font-black text-white flex items-center gap-2 uppercase tracking-wider">
@@ -821,29 +676,13 @@ export default function RunningTab({
         </div>
 
         <div className="w-full h-80 rounded-2xl overflow-hidden border border-neutral-800 relative z-0">
-          <MapContainer 
-            center={currentPosition} 
-            zoom={16} 
-            scrollWheelZoom={true}
-            style={{ width: '100%', height: '100%', background: '#0a0a0a' }}
-          >
+          <MapContainer center={currentPosition} zoom={16} scrollWheelZoom={true} style={{ width: '100%', height: '100%', background: '#0a0a0a' }}>
             <MapController center={currentPosition} plannedRoute={plannedRoutePositions} />
-            <TileLayer
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            />
-            {/* Tracé théorique / Circuit planifié en bleu */}
+            <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
             {plannedRoutePositions.length > 0 && (
-              <Polyline 
-                positions={plannedRoutePositions} 
-                pathOptions={{ color: '#38bdf8', weight: 4, opacity: 0.8, dashArray: '6, 6', lineCap: 'round', lineJoin: 'round' }} 
-              />
+              <Polyline positions={plannedRoutePositions} pathOptions={{ color: '#38bdf8', weight: 4, opacity: 0.8, dashArray: '6, 6', lineCap: 'round', lineJoin: 'round' }} />
             )}
-            {/* Tracé réel de course en vert */}
-            <Polyline 
-              positions={routePositions} 
-              pathOptions={{ color: '#10b981', weight: 6, opacity: 0.95, lineCap: 'round', lineJoin: 'round' }} 
-            />
+            <Polyline positions={routePositions} pathOptions={{ color: '#10b981', weight: 6, opacity: 0.95, lineCap: 'round', lineJoin: 'round' }} />
             <Marker position={currentPosition} icon={runnerIcon} />
           </MapContainer>
 
@@ -854,19 +693,12 @@ export default function RunningTab({
         </div>
       </div>
 
-      {/* Module GPS / Tracker Live & Personnalisation Fourchette d'Allure */}
       <div className="bg-neutral-900 border border-neutral-800/80 rounded-3xl p-6 space-y-5 shadow-xl">
         <div className="flex items-center justify-between">
           <h3 className="text-xs font-black text-white flex items-center gap-2 uppercase tracking-wider">
             <MapPin className="w-4 h-4 text-orange-500" /> Traceur Live & Audio
           </h3>
-          <button 
-            type="button"
-            onClick={() => setAudioCoaching(!audioCoaching)}
-            className={`p-2 rounded-xl border text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
-              audioCoaching ? 'bg-orange-500/20 text-orange-400 border-orange-500/30' : 'bg-neutral-950 text-neutral-500 border-neutral-800'
-            }`}
-          >
+          <button type="button" onClick={() => setAudioCoaching(!audioCoaching)} className={`p-2 rounded-xl border text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${audioCoaching ? 'bg-orange-500/20 text-orange-400 border-orange-500/30' : 'bg-neutral-950 text-neutral-500 border-neutral-800'}`}>
             {audioCoaching ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
             {audioCoaching ? 'Coach Vocal Actif' : 'Muté'}
           </button>
@@ -877,11 +709,7 @@ export default function RunningTab({
             <span className="text-xs font-bold text-neutral-300 flex items-center gap-1.5">
               <Target className="w-4 h-4 text-orange-400" /> Objectif d'allure cible :
             </span>
-            <select 
-              value={targetPaceSecs}
-              onChange={(e) => setTargetPaceSecs(Number(e.target.value))}
-              className="bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-1.5 text-xs text-orange-400 font-bold focus:outline-none cursor-pointer"
-            >
+            <select value={targetPaceSecs} onChange={(e) => setTargetPaceSecs(Number(e.target.value))} className="bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-1.5 text-xs text-orange-400 font-bold focus:outline-none cursor-pointer">
               <option value={270}>4'30" / km (Soutenu)</option>
               <option value={300}>5'00" / km (Modéré+)</option>
               <option value={330}>5'30" / km (Endurance active)</option>
@@ -894,11 +722,7 @@ export default function RunningTab({
             <div className="grid grid-cols-2 gap-2 text-xs">
               <div>
                 <label className="block text-[10px] text-neutral-500 mb-1">Seuil min (ex: 5'00")</label>
-                <select 
-                  value={minAllowedPaceSecs}
-                  onChange={(e) => setMinAllowedPaceSecs(Number(e.target.value))}
-                  className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-2.5 py-1.5 text-xs text-emerald-400 font-bold focus:outline-none"
-                >
+                <select value={minAllowedPaceSecs} onChange={(e) => setMinAllowedPaceSecs(Number(e.target.value))} className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-2.5 py-1.5 text-xs text-emerald-400 font-bold focus:outline-none">
                   <option value={240}>4'00" / km</option>
                   <option value={270}>4'30" / km</option>
                   <option value={300}>5'00" / km</option>
@@ -907,11 +731,7 @@ export default function RunningTab({
               </div>
               <div>
                 <label className="block text-[10px] text-neutral-500 mb-1">Seuil max (ex: 6'00")</label>
-                <select 
-                  value={maxAllowedPaceSecs}
-                  onChange={(e) => setMaxAllowedPaceSecs(Number(e.target.value))}
-                  className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-2.5 py-1.5 text-xs text-cyan-400 font-bold focus:outline-none"
-                >
+                <select value={maxAllowedPaceSecs} onChange={(e) => setMaxAllowedPaceSecs(Number(e.target.value))} className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-2.5 py-1.5 text-xs text-cyan-400 font-bold focus:outline-none">
                   <option value={330}>5'30" / km</option>
                   <option value={360}>6'00" / km</option>
                   <option value={390}>6'30" / km</option>
@@ -945,38 +765,22 @@ export default function RunningTab({
           </div>
         </div>
 
-        <button 
-          type="button"
-          onClick={triggerSilentBroadcastTest}
-          className="w-full py-3 bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/40 text-emerald-400 font-extrabold rounded-2xl text-xs transition flex items-center justify-center gap-2 cursor-pointer shadow-lg"
-        >
+        <button type="button" onClick={triggerSilentBroadcastTest} className="w-full py-3 bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/40 text-emerald-400 font-extrabold rounded-2xl text-xs transition flex items-center justify-center gap-2 cursor-pointer shadow-lg">
           <Radio className="w-4 h-4 animate-pulse" /> 📳 Tester le Silent Broadcast (Vibration + Son)
         </button>
 
         <div className="flex gap-3 pt-2">
           {!isRunning ? (
-            <button 
-              type="button"
-              onClick={handleStartRun}
-              className="flex-1 py-4 bg-orange-600 hover:bg-orange-500 text-white font-black rounded-2xl text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-xl transition cursor-pointer"
-            >
+            <button type="button" onClick={handleStartRun} className="flex-1 py-4 bg-orange-600 hover:bg-orange-500 text-white font-black rounded-2xl text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-xl transition cursor-pointer">
               <Play className="w-4 h-4 fill-white" /> Démarrer la sortie ({terrainType.toUpperCase()})
             </button>
           ) : (
             <>
-              <button 
-                type="button"
-                onClick={handlePauseRun}
-                className="flex-1 py-4 bg-neutral-800 hover:bg-neutral-700 text-white font-bold rounded-2xl text-xs flex items-center justify-center gap-2 transition cursor-pointer"
-              >
+              <button type="button" onClick={handlePauseRun} className="flex-1 py-4 bg-neutral-800 hover:bg-neutral-700 text-white font-bold rounded-2xl text-xs flex items-center justify-center gap-2 transition cursor-pointer">
                 {isPaused ? <Play className="w-4 h-4 fill-white" /> : <Pause className="w-4 h-4 fill-white" />}
                 {isPaused ? 'Reprendre' : 'Pause'}
               </button>
-              <button 
-                type="button"
-                onClick={handleOpenReportModal}
-                className="flex-1 py-4 bg-red-950/60 border border-red-900/50 hover:bg-red-900/60 text-red-400 font-black rounded-2xl text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition cursor-pointer"
-              >
+              <button type="button" onClick={handleOpenReportModal} className="flex-1 py-4 bg-red-950/60 border border-red-900/50 hover:bg-red-900/60 text-red-400 font-black rounded-2xl text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition cursor-pointer">
                 <Square className="w-4 h-4 fill-red-400" /> Terminer la course
               </button>
             </>
@@ -984,7 +788,6 @@ export default function RunningTab({
         </div>
       </div>
 
-      {/* MODALE DE RAPPORT DE COURSE & DÉFI CLUB (UNIFIÉE) */}
       {isReportModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 animate-fadeIn overflow-y-auto">
           <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-lg w-full p-6 space-y-5 shadow-2xl relative my-8">
@@ -997,7 +800,6 @@ export default function RunningTab({
               </button>
             </div>
 
-            {/* Carte de Synthèse Post-Course */}
             <div className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 space-y-3">
               <div className="flex justify-between items-center">
                 <span className="text-[10px] uppercase font-bold text-orange-400 bg-orange-500/10 px-2.5 py-1 rounded-full border border-orange-500/20">
@@ -1022,7 +824,6 @@ export default function RunningTab({
               </div>
             </div>
 
-            {/* Analyse / Pénibilité */}
             <div className="space-y-2 text-xs">
               <span className="font-bold text-neutral-300 flex items-center gap-1.5">
                 <Flame className="w-4 h-4 text-orange-400" /> Analyse & Impact Forme :
@@ -1033,12 +834,11 @@ export default function RunningTab({
               </div>
             </div>
 
-            {/* Actions de Fin de Course */}
             <div className="space-y-2.5 pt-2">
-              <button onClick={handlePublishChallenge} className="w-full py-4 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-white font-black rounded-2xl text-xs uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer shadow-xl">
+              <button onClick={handlePublishChallenge} disabled={isSavingRun} className="w-full py-4 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-white font-black rounded-2xl text-xs uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer shadow-xl disabled:opacity-50">
                 <Award className="w-4 h-4" /> Publier comme Défi sur le Fil du Club 🏆
               </button>
-              <button onClick={handleSavePrivate} className="w-full py-3 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 font-bold rounded-2xl text-xs flex items-center justify-center gap-2 cursor-pointer">
+              <button onClick={handleSavePrivate} disabled={isSavingRun} className="w-full py-3 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 font-bold rounded-2xl text-xs flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50">
                 <EyeOff className="w-4 h-4" /> Enregistrer en privé uniquement 🔒
               </button>
             </div>
@@ -1046,7 +846,6 @@ export default function RunningTab({
         </div>
       )}
 
-      {/* Planificateur de Ravitaillement */}
       <div className="bg-neutral-900 border border-neutral-800/80 rounded-3xl p-6 space-y-5 shadow-xl">
         <div className="flex items-center gap-2 text-orange-400 font-bold text-xs uppercase tracking-widest">
           <Zap className="w-4 h-4" /> Planificateur de Ravitaillement
@@ -1055,39 +854,18 @@ export default function RunningTab({
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="block text-xs font-bold text-neutral-400 mb-1">Durée (Heures) :</label>
-            <input 
-              type="number" 
-              min="0" 
-              max="12"
-              value={activeHours}
-              disabled={isRunning}
-              onChange={(e) => setDurationHours(Number(e.target.value))}
-              className={`w-full bg-neutral-950 border border-neutral-800 rounded-2xl px-4 py-3 text-xs text-white focus:border-orange-500 focus:outline-none ${isRunning ? 'opacity-60 cursor-not-allowed' : ''}`}
-            />
+            <input type="number" min="0" max="12" value={activeHours} disabled={isRunning} onChange={(e) => setDurationHours(Number(e.target.value))} className={`w-full bg-neutral-950 border border-neutral-800 rounded-2xl px-4 py-3 text-xs text-white focus:border-orange-500 focus:outline-none ${isRunning ? 'opacity-60 cursor-not-allowed' : ''}`} />
           </div>
           <div>
             <label className="block text-xs font-bold text-neutral-400 mb-1">Durée (Minutes) :</label>
-            <input 
-              type="number" 
-              min="0" 
-              max="55"
-              step="5"
-              value={activeMins}
-              disabled={isRunning}
-              onChange={(e) => setDurationMins(Number(e.target.value))}
-              className={`w-full bg-neutral-950 border border-neutral-800 rounded-2xl px-4 py-3 text-xs text-white focus:border-orange-500 focus:outline-none ${isRunning ? 'opacity-60 cursor-not-allowed' : ''}`}
-            />
+            <input type="number" min="0" max="55" step="5" value={activeMins} disabled={isRunning} onChange={(e) => setDurationMins(Number(e.target.value))} className={`w-full bg-neutral-950 border border-neutral-800 rounded-2xl px-4 py-3 text-xs text-white focus:border-orange-500 focus:outline-none ${isRunning ? 'opacity-60 cursor-not-allowed' : ''}`} />
           </div>
         </div>
 
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="block text-xs font-bold text-neutral-400 mb-1">Intensité :</label>
-            <select 
-              value={intensity} 
-              onChange={(e: any) => setIntensity(e.target.value)}
-              className="w-full bg-neutral-950 border border-neutral-800 rounded-2xl px-4 py-3 text-xs text-white focus:border-orange-500 focus:outline-none cursor-pointer"
-            >
+            <select value={intensity} onChange={(e: any) => setIntensity(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-2xl px-4 py-3 text-xs text-white focus:border-orange-500 focus:outline-none cursor-pointer">
               <option value="modere">Modéré (Endurance cool)</option>
               <option value="soutenu">Soutenu (Allure semi/marathon)</option>
               <option value="maximal">Maximal (Seuil / Race Pace)</option>
@@ -1095,12 +873,7 @@ export default function RunningTab({
           </div>
           <div>
             <label className="block text-xs font-bold text-neutral-400 mb-1">Poids corporel (kg) :</label>
-            <input 
-              type="number" 
-              value={bodyWeight}
-              onChange={(e) => setBodyWeight(Number(e.target.value))}
-              className="w-full bg-neutral-950 border border-neutral-800 rounded-2xl px-4 py-3 text-xs text-white focus:border-orange-500 focus:outline-none"
-            />
+            <input type="number" value={bodyWeight} onChange={(e) => setBodyWeight(Number(e.target.value))} className="w-full bg-neutral-950 border border-neutral-800 rounded-2xl px-4 py-3 text-xs text-white focus:border-orange-500 focus:outline-none" />
           </div>
         </div>
 
@@ -1134,12 +907,7 @@ export default function RunningTab({
         </div>
       </div>
 
-      <GearTrackerSection 
-        shoes={shoes} 
-        onAddShoe={onAddShoe} 
-        onDeleteShoe={onDeleteShoe} 
-        onSetActiveShoe={onSetActiveShoe} 
-      />
+      <GearTrackerSection shoes={shoes} onAddShoe={onAddShoe} onDeleteShoe={onDeleteShoe} onSetActiveShoe={onSetActiveShoe} />
     </div>
   );
 }
