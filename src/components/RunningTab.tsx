@@ -149,7 +149,7 @@ export default function RunningTab({
     alert(`⚡ Boucle fermée calibrée de ${targetKm} km (${circuitType.toUpperCase()}) générée avec succès !`);
   };
 
-  // Fonction d'import de fichier GPX universel (Toutes montres)
+  // Fonction d'import GPX unifiée (Circuit cible ou Course réalisée)
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -168,18 +168,25 @@ export default function RunningTab({
           const totalDistanceMeters = tracks.distance.total; // en mètres
           let km = Number((totalDistanceMeters / 1000).toFixed(2));
 
-          // Application du coefficient de terrain sur le fichier importé
-          if (terrainType === 'trail') km *= 1.1;
-          else if (terrainType === 'carriere') km *= 1.15;
-          else if (terrainType === 'boue') km *= 1.25;
+          const isTargetCircuit = confirm(`Tracé GPX "${file.name}" chargé (${km} km). Veux-tu l'utiliser comme CIRCUIT CIBLE à suivre sur la carte (Ligne bleue) ? Clique sur 'Annuler' pour l'importer comme course réalisée.`);
 
-          setRoutePositions(points.length > 0 ? points : [[50.505, 3.325]]);
-          setDistanceKm(Number(km.toFixed(2)));
-          if (points.length > 0) {
-            setCurrentPosition(points[points.length - 1]);
-            lastPositionRef.current = points[points.length - 1];
+          if (isTargetCircuit) {
+            setPlannedRoutePositions(points);
+            setPlannedDistanceKm(km);
+            alert(`🗺️ Circuit cible importé avec succès ! Suivez la trace bleue sur la carte.`);
+          } else {
+            if (terrainType === 'trail') km *= 1.1;
+            else if (terrainType === 'carriere') km *= 1.15;
+            else if (terrainType === 'boue') km *= 1.25;
+
+            setRoutePositions(points.length > 0 ? points : [[50.505, 3.325]]);
+            setDistanceKm(Number(km.toFixed(2)));
+            if (points.length > 0) {
+              setCurrentPosition(points[points.length - 1]);
+              lastPositionRef.current = points[points.length - 1];
+            }
+            alert(`🚀 Course GPX importée ! Distance d'effort corrigée : ${km.toFixed(2)} km`);
           }
-          alert(`Tracé GPX de montre importé avec succès ! Distance d'effort corrigée : ${km.toFixed(2)} km 🚀`);
         } else {
           alert("Aucune trace GPS valide trouvée dans ce fichier GPX.");
         }
