@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, ChangeEvent, FormEvent } from 'react';
 import { 
-  Zap, User, MessageCircle, Home, Users, Plus, X, Camera, Flame, MapPin, Trophy, Navigation, Calendar, Skull, BatteryCharging, ArrowRight, Activity, Sparkles, Play, Dumbbell, Settings, ChevronRight, ChevronLeft, CheckCircle2, Bot, ArrowLeft, Share2
+  Zap, User, MessageCircle, Home, Users, Plus, X, Camera, Flame, MapPin, Trophy, Navigation, Calendar, Skull, BatteryCharging, ArrowRight, Activity, Sparkles, Play, Dumbbell, Settings, ChevronRight, ChevronLeft, CheckCircle2, Bot, ArrowLeft, Share2, Brain, Activity as ActivityIcon, ShieldAlert
 } from 'lucide-react';
 import { User as SupabaseUser } from '@supabase/supabase-js';
 import { supabase } from './supabaseClient';
@@ -34,6 +34,7 @@ import FridgeScannerTab from './components/FridgeScannerTab';
 import HybridShareCard from './components/HybridShareCard';
 import LiveCoachEngine from './components/LiveCoachEngine';
 import HuaweiSyncModal from './components/HuaweiSyncModal';
+import FitBotProactiveCoach from './components/FitBotProactiveCoach';
 
 import FatigueDashboardCard from './components/FatigueDashboardCard';
 
@@ -57,7 +58,7 @@ const isMarathonWeek = (targetMarathonDate?: string): boolean => {
 export default function App() {
   const [user, setUser] = useState<SupabaseUser | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
-  
+   
   const [authEmail, setAuthEmail] = useState('');
   const [authPassword, setAuthPassword] = useState('');
   const [isSignUpMode, setIsSignUpMode] = useState(false);
@@ -66,7 +67,7 @@ export default function App() {
   // --- ÉTAT POUR LE GUIDE D'ACCUEIL (ONBOARDING PREMIÈRE UTILISATION) ---
   const [isWelcomeModalOpen, setIsWelcomeModalOpen] = useState(false);
 
-  const [currentTab, setCurrentTab] = useState<'today' | 'community' | 'profile' | 'feed' | 'buddy' | 'workout' | 'exercises' | 'chat' | 'calculator' | 'paces' | 'live_tracker' | 'rest_timer' | 'notifications' | 'leaderboard' | 'boxwars' | 'running' | 'readiness' | 'hall_of_fame' | 'fitbot' | 'fridge_scanner'>(() => {
+  const [currentTab, setCurrentTab] = useState<'today' | 'community' | 'profile' | 'feed' | 'buddy' | 'workout' | 'exercises' | 'chat' | 'calculator' | 'paces' | 'live_tracker' | 'rest_timer' | 'notifications' | 'leaderboard' | 'boxwars' | 'running' | 'readiness' | 'hall_of_fame' | 'fitbot' | 'fridge_scanner' | 'fitbot_pro'>(() => {
     const savedTab = localStorage.getItem('fitpulse_active_tab');
     return (savedTab as any) || 'today';
   });
@@ -75,7 +76,7 @@ export default function App() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [feedLoading, setFeedLoading] = useState(false);
   const [userAvatarUrl] = useState<string>('https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=150');
-  
+   
   const profileAvatarInputRef = useRef<HTMLInputElement>(null);
   const beforeFileInputRef = useRef<HTMLInputElement>(null);
   const afterFileInputRef = useRef<HTMLInputElement>(null);
@@ -86,7 +87,7 @@ export default function App() {
   const [isBoxWarsModalOpen, setIsBoxWarsModalOpen] = useState(false);
   const [isHybridShareOpen, setIsHybridShareOpen] = useState(false);
   const [isHuaweiSyncOpen, setIsHuaweiSyncOpen] = useState(false);
-  
+   
   const [isGymLogOpen, setIsGymLogOpen] = useState(false);
   const [isWodGeneratorOpen, setIsWodGeneratorOpen] = useState(false);
 
@@ -106,12 +107,12 @@ export default function App() {
   const [registeredUsers, setRegisteredUsers] = useState<RealUser[]>([]);
   const [allMessages, setAllMessages] = useState<DBMessage[]>([]);
   const [userShoes, setUserShoes] = useState<any[]>([]);
-   
+    
   const [viewingProfileUser, setViewingProfileUser] = useState<RealUser | null>(null);
   const [selectedBuddyChat, setSelectedBuddyChat] = useState<RealUser | null>(null);
   const [currentMessageInput, setCurrentMessageInput] = useState('');
   const [isOtherUserTyping] = useState(false);
-   
+    
   const [lastReadTimestamps, setLastReadTimestamps] = useState<Record<string, number>>(() => {
     try {
       const saved = localStorage.getItem('fitpulse_read_timestamps');
@@ -172,7 +173,7 @@ export default function App() {
     if (!user) return 88;
     const now = new Date().getTime();
     const myRecentPosts = posts.filter(p => p.user_id === user.id && (now - new Date(p.created_at).getTime() < 24 * 60 * 60 * 1000));
-    
+     
     let score = 88 - (myRecentPosts.length * 35);
     return Math.max(12, Math.min(100, score));
   };
@@ -356,7 +357,7 @@ export default function App() {
     const hasLiked = likedByList.includes(user.id);
     const updatedLikedBy = hasLiked ? likedByList.filter(id => id !== user.id) : [...likedByList, user.id];
     const newCount = hasLiked ? Math.max(0, post.likes_count - 1) : post.likes_count + 1;
-     
+      
     setPosts(prev => prev.map(p => p.id === postId ? { ...p, likes_count: newCount, liked_by: updatedLikedBy } : p));
     await supabase.from('posts').update({ likes_count: newCount, liked_by: updatedLikedBy }).eq('id', postId);
   };
@@ -426,7 +427,7 @@ export default function App() {
 
   const acceptedFriendIds = friendRequests.filter(req => req.status === 'accepted').map(req => (req.sender_id === user?.id ? req.receiver_id : req.sender_id));
   const activeChatUsers = registeredUsers.filter((u) => u.id !== user?.id && acceptedFriendIds.includes(u.id));
-   
+    
   const displayedPosts = posts.filter((post) => {
     if (selectedClub === '🌐 Tous les spots (Global)') return true;
     return isMatchingClub(post.club_name, selectedClub);
@@ -524,15 +525,15 @@ export default function App() {
       <div className="w-full max-w-md mx-auto min-h-screen bg-neutral-950 flex flex-col shadow-2xl sm:border-x sm:border-neutral-900 relative">
         <header className="sticky top-0 z-40 bg-neutral-950/80 backdrop-blur-md border-b border-neutral-900 px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className={`w-8 h-8 rounded-xl ${currentTab === 'boxwars' ? 'bg-cyan-500/20 text-cyan-400' : currentTab === 'running' ? 'bg-emerald-500/20 text-emerald-400' : currentTab === 'hall_of_fame' ? 'bg-red-500/20 text-red-400' : currentTab === 'buddy' ? 'bg-orange-500/20 text-orange-400' : currentTab === 'fitbot' ? 'bg-cyan-500/20 text-cyan-400' : currentTab === 'fridge_scanner' ? 'bg-orange-500/20 text-orange-400' : 'bg-orange-500/20 text-orange-500'} flex items-center justify-center`}>
+            <div className={`w-8 h-8 rounded-xl ${currentTab === 'boxwars' ? 'bg-cyan-500/20 text-cyan-400' : currentTab === 'running' ? 'bg-emerald-500/20 text-emerald-400' : currentTab === 'hall_of_fame' ? 'bg-red-500/20 text-red-400' : currentTab === 'buddy' ? 'bg-orange-500/20 text-orange-400' : currentTab === 'fitbot' || currentTab === 'fitbot_pro' ? 'bg-cyan-500/20 text-cyan-400' : currentTab === 'fridge_scanner' ? 'bg-orange-500/20 text-orange-400' : 'bg-orange-500/20 text-orange-500'} flex items-center justify-center`}>
               <Zap className="w-5 h-5" />
             </div>
             <h1 className="text-base font-black tracking-tight leading-none text-white">
-              {currentTab === 'boxwars' ? 'BOXWARS' : currentTab === 'running' ? 'RUNNING' : currentTab === 'hall_of_fame' ? 'HALL OF FAME' : currentTab === 'buddy' ? 'BUDDIES & MATCH' : currentTab === 'fitbot' ? 'FITBOT AI' : currentTab === 'fridge_scanner' ? 'SCAN FRIGO' : 'FitPulse'}
+              {currentTab === 'boxwars' ? 'BOXWARS' : currentTab === 'running' ? 'RUNNING' : currentTab === 'hall_of_fame' ? 'HALL OF FAME' : currentTab === 'buddy' ? 'BUDDIES & MATCH' : currentTab === 'fitbot' || currentTab === 'fitbot_pro' ? 'FITBOT AI' : currentTab === 'fridge_scanner' ? 'SCAN FRIGO' : 'FitPulse'}
             </h1>
           </div>
 
-          {currentTab !== 'boxwars' && currentTab !== 'running' && currentTab !== 'readiness' && currentTab !== 'paces' && currentTab !== 'calculator' && currentTab !== 'hall_of_fame' && currentTab !== 'buddy' && currentTab !== 'fitbot' && currentTab !== 'fridge_scanner' && (
+          {currentTab !== 'boxwars' && currentTab !== 'running' && currentTab !== 'readiness' && currentTab !== 'paces' && currentTab !== 'calculator' && currentTab !== 'hall_of_fame' && currentTab !== 'buddy' && currentTab !== 'fitbot' && currentTab !== 'fitbot_pro' && currentTab !== 'fridge_scanner' && (
             <div className="w-[42%] sm:w-[40%]">
               <SpotSearchInput 
                 selectedSpot={selectedClub} 
@@ -551,7 +552,7 @@ export default function App() {
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
               </svg>
-              
+               
               {/* Badge rouge dynamique pour les demandes d'amis en attente */}
               {(friendRequests.filter(r => r.receiver_id === user?.id && r.status === 'pending').length > 0) && (
                 <span className="absolute -top-1 -right-1 bg-red-600 text-white font-black text-[10px] w-4 h-4 rounded-full flex items-center justify-center shadow-md animate-pulse">
@@ -566,7 +567,7 @@ export default function App() {
           {/* 🌟 ÉCRAN D'ACCUEIL ÉPURÉ (CORE LOOP) */}
           {currentTab === 'today' && (
             <div className="space-y-5 animate-fadeIn pb-12">
-              
+               
               {/* Étape 1 : Forme & Readiness */}
               <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-3 shadow-xl relative overflow-hidden">
                 <div className="absolute -right-8 -top-8 w-28 h-28 bg-orange-500/10 rounded-full blur-2xl pointer-events-none" />
@@ -625,9 +626,9 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Étape 3 : Restitution IA & Scan Frigo */}
+              {/* Étape 3 : Restitution IA, Scan Frigo & FitBot Pro */}
               <PaywallGate userId={user?.id} featureName="IA Coach Proactif & Scan Frigo">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div 
                     onClick={() => handleTabChange('fitbot')}
                     className="bg-neutral-900 hover:bg-neutral-850 border border-cyan-500/30 hover:border-cyan-400 rounded-3xl p-4 flex items-center gap-3.5 shadow-lg cursor-pointer transition group"
@@ -638,6 +639,19 @@ export default function App() {
                     <div className="flex-1 min-w-0">
                       <h4 className="text-xs font-black text-white group-hover:text-cyan-300 transition">FitBot AI</h4>
                       <p className="text-[10px] text-neutral-400 truncate">Analyse de charge & conseils</p>
+                    </div>
+                  </div>
+
+                  <div 
+                    onClick={() => handleTabChange('fitbot_pro')}
+                    className="bg-neutral-900 hover:bg-neutral-850 border border-cyan-500/50 hover:border-cyan-400 rounded-3xl p-4 flex items-center gap-3.5 shadow-lg cursor-pointer transition group"
+                  >
+                    <div className="w-10 h-10 rounded-2xl bg-cyan-500/30 text-cyan-300 flex items-center justify-center flex-shrink-0 border border-cyan-500/40">
+                      <Brain className="w-5 h-5 animate-pulse" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h4 className="text-xs font-black text-white group-hover:text-cyan-300 transition">FitBot Pro</h4>
+                      <p className="text-[10px] text-neutral-400 truncate">Auto-régulation SNC & IA</p>
                     </div>
                   </div>
 
@@ -679,6 +693,12 @@ export default function App() {
           {currentTab === 'fitbot' && (
             <PaywallGate userId={user?.id} featureName="IA Coach Proactif">
               <FitBotTab currentUserProfile={currentUserProfile} currentReadinessScore={currentReadinessScore} onBack={() => handleTabChange('today')} />
+            </PaywallGate>
+          )}
+
+          {currentTab === 'fitbot_pro' && (
+            <PaywallGate userId={user?.id} featureName="FitBot Pro SNC">
+              <FitBotProactiveCoach currentUserId={user?.id} currentUsername={currentUsername} currentUserProfile={currentUserProfile} />
             </PaywallGate>
           )}
 
@@ -743,7 +763,7 @@ export default function App() {
               <LeaderboardTab registeredUsers={registeredUsers} />
             </div>
           )}
-           
+            
           {currentTab === 'buddy' && (
             <div className="space-y-4 animate-fadeIn pb-12">
               <div className="flex gap-1.5 bg-neutral-900 p-1.5 rounded-2xl border border-neutral-800">
@@ -779,7 +799,7 @@ export default function App() {
 
           {currentTab === 'rest_timer' && <WodTimerTab />}
           {currentTab === 'calculator' && <CalculatorTab />}
-           
+            
           {currentTab === 'paces' && (
             <PaceCalculatorTab currentVma={(currentUserProfile as any)?.vma || 14} onSaveVma={handleSaveVma} />
           )}
@@ -792,7 +812,7 @@ export default function App() {
               <ReadinessCheckin currentUserId={user?.id} onUpdatePlan={(rec) => alert(rec)} />
             </div>
           )}
-           
+            
           {currentTab === 'profile' && (
             <ProfileTab 
               user={user} 
@@ -1234,7 +1254,7 @@ export default function App() {
                 const selectWodType = (formElement.elements[0] as HTMLSelectElement).value;
                 const scoreInput = (formElement.elements[1] as HTMLInputElement).value;
                 const noteInput = (formElement.elements[2] as HTMLTextAreaElement).value;
-                 
+                  
                 const scaleMode = (formElement.elements.namedItem('scaleMode') as RadioNodeList).value;
 
                 if (!scoreInput.trim()) { alert("Veuillez indiquer un score ou un temps !"); return; }
@@ -1297,7 +1317,7 @@ export default function App() {
                 <div className="flex items-center gap-3 bg-neutral-950 border border-neutral-800 rounded-xl p-3">
                   <input type="radio" name="scaleMode" value="RX" id="rxMode" defaultChecked className="accent-cyan-500 w-4 h-4 cursor-pointer" />
                   <label htmlFor="rxMode" className="text-xs text-white font-bold mr-4 cursor-pointer">RX</label>
-                    
+                   
                   <input type="radio" name="scaleMode" value="SCALED" id="scaledMode" className="accent-neutral-500 w-4 h-4 cursor-pointer" />
                   <label htmlFor="scaledMode" className="text-xs text-white font-bold cursor-pointer">Scaled</label>
                 </div>
@@ -1443,7 +1463,7 @@ export default function App() {
 
         {/* 🧭 NAVIGATION DU BOTTOM NAV */}
         <nav className="sticky bottom-0 left-0 right-0 z-40 bg-neutral-950/95 backdrop-blur-xl border-t border-neutral-800 px-4 py-3 flex justify-around items-center">
-          <button onClick={() => handleTabChange('today')} className={`flex flex-col items-center gap-1 transition active:scale-95 cursor-pointer px-3 ${currentTab === 'today' || currentTab === 'running' || currentTab === 'readiness' || currentTab === 'boxwars' || currentTab === 'fridge_scanner' ? 'text-orange-500 font-bold' : 'text-neutral-500 hover:text-neutral-300'}`}>
+          <button onClick={() => handleTabChange('today')} className={`flex flex-col items-center gap-1 transition active:scale-95 cursor-pointer px-3 ${currentTab === 'today' || currentTab === 'running' || currentTab === 'readiness' || currentTab === 'boxwars' || currentTab === 'fridge_scanner' || currentTab === 'fitbot_pro' ? 'text-orange-500 font-bold' : 'text-neutral-500 hover:text-neutral-300'}`}>
             <Home className="w-5 h-5" />
             <span className="text-[10px]">Aujourd'hui</span>
           </button>
@@ -1452,7 +1472,7 @@ export default function App() {
             <Users className="w-5 h-5" />
             <span className="text-[10px]">Communauté</span>
           </button>
-          
+           
           {/* BOUTON CENTRAL D'ACTION RAPIDE */}
           <button onClick={() => setIsActionMenuOpen(true)} className="flex flex-col items-center justify-center w-12 h-12 rounded-full bg-orange-600 hover:bg-orange-500 text-white shadow-[0_0_15px_rgba(234,88,12,0.3)] transition transform hover:scale-105 active:scale-95 -mt-4 cursor-pointer flex-shrink-0 z-50 border-[3px] border-neutral-950">
             <Plus className="w-6 h-6 stroke-[3]" />
