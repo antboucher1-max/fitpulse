@@ -73,6 +73,30 @@ export default function RunningTab({
   // Objectif d'allure cible en secondes par kilomètre (Ex: 5'30" = 330 secondes)
   const [targetPaceSecs, setTargetPaceSecs] = useState<number>(330); 
 
+  // Fourchette d'allure personnalisable pour le Live Coach Vocal (min et max en secondes par km)
+  const [minAllowedPaceSecs, setMinAllowedPaceSecs] = useState<number>(300); // ex: 5'00"
+  const [maxAllowedPaceSecs, setMaxAllowedPaceSecs] = useState<number>(360); // ex: 6'00"
+
+  // Référence Wake Lock pour garder le GPS et l'écran actif en veille dans la poche
+  const wakeLockRef = useRef<any>(null);
+
+  const requestWakeLock = async () => {
+    try {
+      if ('wakeLock' in navigator) {
+        wakeLockRef.current = await (navigator as any).wakeLock.request('screen');
+      }
+    } catch (err) {
+      console.log('Wake Lock non supporté ou refusé', err);
+    }
+  };
+
+  const releaseWakeLock = () => {
+    if (wakeLockRef.current) {
+      wakeLockRef.current.release().catch(() => {});
+      wakeLockRef.current = null;
+    }
+  };
+
   const [currentPosition, setCurrentPosition] = useState<[number, number]>([50.505, 3.325]);
   const [routePositions, setRoutePositions] = useState<Array<[number, number]>>([
     [50.505, 3.325]
@@ -159,7 +183,7 @@ export default function RunningTab({
 
   // Fonction de synthèse vocale intelligente (strictement sécurisée contre les déclenchements à vide)
   const speakMessage = (text: string) => {
-    if (!audioCoaching || !isRunning || distanceKm < 0.05 || !('speechSynthesis' in window)) return;
+    if (!audioCoaching || !isRunning || !('speechSynthesis' in window)) return;
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = 'fr-FR';
@@ -239,10 +263,26 @@ export default function RunningTab({
     let watchId: number | null = null;
 
     if (isRunning && !isPaused) {
+      requestWakeLock();
+
       interval = setInterval(() => {
         setSeconds(s => {
           const newSecs = s + 1;
            
+          // Vérification de l'allure instantanée par rapport à la fourchette personnalisée (toutes les 15 secondes ou chaque minute)
+          if (distanceKm > 0.1) {
+            const currentSecPerKm = newSecs / distanceKm;
+            if (currentSecPerKm < minAllowedPaceSecs) {
+              const alertText = "Attention Antoine, tu es trop rapide ! Ralentis pour rester dans ta fourchette cible.";
+              setCoachingAdvice(alertText);
+              speakMessage(alertText);
+            } else if (currentSecPerKm > maxAllowedPaceSecs) {
+              const alertText = "Attention Antoine, ton allure chute, relance ta foulée pour rentrer dans la cible.";
+              setCoachingAdvice(alertText);
+              speakMessage(alertText);
+            }
+          }
+
           if (newSecs > 0 && newSecs % 60 === 0 && distanceKm > 0) {
             const currentSecPerKm = newSecs / distanceKm;
             const diff = currentSecPerKm - targetPaceSecs; 
@@ -291,13 +331,16 @@ export default function RunningTab({
           { enableHighAccuracy: true, maximumAge: 3000, timeout: 5000 }
         );
       }
+    } else {
+      releaseWakeLock();
     }
 
     return () => {
       clearInterval(interval);
       if (watchId !== null) navigator.geolocation.clearWatch(watchId);
+      releaseWakeLock();
     };
-  }, [isRunning, isPaused, distanceKm, targetPaceSecs, audioCoaching, windSpeedKmh]);
+  }, [isRunning, isPaused, distanceKm, targetPaceSecs, minAllowedPaceSecs, maxAllowedPaceSecs, audioCoaching, windSpeedKmh]);
 
   const triggerSilentBroadcastTest = () => {
     if ('vibrate' in navigator) {
@@ -368,6 +411,7 @@ export default function RunningTab({
   const handleOpenSaveModal = () => {
     setIsRunning(false);
     setIsPaused(false);
+    releaseWakeLock();
     speakMessage("Séance terminée. Excellent travail !");
     setIsSaveModalOpen(true);
   };
@@ -604,7 +648,7 @@ export default function RunningTab({
         </div>
       </div>
 
-      {/* Module GPS / Tracker Live */}
+      {/* Module GPS / Tracker Live & Personnalisation Fourchette d'Allure */}
       <div className="bg-neutral-900 border border-neutral-800/80 rounded-3xl p-6 space-y-5 shadow-xl">
         <div className="flex items-center justify-between">
           <h3 className="text-xs font-black text-white flex items-center gap-2 uppercase tracking-wider">
@@ -622,20 +666,55 @@ export default function RunningTab({
           </button>
         </div>
 
-        <div className="bg-neutral-950 p-3.5 rounded-2xl border border-neutral-800 flex items-center justify-between">
-          <span className="text-xs font-bold text-neutral-300 flex items-center gap-1.5">
-            <Target className="w-4 h-4 text-orange-400" /> Objectif d'allure cible :
-          </span>
-          <select 
-            value={targetPaceSecs}
-            onChange={(e) => setTargetPaceSecs(Number(e.target.value))}
-            className="bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-1.5 text-xs text-orange-400 font-bold focus:outline-none cursor-pointer"
-          >
-            <option value={270}>4'30" / km (Soutenu)</option>
-            <option value={300}>5'00" / km (Modéré+)</option>
-            <option value={330}>5'30" / km (Endurance active)</option>
-            <option value={360}>6'00" / km (Endurance cool)</option>
-          </select>
+        <div className="space-y-3 bg-neutral-950 p-4 rounded-2xl border border-neutral-800">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-neutral-300 flex items-center gap-1.5">
+              <Target className="w-4 h-4 text-orange-400" /> Objectif d'allure cible :
+            </span>
+            <select 
+              value={targetPaceSecs}
+              onChange={(e) => setTargetPaceSecs(Number(e.target.value))}
+              className="bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-1.5 text-xs text-orange-400 font-bold focus:outline-none cursor-pointer"
+            >
+              <option value={270}>4'30" / km (Soutenu)</option>
+              <option value={300}>5'00" / km (Modéré+)</option>
+              <option value={330}>5'30" / km (Endurance active)</option>
+              <option value={360}>6'00" / km (Endurance cool)</option>
+            </select>
+          </div>
+
+          {/* Config de la fourchette d'allure pour les alertes vocales dynamiques */}
+          <div className="pt-2 border-t border-neutral-900 space-y-2">
+            <span className="text-[10px] uppercase font-bold text-neutral-400 block">Fourchette d'alerte vocale (Trop rapide / Trop lent)</span>
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <div>
+                <label className="block text-[10px] text-neutral-500 mb-1">Seuil min (ex: 5'00")</label>
+                <select 
+                  value={minAllowedPaceSecs}
+                  onChange={(e) => setMinAllowedPaceSecs(Number(e.target.value))}
+                  className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-2.5 py-1.5 text-xs text-emerald-400 font-bold focus:outline-none"
+                >
+                  <option value={240}>4'00" / km</option>
+                  <option value={270}>4'30" / km</option>
+                  <option value={300}>5'00" / km</option>
+                  <option value={330}>5'30" / km</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-[10px] text-neutral-500 mb-1">Seuil max (ex: 6'00")</label>
+                <select 
+                  value={maxAllowedPaceSecs}
+                  onChange={(e) => setMaxAllowedPaceSecs(Number(e.target.value))}
+                  className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-2.5 py-1.5 text-xs text-cyan-400 font-bold focus:outline-none"
+                >
+                  <option value={330}>5'30" / km</option>
+                  <option value={360}>6'00" / km</option>
+                  <option value={390}>6'30" / km</option>
+                  <option value={420}>7'00" / km</option>
+                </select>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -822,7 +901,7 @@ export default function RunningTab({
             <div className="text-2xl font-black text-white mt-1">
               {(totalWaterMl / 1000).toFixed(2)} <span className="text-xs font-normal text-cyan-400">L</span>
             </div>
-            <span className="text-[10px] text-neutral-500 block">Avec électrolytes conseillés</span>
+            <span className="text-[10px] text-neutral-500 block">With electrolytes suggested</span>
           </div>
         </div>
 
