@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, ChangeEvent, FormEvent } from 'react';
 import { 
-  Zap, User, MessageCircle, Home, Users, Plus, X, Camera, Flame, MapPin, Trophy, Navigation, Calendar, Skull, BatteryCharging, ArrowRight, Activity, Sparkles, Play, Dumbbell, Settings, ChevronRight, ChevronLeft, CheckCircle2, Bot, ArrowLeft, Share2, Brain, Activity as ActivityIcon, ShieldAlert, Watch, HelpCircle, History
+  Zap, User, MessageCircle, Home, Users, Plus, X, Camera, Flame, MapPin, Trophy, Navigation, Calendar, Skull, BatteryCharging, ArrowRight, Activity, Sparkles, Play, Dumbbell, Settings, ChevronRight, ChevronLeft, CheckCircle2, Bot, ArrowLeft, Share2, Brain, Activity as ActivityIcon, ShieldAlert, Watch, HelpCircle, History, Apple
 } from 'lucide-react';
 import { User as SupabaseUser } from '@supabase/supabase-js';
 import { supabase } from './supabaseClient';
@@ -36,6 +36,7 @@ import HybridShareCard from './components/HybridShareCard';
 import LiveCoachEngine from './components/LiveCoachEngine';
 import HuaweiSyncModal from './components/HuaweiSyncModal';
 import FitBotProactiveCoach from './components/FitBotProactiveCoach';
+import NutritionTab from './components/NutritionTab';
 
 import FatigueDashboardCard from './components/FatigueDashboardCard';
 
@@ -68,7 +69,7 @@ export default function App() {
   // --- ÉTAT POUR LE GUIDE D'ACCUEIL (ONBOARDING PREMIÈRE UTILISATION) ---
   const [isWelcomeModalOpen, setIsWelcomeModalOpen] = useState(false);
 
-  const [currentTab, setCurrentTab] = useState<'today' | 'community' | 'profile' | 'feed' | 'buddy' | 'workout' | 'exercises' | 'chat' | 'calculator' | 'paces' | 'live_tracker' | 'rest_timer' | 'notifications' | 'leaderboard' | 'boxwars' | 'running' | 'readiness' | 'hall_of_fame' | 'fitbot' | 'fridge_scanner' | 'fitbot_pro'>(() => {
+  const [currentTab, setCurrentTab] = useState<'today' | 'community' | 'profile' | 'feed' | 'buddy' | 'workout' | 'exercises' | 'chat' | 'calculator' | 'paces' | 'live_tracker' | 'rest_timer' | 'notifications' | 'leaderboard' | 'boxwars' | 'running' | 'readiness' | 'hall_of_fame' | 'fitbot' | 'fridge_scanner' | 'fitbot_pro' | 'nutrition'>(() => {
     const savedTab = localStorage.getItem('fitpulse_active_tab');
     return (savedTab as any) || 'today';
   });
@@ -526,15 +527,15 @@ export default function App() {
       <div className="w-full max-w-md mx-auto min-h-screen bg-neutral-950 flex flex-col shadow-2xl sm:border-x sm:border-neutral-900 relative">
         <header className="sticky top-0 z-40 bg-neutral-950/80 backdrop-blur-md border-b border-neutral-900 px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className={`w-8 h-8 rounded-xl ${currentTab === 'boxwars' ? 'bg-cyan-500/20 text-cyan-400' : currentTab === 'running' ? 'bg-emerald-500/20 text-emerald-400' : currentTab === 'hall_of_fame' ? 'bg-red-500/20 text-red-400' : currentTab === 'buddy' ? 'bg-orange-500/20 text-orange-400' : currentTab === 'fitbot' || currentTab === 'fitbot_pro' ? 'bg-cyan-500/20 text-cyan-400' : currentTab === 'fridge_scanner' ? 'bg-orange-500/20 text-orange-400' : 'bg-orange-500/20 text-orange-500'} flex items-center justify-center`}>
+            <div className={`w-8 h-8 rounded-xl ${currentTab === 'boxwars' ? 'bg-cyan-500/20 text-cyan-400' : currentTab === 'running' ? 'bg-emerald-500/20 text-emerald-400' : currentTab === 'hall_of_fame' ? 'bg-red-500/20 text-red-400' : currentTab === 'buddy' ? 'bg-orange-500/20 text-orange-400' : currentTab === 'fitbot' || currentTab === 'fitbot_pro' ? 'bg-cyan-500/20 text-cyan-400' : currentTab === 'fridge_scanner' || currentTab === 'nutrition' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-orange-500/20 text-orange-500'} flex items-center justify-center`}>
               <Zap className="w-5 h-5" />
             </div>
             <h1 className="text-base font-black tracking-tight leading-none text-white">
-              {currentTab === 'boxwars' ? 'BOXWARS' : currentTab === 'running' ? 'RUNNING' : currentTab === 'hall_of_fame' ? 'HALL OF FAME' : currentTab === 'buddy' ? 'BUDDIES & MATCH' : currentTab === 'fitbot' || currentTab === 'fitbot_pro' ? 'FITBOT AI' : currentTab === 'fridge_scanner' ? 'SCAN FRIGO' : 'FitPulse'}
+              {currentTab === 'boxwars' ? 'BOXWARS' : currentTab === 'running' ? 'RUNNING' : currentTab === 'hall_of_fame' ? 'HALL OF FAME' : currentTab === 'buddy' ? 'BUDDIES & MATCH' : currentTab === 'fitbot' || currentTab === 'fitbot_pro' ? 'FITBOT AI' : currentTab === 'fridge_scanner' ? 'SCAN FRIGO' : currentTab === 'nutrition' ? 'NUTRITION LAB' : 'FitPulse'}
             </h1>
           </div>
 
-          {currentTab !== 'boxwars' && currentTab !== 'running' && currentTab !== 'readiness' && currentTab !== 'paces' && currentTab !== 'calculator' && currentTab !== 'hall_of_fame' && currentTab !== 'buddy' && currentTab !== 'fitbot' && currentTab !== 'fitbot_pro' && currentTab !== 'fridge_scanner' && (
+          {currentTab !== 'boxwars' && currentTab !== 'running' && currentTab !== 'readiness' && currentTab !== 'paces' && currentTab !== 'calculator' && currentTab !== 'hall_of_fame' && currentTab !== 'buddy' && currentTab !== 'fitbot' && currentTab !== 'fitbot_pro' && currentTab !== 'fridge_scanner' && currentTab !== 'nutrition' && (
             <div className="w-[42%] sm:w-[40%]">
               <SpotSearchInput 
                 selectedSpot={selectedClub} 
@@ -707,6 +708,10 @@ export default function App() {
             <PaywallGate userId={user?.id} currentUserProfile={currentUserProfile} featureName="Scan Post-WOD de la Faim">
               <FridgeScannerTab onBack={() => handleTabChange('today')} />
             </PaywallGate>
+          )}
+
+          {currentTab === 'nutrition' && (
+            <NutritionTab currentUserProfile={currentUserProfile} bodyWeight={70} />
           )}
 
           {currentTab === 'community' && (
@@ -1464,12 +1469,12 @@ export default function App() {
 
         {/* 🧭 NAVIGATION DU BOTTOM NAV */}
         <nav className="sticky bottom-0 left-0 right-0 z-40 bg-neutral-950/95 backdrop-blur-xl border-t border-neutral-800 px-4 py-3 flex justify-around items-center">
-          <button onClick={() => handleTabChange('today')} className={`flex flex-col items-center gap-1 transition active:scale-95 cursor-pointer px-3 ${currentTab === 'today' || currentTab === 'running' || currentTab === 'readiness' || currentTab === 'boxwars' || currentTab === 'fridge_scanner' || currentTab === 'fitbot_pro' ? 'text-orange-500 font-bold' : 'text-neutral-500 hover:text-neutral-300'}`}>
+          <button onClick={() => handleTabChange('today')} className={`flex flex-col items-center gap-1 transition active:scale-95 cursor-pointer px-2 ${currentTab === 'today' || currentTab === 'running' || currentTab === 'readiness' || currentTab === 'boxwars' || currentTab === 'fridge_scanner' || currentTab === 'fitbot_pro' ? 'text-orange-500 font-bold' : 'text-neutral-500 hover:text-neutral-300'}`}>
             <Home className="w-5 h-5" />
             <span className="text-[10px]">Aujourd'hui</span>
           </button>
 
-          <button onClick={() => handleTabChange('community')} className={`flex flex-col items-center gap-1 transition active:scale-95 cursor-pointer px-3 ${currentTab === 'community' || currentTab === 'feed' || currentTab === 'leaderboard' || currentTab === 'hall_of_fame' || currentTab === 'buddy' ? 'text-orange-500 font-bold' : 'text-neutral-500 hover:text-neutral-300'}`}>
+          <button onClick={() => handleTabChange('community')} className={`flex flex-col items-center gap-1 transition active:scale-95 cursor-pointer px-2 ${currentTab === 'community' || currentTab === 'feed' || currentTab === 'leaderboard' || currentTab === 'hall_of_fame' || currentTab === 'buddy' ? 'text-orange-500 font-bold' : 'text-neutral-500 hover:text-neutral-300'}`}>
             <Users className="w-5 h-5" />
             <span className="text-[10px]">Communauté</span>
           </button>
@@ -1479,8 +1484,14 @@ export default function App() {
             <Plus className="w-6 h-6 stroke-[3]" />
           </button>
 
+          {/* ONGLET NUTRITION LAB */}
+          <button onClick={() => handleTabChange('nutrition')} className={`flex flex-col items-center gap-1 transition active:scale-95 cursor-pointer px-2 ${currentTab === 'nutrition' ? 'text-orange-500 font-bold' : 'text-neutral-500 hover:text-neutral-300'}`}>
+            <Apple className="w-5 h-5" />
+            <span className="text-[10px]">Nutrition</span>
+          </button>
+
           {/* ONGLET MESSAGERIE DIRECTE DÉDIÉ */}
-          <button onClick={() => handleTabChange('chat')} className={`flex flex-col items-center gap-1 transition active:scale-95 cursor-pointer px-3 relative ${currentTab === 'chat' ? 'text-orange-500 font-bold' : 'text-neutral-500 hover:text-neutral-300'}`}>
+          <button onClick={() => handleTabChange('chat')} className={`flex flex-col items-center gap-1 transition active:scale-95 cursor-pointer px-2 relative ${currentTab === 'chat' ? 'text-orange-500 font-bold' : 'text-neutral-500 hover:text-neutral-300'}`}>
             <MessageCircle className="w-5 h-5" />
             <span className="text-[10px]">Messages</span>
             {allMessages.filter(m => m.receiver_id === user?.id && !m.read).length > 0 && (
@@ -1490,7 +1501,7 @@ export default function App() {
             )}
           </button>
 
-          <button onClick={() => handleTabChange('profile')} className={`flex flex-col items-center gap-1 transition active:scale-95 cursor-pointer px-3 ${currentTab === 'profile' || currentTab === 'fitbot' ? 'text-orange-500 font-bold' : 'text-neutral-500 hover:text-neutral-300'}`}>
+          <button onClick={() => handleTabChange('profile')} className={`flex flex-col items-center gap-1 transition active:scale-95 cursor-pointer px-2 ${currentTab === 'profile' || currentTab === 'fitbot' ? 'text-orange-500 font-bold' : 'text-neutral-500 hover:text-neutral-300'}`}>
             <User className="w-5 h-5" />
             <span className="text-[10px]">Profil & QG</span>
           </button>
