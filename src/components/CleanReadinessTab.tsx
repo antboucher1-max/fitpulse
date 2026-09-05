@@ -21,9 +21,9 @@ export default function CleanReadinessTab({ currentUserId, onBack }: CleanReadin
     if (savedReadiness) {
       try {
         const parsed = JSON.parse(savedReadiness);
-        // Vérifie si le check-in date d'aujourd'hui
+        // Vérifie si le check-in date d'aujourd'hui (compare les chaînes YYYY-MM-DD)
         const todayStr = new Date().toISOString().split('T')[0];
-        const checkinDateStr = new Date(parsed.timestamp).toISOString().split('T')[0];
+        const checkinDateStr = parsed.date || new Date(parsed.timestamp).toISOString().split('T')[0];
 
         if (checkinDateStr === todayStr) {
           setHasCheckedIn(true);
@@ -31,6 +31,10 @@ export default function CleanReadinessTab({ currentUserId, onBack }: CleanReadin
           setSleepQuality(parsed.sleepQuality || 3);
           setSoreness(parsed.soreness || 2);
           setStressLevel(parsed.stressLevel || 2);
+        } else {
+          // Si on est un autre jour (le lendemain), on nettoie pour réinitialiser le check-in
+          localStorage.removeItem(`fitpulse_readiness_${currentUserId}`);
+          setHasCheckedIn(false);
         }
       } catch (e) {
         console.warn("Erreur lecture readiness locale", e);
@@ -82,7 +86,9 @@ export default function CleanReadinessTab({ currentUserId, onBack }: CleanReadin
       return;
     }
 
+    const todayStr = new Date().toISOString().split('T')[0];
     const data = {
+      date: todayStr, // Stockage de la date du jour pour la vérification automatique
       sleepHours,
       sleepQuality,
       soreness,
@@ -133,7 +139,7 @@ export default function CleanReadinessTab({ currentUserId, onBack }: CleanReadin
           <p className="text-neutral-300 leading-relaxed">
             1. <strong>Connecte ta montre</strong> (Huawei, Garmin, Apple) pour importer automatiquement ton sommeil, ou saisis-le manuellement.<br/>
             2. <strong>Renseigne tes curseurs</strong> de fatigue, courbatures et stress au réveil.<br/>
-            3. L'algorithme calcule ton <strong>Indice de Récupération</strong> pour adapter ta séance du jour.
+            3. L'algorithme calcule ton <strong>Indice de Récupération</strong> pour adapter ta séance du jour. Le formulaire se réinitialisera tout seul le lendemain !
           </p>
         </div>
       )}
