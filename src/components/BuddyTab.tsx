@@ -14,23 +14,10 @@ interface BuddyTabProps {
 
 const GOAL_OPTIONS = ['Musculation', 'Perte de poids', 'CrossFit', 'Powerlifting', 'Yoga/Mobilité'];
 const TIME_SLOTS = ['Matin', 'Midi', 'Soir', 'Week-end'];
-const AGE_RANGES = ['Tous', '18-25 ans', '25-35 ans', '35-45 ans', '45 ans et +'];
+const AGE_RANGES = ['Tous', '18-25 ans', '25-35 ans', '35-45 ans', '45-55 ans', '55 ans et +'];
 
-const calculateAge = (birthDateString?: string): number | null => {
-  if (!birthDateString) return null;
-  const birthDate = new Date(birthDateString);
-  const today = new Date();
-  let age = today.getFullYear() - birthDate.getFullYear();
-  const m = today.getMonth() - birthDate.getMonth();
-  if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
-    age--;
-  }
-  return age;
-};
-
-const getAgeCategory = (birthDateString?: string) => {
-  const age = calculateAge(birthDateString);
-  if (age === null) return 'Non renseigné';
+const getAgeCategoryFromAge = (age: number | null | undefined) => {
+  if (age === null || age === undefined || isNaN(age)) return 'Non renseigné';
   if (age < 18) return 'Moins de 18 ans';
   if (age <= 25) return '18-25 ans';
   if (age <= 35) return '25-35 ans';
@@ -62,14 +49,14 @@ const calculateMatchScore = (
   }
 
   possiblePoints += 30;
-  const ageC = calculateAge(currentUser.birth_date);
-  const ageT = calculateAge(targetUser.birth_date);
+  const ageC = currentUser.age;
+  const ageT = targetUser.age;
 
-  if (ageC && ageT) {
+  if (ageC !== undefined && ageC !== null && ageT !== undefined && ageT !== null) {
     const diff = Math.abs(ageC - ageT);
     if (diff <= 5) {
       score += 30;
-      details.push('Tranche d\'âge similaire');
+      details.push("Tranche d'âge similaire");
     } else if (diff <= 10) {
       score += 15;
     }
@@ -147,7 +134,7 @@ export default function BuddyTab({
           if (item.matchData.score === -1) return false;
           
           if (matchCriteria.ageRange !== 'Tous') {
-            const userAgeCat = getAgeCategory(item.birth_date);
+            const userAgeCat = getAgeCategoryFromAge(item.age);
             if (userAgeCat !== matchCriteria.ageRange) return false;
           }
 
@@ -318,7 +305,7 @@ export default function BuddyTab({
             {pendingReceivedRequests.map(req => {
               const sender = registeredUsers.find(u => u.id === req.sender_id);
               if (!sender) return null;
-              const ageCategory = getAgeCategory(sender.birth_date);
+              const ageCategory = getAgeCategoryFromAge(sender.age);
 
               return (
                 <div key={req.id} className="bg-neutral-950 p-3 rounded-2xl border border-neutral-800 flex items-center justify-between">
@@ -354,7 +341,7 @@ export default function BuddyTab({
             </div>
           ) : (
             myBuddies.map(buddy => {
-              const ageCategory = getAgeCategory(buddy.birth_date);
+              const ageCategory = getAgeCategoryFromAge(buddy.age);
 
               return (
                 <div 
@@ -401,7 +388,7 @@ export default function BuddyTab({
             </div>
           ) : (
             searchAndMatchResults.map(user => {
-              const ageCategory = getAgeCategory(user.birth_date);
+              const ageCategory = getAgeCategoryFromAge(user.age);
               const existingReq = friendRequests.find(
                 r => (r.sender_id === currentUserId && r.receiver_id === user.id) ||
                      (r.sender_id === user.id && r.receiver_id === currentUserId)
