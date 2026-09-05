@@ -2,7 +2,7 @@ import PaywallGate from './PaywallGate';
 import { useState, useEffect, useRef } from 'react';
 import { 
   Play, Pause, Square, MapPin, Volume2, VolumeX, 
-  Compass, Apple, Droplet, Zap, Navigation, LocateFixed, Activity, Gauge, Timer, Target, Radio, Wind, ArrowLeft, Share2, EyeOff, X, Upload, Mountain, Compass as CompassIcon, Trophy, Award, Flame, Send, Ghost, ShieldAlert, Lock, CheckCircle2, Sparkles, Utensils, RefreshCw
+  Compass, Apple, Droplet, Zap, Navigation, LocateFixed, Activity, Gauge, Timer, Target, Radio, Wind, ArrowLeft, Share2, EyeOff, X, Upload, Mountain, Compass as CompassIcon, Trophy, Award, Flame, Send, Ghost, ShieldAlert, Lock, CheckCircle2, Sparkles, Utensils, RefreshCw, Layers
 } from 'lucide-react';
 import { MapContainer, TileLayer, Polyline, Marker, useMap } from 'react-leaflet';
 import L from 'leaflet';
@@ -17,7 +17,6 @@ const runnerIcon = L.divIcon({
   iconAnchor: [10, 10]
 });
 
-// Icône distincte pour le marqueur Fantôme (Ghost Pacer) en rouge/orange vif
 const ghostIcon = L.divIcon({
   className: 'custom-ghost-marker',
   html: `<div style="width: 18px; height: 18px; background: #ef4444; border: 3px solid #ffffff; border-radius: 50%; box-shadow: 0 0 14px #ef4444, 0 0 4px rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; font-size: 8px; color: white; font-weight: bold;">👻</div>`,
@@ -206,6 +205,9 @@ export default function RunningTab({
   onNavigateTab,
   onBack
 }: RunningTabProps) {
+  // Navigation interne par sous-onglets : 'prep' (Préparation & Circuits) ou 'live' (Carte & Chrono)
+  const [runningSubTab, setRunningSubTab] = useState<'prep' | 'live'>('prep');
+
   const [isRunning, setIsRunning] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [seconds, setSeconds] = useState(0);
@@ -219,8 +221,6 @@ export default function RunningTab({
   const [plannedRoutePositions, setPlannedRoutePositions] = useState<Array<[number, number]>>([]);
   const [plannedDistanceKm, setPlannedDistanceKm] = useState<number>(0);
   const [circuitType, setCircuitType] = useState<'route' | 'bois' | 'carriere'>('route');
-
-  // État pour le Ghost Pacer interactif sur la carte
   const [ghostPosition, setGhostPosition] = useState<[number, number] | null>(null);
 
   const [windSpeedKmh, setWindSpeedKmh] = useState<number>(0);
@@ -252,9 +252,7 @@ export default function RunningTab({
   };
 
   const [currentPosition, setCurrentPosition] = useState<[number, number]>([50.505, 3.325]);
-  const [routePositions, setRoutePositions] = useState<Array<[number, number]>>([
-    [50.505, 3.325]
-  ]);
+  const [routePositions, setRoutePositions] = useState<Array<[number, number]>>([[50.505, 3.325]]);
 
   const [durationHours, setDurationHours] = useState<number>(2);
   const [durationMins, setDurationMins] = useState<number>(30);
@@ -266,7 +264,6 @@ export default function RunningTab({
   const handleGenerateSmartCircuit = async (targetKm: number) => {
     const baseLat = currentPosition[0];
     const baseLng = currentPosition[1];
-    
     alert(`⏳ Calcul sécurisé du circuit de ${targetKm} km...`);
 
     try {
@@ -300,8 +297,6 @@ export default function RunningTab({
       }
       throw new Error("Réponse OSRM vide");
     } catch (e) {
-      console.warn("Basculement sur le générateur géométrique de secours sécurisé :", e);
-      
       const pointsCount = 20;
       const generated: Array<[number, number]> = [];
       const radiusKm = targetKm / (2 * Math.PI);
@@ -565,6 +560,7 @@ export default function RunningTab({
     setSeconds(0);
     setDistanceKm(0);
     fetchInitialPosition();
+    setRunningSubTab('live'); // Basculement automatique sur le mode Live
     setCoachingAdvice(`Sortie démarrée sur terrain : ${terrainType.toUpperCase()}. GPS réel et sécurité hors-ligne actifs.`);
     speakMessage(`Sortie démarrée. Terrain sélectionné : ${terrainType}. GPS réel activé. Bon entraînement !`);
   };
@@ -643,328 +639,228 @@ export default function RunningTab({
 
   return (
     <div className="space-y-6 pb-24 animate-fadeIn">
-      {onBack && (
-        <button type="button" onClick={onBack} className="flex items-center gap-1.5 text-xs font-bold text-neutral-300 hover:text-white bg-neutral-900 border border-neutral-800 px-3 py-2 rounded-xl transition cursor-pointer w-fit">
-          <ArrowLeft className="w-4 h-4" /> Retour
-        </button>
+      {/* En-tête avec retour et switch de sous-onglets pour nettoyer l'affichage */}
+      <div className="flex items-center justify-between">
+        {onBack && (
+          <button type="button" onClick={onBack} className="flex items-center gap-1.5 text-xs font-bold text-neutral-300 hover:text-white bg-neutral-900 border border-neutral-800 px-3 py-2 rounded-xl transition cursor-pointer">
+            <ArrowLeft className="w-4 h-4" /> Retour
+          </button>
+        )}
+        <div className="flex bg-neutral-900 p-1 rounded-2xl border border-neutral-800 ml-auto">
+          <button
+            onClick={() => setRunningSubTab('prep')}
+            className={`px-4 py-2 rounded-xl text-xs font-black transition cursor-pointer ${runningSubTab === 'prep' ? 'bg-orange-600 text-white shadow' : 'text-neutral-400 hover:text-white'}`}
+          >
+            🗺️ Préparation & Circuits
+          </button>
+          <button
+            onClick={() => setRunningSubTab('live')}
+            className={`px-4 py-2 rounded-xl text-xs font-black transition cursor-pointer ${runningSubTab === 'live' ? 'bg-emerald-600 text-white shadow' : 'text-neutral-400 hover:text-white'}`}
+          >
+            🔴 Mode Live & Carte
+          </button>
+        </div>
+      </div>
+
+      {/* --- SOUS-ONGLET 1 : PRÉPARATION & CIRCUITS (S'affiche par défaut pour éviter le bazar visuel) --- */}
+      {runningSubTab === 'prep' && (
+        <div className="space-y-6 animate-fadeIn">
+          {/* FitBot SNC intégré en haut */}
+          <FitBotSNC readinessScore={78} weeklyLoad={45} />
+
+          {/* Architecte de circuits */}
+          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4 shadow-xl">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-sky-400 font-bold text-xs uppercase tracking-wider">
+                <CompassIcon className="w-4 h-4" /> Architecte de Circuits & Itinéraires Réels ⚡
+              </div>
+              {plannedRoutePositions.length > 0 && (
+                <button onClick={() => { setPlannedRoutePositions([]); setPlannedDistanceKm(0); }} className="text-[10px] text-red-400 hover:underline font-bold">
+                  Effacer le tracé ✕
+                </button>
+              )}
+            </div>
+            <p className="text-xs text-neutral-400 leading-relaxed">
+              Génère instantanément un vrai circuit routier basé sur les axes d'OpenStreetMap autour de ta position pour ta préparation.
+            </p>
+
+            <div className="space-y-3 pt-1">
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] font-bold text-neutral-300">Type de sol :</span>
+                {(['route', 'bois', 'carriere'] as const).map(type => (
+                  <button
+                    key={type}
+                    type="button"
+                    onClick={() => setCircuitType(type)}
+                    className={`px-3 py-1 rounded-xl text-[10px] font-bold uppercase transition cursor-pointer border ${
+                      circuitType === type ? 'bg-sky-600 text-white border-sky-500 shadow-md' : 'bg-neutral-950 text-neutral-400 border-neutral-800 hover:text-white'
+                    }`}
+                  >
+                    {type === 'route' ? '🛣️ Route' : type === 'bois' ? '🌲 Bois / Chemins' : '🏗️ Carrière'}
+                  </button>
+                ))}
+              </div>
+
+              <div className="grid grid-cols-4 gap-2">
+                {[5, 10, 15, 21].map(km => (
+                  <button key={km} type="button" onClick={() => handleGenerateSmartCircuit(km)} className="py-3 bg-neutral-950 hover:bg-neutral-800 border border-neutral-800 hover:border-sky-500/50 rounded-2xl text-xs font-black text-white transition cursor-pointer shadow-md flex flex-col items-center gap-1 group">
+                    <span className="text-sky-400 group-hover:scale-110 transition">{km} km</span>
+                    <span className="text-[9px] text-neutral-400 uppercase">Boucle</span>
+                  </button>
+                ))}
+              </div>
+
+              {plannedRoutePositions.length > 0 && (
+                <button type="button" onClick={handleShareCircuitAsChallenge} className="w-full py-3.5 bg-sky-600 hover:bg-sky-500 text-white font-black rounded-2xl text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition cursor-pointer shadow-lg">
+                  <Send className="w-4 h-4" /> Partager ce parcours en Défi au Club 🎯
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Sélection du Type de Terrain */}
+          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-3 shadow-xl">
+            <div className="flex items-center gap-2 text-cyan-400 font-bold text-xs uppercase tracking-wider">
+              <Mountain className="w-4 h-4" /> Sélection du Type de Terrain (Correction d'effort)
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-1">
+              {[
+                { id: 'route', label: '🛣️ Route / Asphalte', desc: 'Standard (1.0x)' },
+                { id: 'chemin', label: '🛤️ Chemin / Terre', desc: 'Léger amorti (1.05x)' },
+                { id: 'trail', label: '⛰️ Trail & Dénivelé', desc: 'Montées/Descentes (1.1x)' },
+                { id: 'carriere', label: '🏗️ Carrière / Gravier', desc: 'Sol fuyant (1.15x)' },
+                { id: 'boue', label: '🌧️ Boue / Sable / Neige', desc: 'Très énergivore (1.25x)' },
+              ].map((terrain) => (
+                <button
+                  key={terrain.id}
+                  type="button"
+                  disabled={isRunning}
+                  onClick={() => setTerrainType(terrain.id as any)}
+                  className={`p-3 rounded-2xl border text-left transition cursor-pointer flex flex-col justify-between ${
+                    terrainType === terrain.id ? 'bg-orange-600/20 border-orange-500 text-white shadow-md' : 'bg-neutral-950 border-neutral-800 text-neutral-400 hover:text-white'
+                  }`}
+                >
+                  <span className="text-xs font-black">{terrain.label}</span>
+                  <span className="text-[10px] text-neutral-400 pt-1">{terrain.desc}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Import GPX */}
+          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-3 shadow-xl">
+            <div className="flex items-center gap-2 text-orange-400 font-bold text-xs uppercase tracking-wider">
+              <Upload className="w-4 h-4" /> Import Universel Montre (.GPX)
+            </div>
+            <input type="file" accept=".gpx" onChange={handleFileUpload} className="w-full text-xs text-neutral-400 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-orange-600 file:text-white hover:file:bg-orange-500 cursor-pointer bg-neutral-950 border border-neutral-800 rounded-2xl p-2" />
+          </div>
+
+          {/* Planificateur de Ravitaillement */}
+          <div className="bg-neutral-900 border border-neutral-800/80 rounded-3xl p-6 space-y-5 shadow-xl">
+            <div className="flex items-center gap-2 text-orange-400 font-bold text-xs uppercase tracking-widest">
+              <Zap className="w-4 h-4" /> Planificateur de Ravitaillement
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-bold text-neutral-400 mb-1">Durée (Heures) :</label>
+                <input type="number" min="0" max="12" value={activeHours} onChange={(e) => setDurationHours(Number(e.target.value))} className="w-full bg-neutral-950 border border-neutral-800 rounded-2xl px-4 py-3 text-xs text-white focus:outline-none" />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-neutral-400 mb-1">Durée (Minutes) :</label>
+                <input type="number" min="0" max="55" step="5" value={activeMins} onChange={(e) => setDurationMins(Number(e.target.value))} className="w-full bg-neutral-950 border border-neutral-800 rounded-2xl px-4 py-3 text-xs text-white focus:outline-none" />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3 pt-2">
+              <div className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 space-y-1">
+                <span className="text-[10px] uppercase font-bold text-neutral-400 flex items-center gap-1"><Apple className="w-3.5 h-3.5 text-orange-500" /> Glucides</span>
+                <div className="text-2xl font-black text-white mt-1">{totalCarbs} <span className="text-xs font-normal text-orange-400">g</span></div>
+              </div>
+              <div className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 space-y-1">
+                <span className="text-[10px] uppercase font-bold text-neutral-400 flex items-center gap-1"><Droplet className="w-3.5 h-3.5 text-cyan-400" /> Hydratation</span>
+                <div className="text-2xl font-black text-white mt-1">{(totalWaterMl / 1000).toFixed(2)} <span className="text-xs font-normal text-cyan-400">L</span></div>
+              </div>
+            </div>
+          </div>
+
+          <GearTrackerSection shoes={shoes} onAddShoe={onAddShoe} onDeleteShoe={onDeleteShoe} onSetActiveShoe={onSetActiveShoe} />
+        </div>
       )}
 
-      {/* --- INNOVATION 1 INTÉGRÉE : FitBot SNC (Auto-régulation en haut de page) --- */}
-      <FitBotSNC readinessScore={78} weeklyLoad={45} />
-
-      <div className="bg-gradient-to-r from-neutral-900 via-neutral-900 to-orange-950/35 border border-neutral-800 rounded-3xl p-6 shadow-2xl relative overflow-hidden">
-        <div className="absolute -right-6 -bottom-6 w-32 h-32 bg-orange-500/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="relative z-10 flex items-center justify-between">
-          <div>
-            <div className="flex items-center gap-2 text-orange-400 font-bold text-xs uppercase tracking-widest mb-1">
-              <Compass className="w-4 h-4" /> Mode Running & Ghost Pacing
-            </div>
-            <h2 className="text-xl font-black text-white tracking-tight">GPS Réel, Rapports & Défis Club</h2>
-          </div>
-          <button type="button" onClick={fetchInitialPosition} className="flex items-center gap-1.5 text-xs font-bold bg-neutral-950/90 border border-neutral-800 px-3.5 py-2 rounded-xl text-emerald-400 hover:bg-neutral-800 transition shadow-inner cursor-pointer">
-            <LocateFixed className="w-4 h-4 animate-pulse" /> Ma Position
-          </button>
-        </div>
-      </div>
-
-      <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4 shadow-xl">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 text-sky-400 font-bold text-xs uppercase tracking-wider">
-            <CompassIcon className="w-4 h-4" /> Architecte de Circuits & Itinéraires Réels ⚡
-          </div>
-          {plannedRoutePositions.length > 0 && (
-            <button onClick={() => { setPlannedRoutePositions([]); setPlannedDistanceKm(0); }} className="text-[10px] text-red-400 hover:underline font-bold">
-              Effacer le tracé ✕
-            </button>
-          )}
-        </div>
-        <p className="text-xs text-neutral-400 leading-relaxed">
-          Génère instantanément un vrai circuit routier basé sur les axes d'OpenStreetMap autour de ta position pour ta préparation ou ton entraînement du jour.
-        </p>
-
-        <div className="space-y-3 pt-1">
-          <div className="flex items-center gap-2">
-            <span className="text-[11px] font-bold text-neutral-300">Type de sol :</span>
-            {(['route', 'bois', 'carriere'] as const).map(type => (
-              <button
-                key={type}
-                type="button"
-                onClick={() => setCircuitType(type)}
-                className={`px-3 py-1 rounded-xl text-[10px] font-bold uppercase transition cursor-pointer border ${
-                  circuitType === type ? 'bg-sky-600 text-white border-sky-500 shadow-md' : 'bg-neutral-950 text-neutral-400 border-neutral-800 hover:text-white'
-                }`}
-              >
-                {type === 'route' ? '🛣️ Route' : type === 'bois' ? '🌲 Bois / Chemins' : '🏗️ Carrière'}
-              </button>
-            ))}
-          </div>
-
-          <div className="grid grid-cols-4 gap-2">
-            {[5, 10, 15, 21].map(km => (
-              <button key={km} type="button" onClick={() => handleGenerateSmartCircuit(km)} className="py-3 bg-neutral-950 hover:bg-neutral-800 border border-neutral-800 hover:border-sky-500/50 rounded-2xl text-xs font-black text-white transition cursor-pointer shadow-md flex flex-col items-center gap-1 group">
-                <span className="text-sky-400 group-hover:scale-110 transition">{km} km</span>
-                <span className="text-[9px] text-neutral-400 uppercase">Boucle</span>
-              </button>
-            ))}
-          </div>
-
-          {plannedRoutePositions.length > 0 && (
-            <button type="button" onClick={handleShareCircuitAsChallenge} className="w-full py-3.5 bg-sky-600 hover:bg-sky-500 text-white font-black rounded-2xl text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition cursor-pointer shadow-lg">
-              <Send className="w-4 h-4" /> Partager ce parcours en Défi au Club 🎯
-            </button>
-          )}
-        </div>
-      </div>
-
-      <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-3 shadow-xl">
-        <div className="flex items-center gap-2 text-cyan-400 font-bold text-xs uppercase tracking-wider">
-          <Mountain className="w-4 h-4" /> Sélection du Type de Terrain (Correction d'effort)
-        </div>
-        <p className="text-xs text-neutral-400 leading-relaxed">
-          Choisis ton type de parcours avant de démarrer. FitPulse adapte le calcul de la distance d'effort et protège ton score de forme (Readiness) face à la pénibilité du sol ou du dénivelé.
-        </p>
-
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-1">
-          {[
-            { id: 'route', label: '🛣️ Route / Asphalte', desc: 'Standard (1.0x)' },
-            { id: 'chemin', label: '🛤️ Chemin / Terre', desc: 'Léger amorti (1.05x)' },
-            { id: 'trail', label: '⛰️ Trail & Dénivelé', desc: 'Montées/Descentes (1.1x)' },
-            { id: 'carriere', label: '🏗️ Carrière / Gravier', desc: 'Sol fuyant (1.15x)' },
-            { id: 'boue', label: '🌧️ Boue / Sable / Neige', desc: 'Très énergivore (1.25x)' },
-          ].map((terrain) => (
-            <button
-              key={terrain.id}
-              type="button"
-              disabled={isRunning}
-              onClick={() => setTerrainType(terrain.id as any)}
-              className={`p-3 rounded-2xl border text-left transition cursor-pointer flex flex-col justify-between ${
-                terrainType === terrain.id ? 'bg-orange-600/20 border-orange-500 text-white shadow-md' : 'bg-neutral-950 border-neutral-800 text-neutral-400 hover:text-white'
-              } ${isRunning ? 'opacity-50 cursor-not-allowed' : ''}`}
-            >
-              <span className="text-xs font-black">{terrain.label}</span>
-              <span className="text-[10px] text-neutral-400 pt-1">{terrain.desc}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="bg-neutral-900/90 border border-neutral-800 rounded-3xl p-4 text-xs space-y-1.5 shadow-lg">
-        <div className="flex items-center gap-2 text-orange-400 font-bold">
-          <span>💡 Comment utiliser l'onglet Running ?</span>
-        </div>
-        <p className="text-neutral-400 leading-relaxed">
-          Enregistre ton parcours en direct avec le traceur GPS ou importe le fichier <code className="text-orange-300">.gpx</code> de ta montre (Huawei, Garmin...). À la fin de ta séance, la distance est automatiquement reportée sur l'usure kilométrique de tes chaussures actives ! 👟
-        </p>
-      </div>
-
-      <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-3 shadow-xl">
-        <div className="flex items-center gap-2 text-orange-400 font-bold text-xs uppercase tracking-wider">
-          <Upload className="w-4 h-4" /> Import Universel Montre (.GPX)
-        </div>
-        <p className="text-xs text-neutral-400 leading-relaxed">
-          Importe directement le fichier d'export de ta montre (Garmin, Huawei, Polar, Coros, etc.) pour afficher instantanément ton tracé sur la carte et calculer ta distance.
-        </p>
-        <input type="file" accept=".gpx" onChange={handleFileUpload} className="w-full text-xs text-neutral-400 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-orange-600 file:text-white hover:file:bg-orange-500 cursor-pointer bg-neutral-950 border border-neutral-800 rounded-2xl p-2" />
-      </div>
-
-      <PaywallGate userId={currentUserId} currentUserProfile={currentUserProfile} featureName="Ghost Pacing Météo & Vocal">
-        <div className="bg-neutral-900 border border-orange-500/30 rounded-3xl p-5 space-y-4 shadow-2xl relative overflow-hidden">
-          <div className="absolute -right-8 -top-8 w-28 h-28 bg-orange-500/10 rounded-full blur-2xl pointer-events-none" />
-          <div className="flex items-center justify-between relative z-10">
-            <div className="flex items-center gap-2 text-orange-400 font-black text-xs uppercase tracking-wider">
-              <Zap className="w-4 h-4" /> Ghost Pacing & Vent Météo en Direct
-            </div>
-            <span className="text-[10px] font-extrabold bg-orange-500/20 text-orange-300 px-2.5 py-0.5 rounded-full border border-orange-500/30">
-              Pro 🛰️
-            </span>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs relative z-10">
-            <div className="bg-neutral-950 p-3.5 rounded-2xl border border-neutral-800 space-y-1">
-              <span className="text-neutral-400 flex items-center gap-1.5 font-bold"><Wind className="w-3.5 h-3.5 text-cyan-400" /> Analyse Vent Satellite</span>
-              <div className="text-sm font-black text-white pt-1">{windDescription}</div>
-            </div>
-
-            <div className="bg-neutral-950 p-3.5 rounded-2xl border border-neutral-800 flex flex-col justify-between">
-              <span className="text-neutral-400 flex items-center gap-1.5 font-bold"><Activity className="w-3.5 h-3.5 text-emerald-400" /> Orientation & Vitesse</span>
-              <span className="text-sm font-black text-emerald-400">
-                {windSpeedKmh} km/h (Cap {windDirectionDeg}°)
+      {/* --- SOUS-ONGLET 2 : MODE LIVE & CARTE (Se concentre sur l'action pure pendant la course) --- */}
+      {runningSubTab === 'live' && (
+        <div className="space-y-6 animate-fadeIn">
+          <div className="bg-neutral-900 border border-neutral-800/80 rounded-3xl p-4 sm:p-6 space-y-4 shadow-xl">
+            <div className="flex items-center justify-between px-1">
+              <h3 className="text-xs font-black text-white flex items-center gap-2 uppercase tracking-wider">
+                <Navigation className="w-4 h-4 text-emerald-400 animate-pulse" /> Carte Live & Ghost Pacer
+              </h3>
+              <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1 rounded-full">
+                {isRunning ? 'Enregistrement & Fantôme actifs...' : 'Prêt à démarrer'}
               </span>
             </div>
-          </div>
 
-          <div className="bg-orange-950/30 border border-orange-500/30 rounded-2xl p-4 flex items-start gap-3 relative z-10">
-            <div className="w-8 h-8 rounded-xl bg-orange-500/20 text-orange-400 flex items-center justify-center flex-shrink-0 mt-0.5 animate-pulse">
-              🗣️
+            <div className="w-full h-80 rounded-2xl overflow-hidden border border-neutral-800 relative z-0">
+              <MapContainer center={currentPosition} zoom={16} scrollWheelZoom={true} style={{ width: '100%', height: '100%', background: '#0a0a0a' }}>
+                <MapController center={currentPosition} plannedRoute={plannedRoutePositions} />
+                <TileLayer attribution='&copy; OpenStreetMap' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                {plannedRoutePositions.length > 0 && (
+                  <Polyline positions={plannedRoutePositions} pathOptions={{ color: '#38bdf8', weight: 4, opacity: 0.8, dashArray: '6, 6' }} />
+                )}
+                <Polyline positions={routePositions} pathOptions={{ color: '#10b981', weight: 6, opacity: 0.95 }} />
+                <Marker position={currentPosition} icon={runnerIcon} />
+                {ghostPosition && <Marker position={ghostPosition} icon={ghostIcon} />}
+              </MapContainer>
             </div>
-            <div className="space-y-0.5">
-              <span className="text-[10px] font-black uppercase tracking-widest text-orange-400 block">Dernier conseil vocal du coach</span>
-              <p className="text-xs text-neutral-200 leading-snug">{coachingAdvice}</p>
-            </div>
-          </div>
-        </div>
-      </PaywallGate>
-
-      <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4 shadow-xl">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 text-emerald-400 font-bold text-xs uppercase tracking-wider">
-            <Activity className="w-4 h-4" /> Statut de Forme & Fatigue du Jour
-          </div>
-          <button type="button" onClick={() => { localStorage.setItem('fitpulse_active_tab', 'readiness'); if (onNavigateTab) onNavigateTab('readiness'); else window.location.reload(); }} className="text-[10px] font-bold text-orange-400 bg-orange-500/10 border border-orange-500/20 px-3 py-1 rounded-full hover:bg-orange-500/20 transition cursor-pointer">
-            Faire un Check-in ⚡
-          </button>
-        </div>
-
-        <div className="grid grid-cols-2 gap-3">
-          <div className="bg-neutral-950 p-3.5 rounded-2xl border border-neutral-800 space-y-1">
-            <span className="text-[10px] text-neutral-400 uppercase font-semibold block">Indice Récupération</span>
-            <span className="text-xl font-black text-emerald-400">78% <span className="text-[10px] text-neutral-500 font-normal">Optimal</span></span>
-          </div>
-          <div className="bg-neutral-950 p-3.5 rounded-2xl border border-neutral-800 space-y-1">
-            <span className="text-[10px] text-neutral-400 uppercase font-semibold block">Charge Hebdo (Load)</span>
-            <span className="text-xl font-black text-orange-400">45 <span className="text-[10px] text-neutral-500 font-normal">/ 100</span></span>
-          </div>
-        </div>
-
-        <div className="bg-neutral-950 border border-neutral-800 p-3 rounded-xl flex items-center justify-between text-xs">
-          <span className="text-neutral-300">💡 Conseil du jour : Feu vert pour une sortie endurance ou seuil modéré.</span>
-        </div>
-      </div>
-
-      <div className="bg-neutral-900 border border-neutral-800/80 rounded-3xl p-4 sm:p-6 space-y-4 shadow-xl">
-        <div className="flex items-center justify-between px-1">
-          <h3 className="text-xs font-black text-white flex items-center gap-2 uppercase tracking-wider">
-            <Navigation className="w-4 h-4 text-emerald-400 animate-pulse" /> Carte Live & Circuit Cible (Ghost Pacer)
-          </h3>
-          <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1 rounded-full">
-            {isRunning ? 'Enregistrement & Fantôme actifs...' : plannedDistanceKm > 0 ? `Circuit ${plannedDistanceKm} km prêt` : 'Prêt à démarrer'}
-          </span>
-        </div>
-
-        <div className="w-full h-80 rounded-2xl overflow-hidden border border-neutral-800 relative z-0">
-          <MapContainer center={currentPosition} zoom={16} scrollWheelZoom={true} style={{ width: '100%', height: '100%', background: '#0a0a0a' }}>
-            <MapController center={currentPosition} plannedRoute={plannedRoutePositions} />
-            <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-            
-            {plannedRoutePositions.length > 0 && (
-              <Polyline positions={plannedRoutePositions} pathOptions={{ color: '#38bdf8', weight: 4, opacity: 0.8, dashArray: '6, 6', lineCap: 'round', lineJoin: 'round' }} />
-            )}
-
-            <Polyline positions={routePositions} pathOptions={{ color: '#10b981', weight: 6, opacity: 0.95, lineCap: 'round', lineJoin: 'round' }} />
-
-            <Marker position={currentPosition} icon={runnerIcon} />
-            {ghostPosition && <Marker position={ghostPosition} icon={ghostIcon} />}
-          </MapContainer>
-
-          <div className="absolute bottom-3 left-3 z-[1000] bg-neutral-950/90 border border-neutral-800 backdrop-blur px-3 py-1.5 rounded-xl text-[10px] text-emerald-400 font-mono flex items-center gap-2 shadow-lg">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-            <span>Lat: {currentPosition[0].toFixed(4)}° N, Lng: {currentPosition[1].toFixed(4)}° E</span>
-          </div>
-        </div>
-      </div>
-
-      <div className="bg-neutral-900 border border-neutral-800/80 rounded-3xl p-6 space-y-5 shadow-xl">
-        <div className="flex items-center justify-between">
-          <h3 className="text-xs font-black text-white flex items-center gap-2 uppercase tracking-wider">
-            <MapPin className="w-4 h-4 text-orange-500" /> Traceur Live & Audio
-          </h3>
-          <button type="button" onClick={() => setAudioCoaching(!audioCoaching)} className={`p-2 rounded-xl border text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${audioCoaching ? 'bg-orange-500/20 text-orange-400 border-orange-500/30' : 'bg-neutral-950 text-neutral-500 border-neutral-800'}`}>
-            {audioCoaching ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
-            {audioCoaching ? 'Coach Vocal Actif' : 'Muté'}
-          </button>
-        </div>
-
-        <div className="space-y-3 bg-neutral-950 p-4 rounded-2xl border border-neutral-800">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-neutral-300 flex items-center gap-1.5">
-              <Target className="w-4 h-4 text-orange-400" /> Objectif d'allure cible :
-            </span>
-            <select value={targetPaceSecs} onChange={(e) => setTargetPaceSecs(Number(e.target.value))} className="bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-1.5 text-xs text-orange-400 font-bold focus:outline-none cursor-pointer">
-              <option value={270}>4'30" / km (Soutenu)</option>
-              <option value={300}>5'00" / km (Modéré+)</option>
-              <option value={330}>5'30" / km (Endurance active)</option>
-              <option value={360}>6'00" / km (Endurance cool)</option>
-            </select>
           </div>
 
-          <div className="pt-2 border-t border-neutral-900 space-y-2">
-            <span className="text-[10px] uppercase font-bold text-neutral-400 block">Fourchette d'alerte vocale (Trop rapide / Trop lent)</span>
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              <div>
-                <label className="block text-[10px] text-neutral-500 mb-1">Seuil min (ex: 5'00")</label>
-                <select value={minAllowedPaceSecs} onChange={(e) => setMinAllowedPaceSecs(Number(e.target.value))} className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-2.5 py-1.5 text-xs text-emerald-400 font-bold focus:outline-none">
-                  <option value={240}>4'00" / km</option>
-                  <option value={270}>4'30" / km</option>
-                  <option value={300}>5'00" / km</option>
-                  <option value={330}>5'30" / km</option>
-                </select>
+          <div className="bg-neutral-900 border border-neutral-800/80 rounded-3xl p-6 space-y-5 shadow-xl">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+              <div className="bg-neutral-950 p-3 rounded-2xl border border-neutral-800">
+                <span className="text-[10px] text-neutral-400 font-semibold block uppercase">Distance</span>
+                <span className="text-lg font-black text-white">{distanceKm.toFixed(2)} km</span>
               </div>
-              <div>
-                <label className="block text-[10px] text-neutral-500 mb-1">Seuil max (ex: 6'00")</label>
-                <select value={maxAllowedPaceSecs} onChange={(e) => setMaxAllowedPaceSecs(Number(e.target.value))} className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-2.5 py-1.5 text-xs text-cyan-400 font-bold focus:outline-none">
-                  <option value={330}>5'30" / km</option>
-                  <option value={360}>6'00" / km</option>
-                  <option value={390}>6'30" / km</option>
-                  <option value={420}>7'00" / km</option>
-                </select>
+              <div className="bg-neutral-950 p-3 rounded-2xl border border-neutral-800">
+                <span className="text-[10px] text-neutral-400 font-semibold block uppercase">Vitesse</span>
+                <span className="text-lg font-black text-emerald-400">{currentSpeedKmh} km/h</span>
+              </div>
+              <div className="bg-neutral-950 p-3 rounded-2xl border border-neutral-800">
+                <span className="text-[10px] text-neutral-400 font-semibold block uppercase">Allure</span>
+                <span className="text-lg font-black text-orange-400">{paceFormatted}</span>
+              </div>
+              <div className="bg-neutral-950 p-3 rounded-2xl border border-neutral-800">
+                <span className="text-[10px] text-neutral-400 font-semibold block uppercase">Chrono</span>
+                <span className="text-lg font-black text-white">{formatTime(seconds)}</span>
               </div>
             </div>
+
+            <div className="flex gap-3 pt-2">
+              {!isRunning ? (
+                <button type="button" onClick={handleStartRun} className="flex-1 py-4 bg-orange-600 hover:bg-orange-500 text-white font-black rounded-2xl text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-xl transition cursor-pointer">
+                  <Play className="w-4 h-4 fill-white" /> Démarrer la sortie ({terrainType.toUpperCase()})
+                </button>
+              ) : (
+                <>
+                  <button type="button" onClick={handlePauseRun} className="flex-1 py-4 bg-neutral-800 hover:bg-neutral-700 text-white font-bold rounded-2xl text-xs flex items-center justify-center gap-2 transition cursor-pointer">
+                    {isPaused ? <Play className="w-4 h-4 fill-white" /> : <Pause className="w-4 h-4 fill-white" />}
+                    {isPaused ? 'Reprendre' : 'Pause'}
+                  </button>
+                  <button type="button" onClick={handleOpenReportModal} className="flex-1 py-4 bg-red-950/65 border border-red-900/50 hover:bg-red-900/60 text-red-400 font-black rounded-2xl text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition cursor-pointer">
+                    <Square className="w-4 h-4 fill-red-400" /> Terminer la course
+                  </button>
+                </>
+              )}
+            </div>
           </div>
         </div>
+      )}
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <div className="bg-neutral-950 p-3 rounded-2xl border border-neutral-800 space-y-1">
-            <span className="text-[10px] text-neutral-400 font-semibold block uppercase">Distance d'effort</span>
-            <span className="text-lg font-black text-white">{distanceKm.toFixed(2)} <span className="text-[10px] font-normal text-neutral-400">km</span></span>
-          </div>
-          <div className="bg-neutral-950 p-3 rounded-2xl border border-neutral-800 space-y-1">
-            <span className="text-[10px] text-neutral-400 font-semibold block uppercase flex items-center gap-1">
-              <Gauge className="w-3 h-3 text-emerald-400" /> Vitesse
-            </span>
-            <span className="text-lg font-black text-emerald-400">{currentSpeedKmh} <span className="text-[10px] font-normal text-neutral-400">km/h</span></span>
-          </div>
-          <div className="bg-neutral-950 p-3 rounded-2xl border border-neutral-800 space-y-1">
-            <span className="text-[10px] text-neutral-400 font-semibold block uppercase flex items-center gap-1">
-              <Timer className="w-3 h-3 text-orange-400" /> Allure
-            </span>
-            <span className="text-lg font-black text-orange-400">{paceFormatted}</span>
-          </div>
-          <div className="bg-neutral-950 p-3 rounded-2xl border border-neutral-800 space-y-1">
-            <span className="text-[10px] text-neutral-400 font-semibold block uppercase">Chrono</span>
-            <span className="text-lg font-black text-white">{formatTime(seconds)}</span>
-          </div>
-        </div>
-
-        <button type="button" onClick={triggerSilentBroadcastTest} className="w-full py-3 bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/40 text-emerald-400 font-extrabold rounded-2xl text-xs transition flex items-center justify-center gap-2 cursor-pointer shadow-lg">
-          <Radio className="w-4 h-4 animate-pulse" /> 📳 Tester le Silent Broadcast (Vibration + Son)
-        </button>
-
-        <div className="flex gap-3 pt-2">
-          {!isRunning ? (
-            <button type="button" onClick={handleStartRun} className="flex-1 py-4 bg-orange-600 hover:bg-orange-500 text-white font-black rounded-2xl text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-xl transition cursor-pointer">
-              <Play className="w-4 h-4 fill-white" /> Démarrer la sortie ({terrainType.toUpperCase()})
-            </button>
-          ) : (
-            <>
-              <button type="button" onClick={handlePauseRun} className="flex-1 py-4 bg-neutral-800 hover:bg-neutral-700 text-white font-bold rounded-2xl text-xs flex items-center justify-center gap-2 transition cursor-pointer">
-                {isPaused ? <Play className="w-4 h-4 fill-white" /> : <Pause className="w-4 h-4 fill-white" />}
-                {isPaused ? 'Reprendre' : 'Pause'}
-              </button>
-              <button type="button" onClick={handleOpenReportModal} className="flex-1 py-4 bg-red-950/60 border border-red-900/50 hover:bg-red-900/60 text-red-400 font-black rounded-2xl text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition cursor-pointer">
-                <Square className="w-4 h-4 fill-red-400" /> Terminer la course
-              </button>
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* --- INNOVATION 2 INTÉGRÉE : Fuel-Lock Post-WOD (Dans la modale de fin de course) --- */}
+      {/* --- MODALE DE RAPPORT DE COURSE & FUEL-LOCK --- */}
       {isReportModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 animate-fadeIn overflow-y-auto">
           <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-lg w-full p-6 space-y-5 shadow-2xl relative my-8">
             <div className="flex items-center justify-between border-b border-neutral-800 pb-3">
               <h3 className="text-base font-black text-white flex items-center gap-2">
-                <Trophy className="w-5 h-5 text-orange-400" /> Rapport de Course & Défi Club
+                <Trophy className="w-5 h-5 text-orange-400" /> Rapport de Course & Fuel-Lock
               </h3>
               <button onClick={() => setIsReportModalOpen(false)} className="p-2 text-neutral-400 hover:text-white rounded-xl bg-neutral-800/50 cursor-pointer">
                 <X className="w-4 h-4" />
@@ -985,28 +881,18 @@ export default function RunningTab({
                   <span className="text-sm font-black text-white">{distanceKm.toFixed(2)} km</span>
                 </div>
                 <div className="bg-neutral-900 p-2.5 rounded-xl border border-neutral-800">
-                  <span className="text-[9px] text-neutral-400 block uppercase font-bold">Allure Brute</span>
+                  <span className="text-[9px] text-neutral-400 block uppercase font-bold">Allure</span>
                   <span className="text-sm font-black text-orange-400">{paceFormatted}</span>
                 </div>
                 <div className="bg-neutral-900 p-2.5 rounded-xl border border-neutral-800">
-                  <span className="text-[9px] text-neutral-400 block uppercase font-bold">Vitesse Moy</span>
+                  <span className="text-[9px] text-neutral-400 block uppercase font-bold">Vitesse</span>
                   <span className="text-sm font-black text-emerald-400">{currentSpeedKmh} km/h</span>
                 </div>
               </div>
             </div>
 
-            {/* Insertion du Fuel-Lock Post-Effort connecté aux données réelles de la course */}
+            {/* Insertion du Fuel-Lock Post-Effort */}
             <FuelLockPostWod lastRunDistanceKm={distanceKm > 0 ? distanceKm : 5} bodyWeightKg={bodyWeight} />
-
-            <div className="space-y-2 text-xs">
-              <span className="font-bold text-neutral-300 flex items-center gap-1.5">
-                <Flame className="w-4 h-4 text-orange-400" /> Analyse & Impact Forme :
-              </span>
-              <div className="bg-neutral-950 p-3.5 rounded-2xl border border-neutral-800 text-neutral-400 space-y-1.5 leading-relaxed">
-                <p>✅ <strong>Coefficient de terrain ({terrainType}) :</strong> Appliqué avec succès pour refléter l'effort réel sur le système cardiovasculaire et l'usure de vos chaussures.</p>
-                <p>⚡ <strong>Impact Récupération (Readiness) :</strong> Intégré dans l'historique de charge d'entraînement FitPulse.</p>
-              </div>
-            </div>
 
             <div className="space-y-2.5 pt-2">
               <button onClick={handlePublishChallenge} disabled={isSavingRun} className="w-full py-4 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-white font-black rounded-2xl text-xs uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer shadow-xl disabled:opacity-50">
@@ -1019,69 +905,6 @@ export default function RunningTab({
           </div>
         </div>
       )}
-
-      <div className="bg-neutral-900 border border-neutral-800/80 rounded-3xl p-6 space-y-5 shadow-xl">
-        <div className="flex items-center gap-2 text-orange-400 font-bold text-xs uppercase tracking-widest">
-          <Zap className="w-4 h-4" /> Planificateur de Ravitaillement
-        </div>
-
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="block text-xs font-bold text-neutral-400 mb-1">Durée (Heures) :</label>
-            <input type="number" min="0" max="12" value={activeHours} disabled={isRunning} onChange={(e) => setDurationHours(Number(e.target.value))} className={`w-full bg-neutral-950 border border-neutral-800 rounded-2xl px-4 py-3 text-xs text-white focus:border-orange-500 focus:outline-none ${isRunning ? 'opacity-60 cursor-not-allowed' : ''}`} />
-          </div>
-          <div>
-            <label className="block text-xs font-bold text-neutral-400 mb-1">Durée (Minutes) :</label>
-            <input type="number" min="0" max="55" step="5" value={activeMins} disabled={isRunning} onChange={(e) => setDurationMins(Number(e.target.value))} className={`w-full bg-neutral-950 border border-neutral-800 rounded-2xl px-4 py-3 text-xs text-white focus:border-orange-500 focus:outline-none ${isRunning ? 'opacity-60 cursor-not-allowed' : ''}`} />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="block text-xs font-bold text-neutral-400 mb-1">Intensité :</label>
-            <select value={intensity} onChange={(e: any) => setIntensity(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-2xl px-4 py-3 text-xs text-white focus:border-orange-500 focus:outline-none cursor-pointer">
-              <option value="modere">Modéré (Endurance cool)</option>
-              <option value="soutenu">Soutenu (Allure semi/marathon)</option>
-              <option value="maximal">Maximal (Seuil / Race Pace)</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-bold text-neutral-400 mb-1">Poids corporel (kg) :</label>
-            <input type="number" value={bodyWeight} onChange={(e) => setBodyWeight(Number(e.target.value))} className="w-full bg-neutral-950 border border-neutral-800 rounded-2xl px-4 py-3 text-xs text-white focus:border-orange-500 focus:outline-none" />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-3 pt-2">
-          <div className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 space-y-1">
-            <span className="text-[10px] uppercase font-bold text-neutral-400 flex items-center gap-1">
-              <Apple className="w-3.5 h-3.5 text-orange-500" /> Glucides Totaux
-            </span>
-            <div className="text-2xl font-black text-white mt-1">
-              {totalCarbs} <span className="text-xs font-normal text-orange-400">g</span>
-            </div>
-            <span className="text-[10px] text-neutral-500 block">Soit ~{carbsPerHour}g / heure</span>
-          </div>
-
-          <div className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 space-y-1">
-            <span className="text-[10px] uppercase font-bold text-neutral-400 flex items-center gap-1">
-              <Droplet className="w-3.5 h-3.5 text-cyan-400" /> Hydratation / Eau
-            </span>
-            <div className="text-2xl font-black text-white mt-1">
-              {(totalWaterMl / 1000).toFixed(2)} <span className="text-xs font-normal text-cyan-400">L</span>
-            </div>
-            <span className="text-[10px] text-neutral-500 block">With electrolytes suggested</span>
-          </div>
-        </div>
-
-        <div className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 space-y-2 text-xs">
-          <span className="font-bold text-orange-400 block">Stratégie de course :</span>
-          <p className="text-neutral-300 leading-relaxed">
-            Pour cette sortie de <strong>{activeHours}h{activeMins > 0 ? `${activeMins}m` : ''}</strong>, prévois environ <strong>{standardGelsCount} gels énergétiques</strong> à répartir toutes les 30 à 45 minutes, accompagnés de petites gorgées d'eau régulièrement.
-          </p>
-        </div>
-      </div>
-
-      <GearTrackerSection shoes={shoes} onAddShoe={onAddShoe} onDeleteShoe={onDeleteShoe} onSetActiveShoe={onSetActiveShoe} />
     </div>
   );
 }
