@@ -2,7 +2,7 @@ import PaywallGate from './PaywallGate';
 import { useState, useEffect, useRef } from 'react';
 import { 
   Play, Pause, Square, MapPin, Volume2, VolumeX, 
-  Compass, Apple, Droplet, Zap, Navigation, LocateFixed, Activity, Gauge, Timer, Target, Radio, Wind, ArrowLeft, Share2, EyeOff, X, Upload 
+  Compass, Apple, Droplet, Zap, Navigation, LocateFixed, Activity, Gauge, Timer, Target, Radio, Wind, ArrowLeft, Share2, EyeOff, X, Upload, Mountain 
 } from 'lucide-react';
 import { MapContainer, TileLayer, Polyline, Marker, useMap } from 'react-leaflet';
 import L from 'leaflet';
@@ -60,6 +60,9 @@ export default function RunningTab({
   const [seconds, setSeconds] = useState(0);
   const [distanceKm, setDistanceKm] = useState(0);
   const [audioCoaching, setAudioCoaching] = useState(true);
+
+  // État du type de terrain sélectionné avant la course
+  const [terrainType, setTerrainType] = useState<'route' | 'chemin' | 'trail' | 'carriere' | 'boue'>('route');
 
   // État pour afficher la modale de choix de partage fin de course
   const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
@@ -126,15 +129,20 @@ export default function RunningTab({
         if (tracks) {
           const points: Array<[number, number]> = tracks.points.map((p: any) => [p.lat, p.lon]);
           const totalDistanceMeters = tracks.distance.total; // en mètres
-          const km = Number((totalDistanceMeters / 1000).toFixed(2));
+          let km = Number((totalDistanceMeters / 1000).toFixed(2));
+
+          // Application du coefficient de terrain sur le fichier importé
+          if (terrainType === 'trail') km *= 1.1;
+          else if (terrainType === 'carriere') km *= 1.15;
+          else if (terrainType === 'boue') km *= 1.25;
 
           setRoutePositions(points.length > 0 ? points : [[50.505, 3.325]]);
-          setDistanceKm(km);
+          setDistanceKm(Number(km.toFixed(2)));
           if (points.length > 0) {
             setCurrentPosition(points[points.length - 1]);
             lastPositionRef.current = points[points.length - 1];
           }
-          alert(`Tracé GPX de montre importé avec succès ! Distance : ${km} km 🚀`);
+          alert(`Tracé GPX de montre importé avec succès ! Distance d'effort corrigée : ${km.toFixed(2)} km 🚀`);
         } else {
           alert("Aucune trace GPS valide trouvée dans ce fichier GPX.");
         }
@@ -181,7 +189,7 @@ export default function RunningTab({
     }
   }, [routePositions, distanceKm, seconds, isRunning]);
 
-  // Fonction de synthèse vocale intelligente (strictement sécurisée contre les déclenchements à vide)
+  // Fonction de synthèse vocale intelligente
   const speakMessage = (text: string) => {
     if (!audioCoaching || !isRunning || !('speechSynthesis' in window)) return;
     window.speechSynthesis.cancel();
@@ -269,7 +277,7 @@ export default function RunningTab({
         setSeconds(s => {
           const newSecs = s + 1;
            
-          // Vérification de l'allure instantanée par rapport à la fourchette personnalisée (toutes les 15 secondes ou chaque minute)
+          // Vérification de l'allure instantanée par rapport à la fourchette personnalisée
           if (distanceKm > 0.1) {
             const currentSecPerKm = newSecs / distanceKm;
             if (currentSecPerKm < minAllowedPaceSecs) {
@@ -323,7 +331,16 @@ export default function RunningTab({
               lastPositionRef.current = newPos;
               setCurrentPosition(newPos);
               setRoutePositions(prev => [...prev, newPos]);
-              setDistanceKm(d => Number((d + deltaKm).toFixed(2)));
+              
+              // --- APPLICATION DU COEFFICIENT DE TERRAIN ---
+              let terrainMultiplier = 1.0;
+              if (terrainType === 'chemin') terrainMultiplier = 1.05;
+              if (terrainType === 'trail') terrainMultiplier = 1.1;
+              if (terrainType === 'carriere') terrainMultiplier = 1.15;
+              if (terrainType === 'boue') terrainMultiplier = 1.25;
+
+              const adjustedDelta = deltaKm * terrainMultiplier;
+              setDistanceKm(d => Number((d + adjustedDelta).toFixed(2)));
               fetchRealTimeWindAndPosition(lat, lng);
             }
           },
@@ -340,7 +357,7 @@ export default function RunningTab({
       if (watchId !== null) navigator.geolocation.clearWatch(watchId);
       releaseWakeLock();
     };
-  }, [isRunning, isPaused, distanceKm, targetPaceSecs, minAllowedPaceSecs, maxAllowedPaceSecs, audioCoaching, windSpeedKmh]);
+  }, [isRunning, isPaused, distanceKm, targetPaceSecs, minAllowedPaceSecs, maxAllowedPaceSecs, audioCoaching, windSpeedKmh, terrainType]);
 
   const triggerSilentBroadcastTest = () => {
     if ('vibrate' in navigator) {
@@ -398,8 +415,8 @@ export default function RunningTab({
     setSeconds(0);
     setDistanceKm(0);
     fetchInitialPosition();
-    setCoachingAdvice(`Sortie démarrée. GPS réel et sécurité hors-ligne actifs.`);
-    speakMessage("Sortie démarrée. GPS réel activé. Bon entraînement !");
+    setCoachingAdvice(`Sortie démarrée sur terrain : ${terrainType.toUpperCase()}. GPS réel et sécurité hors-ligne actifs.`);
+    speakMessage(`Sortie démarrée. Terrain sélectionné : ${terrainType}. GPS réel activé. Bon entraînement !`);
   };
 
   const handlePauseRun = () => {
@@ -407,7 +424,6 @@ export default function RunningTab({
     speakMessage(isPaused ? "Reprise de la course." : "Chrono en pause.");
   };
 
-  // Étape 1 du clic sur Terminer : on ouvre la modale de choix
   const handleOpenSaveModal = () => {
     setIsRunning(false);
     setIsPaused(false);
@@ -416,7 +432,6 @@ export default function RunningTab({
     setIsSaveModalOpen(true);
   };
 
-  // Fonction utilitaire interne pour impacter la chaussure active
   const applyMileageToActiveShoe = () => {
     if (distanceKm <= 0 || shoes.length === 0) return;
     const activeShoe = shoes.find((s: any) => s.is_active || s.active);
@@ -428,7 +443,6 @@ export default function RunningTab({
     }
   };
 
-  // Option A : Sauvegarde en privé (avec usure chaussures)
   const handleSavePrivate = () => {
     setIsSaveModalOpen(false);
     applyMileageToActiveShoe();
@@ -436,12 +450,11 @@ export default function RunningTab({
     alert(`Course de ${distanceKm} km enregistrée en privé ! Kilométrage des chaussures actualisé 👟🔒`);
   };
 
-  // Option B : Sauvegarde et Partage sur le fil communautaire (avec usure chaussures)
   const handleSavePublic = () => {
     setIsSaveModalOpen(false);
     if (distanceKm > 0) {
       if (onSaveRunPost) {
-        onSaveRunPost(`[Running] Sortie GPS de ${distanceKm} km en ${formatTime(seconds)} 🏃‍♂️`, distanceKm);
+        onSaveRunPost(`[Running] Sortie GPS (${terrainType}) de ${distanceKm} km en ${formatTime(seconds)} 🏃‍♂️`, distanceKm);
       }
       applyMileageToActiveShoe();
     }
@@ -451,7 +464,7 @@ export default function RunningTab({
 
   const currentHours = seconds / 3600;
   const currentSpeedKmh = currentHours > 0 && distanceKm > 0 ? (distanceKm / currentHours).toFixed(1) : '0.0';
-   
+    
   let paceFormatted = '--:--';
   if (distanceKm > 0 && seconds > 0) {
     const totalSecPerKm = seconds / distanceKm;
@@ -505,6 +518,41 @@ export default function RunningTab({
         </div>
       </div>
 
+      {/* 🏗️ SÉLECTEUR DE TYPE DE TERRAIN (Ajustement dynamique d'effort) */}
+      <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-3 shadow-xl">
+        <div className="flex items-center gap-2 text-cyan-400 font-bold text-xs uppercase tracking-wider">
+          <Mountain className="w-4 h-4" /> Sélection du Type de Terrain (Correction d'effort)
+        </div>
+        <p className="text-xs text-neutral-400 leading-relaxed">
+          Choisis ton type de parcours avant de démarrer. FitPulse adapte le calcul de la distance d'effort et protège ton score de forme (Readiness) face à la pénibilité du sol ou du dénivelé.
+        </p>
+
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-1">
+          {[
+            { id: 'route', label: '🛣️ Route / Asphalte', desc: 'Standard (1.0x)' },
+            { id: 'chemin', label: '🛤️ Chemin / Terre', desc: 'Léger amorti (1.05x)' },
+            { id: 'trail', label: '⛰️ Trail & Dénivelé', desc: 'Montées/Descentes (1.1x)' },
+            { id: 'carriere', label: '🏗️ Carrière / Gravier', desc: 'Sol fuyant (1.15x)' },
+            { id: 'boue', label: '🌧️ Boue / Sable / Neige', desc: 'Très énergivore (1.25x)' },
+          ].map((terrain) => (
+            <button
+              key={terrain.id}
+              type="button"
+              disabled={isRunning}
+              onClick={() => setTerrainType(terrain.id as any)}
+              className={`p-3 rounded-2xl border text-left transition cursor-pointer flex flex-col justify-between ${
+                terrainType === terrain.id
+                  ? 'bg-orange-600/20 border-orange-500 text-white shadow-md'
+                  : 'bg-neutral-950 border-neutral-800 text-neutral-400 hover:text-white'
+              } ${isRunning ? 'opacity-50 cursor-not-allowed' : ''}`}
+            >
+              <span className="text-xs font-black">{terrain.label}</span>
+              <span className="text-[10px] text-neutral-400 pt-1">{terrain.desc}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* 💡 ENCART EXPLICITATIF / COMMENT ÇA MARCHE */}
       <div className="bg-neutral-900/90 border border-neutral-800 rounded-3xl p-4 text-xs space-y-1.5 shadow-lg">
         <div className="flex items-center gap-2 text-orange-400 font-bold">
@@ -542,7 +590,6 @@ export default function RunningTab({
             <span className="text-[10px] font-extrabold bg-orange-500/20 text-orange-300 px-2.5 py-0.5 rounded-full border border-orange-500/30">
               Pro 🛰️
             </span>
-
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs relative z-10">
@@ -556,7 +603,6 @@ export default function RunningTab({
               <span className="text-sm font-black text-emerald-400">
                 {windSpeedKmh} km/h (Cap {windDirectionDeg}°)
               </span>
-
             </div>
           </div>
 
@@ -619,7 +665,6 @@ export default function RunningTab({
           <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1 rounded-full">
             {isRunning ? 'Enregistrement actif...' : 'Prêt à démarrer'}
           </span>
-
         </div>
 
         <div className="w-full h-80 rounded-2xl overflow-hidden border border-neutral-800 relative z-0">
@@ -683,7 +728,6 @@ export default function RunningTab({
             </select>
           </div>
 
-          {/* Config de la fourchette d'allure pour les alertes vocales dynamiques */}
           <div className="pt-2 border-t border-neutral-900 space-y-2">
             <span className="text-[10px] uppercase font-bold text-neutral-400 block">Fourchette d'alerte vocale (Trop rapide / Trop lent)</span>
             <div className="grid grid-cols-2 gap-2 text-xs">
@@ -719,7 +763,7 @@ export default function RunningTab({
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <div className="bg-neutral-950 p-3 rounded-2xl border border-neutral-800 space-y-1">
-            <span className="text-[10px] text-neutral-400 font-semibold block uppercase">Distance</span>
+            <span className="text-[10px] text-neutral-400 font-semibold block uppercase">Distance d'effort</span>
             <span className="text-lg font-black text-white">{distanceKm.toFixed(2)} <span className="text-[10px] font-normal text-neutral-400">km</span></span>
           </div>
           <div className="bg-neutral-950 p-3 rounded-2xl border border-neutral-800 space-y-1">
@@ -755,7 +799,7 @@ export default function RunningTab({
               onClick={handleStartRun}
               className="flex-1 py-4 bg-orange-600 hover:bg-orange-500 text-white font-black rounded-2xl text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-xl transition cursor-pointer"
             >
-              <Play className="w-4 h-4 fill-white" /> Démarrer la sortie
+              <Play className="w-4 h-4 fill-white" /> Démarrer la sortie ({terrainType.toUpperCase()})
             </button>
           ) : (
             <>
@@ -784,42 +828,21 @@ export default function RunningTab({
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn">
           <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-sm w-full p-6 space-y-5 shadow-2xl relative">
             <div className="flex items-center justify-between">
-              <h3 className="text-base font-black text-white flex items-center gap-2">
-                🏁 Fin de course
-              </h3>
-              <button 
-                type="button" 
-                onClick={() => setIsSaveModalOpen(false)} 
-                className="p-2 text-neutral-400 hover:text-white rounded-xl bg-neutral-800/50 transition cursor-pointer"
-              >
+              <h3 className="text-base font-black text-white flex items-center gap-2">🏁 Fin de course</h3>
+              <button onClick={() => setIsSaveModalOpen(false)} className="p-2 text-neutral-400 hover:text-white rounded-xl bg-neutral-800/50 cursor-pointer">
                 <X className="w-4 h-4" />
               </button>
             </div>
-
             <div className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 text-center space-y-1">
-              <span className="text-[10px] uppercase font-bold text-neutral-400 block">Résumé de votre sortie</span>
-              <div className="text-2xl font-black text-white">{distanceKm.toFixed(2)} km</div>
+              <span className="text-[10px] uppercase font-bold text-neutral-400 block">Résumé ({terrainType})</span>
+              <div className="text-2xl font-black text-white">{distanceKm.toFixed(2)} km équivalents</div>
               <p className="text-xs text-neutral-400">Temps : {formatTime(seconds)} • Allure : {paceFormatted}</p>
             </div>
-
-            <p className="text-xs text-neutral-300 text-center leading-relaxed">
-              Souhaitez-vous partager cette performance sur le fil d'actualité ou la conserver en privé ?
-            </p>
-
             <div className="space-y-2.5 pt-1">
-              <button 
-                type="button"
-                onClick={handleSavePublic}
-                className="w-full py-3.5 bg-orange-600 hover:bg-orange-500 text-white font-black rounded-2xl text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition cursor-pointer shadow-lg"
-              >
+              <button onClick={handleSavePublic} className="w-full py-3.5 bg-orange-600 hover:bg-orange-500 text-white font-black rounded-2xl text-xs uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer shadow-lg">
                 <Share2 className="w-4 h-4" /> Partager sur le fil (Public) 🚀
               </button>
-
-              <button 
-                type="button"
-                onClick={handleSavePrivate}
-                className="w-full py-3 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 font-bold rounded-2xl text-xs flex items-center justify-center gap-2 transition cursor-pointer"
-              >
+              <button onClick={handleSavePrivate} className="w-full py-3 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 font-bold rounded-2xl text-xs flex items-center justify-center gap-2 cursor-pointer">
                 <EyeOff className="w-4 h-4" /> Enregistrer en privé uniquement 🔒
               </button>
             </div>
