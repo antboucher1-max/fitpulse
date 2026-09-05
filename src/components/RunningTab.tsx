@@ -2,7 +2,7 @@ import PaywallGate from './PaywallGate';
 import { useState, useEffect, useRef } from 'react';
 import { 
   Play, Pause, Square, MapPin, Volume2, VolumeX, 
-  Compass, Apple, Droplet, Zap, Navigation, LocateFixed, Activity, Gauge, Timer, Target, Radio, Wind, ArrowLeft, Share2, EyeOff, X, Upload, Mountain, Compass as CompassIcon, Trophy, Award, Flame 
+  Compass, Apple, Droplet, Zap, Navigation, LocateFixed, Activity, Gauge, Timer, Target, Radio, Wind, ArrowLeft, Share2, EyeOff, X, Upload, Mountain, Compass as CompassIcon, Trophy, Award, Flame, Send 
 } from 'lucide-react';
 import { MapContainer, TileLayer, Polyline, Marker, useMap } from 'react-leaflet';
 import L from 'leaflet';
@@ -172,6 +172,27 @@ export default function RunningTab({
       setPlannedRoutePositions(generated);
       setPlannedDistanceKm(targetKm);
       alert(`⚡ Mode Hors-Ligne : Boucle de secours de ${targetKm} km générée.`);
+    }
+  };
+
+  // --- PARTAGER CE PARCOURS EN DÉFI AU CLUB ---
+  const handleShareCircuitAsChallenge = () => {
+    if (plannedRoutePositions.length === 0 || plannedDistanceKm <= 0) {
+      alert("Veuillez d'abord générer ou importer un circuit cible (ligne bleue) !");
+      return;
+    }
+
+    if (onSaveRunPost) {
+      onSavePostWithRoute();
+    } else {
+      alert(`🎯 Parcours de ${plannedDistanceKm} km (${circuitType.toUpperCase()}) prêt à être partagé au club !`);
+    }
+  };
+
+  const handleSavePostWithRoute = () => {
+    if (onSaveRunPost) {
+      onSaveRunPost(`🗺️ [NOUVEAU PARCOURS DÉFI] Boucle de ${plannedDistanceKm} km (${circuitType.toUpperCase()}). Qui relève le défi de venir la courir ? 🚀`, plannedDistanceKm);
+      alert(`🎯 Parcours partagé avec succès sur le fil d'actualité du club ! Les autres membres peuvent désormais le relever 🏆`);
     }
   };
 
@@ -592,7 +613,7 @@ export default function RunningTab({
         </div>
       </div>
 
-      {/* 🗺️ ARCHITECTE DE CIRCUITS & ROUTAGE RÉEL OSRM */}
+      {/* 🗺️ ARCHITECTE DE CIRCUITS & ROUTAGE RÉEL OSRM + BOUTON PARTAGER DÉFI */}
       <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4 shadow-xl">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 text-sky-400 font-bold text-xs uppercase tracking-wider">
@@ -608,7 +629,7 @@ export default function RunningTab({
           )}
         </div>
         <p className="text-xs text-neutral-400 leading-relaxed">
-          Génère instantanément un vrai circuit routier basé sur les axes d'OpenStreetMap autour de ta position.
+          Génère instantanément un vrai circuit routier basé sur les axes d'OpenStreetMap autour de ta position pour ta préparation ou ton entraînement du jour.
         </p>
 
         <div className="space-y-3 pt-1">
@@ -643,6 +664,16 @@ export default function RunningTab({
               </button>
             ))}
           </div>
+
+          {plannedRoutePositions.length > 0 && (
+            <button
+              type="button"
+              onClick={handleShareCircuitAsChallenge}
+              className="w-full py-3.5 bg-sky-600 hover:bg-sky-500 text-white font-black rounded-2xl text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition cursor-pointer shadow-lg"
+            >
+              <Send className="w-4 h-4" /> Partager ce parcours en Défi au Club 🎯
+            </button>
+          )}
         </div>
       </div>
 
