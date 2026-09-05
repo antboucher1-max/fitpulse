@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, ChangeEvent, FormEvent } from 'react';
 import { 
-  Zap, User, MessageCircle, Home, Users, Plus, X, Camera, Flame, MapPin, Trophy, Navigation, Calendar, Skull, BatteryCharging, ArrowRight, Activity, Sparkles, Play, Dumbbell, Settings, ChevronRight, ChevronLeft, CheckCircle2, Bot, ArrowLeft, Share2, Brain, Activity as ActivityIcon, ShieldAlert, Watch, HelpCircle
+  Zap, User, MessageCircle, Home, Users, Plus, X, Camera, Flame, MapPin, Trophy, Navigation, Calendar, Skull, BatteryCharging, ArrowRight, Activity, Sparkles, Play, Dumbbell, Settings, ChevronRight, ChevronLeft, CheckCircle2, Bot, ArrowLeft, Share2, Brain, Activity as ActivityIcon, ShieldAlert, Watch, HelpCircle, History
 } from 'lucide-react';
 import { User as SupabaseUser } from '@supabase/supabase-js';
 import { supabase } from './supabaseClient';
@@ -866,8 +866,8 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Étape 3 : Restitution IA, Scan Frigo & FitBot Pro */}
-              <PaywallGate userId={user?.id} featureName="IA Coach Proactif & Scan Frigo">
+              {/* Étape 3 : Restitution IA, Scan Frigo & FitBot Pro (Transmission de currentUserProfile corrigée) */}
+              <PaywallGate userId={user?.id} currentUserProfile={currentUserProfile} featureName="IA Coach Proactif & Scan Frigo">
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div 
                     onClick={() => handleTabChange('fitbot')}
@@ -931,19 +931,19 @@ export default function App() {
           )}
 
           {currentTab === 'fitbot' && (
-            <PaywallGate userId={user?.id} featureName="IA Coach Proactif">
+            <PaywallGate userId={user?.id} currentUserProfile={currentUserProfile} featureName="IA Coach Proactif">
               <FitBotTab currentUserProfile={currentUserProfile} currentReadinessScore={currentReadinessScore} onBack={() => handleTabChange('today')} />
             </PaywallGate>
           )}
 
           {currentTab === 'fitbot_pro' && (
-            <PaywallGate userId={user?.id} featureName="FitBot Pro SNC">
+            <PaywallGate userId={user?.id} currentUserProfile={currentUserProfile} featureName="FitBot Pro SNC">
               <FitBotProactiveCoach currentUserId={user?.id} currentUsername={currentUsername} currentUserProfile={currentUserProfile} />
             </PaywallGate>
           )}
 
           {currentTab === 'fridge_scanner' && (
-            <PaywallGate userId={user?.id} featureName="Scan Post-WOD de la Faim">
+            <PaywallGate userId={user?.id} currentUserProfile={currentUserProfile} featureName="Scan Post-WOD de la Faim">
               <FridgeScannerTab onBack={() => handleTabChange('today')} />
             </PaywallGate>
           )}
@@ -1422,7 +1422,7 @@ export default function App() {
               <div className="w-16" />
             </div>
             <div className="flex-1 overflow-y-auto p-4 bg-neutral-950">
-              <PaywallGate userId={user?.id} featureName="Générateur de WOD Intelligent">
+              <PaywallGate userId={user?.id} currentUserProfile={currentUserProfile} featureName="Générateur de WOD Intelligent">
                 <WodGenerator />
               </PaywallGate>
             </div>
