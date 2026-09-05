@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, ChangeEvent, FormEvent } from 'react';
-import {
+import { 
   Zap, User, MessageCircle, Home, Users, Plus, X, Camera, Flame, MapPin, Trophy, Navigation, Calendar, Skull, BatteryCharging, ArrowRight, Activity, Sparkles, Play, Dumbbell, Settings, ChevronRight, ChevronLeft, CheckCircle2, Bot, ArrowLeft, Share2
 } from 'lucide-react';
 import { User as SupabaseUser } from '@supabase/supabase-js';
@@ -57,11 +57,14 @@ const isMarathonWeek = (targetMarathonDate?: string): boolean => {
 export default function App() {
   const [user, setUser] = useState<SupabaseUser | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
-    
+  
   const [authEmail, setAuthEmail] = useState('');
   const [authPassword, setAuthPassword] = useState('');
   const [isSignUpMode, setIsSignUpMode] = useState(false);
   const [acceptCgu, setAcceptCgu] = useState(false);
+
+  // --- ÉTAT POUR LE GUIDE D'ACCUEIL (ONBOARDING PREMIÈRE UTILISATION) ---
+  const [isWelcomeModalOpen, setIsWelcomeModalOpen] = useState(false);
 
   const [currentTab, setCurrentTab] = useState<'today' | 'community' | 'profile' | 'feed' | 'buddy' | 'workout' | 'exercises' | 'chat' | 'calculator' | 'paces' | 'live_tracker' | 'rest_timer' | 'notifications' | 'leaderboard' | 'boxwars' | 'running' | 'readiness' | 'hall_of_fame' | 'fitbot' | 'fridge_scanner'>(() => {
     const savedTab = localStorage.getItem('fitpulse_active_tab');
@@ -217,21 +220,6 @@ export default function App() {
     }
   };
 
-  const addPointsToUser = async (userId: string, pointsToAdd: number) => {
-    const targetUser = registeredUsers.find(u => u.id === userId);
-    const currentPoints = (targetUser as any)?.points || 0;
-    const newTotalPoints = currentPoints + pointsToAdd;
-
-    const { error } = await supabase
-      .from('profiles')
-      .update({ points: newTotalPoints })
-      .eq('id', userId);
-
-    if (!error) {
-      fetchRealUsers();
-    }
-  };
-
   const calculateUserStreak = (targetUserId: string) => {
     if (!user || !targetUserId) return 0;
     const convo = allMessages.filter(
@@ -257,7 +245,7 @@ export default function App() {
     return streak > 0 ? streak : 1;
   };
 
-  // Initialisation Auth & Données
+  // Initialisation Auth & Données + Vérification Onboarding
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
@@ -266,6 +254,12 @@ export default function App() {
         fetchFriendRequests(session.user.id);
         fetchUserShoes(session.user.id);
         fetchGymLogsForUser(session.user.id);
+
+        // Vérifier si le guide d'accueil a déjà été vu
+        const welcomeSeen = localStorage.getItem('fitpulse_welcome_seen');
+        if (!welcomeSeen) {
+          setIsWelcomeModalOpen(true);
+        }
       }
       setAuthLoading(false);
     });
@@ -900,6 +894,80 @@ export default function App() {
           )}
         </main>
 
+        {/* --- MODALE DU GUIDE D'ACCUEIL INTERACTIF (ONBOARDING PREMIÈRE FOIS) --- */}
+        {isWelcomeModalOpen && (
+          <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 animate-fadeIn">
+            <div className="bg-neutral-900 border border-orange-500/30 rounded-3xl max-w-sm w-full p-6 space-y-5 shadow-2xl relative text-left">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-9 h-9 rounded-2xl bg-orange-500/20 text-orange-500 flex items-center justify-center">
+                    <Zap className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-black text-white">Bienvenue sur FitPulse</h3>
+                    <p className="text-[10px] text-orange-400 font-bold uppercase tracking-wider">Votre QG d'entraînement hybride</p>
+                  </div>
+                </div>
+                <button 
+                  type="button" 
+                  onClick={() => {
+                    localStorage.setItem('fitpulse_welcome_seen', 'true');
+                    setIsWelcomeModalOpen(false);
+                  }} 
+                  className="p-2 text-neutral-400 hover:text-white rounded-xl bg-neutral-800/50 transition cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="space-y-3 text-xs text-neutral-300">
+                <div className="flex items-start gap-3 bg-neutral-950 p-3 rounded-2xl border border-neutral-800">
+                  <span className="text-xl">⚡</span>
+                  <div>
+                    <strong className="text-white block font-bold">1. Le Check-in de Forme</strong>
+                    <span className="text-[11px] text-neutral-400">Évaluez chaque matin votre sommeil et fatigue pour obtenir votre feu vert d'entraînement.</span>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3 bg-neutral-950 p-3 rounded-2xl border border-neutral-800">
+                  <span className="text-xl">🛰️</span>
+                  <div>
+                    <strong className="text-white block font-bold">2. GPS & Import Montre (.GPX)</strong>
+                    <span className="text-[11px] text-neutral-400">Enregistrez vos sorties ou importez les fichiers de votre montre (Huawei, Garmin, etc.).</span>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3 bg-neutral-950 p-3 rounded-2xl border border-neutral-800">
+                  <span className="text-xl">👟</span>
+                  <div>
+                    <strong className="text-white block font-bold">3. Gear Tracker</strong>
+                    <span className="text-[11px] text-neutral-400">Suivez automatiquement l'usure kilométrique de vos chaussures de course à chaque sortie.</span>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3 bg-neutral-950 p-3 rounded-2xl border border-neutral-800">
+                  <span className="text-xl">🔋</span>
+                  <div>
+                    <strong className="text-white block font-bold">4. Ravitaillement & Énergie</strong>
+                    <span className="text-[11px] text-neutral-400">Calculez précisément vos besoins en glucides et en eau pour vos efforts longs.</span>
+                  </div>
+                </div>
+              </div>
+
+              <button 
+                type="button"
+                onClick={() => {
+                  localStorage.setItem('fitpulse_welcome_seen', 'true');
+                  setIsWelcomeModalOpen(false);
+                }}
+                className="w-full py-3.5 bg-orange-600 hover:bg-orange-500 text-white font-black rounded-2xl text-xs uppercase tracking-wider shadow-xl transition cursor-pointer flex items-center justify-center gap-2"
+              >
+                C'est parti ! 🚀
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* MODALE DE CARTE DE PARTAGE VIRAL HYBRIDE */}
         {isHybridShareOpen && (
           <HybridShareCard 
@@ -1152,7 +1220,7 @@ export default function App() {
                 const selectWodType = (formElement.elements[0] as HTMLSelectElement).value;
                 const scoreInput = (formElement.elements[1] as HTMLInputElement).value;
                 const noteInput = (formElement.elements[2] as HTMLTextAreaElement).value;
-                  
+                 
                 const scaleMode = (formElement.elements.namedItem('scaleMode') as RadioNodeList).value;
 
                 if (!scoreInput.trim()) { alert("Veuillez indiquer un score ou un temps !"); return; }
