@@ -12,7 +12,7 @@ interface ExerciseLog {
   exerciseName: string;
   category: 'Jambes' | 'Pecs/Triceps' | 'Dos/Biceps' | 'Épaules/Abdos' | 'Mobilité Hybride' | 'Bras' | 'Fessiers';
   previousBest?: string;
-  sets: Array<{ weight: number; reps: number; completed: boolean }>;
+  sets: Array<{ weight: number; reps: number; completed: boolean; status?: 'pending' | 'active' | 'validated' }>;
 }
 
 export default function GymLogTab({ currentUserId, onStartRestTimer }: GymLogTabProps) {
@@ -105,8 +105,8 @@ export default function GymLogTab({ currentUserId, onStartRestTimer }: GymLogTab
         category: 'Jambes',
         previousBest: '100kg x 5',
         sets: [
-          { weight: 100, reps: 5, completed: true },
-          { weight: 105, reps: 5, completed: false }
+          { weight: 100, reps: 5, completed: true, status: 'validated' },
+          { weight: 105, reps: 5, completed: false, status: 'pending' }
         ]
       }
     ]);
@@ -118,7 +118,7 @@ export default function GymLogTab({ currentUserId, onStartRestTimer }: GymLogTab
       exerciseName: exerciseName,
       category: categoryKey as any,
       previousBest: 'Référence libre 🚀',
-      sets: [{ weight: 50, reps: 10, completed: false }]
+      sets: [{ weight: 50, reps: 10, completed: false, status: 'pending' }]
     };
     setExercises(prev => [...prev, newExercise]);
   };
@@ -132,7 +132,7 @@ export default function GymLogTab({ currentUserId, onStartRestTimer }: GymLogTab
       exerciseName: newExName.trim(),
       category: newExCategory,
       previousBest: 'Première perf 🚀',
-      sets: [{ weight: 60, reps: 10, completed: false }]
+      sets: [{ weight: 60, reps: 10, completed: false, status: 'pending' }]
     };
 
     setExercises(prev => [...prev, newExercise]);
@@ -145,26 +145,37 @@ export default function GymLogTab({ currentUserId, onStartRestTimer }: GymLogTab
         const lastSet = ex.sets[ex.sets.length - 1];
         return {
           ...ex,
-          sets: [...ex.sets, { weight: lastSet ? lastSet.weight : 50, reps: lastSet ? lastSet.reps : 10, completed: false }]
+          sets: [...ex.sets, { weight: lastSet ? lastSet.weight : 50, reps: lastSet ? lastSet.reps : 10, completed: false, status: 'pending' }]
         };
       }
       return ex;
     }));
   };
 
-  const handleToggleSetComplete = (exerciseId: string, setIndex: number) => {
+  const handleSetAction = (exerciseId: string, setIndex: number) => {
     setExercises(prev => prev.map(ex => {
       if (ex.id === exerciseId) {
         const newSets = [...ex.sets];
-        newSets[setIndex].completed = !newSets[setIndex].completed;
+        const currentStatus = newSets[setIndex].status || (newSets[setIndex].completed ? 'validated' : 'pending');
+
+        if (currentStatus === 'pending') {
+          // Passe à "Commencer" (série en cours / active)
+          newSets[setIndex] = { ...newSets[setIndex], status: 'active', completed: false };
+        } else if (currentStatus === 'active') {
+          // Passe à "Valide" (série validée)
+          newSets[setIndex] = { ...newSets[setIndex], status: 'validated', completed: true };
+          if (onStartRestTimer) {
+            onStartRestTimer();
+          }
+        } else {
+          // Rebascule en pending si on clique à nouveau
+          newSets[setIndex] = { ...newSets[setIndex], status: 'pending', completed: false };
+        }
+
         return { ...ex, sets: newSets };
       }
       return ex;
     }));
-
-    if (onStartRestTimer) {
-      onStartRestTimer();
-    }
   };
 
   const handleUpdateSet = (exerciseId: string, setIndex: number, field: 'weight' | 'reps', value: number) => {
@@ -193,7 +204,7 @@ export default function GymLogTab({ currentUserId, onStartRestTimer }: GymLogTab
     });
   });
 
-  const totalSetsCount = exercises.reduce((acc, ex) => acc + ex.sets.filter(s => s.completed).length, 0);
+  const totalSetsCount = exercises.reduce((acc, ex) => acc + ex.sets.filter(s => s.completed || s.status === 'validated').length, 0);
 
   const handleFinishWorkout = async () => {
     if (!currentUserId) return;
@@ -337,13 +348,15 @@ export default function GymLogTab({ currentUserId, onStartRestTimer }: GymLogTab
                   <span className="col-span-2 text-center">Série</span>
                   <span className="col-span-3 text-center">Poids (kg)</span>
                   <span className="col-span-3 text-center">Reps</span>
-                  <span className="col-span-4 text-center">Validation</span>
+                  <span className="col-span-4 text-center">Action / État</span>
                 </div>
 
                 {ex.sets.map((set, setIndex) => {
                   const est1RM = calculate1RM(set.weight, set.reps);
+                  const status = set.status || (set.completed ? 'validated' : 'pending');
+
                   return (
-                    <div key={setIndex} className={`grid grid-cols-12 gap-2 items-center p-2 rounded-2xl border transition ${set.completed ? 'bg-emerald-950/20 border-emerald-500/30' : 'bg-neutral-950 border-neutral-800'}`}>
+                    <div key={setIndex} className={`grid grid-cols-12 gap-2 items-center p-2 rounded-2xl border transition ${status === 'validated' ? 'bg-emerald-950/20 border-emerald-500/30' : status === 'active' ? 'bg-amber-950/20 border-amber-500/40' : 'bg-neutral-950 border-neutral-800'}`}>
                       <div className="col-span-2 text-center text-xs font-bold text-neutral-400">
                         #{setIndex + 1}
                       </div>
@@ -369,14 +382,24 @@ export default function GymLogTab({ currentUserId, onStartRestTimer }: GymLogTab
                       <div className="col-span-4 flex items-center justify-center gap-2">
                         <button
                           type="button"
-                          onClick={() => handleToggleSetComplete(ex.id, setIndex)}
+                          onClick={() => handleSetAction(ex.id, setIndex)}
                           className={`w-full py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1 cursor-pointer ${
-                            set.completed 
+                            status === 'validated' 
                               ? 'bg-emerald-600 text-white shadow-lg' 
+                              : status === 'active'
+                              ? 'bg-amber-600 hover:bg-amber-500 text-white animate-pulse shadow-md'
                               : 'bg-neutral-900 hover:bg-neutral-800 text-neutral-300 border border-neutral-800'
                           }`}
                         >
-                          {set.completed ? <CheckCircle2 className="w-3.5 h-3.5" /> : 'Valider'}
+                          {status === 'validated' ? (
+                            <>
+                              <CheckCircle2 className="w-3.5 h-3.5" /> Validé
+                            </>
+                          ) : status === 'active' ? (
+                            'Valider'
+                          ) : (
+                            'Commencer'
+                          )}
                         </button>
                       </div>
 
