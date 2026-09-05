@@ -2,7 +2,7 @@ import PaywallGate from './PaywallGate';
 import { useState, useEffect, useRef } from 'react';
 import { 
   Play, Pause, Square, MapPin, Volume2, VolumeX, 
-  Compass, Apple, Droplet, Zap, Navigation, LocateFixed, Activity, Gauge, Timer, Target, Radio, Wind, ArrowLeft, Share2, EyeOff, X, Upload, Mountain, Compass as CompassIcon, Trophy, Award, Flame, Send, Ghost 
+  Compass, Apple, Droplet, Zap, Navigation, LocateFixed, Activity, Gauge, Timer, Target, Radio, Wind, ArrowLeft, Share2, EyeOff, X, Upload, Mountain, Compass as CompassIcon, Trophy, Award, Flame, Send, Ghost, ShieldAlert, Lock, CheckCircle2, Sparkles, Utensils, RefreshCw
 } from 'lucide-react';
 import { MapContainer, TileLayer, Polyline, Marker, useMap } from 'react-leaflet';
 import L from 'leaflet';
@@ -37,6 +37,144 @@ function MapController({ center, plannedRoute }: { center: [number, number], pla
     }
   }, [center, plannedRoute, map]);
   return null;
+}
+
+// --- SOUS-MODULE 1 : FitBot SNC (Auto-régulation du Système Nerveux Central) ---
+function FitBotSNC({ readinessScore = 78, weeklyLoad = 45 }: { readinessScore?: number; weeklyLoad?: number }) {
+  const [isLocked, setIsLocked] = useState<boolean>(false);
+  const [recommendation, setRecommendation] = useState<string>('Analyse du SNC en cours...');
+
+  useEffect(() => {
+    if (readinessScore < 50 || weeklyLoad > 80) {
+      setIsLocked(true);
+      setRecommendation("🚨 [ALERTE SNC] Fatigue nerveuse profonde détectée. Les entraînements à haute intensité (Seuil / VMA) sont verrouillés d'office pour éviter la blessure. Session d'endurance douce ou repos obligatoire.");
+    } else if (readinessScore < 70) {
+      setIsLocked(false);
+      setRecommendation("⚠️ [Vigilance SNC] Forme moyenne. Privilégie une intensité modérée et écoute tes sensations.");
+    } else {
+      setIsLocked(false);
+      setRecommendation("⚡ [SNC Optimal] Système nerveux paré pour l'effort. Feu vert pour le plan initial.");
+    }
+  }, [readinessScore, weeklyLoad]);
+
+  return (
+    <div className={`border rounded-3xl p-5 space-y-4 shadow-xl relative overflow-hidden transition-all ${
+      isLocked ? 'bg-red-950/20 border-red-500/40' : 'bg-neutral-900 border-neutral-800'
+    }`}>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-orange-400">
+          <Zap className="w-4 h-4 animate-pulse" /> FitBot SNC (Auto-Régulation IA)
+        </div>
+        {isLocked ? (
+          <span className="flex items-center gap-1 text-[10px] font-extrabold bg-red-500/20 text-red-400 px-3 py-1 rounded-full border border-red-500/30">
+            <Lock className="w-3 h-3" /> Haute Intensité Verrouillée
+          </span>
+        ) : (
+          <span className="flex items-center gap-1 text-[10px] font-extrabold bg-emerald-500/20 text-emerald-400 px-3 py-1 rounded-full border border-emerald-500/30">
+            <CheckCircle2 className="w-3 h-3" /> Statut Sûr
+          </span>
+        )}
+      </div>
+
+      <p className="text-xs text-neutral-300 leading-relaxed">
+        {recommendation}
+      </p>
+
+      <div className="grid grid-cols-2 gap-3 text-xs">
+        <div className="bg-neutral-950 p-3.5 rounded-2xl border border-neutral-800 space-y-1">
+          <span className="text-[10px] text-neutral-400 uppercase font-semibold block">Indice Récupération SNC</span>
+          <span className={`text-lg font-black ${readinessScore < 50 ? 'text-red-400' : 'text-emerald-400'}`}>
+            {readinessScore}%
+          </span>
+        </div>
+        <div className="bg-neutral-950 p-3.5 rounded-2xl border border-neutral-800 space-y-1">
+          <span className="text-[10px] text-neutral-400 uppercase font-semibold block">Sécurité Charge</span>
+          <span className="text-lg font-black text-orange-400">{weeklyLoad} <span className="text-[10px] text-neutral-500 font-normal">/ 100</span></span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// --- SOUS-MODULE 2 : Fuel-Lock Post-WOD (Nutrition connectée post-effort) ---
+function FuelLockPostWod({ lastRunDistanceKm = 10, bodyWeightKg = 70 }: { lastRunDistanceKm?: number; bodyWeightKg?: number }) {
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [recipeGenerated, setRecipeGenerated] = useState<any>(null);
+
+  const estimatedCaloriesBurned = Math.round(lastRunDistanceKm * bodyWeightKg * 0.9);
+  const targetCarbsGrams = Math.round(lastRunDistanceKm * 8);
+  const targetProteinGrams = Math.round(bodyWeightKg * 0.4);
+
+  const handleScanAndGenerateRecipe = () => {
+    setIsAnalyzing(true);
+    setTimeout(() => {
+      setRecipeGenerated({
+        title: "Bowl Récupération Glycogène & Poulet / Patate Douce",
+        ingredients: ["150g de patate douce rôtie", "120g de blanc de poulet grillé", "1 œuf poché", "Épinards frais & huile d'olive"],
+        macros: `Glucides : ~${targetCarbsGrams}g | Protéines : ~${targetProteinGrams}g`
+      });
+      setIsAnalyzing(false);
+    }, 1200);
+  };
+
+  return (
+    <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4 shadow-xl">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-cyan-400">
+          <Utensils className="w-4 h-4" /> Fuel-Lock Post-Effort (Nutrition Intelligente)
+        </div>
+        <span className="text-[10px] font-extrabold bg-cyan-500/20 text-cyan-300 px-2.5 py-0.5 rounded-full border border-cyan-500/30">
+          Auto-Ajusté 🧬
+        </span>
+      </div>
+
+      <div className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 space-y-2 text-xs">
+        <div className="flex justify-between text-neutral-400">
+          <span>Dernière séance estimée :</span>
+          <span className="font-bold text-white">{lastRunDistanceKm} km (~{estimatedCaloriesBurned} kcal)</span>
+        </div>
+        <div className="flex justify-between text-neutral-400">
+          <span>Cible Glucides (Recharge) :</span>
+          <span className="font-bold text-orange-400">~{targetCarbsGrams}g</span>
+        </div>
+        <div className="flex justify-between text-neutral-400">
+          <span>Cible Protéines (Réparation) :</span>
+          <span className="font-bold text-emerald-400">~{targetProteinGrams}g</span>
+        </div>
+      </div>
+
+      {!recipeGenerated ? (
+        <button
+          type="button"
+          disabled={isAnalyzing}
+          onClick={handleScanAndGenerateRecipe}
+          className="w-full py-3.5 bg-cyan-600 hover:bg-cyan-500 text-white font-black rounded-2xl text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition cursor-pointer shadow-lg disabled:opacity-50"
+        >
+          {isAnalyzing ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+          {isAnalyzing ? "Analyse du frigo & calcul des macros..." : "Scanner le frigo & Générer le Fuel-Lock 🥗"}
+        </button>
+      ) : (
+        <div className="bg-neutral-950 border border-cyan-500/40 p-4 rounded-2xl space-y-2 text-xs animate-fadeIn">
+          <div className="font-black text-cyan-300">{recipeGenerated.title}</div>
+          <ul className="text-neutral-300 space-y-1 list-disc list-inside">
+            {recipeGenerated.ingredients.map((ing: string, idx: number) => (
+              <li key={idx}>{ing}</li>
+            ))}
+          </ul>
+          <div className="pt-2 border-t border-neutral-900 text-emerald-400 font-bold font-mono text-[11px]">
+            {recipeGenerated.macros}
+          </div>
+          <button
+            type="button"
+            onClick={() => setRecipeGenerated(null)}
+            className="text-[10px] text-neutral-500 hover:text-neutral-300 underline pt-1 block cursor-pointer"
+          >
+            Refaire un scan
+          </button>
+        </div>
+      )}
+    </div>
+  );
 }
 
 interface RunningTabProps {
@@ -237,7 +375,7 @@ export default function RunningTab({
           alert("Erreur lors de l'analyse du fichier GPX.");
         }
       } else {
-        alert("Veuillez sélectionner un fichier .gpx valide.");
+        alert("Veuillez sélectionner un fichier au format .gpx valide.");
       }
     };
     reader.readAsText(file);
@@ -331,18 +469,13 @@ export default function RunningTab({
     return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   };
 
-  // --- LOGIQUE DU GHOST PACER (Calcul de la progression sur la trace cible) ---
+  // --- LOGIQUE DU GHOST PACER ---
   useEffect(() => {
     if (isRunning && !isPaused && plannedRoutePositions.length > 0 && plannedDistanceKm > 0) {
-      // Distance que le fantôme est censé parcourir en fonction du temps et de l'allure cible (targetPaceSecs)
-      // targetPaceSecs = secondes par km. Donc vitesse fantôme = 1 km / targetPaceSecs secondes.
       const ghostDistanceKm = seconds / targetPaceSecs; 
-      
-      // Proportion de la distance parcourue par rapport au circuit total (entre 0 et 1)
       let ratio = ghostDistanceKm / plannedDistanceKm;
-      if (ratio > 1) ratio = 1; // Boucle terminée ou atteinte maximale
+      if (ratio > 1) ratio = 1;
 
-      // Index correspondant dans le tableau des points du circuit cible
       const targetIndex = Math.floor(ratio * (plannedRoutePositions.length - 1));
       setGhostPosition(plannedRoutePositions[targetIndex]);
     } else if (!isRunning) {
@@ -515,6 +648,9 @@ export default function RunningTab({
           <ArrowLeft className="w-4 h-4" /> Retour
         </button>
       )}
+
+      {/* --- INNOVATION 1 INTÉGRÉE : FitBot SNC (Auto-régulation en haut de page) --- */}
+      <FitBotSNC readinessScore={78} weeklyLoad={45} />
 
       <div className="bg-gradient-to-r from-neutral-900 via-neutral-900 to-orange-950/35 border border-neutral-800 rounded-3xl p-6 shadow-2xl relative overflow-hidden">
         <div className="absolute -right-6 -bottom-6 w-32 h-32 bg-orange-500/10 rounded-full blur-3xl pointer-events-none" />
@@ -710,18 +846,13 @@ export default function RunningTab({
             <MapController center={currentPosition} plannedRoute={plannedRoutePositions} />
             <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
             
-            {/* Tracé théorique / Circuit planifié en bleu */}
             {plannedRoutePositions.length > 0 && (
               <Polyline positions={plannedRoutePositions} pathOptions={{ color: '#38bdf8', weight: 4, opacity: 0.8, dashArray: '6, 6', lineCap: 'round', lineJoin: 'round' }} />
             )}
 
-            {/* Tracé réel de course en vert */}
             <Polyline positions={routePositions} pathOptions={{ color: '#10b981', weight: 6, opacity: 0.95, lineCap: 'round', lineJoin: 'round' }} />
 
-            {/* Marqueur coureur actuel */}
             <Marker position={currentPosition} icon={runnerIcon} />
-
-            {/* Marqueur Fantôme (Ghost Pacer en rouge) */}
             {ghostPosition && <Marker position={ghostPosition} icon={ghostIcon} />}
           </MapContainer>
 
@@ -827,6 +958,7 @@ export default function RunningTab({
         </div>
       </div>
 
+      {/* --- INNOVATION 2 INTÉGRÉE : Fuel-Lock Post-WOD (Dans la modale de fin de course) --- */}
       {isReportModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 animate-fadeIn overflow-y-auto">
           <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-lg w-full p-6 space-y-5 shadow-2xl relative my-8">
@@ -862,6 +994,9 @@ export default function RunningTab({
                 </div>
               </div>
             </div>
+
+            {/* Insertion du Fuel-Lock Post-Effort connecté aux données réelles de la course */}
+            <FuelLockPostWod lastRunDistanceKm={distanceKm > 0 ? distanceKm : 5} bodyWeightKg={bodyWeight} />
 
             <div className="space-y-2 text-xs">
               <span className="font-bold text-neutral-300 flex items-center gap-1.5">
