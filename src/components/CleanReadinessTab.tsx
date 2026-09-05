@@ -21,10 +21,10 @@ export default function CleanReadinessTab({ currentUserId, onBack }: CleanReadin
     if (savedReadiness) {
       try {
         const parsed = JSON.parse(savedReadiness);
-        // Vérifie si le check-in date d'aujourd'hui (compare les chaînes YYYY-MM-DD)
         const todayStr = new Date().toISOString().split('T')[0];
         const checkinDateStr = parsed.date || new Date(parsed.timestamp).toISOString().split('T')[0];
 
+        // Si le check-in a été fait aujourd'hui, on bascule sur la vue validée (image)
         if (checkinDateStr === todayStr) {
           setHasCheckedIn(true);
           setSleepHours(parsed.sleepHours || '');
@@ -32,7 +32,7 @@ export default function CleanReadinessTab({ currentUserId, onBack }: CleanReadin
           setSoreness(parsed.soreness || 2);
           setStressLevel(parsed.stressLevel || 2);
         } else {
-          // Si on est un autre jour (le lendemain), on nettoie pour réinitialiser le check-in
+          // Si on est le lendemain, on nettoie pour réafficher le formulaire du matin
           localStorage.removeItem(`fitpulse_readiness_${currentUserId}`);
           setHasCheckedIn(false);
         }
@@ -88,7 +88,7 @@ export default function CleanReadinessTab({ currentUserId, onBack }: CleanReadin
 
     const todayStr = new Date().toISOString().split('T')[0];
     const data = {
-      date: todayStr, // Stockage de la date du jour pour la vérification automatique
+      date: todayStr,
       sleepHours,
       sleepQuality,
       soreness,
@@ -99,7 +99,6 @@ export default function CleanReadinessTab({ currentUserId, onBack }: CleanReadin
 
     localStorage.setItem(`fitpulse_readiness_${currentUserId}`, JSON.stringify(data));
     setHasCheckedIn(true);
-    alert(`Check-in validé pour aujourd'hui ! Indice de récupération : ${readinessScore}% ⚡`);
   };
 
   const handleResetCheckin = () => {
@@ -139,44 +138,44 @@ export default function CleanReadinessTab({ currentUserId, onBack }: CleanReadin
           <p className="text-neutral-300 leading-relaxed">
             1. <strong>Connecte ta montre</strong> (Huawei, Garmin, Apple) pour importer automatiquement ton sommeil, ou saisis-le manuellement.<br/>
             2. <strong>Renseigne tes curseurs</strong> de fatigue, courbatures et stress au réveil.<br/>
-            3. L'algorithme calcule ton <strong>Indice de Récupération</strong> pour adapter ta séance du jour. Le formulaire se réinitialisera tout seul le lendemain !
+            3. L'algorithme calcule ton <strong>Indice de Récupération</strong>. Le formulaire disparaît une fois validé et se réinitialisera automatiquement le lendemain !
           </p>
         </div>
       )}
 
+      {/* VUE VALIDÉE (Identique à ton image) */}
       {hasCheckedIn ? (
-        <div className="bg-neutral-900 border border-emerald-500/30 rounded-3xl p-6 space-y-4 shadow-2xl relative overflow-hidden">
-          <div className="absolute -right-6 -top-6 w-24 h-24 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none" />
-          
+        <div className="bg-neutral-950 border border-emerald-500/30 rounded-3xl p-6 space-y-4 shadow-2xl relative overflow-hidden">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-emerald-400 font-black text-xs uppercase tracking-wider">
-              <CheckCircle2 className="w-5 h-5" /> Check-in du jour validé ✅
+              <CheckCircle2 className="w-4 h-4" /> CHECK-IN DU JOUR VALIDÉ ✅
             </div>
             <button 
               onClick={handleResetCheckin}
-              className="text-[11px] text-neutral-400 hover:text-white underline cursor-pointer"
+              className="text-xs text-neutral-400 hover:text-white underline cursor-pointer"
             >
               Modifier
             </button>
           </div>
 
-          <div className="grid grid-cols-2 gap-4 pt-2">
-            <div className="bg-neutral-950 border border-neutral-800 p-4 rounded-2xl space-y-1">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+            <div className="bg-neutral-900 border border-neutral-800 p-4 rounded-2xl space-y-1">
               <span className="text-[10px] uppercase font-bold text-neutral-400 block">Indice de Récupération</span>
-              <div className="text-2xl font-black text-white">{readinessScore}%</div>
-              <span className="text-[10px] text-emerald-400 font-bold">
-                {readinessScore > 70 ? "🟢 Forme optimale" : readinessScore > 40 ? "🟡 Récupération moyenne" : "🔴 Fatigue élevée"}
+              <div className="text-3xl font-black text-white">{readinessScore}%</div>
+              <span className="text-[11px] text-emerald-400 font-bold block pt-1">
+                🟢 {readinessScore > 70 ? "Récupération optimale" : readinessScore > 40 ? "Récupération moyenne" : "Fatigue élevée"}
               </span>
             </div>
 
-            <div className="bg-neutral-950 border border-neutral-800 p-4 rounded-2xl space-y-1">
+            <div className="bg-neutral-900 border border-neutral-800 p-4 rounded-2xl space-y-1">
               <span className="text-[10px] uppercase font-bold text-neutral-400 block">Sommeil Validé</span>
-              <div className="text-2xl font-black text-white">{sleepHours}h</div>
-              <span className="text-[10px] text-neutral-500">Qualité : {sleepQuality}/5</span>
+              <div className="text-3xl font-black text-white">{sleepHours}h</div>
+              <span className="text-xs text-neutral-400 block pt-1">Qualité : {sleepQuality}/5</span>
             </div>
           </div>
         </div>
       ) : (
+        /* VUE FORMULAIRE DU MATIN */
         <>
           <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 flex items-center justify-between shadow-xl">
             <div className="flex items-center gap-3">
