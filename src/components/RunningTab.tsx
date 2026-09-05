@@ -461,6 +461,16 @@ export default function RunningTab({
         </div>
       </div>
 
+      {/* 💡 ENCART EXPLICITATIF / COMMENT ÇA MARCHE */}
+      <div className="bg-neutral-900/90 border border-neutral-800 rounded-3xl p-4 text-xs space-y-1.5 shadow-lg">
+        <div className="flex items-center gap-2 text-orange-400 font-bold">
+          <span>💡 Comment utiliser l'onglet Running ?</span>
+        </div>
+        <p className="text-neutral-400 leading-relaxed">
+          Enregistre ton parcours en direct avec le traceur GPS ou importe le fichier <code className="text-orange-300">.gpx</code> de ta montre (Huawei, Garmin...). À la fin de ta séance, la distance est automatiquement reportée sur l'usure kilométrique de tes chaussures actives ! 👟
+        </p>
+      </div>
+
       {/* 📥 MODULE D'IMPORT UNIVERSEL DE FICHIERS GPX (Toutes montres) */}
       <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-3 shadow-xl">
         <div className="flex items-center gap-2 text-orange-400 font-bold text-xs uppercase tracking-wider">
