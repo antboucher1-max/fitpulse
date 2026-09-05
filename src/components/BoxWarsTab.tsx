@@ -1,6 +1,6 @@
 import { useState, useEffect, FormEvent } from 'react';
 import { 
-  Zap, Flame, Trophy, Plus, X, Timer, Calculator, Play, Pause, RotateCcw, Settings2, ShieldCheck, ArrowLeft, Lock  
+  Zap, Flame, Trophy, Plus, X, Timer, Calculator, Play, Pause, RotateCcw, Settings2, ShieldCheck, ArrowLeft, Lock, MapPin  
 } from 'lucide-react';
 import { createClient } from '@supabase/supabase-js';
 
@@ -83,15 +83,17 @@ export default function BoxWarsTab({ currentUserId, currentUsername, registeredU
     { id: 1, title: 'WOD Challenge : Fran', challenger: 'Antoine', opponent: 'Communauté BoxWars', status: 'Actif ⚡', reward: '50 pts' }
   ]);
 
-  // Planning & Coach
-  const [wodSlots, setWodSlots] = useState<any[]>([
-    { id: 1, time: '07:00 - WOD Matin (Endurance)', coach: 'Thomas', spotsLeft: 3, booked: false },
-    { id: 2, time: '12:30 - WOD Flash (Entre Midi & Deux)', coach: 'Antoine', spotsLeft: 1, booked: true },
-    { id: 3, time: '18:00 - WOD Soir (Heavy Day - Rx)', coach: 'Sarah', spotsLeft: 0, booked: false }
-  ]);
+  // Planning & Réservations Supabase
+  const [wodSlots, setWodSlots] = useState<any[]>([]);
+  const [loadingSlots, setLoadingSlots] = useState(true);
+  
+  // États pour création de créneau par le coach
+  const [newSlotTime, setNewSlotTime] = useState('');
+  const [newSlotRoom, setNewSlotRoom] = useState('Salle Principale');
+  const [newSlotCapacity, setNewSlotCapacity] = useState<number>(10);
   const [coachNotes, setCoachNotes] = useState('');
 
-  // Vérification si l'utilisateur connecté est un vrai coach certifié crossfit (ex: champ is_coach ou badge spécifique dans son profil)
+  // Vérification si l'utilisateur connecté est un vrai coach certifié crossfit
   const currentUserProfile = registeredUsers.find((u: any) => u.id === currentUserId);
   const isCertifiedCoach = currentUserProfile?.is_coach || currentUserProfile?.is_admin || currentUserId === 'antboucher@hotmail.fr';
 
@@ -102,9 +104,74 @@ export default function BoxWarsTab({ currentUserId, currentUsername, registeredU
     setLoadingBoxWods(false);
   };
 
+  const fetchWodSlots = async () => {
+    setLoadingSlots(true);
+    const { data, error } = await supabase.from('wod_slots').select('*').order('id', { ascending: true });
+    if (!error && data) {
+      setWodSlots(data);
+    } else {
+      // Données de secours si la table distante n'est pas encore prête
+      setWodSlots([
+        { id: 1, time: '07:00 - WOD Matin', room: 'Salle Principale', coach: 'Thomas', capacity: 10, booked_user_ids: [] },
+        { id: 2, time: '12:30 - WOD Flash', room: 'Rigide / Extérieur', coach: 'Antoine', capacity: 8, booked_user_ids: [] }
+      ]);
+    }
+    setLoadingSlots(false);
+  };
+
   useEffect(() => {
     fetchBoxWods();
+    fetchWodSlots();
   }, []);
+
+  const handleToggleBooking = async (slot: any) => {
+    if (!currentUserId) return;
+    const bookedIds = slot.booked_user_ids || [];
+    const isAlreadyBooked = bookedIds.includes(currentUserId);
+
+    let updatedIds = [];
+    if (isAlreadyBooked) {
+      updatedIds = bookedIds.filter((id: string) => id !== currentUserId);
+    } else {
+      if (bookedIds.length >= (slot.capacity || 10)) {
+        alert("Désolé, ce créneau est complet ! 🛑");
+        return;
+      }
+      updatedIds = [...bookedIds, currentUserId];
+    }
+
+    const { error } = await supabase
+      .from('wod_slots')
+      .update({ booked_user_ids: updatedIds })
+      .eq('id', slot.id);
+
+    if (!error) {
+      fetchWodSlots();
+    } else {
+      setWodSlots(wodSlots.map(s => s.id === slot.id ? { ...s, booked_user_ids: updatedIds } : s));
+    }
+  };
+
+  const handleCreateSlot = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!isCertifiedCoach || !newSlotTime.trim()) return;
+
+    const { error } = await supabase.from('wod_slots').insert([{
+      time: newSlotTime.trim(),
+      room: newSlotRoom,
+      coach: currentUsername,
+      capacity: Number(newSlotCapacity),
+      booked_user_ids: []
+    }]);
+
+    if (!error) {
+      alert("✅ Créneau planifié et publié avec succès !");
+      setNewSlotTime('');
+      fetchWodSlots();
+    } else {
+      alert("Erreur lors de la création du créneau : " + error.message);
+    }
+  };
 
   useEffect(() => {
     let interval: any = null;
@@ -488,29 +555,95 @@ export default function BoxWarsTab({ currentUserId, currentUsername, registeredU
           {planningSubTab === 'schedule' && (
             <div className="space-y-3">
               <h3 className="text-xs font-black uppercase tracking-wider text-cyan-400">📅 Réservation des Créneaux WOD</h3>
-              {wodSlots.map(slot => (
-                <div key={slot.id} className="bg-neutral-900 border border-neutral-800 p-4 rounded-2xl flex justify-between items-center shadow">
-                  <div>
-                    <div className="font-extrabold text-xs text-white">{slot.time}</div>
-                    <div className="text-[10px] text-neutral-400">Coach : {slot.coach} • <span className="text-cyan-400 font-bold">{slot.spotsLeft} places restantes</span></div>
-                  </div>
-                  <button onClick={() => { setWodSlots(wodSlots.map(s => s.id === slot.id ? { ...s, booked: !s.booked, spotsLeft: s.booked ? s.spotsLeft + 1 : Math.max(0, s.spotsLeft - 1) } : s)); }} className={`px-4 py-2 rounded-xl text-xs font-bold transition ${slot.booked ? 'bg-red-500/20 text-red-400 border border-red-500/40' : 'bg-cyan-500 text-neutral-950'}`}>
-                    {slot.booked ? 'Annuler ✓' : 'Réserver 🚀'}
-                  </button>
+              
+              {loadingSlots ? (
+                <p className="text-xs text-neutral-500 text-center py-4">Chargement du planning...</p>
+              ) : wodSlots.length === 0 ? (
+                <div className="bg-neutral-900 border border-neutral-800 p-6 rounded-2xl text-center text-xs text-neutral-500">
+                  Aucun créneau planifié pour le moment.
                 </div>
-              ))}
+              ) : (
+                wodSlots.map(slot => {
+                  const bookedIds = slot.booked_user_ids || [];
+                  const isBookedByMe = bookedIds.includes(currentUserId);
+                  const spotsLeft = Math.max(0, (slot.capacity || 10) - bookedIds.length);
+
+                  return (
+                    <div key={slot.id} className="bg-neutral-900 border border-neutral-800 p-4 rounded-2xl flex justify-between items-center shadow-lg">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-extrabold text-xs text-white">{slot.time}</span>
+                          <span className="text-[10px] bg-neutral-800 text-cyan-400 px-2 py-0.5 rounded-md font-bold flex items-center gap-1">
+                            <MapPin className="w-3 h-3" /> {slot.room || 'Salle Principale'}
+                          </span>
+                        </div>
+                        <div className="text-[10px] text-neutral-400">
+                          Coach : <strong className="text-neutral-300">{slot.coach}</strong> • <span className={spotsLeft > 0 ? 'text-cyan-400 font-bold' : 'text-red-400 font-bold'}>{spotsLeft} places restantes</span>
+                        </div>
+                      </div>
+
+                      <button 
+                        onClick={() => handleToggleBooking(slot)} 
+                        className={`px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
+                          isBookedByMe 
+                            ? 'bg-red-500/20 text-red-400 border border-red-500/40 hover:bg-red-500/30' 
+                            : spotsLeft === 0 
+                              ? 'bg-neutral-800 text-neutral-500 cursor-not-allowed' 
+                              : 'bg-cyan-500 hover:bg-cyan-400 text-neutral-950 shadow-md'
+                        }`}
+                        disabled={spotsLeft === 0 && !isBookedByMe}
+                      >
+                        {isBookedByMe ? 'Annuler ✓' : spotsLeft === 0 ? 'Complet 🛑' : 'Réserver 🚀'}
+                      </button>
+                    </div>
+                  );
+                })
+              )}
             </div>
           )}
 
           {planningSubTab === 'coach' && (
             <div>
               {isCertifiedCoach ? (
-                <div className="bg-neutral-900 border border-cyan-500/40 p-5 rounded-3xl space-y-3 shadow-xl">
-                  <div className="flex items-center gap-2 text-cyan-400 font-bold text-xs uppercase tracking-wider">
-                    <ShieldCheck className="w-4 h-4" /> Accréditation Coach CrossFit Validée ✅
+                <div className="space-y-4">
+                  <div className="bg-neutral-900 border border-cyan-500/40 p-5 rounded-3xl space-y-4 shadow-xl">
+                    <div className="flex items-center gap-2 text-cyan-400 font-bold text-xs uppercase tracking-wider">
+                      <ShieldCheck className="w-4 h-4" /> Planifier un nouveau créneau WOD (Coach Certifié)
+                    </div>
+
+                    <form onSubmit={handleCreateSlot} className="space-y-3">
+                      <div>
+                        <label className="block text-[10px] text-neutral-400 mb-1">Horaire et Titre du créneau :</label>
+                        <input type="text" placeholder="ex: 18:00 - WOD Heavy Day (Rx)" value={newSlotTime} onChange={e => setNewSlotTime(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white" required />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="block text-[10px] text-neutral-400 mb-1">Salle / Emplacement :</label>
+                          <select value={newSlotRoom} onChange={e => setNewSlotRoom(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-2 py-2 text-xs text-white">
+                            <option value="Salle Principale">Salle Principale</option>
+                            <option value="Rigide / Extérieur">Rigide / Extérieur</option>
+                            <option value="Box 2 / Halte">Box 2 / Halte</option>
+                            <option value="Espace Cardio">Espace Cardio</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-[10px] text-neutral-400 mb-1">Capacité max :</label>
+                          <input type="number" min="1" max="30" value={newSlotCapacity} onChange={e => setNewSlotCapacity(Number(e.target.value))} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white" />
+                        </div>
+                      </div>
+
+                      <button type="submit" className="w-full py-3 bg-cyan-500 hover:bg-cyan-400 text-neutral-950 font-black rounded-xl text-xs shadow-lg transition cursor-pointer">
+                        Publier le créneau au planning 📅
+                      </button>
+                    </form>
                   </div>
-                  <textarea rows={3} placeholder="Notes de programmation du jour pour vos athlètes..." value={coachNotes} onChange={e => setCoachNotes(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-xs text-white focus:border-cyan-500" />
-                  <button onClick={() => { if (coachNotes.trim()) { alert("✅ Notes de programmation diffusées avec succès !"); setCoachNotes(''); } }} className="w-full py-2.5 bg-cyan-500 text-neutral-950 font-bold rounded-xl text-xs">Diffuser aux athlètes 📢</button>
+
+                  <div className="bg-neutral-900 border border-neutral-800 p-5 rounded-3xl space-y-3 shadow-xl">
+                    <h3 className="text-xs font-black uppercase tracking-wider text-cyan-400">📢 Diffuser des notes de programmation</h3>
+                    <textarea rows={3} placeholder="Notes et consignes du coach pour la journée..." value={coachNotes} onChange={e => setCoachNotes(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-xs text-white focus:border-cyan-500" />
+                    <button onClick={() => { if (coachNotes.trim()) { alert("✅ Notes publiées avec succès !"); setCoachNotes(''); } }} className="w-full py-2.5 bg-cyan-500 text-neutral-950 font-bold rounded-xl text-xs cursor-pointer">Envoyer aux athlètes 📢</button>
+                  </div>
                 </div>
               ) : (
                 <div className="bg-neutral-900 border border-neutral-800 p-8 rounded-3xl text-center space-y-3 shadow-xl">
@@ -519,7 +652,7 @@ export default function BoxWarsTab({ currentUserId, currentUsername, registeredU
                   </div>
                   <h3 className="text-sm font-black text-white">Espace réservé aux Coachs Certifiés</h3>
                   <p className="text-xs text-neutral-400 max-w-xs mx-auto leading-relaxed">
-                    Cet espace de programmation est strictement réservé aux entraîneurs diplômés (CF-L1/L2). Contactez un administrateur pour faire valider votre accréditation.
+                    Cet espace de programmation et de gestion des salles est strictement réservé aux entraîneurs diplômés. Contactez un administrateur pour faire valider votre accréditation.
                   </p>
                 </div>
               )}
