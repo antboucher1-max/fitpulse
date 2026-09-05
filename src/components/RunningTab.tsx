@@ -17,20 +17,18 @@ const runnerIcon = L.divIcon({
   iconAnchor: [10, 10]
 });
 
-const plannedRouteIcon = L.divIcon({
-  className: 'custom-planned-marker',
-  html: `<div style="width: 14px; height: 14px; background: #38bdf8; border: 3px solid #ffffff; border-radius: 50%; box-shadow: 0 0 10px #38bdf8;"></div>`,
-  iconSize: [14, 14],
-  iconAnchor: [7, 7]
-});
-
-// Contrôleur pour recentrer et redimensionner la carte dynamiquement
-function MapController({ center }: { center: [number, number] }) {
+// Contrôleur dynamique pour recentrer et redimensionner la carte automatiquement sur le circuit planifié
+function MapController({ center, plannedRoute }: { center: [number, number], plannedRoute?: Array<[number, number]> }) {
   const map = useMap();
   useEffect(() => {
     map.invalidateSize();
-    map.setView(center, map.getZoom(), { animate: true });
-  }, [center, map]);
+    if (plannedRoute && plannedRoute.length > 0) {
+      const bounds = L.latLngBounds(plannedRoute);
+      map.fitBounds(bounds, { padding: [50, 50], animate: true });
+    } else {
+      map.setView(center, map.getZoom(), { animate: true });
+    }
+  }, [center, plannedRoute, map]);
   return null;
 }
 
@@ -75,7 +73,7 @@ export default function RunningTab({
   // État pour afficher la modale de choix de partage fin de course
   const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
 
-  // --- ARCHITECTE DE CIRCUITS INTELLIGENTS (Nouveau module) ---
+  // --- ARCHITECTE DE CIRCUITS INTELLIGENTS ---
   const [plannedRoutePositions, setPlannedRoutePositions] = useState<Array<[number, number]>>([]);
   const [plannedDistanceKm, setPlannedDistanceKm] = useState<number>(0);
   const [circuitType, setCircuitType] = useState<'route' | 'bois' | 'carriere'>('route');
@@ -127,29 +125,25 @@ export default function RunningTab({
 
   // --- GÉNÉRATEUR AUTOMATIQUE DE CIRCUIT INTELLIGENT ---
   const handleGenerateSmartCircuit = (targetKm: number) => {
-    // Génération d'une boucle fermée réaliste autour de la position actuelle
     const baseLat = currentPosition[0];
     const baseLng = currentPosition[1];
     
-    // Approximation mathématique d'une boucle en étoile / polygone fermé
-    const pointsCount = 12;
+    const pointsCount = 16;
     const generated: Array<[number, number]> = [];
-    const radiusDegree = (targetKm / 111) / 2; // Conversion grossière km en degrés
+    const radiusDegree = (targetKm / 111) / 2.2; 
 
     for (let i = 0; i <= pointsCount; i++) {
       const angle = (i / pointsCount) * (2 * Math.PI);
-      // Petites variations aléatoires/harmoniques pour simuler des chemins de campagne / bois / carrières
-      const jitter = 1 + (Math.sin(i * 2) * 0.15); 
+      const jitter = 1 + (Math.sin(i * 2.5) * 0.12); 
       const lat = baseLat + (Math.sin(angle) * radiusDegree * jitter);
-      const lng = baseLng + (Math.cos(angle) * radiusDegree * jitter * 1.3); // Ellipse pour routes/chemins
+      const lng = baseLng + (Math.cos(angle) * radiusDegree * jitter * 1.4); 
       generated.push([lat, lng]);
     }
-    // Boucler le circuit
     generated.push(generated[0]);
 
     setPlannedRoutePositions(generated);
     setPlannedDistanceKm(targetKm);
-    alert(`⚡ Circuit intelligent de ${targetKm} km (${circuitType.toUpperCase()}) généré avec succès ! Suivez la ligne bleue sur la carte 🗺️`);
+    alert(`⚡ Circuit intelligent de ${targetKm} km (${circuitType.toUpperCase()}) généré avec succès ! Le tracé bleu s'affiche sur la carte 🗺️`);
   };
 
   // Fonction d'import de fichier GPX universel (Toutes montres)
@@ -562,7 +556,7 @@ export default function RunningTab({
         </div>
       </div>
 
-      {/* 🗺️ ARCHITECTE DE CIRCUITS & GÉNÉRATEUR INTELLIGENT (Nouveau) */}
+      {/* 🗺️ ARCHITECTE DE CIRCUITS & GÉNÉRATEUR INTELLIGENT */}
       <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4 shadow-xl">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 text-sky-400 font-bold text-xs uppercase tracking-wider">
@@ -571,7 +565,7 @@ export default function RunningTab({
           {plannedRoutePositions.length > 0 && (
             <button
               onClick={() => { setPlannedRoutePositions([]); setPlannedDistanceKm(0); }}
-              className="text-[10px] text-red-400 hover:underline font-bold"
+              className="text-[10px] text-red-400 hover:underline font-bold cursor-pointer"
             >
               Effacer le tracé ✕
             </button>
@@ -754,7 +748,7 @@ export default function RunningTab({
         </div>
       </div>
 
-      {/* Carte GPS & Tracé Planifié */}
+      {/* Carte GPS avec Zoom automatique sur le circuit */}
       <div className="bg-neutral-900 border border-neutral-800/80 rounded-3xl p-4 sm:p-6 space-y-4 shadow-xl">
         <div className="flex items-center justify-between px-1">
           <h3 className="text-xs font-black text-white flex items-center gap-2 uppercase tracking-wider">
@@ -772,7 +766,7 @@ export default function RunningTab({
             scrollWheelZoom={true}
             style={{ width: '100%', height: '100%', background: '#0a0a0a' }}
           >
-            <MapController center={currentPosition} />
+            <MapController center={currentPosition} plannedRoute={plannedRoutePositions} />
             <TileLayer
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
