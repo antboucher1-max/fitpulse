@@ -19,29 +19,29 @@ export default function FitBotProactiveCoach({
   const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
   const [adjustedSession, setAdjustedSession] = useState<any | null>(null);
 
-  // Analyse proactive intelligente croisant les disciplines
+  // Analyse proactive intelligente croisant les disciplines et personnalisée au profil
   const runDeepNeuroAnalysis = () => {
     setIsAnalyzing(true);
     setTimeout(() => {
       setIsAnalyzing(false);
-      // Simulation d'une auto-régulation basée sur un score de fatigue bas
+      // Simulation d'une auto-régulation basée sur un score de fatigue
       setReadinessScore(64);
       setSncStatus('Fatigué (Low Recovery)');
       setActiveAdvice(
-        "⚠️ Attention Antoine : Ton cumul de charges (Squat lourd + 3 sorties running) a généré une forte dette sur le système nerveux central. Le test de réactivité neuro-musculaire indique une baisse de ton explosivité."
+        `⚠️ Attention ${currentUsername} : Ton volume d'entraînement récent a généré une dette sur le système nerveux central. Le suivi de réactivité neuro-musculaire indique une baisse de ton explosivité.`
       );
       setAdjustedSession({
         title: "Séance Auto-Régulée par FitBot AI",
-        originalPlan: "Back Squat 5x5 à 85% + WOD MetCon lourd",
-        newPlan: "Volume modéré à 75% (3x6) + Remplacement du WOD par 25 min de mobilité active & renfo des fléchisseurs.",
-        reason: "Protection des tendons rotuliens et prévention du surentraînement."
+        originalPlan: "Intensité maximale prévue au programme",
+        newPlan: "Volume modéré à 75% + Remplacement par 25 min de mobilité active & récupération.",
+        reason: "Protection articulaire et prévention du surentraînement."
       });
     }, 1800);
   };
 
   useEffect(() => {
     runDeepNeuroAnalysis();
-  }, []);
+  }, [currentUsername]);
 
   return (
     <div className="space-y-6 pb-24 animate-fadeIn">
@@ -79,7 +79,7 @@ export default function FitBotProactiveCoach({
             </span>
           </div>
           <p className="text-xs text-neutral-400 leading-relaxed pt-1">
-            Calculé via l'historique croisé de ton volume de course, de tes barres en muscu et de tes WODs.
+            Calculé via l'historique croisé de ton volume, de tes charges en muscu et de tes WODs.
           </p>
         </div>
 
