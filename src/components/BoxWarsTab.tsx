@@ -13,7 +13,7 @@ interface BoxWarsTabProps {
   currentUsername: string;
   registeredUsers: any[];
   posts: any[];
-  onBack?: () => void; // 👈 Ajout de la prop retour
+  onBack?: () => void;
 }
 
 export default function BoxWarsTab({ currentUserId, currentUsername, registeredUsers, posts, onBack }: BoxWarsTabProps) {
@@ -172,7 +172,7 @@ export default function BoxWarsTab({ currentUserId, currentUsername, registeredU
 
   return (
     <div className="space-y-4 pb-16 animate-fadeIn">
-      
+       
       {/* 🔙 BOUTON RETOUR */}
       {onBack && (
         <button 
@@ -190,6 +190,16 @@ export default function BoxWarsTab({ currentUserId, currentUsername, registeredU
         </div>
         <h2 className="text-xl font-black">Centre d'entraînement & Communauté</h2>
         <p className="text-xs text-neutral-300 mt-1">Gère tes WODs, planifie tes créneaux et configure tes intervalles d'entraînement.</p>
+      </div>
+
+      {/* 💡 ENCART EXPLICITATIF / COMMENT ÇA MARCHE */}
+      <div className="bg-neutral-900/90 border border-neutral-800 rounded-3xl p-4 text-xs space-y-1.5 shadow-lg">
+        <div className="flex items-center gap-2 text-cyan-400 font-bold">
+          <span>💡 Comment fonctionne BoxWars ?</span>
+        </div>
+        <p className="text-neutral-400 leading-relaxed">
+          Valide tes scores sur les WODs du jour (en mode RX ou Scaled) pour marquer des points pour ta communauté, comparer tes temps avec les autres athlètes et alimenter le classement général ! ⚡
+        </p>
       </div>
 
       <div className="grid grid-cols-3 gap-2 bg-neutral-900 p-1.5 rounded-2xl border border-neutral-800">
