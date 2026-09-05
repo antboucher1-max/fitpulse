@@ -1,24 +1,34 @@
 import { ReactNode, useState } from 'react';
-import { Lock, Sparkles, Gift } from 'lucide-react';
+import { Lock, Sparkles, Gift, ShieldAlert, Clock } from 'lucide-react';
 import { useSubscription } from '../hooks/useSubscription';
 import { supabase } from '../supabaseClient';
 
 interface PaywallGateProps {
   userId?: string;
   featureName: string;
+  currentUserProfile?: any;
   children: ReactNode;
 }
 
-export default function PaywallGate({ userId, featureName, children }: PaywallGateProps) {
+export default function PaywallGate({ userId, featureName, currentUserProfile, children }: PaywallGateProps) {
   const { isPro, loading } = useSubscription(userId);
   const [isRedirecting, setIsRedirecting] = useState(false);
+  const [activating, setActivating] = useState(false);
 
   if (loading) {
     return <div className="p-8 text-center text-xs text-neutral-500 animate-pulse">Vérification des accès...</div>;
   }
 
-  // Si l'utilisateur est Pro ou a un essai actif, on affiche la fonctionnalité
-  if (isPro) {
+  // Calcul du pass 24h réel basé sur l'heure d'activation en base de données
+  const trialActivatedAt = currentUserProfile?.trial_activated_at;
+  const trialUsed = currentUserProfile?.trial_used || false;
+
+  const now = Date.now();
+  const trialExpiryTime = trialActivatedAt ? new Date(trialActivatedAt).getTime() + (24 * 60 * 60 * 1000) : 0;
+  const isTrialActive = trialActivatedAt ? now < trialExpiryTime : false;
+
+  // Si l'utilisateur est Pro ou si son essai 24h unique est encore en cours de validité
+  if (isPro || isTrialActive) {
     return <>{children}</>;
   }
 
@@ -53,19 +63,30 @@ export default function PaywallGate({ userId, featureName, children }: PaywallGa
     }
   };
 
-  // Fonction pour activer le Pass Découverte 24h dans Supabase
+  // Fonction pour activer le Pass Découverte 24h unique dans Supabase
   const handleActivate24hTrial = async () => {
     if (!userId) return;
-    
-    const expirationDate = new Date(new Date().getTime() + 24 * 60 * 60 * 1000).toISOString();
+
+    if (trialUsed) {
+      alert("Tu as déjà bénéficié de ton pass découverte 24h unique. Passe à la version Pro pour un accès illimité ! ⚡");
+      return;
+    }
+
+    setActivating(true);
+    const nowIso = new Date().toISOString();
 
     const { error } = await supabase
       .from('profiles')
-      .update({ trial_expires_at: expirationDate })
+      .update({ 
+        trial_activated_at: nowIso,
+        trial_used: true 
+      })
       .eq('id', userId);
 
+    setActivating(false);
+
     if (!error) {
-      alert("🎉 Pass Pro 24h activé ! Profite de toutes les fonctionnalités avancées.");
+      alert("🎉 Pass Pro 24h unique activé ! Profite de toutes les fonctionnalités avancées.");
       window.location.reload();
     } else {
       alert("Erreur lors de l'activation du pass : " + error.message);
@@ -104,14 +125,21 @@ export default function PaywallGate({ userId, featureName, children }: PaywallGa
         <div className="flex-grow border-t border-neutral-800"></div>
       </div>
 
-      {/* Bouton du Pass Découverte 24h */}
-      <button
-        type="button"
-        onClick={handleActivate24hTrial}
-        className="w-full py-2.5 bg-neutral-800 hover:bg-neutral-700 text-orange-400 font-bold rounded-2xl text-xs transition flex items-center justify-center gap-2 cursor-pointer border border-orange-500/20"
-      >
-        <Gift className="w-4 h-4" /> Activer mon Pass Pro découverte 24h gratuit
-      </button>
+      {/* Bouton du Pass Découverte 24h unique ou message s'il a déjà été consommé */}
+      {!trialUsed ? (
+        <button
+          type="button"
+          onClick={handleActivate24hTrial}
+          disabled={activating}
+          className="w-full py-2.5 bg-neutral-800 hover:bg-neutral-700 text-orange-400 font-bold rounded-2xl text-xs transition flex items-center justify-center gap-2 cursor-pointer border border-orange-500/20"
+        >
+          <Gift className="w-4 h-4" /> {activating ? 'Activation en cours...' : 'Activer mon Pass Pro découverte 24h gratuit'}
+        </button>
+      ) : (
+        <div className="bg-neutral-950 border border-neutral-800 p-3 rounded-2xl text-xs text-neutral-400 flex items-center justify-center gap-2">
+          <ShieldAlert className="w-4 h-4 text-orange-400" /> Pass découverte 24h déjà utilisé par le passé.
+        </div>
+      )}
     </div>
   );
 }
