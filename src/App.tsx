@@ -627,8 +627,8 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Étape 3 : Restitution IA, Scan Frigo & FitBot Pro */}
-              <PaywallGate userId={user?.id} featureName="IA Coach Proactif & Scan Frigo">
+              {/* Étape 3 : Restitution IA, Scan Frigo & FitBot Pro (avec transmission de currentUserProfile) */}
+              <PaywallGate userId={user?.id} currentUserProfile={currentUserProfile} featureName="IA Coach Proactif & Scan Frigo">
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div 
                     onClick={() => handleTabChange('fitbot')}
@@ -692,19 +692,19 @@ export default function App() {
           )}
 
           {currentTab === 'fitbot' && (
-            <PaywallGate userId={user?.id} featureName="IA Coach Proactif">
+            <PaywallGate userId={user?.id} currentUserProfile={currentUserProfile} featureName="IA Coach Proactif">
               <FitBotTab currentUserProfile={currentUserProfile} currentReadinessScore={currentReadinessScore} onBack={() => handleTabChange('today')} />
             </PaywallGate>
           )}
 
           {currentTab === 'fitbot_pro' && (
-            <PaywallGate userId={user?.id} featureName="FitBot Pro SNC">
+            <PaywallGate userId={user?.id} currentUserProfile={currentUserProfile} featureName="FitBot Pro SNC">
               <FitBotProactiveCoach currentUserId={user?.id} currentUsername={currentUsername} currentUserProfile={currentUserProfile} />
             </PaywallGate>
           )}
 
           {currentTab === 'fridge_scanner' && (
-            <PaywallGate userId={user?.id} featureName="Scan Post-WOD de la Faim">
+            <PaywallGate userId={user?.id} currentUserProfile={currentUserProfile} featureName="Scan Post-WOD de la Faim">
               <FridgeScannerTab onBack={() => handleTabChange('today')} />
             </PaywallGate>
           )}
