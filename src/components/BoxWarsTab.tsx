@@ -1,6 +1,6 @@
 import { useState, useEffect, FormEvent } from 'react';
 import { 
-  Zap, Flame, Trophy, Plus, X, Timer, Calculator, Play, Pause, RotateCcw, Settings2, ShieldCheck, ArrowLeft  
+  Zap, Flame, Trophy, Plus, X, Timer, Calculator, Play, Pause, RotateCcw, Settings2, ShieldCheck, ArrowLeft, Lock  
 } from 'lucide-react';
 import { createClient } from '@supabase/supabase-js';
 
@@ -90,6 +90,10 @@ export default function BoxWarsTab({ currentUserId, currentUsername, registeredU
     { id: 3, time: '18:00 - WOD Soir (Heavy Day - Rx)', coach: 'Sarah', spotsLeft: 0, booked: false }
   ]);
   const [coachNotes, setCoachNotes] = useState('');
+
+  // Vérification si l'utilisateur connecté est un vrai coach certifié crossfit (ex: champ is_coach ou badge spécifique dans son profil)
+  const currentUserProfile = registeredUsers.find((u: any) => u.id === currentUserId);
+  const isCertifiedCoach = currentUserProfile?.is_coach || currentUserProfile?.is_admin || currentUserId === 'antboucher@hotmail.fr';
 
   const fetchBoxWods = async () => {
     setLoadingBoxWods(true);
@@ -478,7 +482,7 @@ export default function BoxWarsTab({ currentUserId, currentUsername, registeredU
         <div className="space-y-4">
           <div className="flex gap-2 border-b border-neutral-800 pb-2">
             <button onClick={() => setPlanningSubTab('schedule')} className={`px-3 py-1.5 rounded-xl text-xs font-bold ${planningSubTab === 'schedule' ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/40' : 'bg-neutral-900 text-neutral-400'}`}>Planning des WODs</button>
-            <button onClick={() => setPlanningSubTab('coach')} className={`px-3 py-1.5 rounded-xl text-xs font-bold ${planningSubTab === 'coach' ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/40' : 'bg-neutral-900 text-neutral-400'}`}>Espace Coach</button>
+            <button onClick={() => setPlanningSubTab('coach')} className={`px-3 py-1.5 rounded-xl text-xs font-bold ${planningSubTab === 'coach' ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/40' : 'bg-neutral-900 text-neutral-400'}`}>Espace Coach Certifié</button>
           </div>
 
           {planningSubTab === 'schedule' && (
@@ -499,10 +503,26 @@ export default function BoxWarsTab({ currentUserId, currentUsername, registeredU
           )}
 
           {planningSubTab === 'coach' && (
-            <div className="bg-neutral-900 border border-neutral-800 p-4 rounded-3xl space-y-3 shadow-xl">
-              <h3 className="text-xs font-black uppercase tracking-wider text-cyan-400">🛡️ Espace Réservé aux Coachs</h3>
-              <textarea rows={3} placeholder="Notes de programmation du jour..." value={coachNotes} onChange={e => setCoachNotes(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-xs text-white focus:border-cyan-500" />
-              <button onClick={() => { if (coachNotes.trim()) { alert("✅ Notes publiées avec succès !"); setCoachNotes(''); } }} className="w-full py-2.5 bg-cyan-500 text-neutral-950 font-bold rounded-xl text-xs">Diffuser aux athlètes 📢</button>
+            <div>
+              {isCertifiedCoach ? (
+                <div className="bg-neutral-900 border border-cyan-500/40 p-5 rounded-3xl space-y-3 shadow-xl">
+                  <div className="flex items-center gap-2 text-cyan-400 font-bold text-xs uppercase tracking-wider">
+                    <ShieldCheck className="w-4 h-4" /> Accréditation Coach CrossFit Validée ✅
+                  </div>
+                  <textarea rows={3} placeholder="Notes de programmation du jour pour vos athlètes..." value={coachNotes} onChange={e => setCoachNotes(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-xs text-white focus:border-cyan-500" />
+                  <button onClick={() => { if (coachNotes.trim()) { alert("✅ Notes de programmation diffusées avec succès !"); setCoachNotes(''); } }} className="w-full py-2.5 bg-cyan-500 text-neutral-950 font-bold rounded-xl text-xs">Diffuser aux athlètes 📢</button>
+                </div>
+              ) : (
+                <div className="bg-neutral-900 border border-neutral-800 p-8 rounded-3xl text-center space-y-3 shadow-xl">
+                  <div className="w-12 h-12 rounded-2xl bg-amber-500/20 text-amber-400 flex items-center justify-center mx-auto">
+                    <Lock className="w-6 h-6" />
+                  </div>
+                  <h3 className="text-sm font-black text-white">Espace réservé aux Coachs Certifiés</h3>
+                  <p className="text-xs text-neutral-400 max-w-xs mx-auto leading-relaxed">
+                    Cet espace de programmation est strictement réservé aux entraîneurs diplômés (CF-L1/L2). Contactez un administrateur pour faire valider votre accréditation.
+                  </p>
+                </div>
+              )}
             </div>
           )}
         </div>
