@@ -1,5 +1,5 @@
 import { ReactNode, useState } from 'react';
-import { Lock, Sparkles, Gift, ShieldAlert, Clock } from 'lucide-react';
+import { Lock, Sparkles, Gift, ShieldAlert } from 'lucide-react';
 import { useSubscription } from '../hooks/useSubscription';
 import { supabase } from '../supabaseClient';
 
@@ -19,7 +19,7 @@ export default function PaywallGate({ userId, featureName, currentUserProfile, c
     return <div className="p-8 text-center text-xs text-neutral-500 animate-pulse">Vérification des accès...</div>;
   }
 
-  // Calcul du pass 24h réel basé sur l'heure d'activation en base de données
+  // Lecture sécurisée du profil ou fallback direct
   const trialActivatedAt = currentUserProfile?.trial_activated_at;
   const trialUsed = currentUserProfile?.trial_used || false;
 
@@ -27,12 +27,11 @@ export default function PaywallGate({ userId, featureName, currentUserProfile, c
   const trialExpiryTime = trialActivatedAt ? new Date(trialActivatedAt).getTime() + (24 * 60 * 60 * 1000) : 0;
   const isTrialActive = trialActivatedAt ? now < trialExpiryTime : false;
 
-  // Si l'utilisateur est Pro ou si son essai 24h unique est encore en cours de validité
+  // Si l'utilisateur est Pro ou si son essai 24h unique est en cours
   if (isPro || isTrialActive) {
     return <>{children}</>;
   }
 
-  // Fonction pour déclencher le tunnel de paiement Stripe via l'Edge Function Supabase
   const handleSubscribePro = async () => {
     if (!userId) {
       alert("Identifiant utilisateur introuvable. Veuillez vous reconnecter.");
@@ -43,15 +42,13 @@ export default function PaywallGate({ userId, featureName, currentUserProfile, c
     try {
       const response = await fetch('https://obtahwmcoqrcauscpksv.supabase.co/functions/v1/bright-action', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId: userId })
       });
 
       const data = await response.json();
       if (data.url) {
-        window.location.href = data.url; // Redirection vers Stripe Checkout
+        window.location.href = data.url;
       } else {
         alert("Erreur lors de l'initialisation du paiement : " + (data.error || "Inconnue"));
         setIsRedirecting(false);
@@ -63,18 +60,16 @@ export default function PaywallGate({ userId, featureName, currentUserProfile, c
     }
   };
 
-  // Fonction pour activer le Pass Découverte 24h unique dans Supabase
   const handleActivate24hTrial = async () => {
-    if (!userId) return;
-
-    if (trialUsed) {
-      alert("Tu as déjà bénéficié de ton pass découverte 24h unique. Passe à la version Pro pour un accès illimité ! ⚡");
+    if (!userId) {
+      alert("Erreur : Utilisateur non connectés.");
       return;
     }
 
     setActivating(true);
     const nowIso = new Date().toISOString();
 
+    // Mise à jour directe de la table profiles dans Supabase
     const { error } = await supabase
       .from('profiles')
       .update({ 
@@ -108,7 +103,6 @@ export default function PaywallGate({ userId, featureName, currentUserProfile, c
         </p>
       </div>
 
-      {/* Bouton d'abonnement payant (Stripe Checkout dynamique) */}
       <button
         type="button"
         onClick={handleSubscribePro}
@@ -118,14 +112,12 @@ export default function PaywallGate({ userId, featureName, currentUserProfile, c
         <Sparkles className="w-4 h-4" /> {isRedirecting ? 'Redirection vers Stripe...' : "S'abonner à FitPulse Pro (1,00 €/mois)"}
       </button>
 
-      {/* Séparateur visuel */}
       <div className="relative flex py-1 items-center">
         <div className="flex-grow border-t border-neutral-800"></div>
         <span className="flex-shrink mx-2 text-[10px] uppercase font-bold text-neutral-500">ou</span>
         <div className="flex-grow border-t border-neutral-800"></div>
       </div>
 
-      {/* Bouton du Pass Découverte 24h unique ou message s'il a déjà été consommé */}
       {!trialUsed ? (
         <button
           type="button"
