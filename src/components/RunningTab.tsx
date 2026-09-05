@@ -115,9 +115,9 @@ export default function RunningTab({
     }
   }, [routePositions, distanceKm, seconds, isRunning]);
 
-  // Fonction de synthèse vocale intelligente (strictement sécurisée : ne parle QUE si isRunning est actif)
+  // Fonction de synthèse vocale intelligente (strictement sécurisée contre les déclenchements à vide)
   const speakMessage = (text: string) => {
-    if (!audioCoaching || !isRunning || !('speechSynthesis' in window)) return;
+    if (!audioCoaching || !isRunning || distanceKm < 0.05 || !('speechSynthesis' in window)) return;
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = 'fr-FR';
@@ -305,6 +305,9 @@ export default function RunningTab({
   };
 
   const handleStartRun = () => {
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+    }
     setIsRunning(true);
     setIsPaused(false);
     setSeconds(0);
@@ -323,7 +326,7 @@ export default function RunningTab({
     setIsRunning(false);
     setIsPaused(false);
     speakMessage("Séance terminée. Excellent travail !");
-    
+     
     if (distanceKm > 0 && onSaveRunPost) {
       onSaveRunPost(`[Running] Sortie GPS de ${distanceKm} km en ${formatTime(seconds)} 🏃‍♂️`, distanceKm);
     }
