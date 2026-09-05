@@ -39,6 +39,7 @@ interface RunningTabProps {
   onDeleteShoe?: (shoeId: string) => void;
   onSetActiveShoe?: (shoeId: string) => void;
   onSaveRunPost?: (caption: string, km: number) => void;
+  onUpdateShoeKm?: (shoeId: string, addedKm: number) => void;
   onNavigateTab?: (tab: string) => void;
   onBack?: () => void;
 }
@@ -50,6 +51,7 @@ export default function RunningTab({
   onDeleteShoe = () => {},
   onSetActiveShoe = () => {},
   onSaveRunPost,
+  onUpdateShoeKm,
   onNavigateTab,
   onBack
 }: RunningTabProps) {
@@ -370,21 +372,37 @@ export default function RunningTab({
     setIsSaveModalOpen(true);
   };
 
-  // Option A : Sauvegarde en privé (pas de publication sur le fil)
-  const handleSavePrivate = () => {
-    setIsSaveModalOpen(false);
-    localStorage.removeItem('fitpulse_offline_run');
-    alert("Course enregistrée en mode privé dans votre historique ! 🔒");
+  // Fonction utilitaire interne pour impacter la chaussure active
+  const applyMileageToActiveShoe = () => {
+    if (distanceKm <= 0 || shoes.length === 0) return;
+    const activeShoe = shoes.find((s: any) => s.is_active || s.active);
+    if (activeShoe && onUpdateShoeKm) {
+      const shoeId = activeShoe.id || activeShoe._id;
+      if (shoeId) {
+        onUpdateShoeKm(shoeId, distanceKm);
+      }
+    }
   };
 
-  // Option B : Sauvegarde et Partage sur le fil communautaire
+  // Option A : Sauvegarde en privé (avec usure chaussures)
+  const handleSavePrivate = () => {
+    setIsSaveModalOpen(false);
+    applyMileageToActiveShoe();
+    localStorage.removeItem('fitpulse_offline_run');
+    alert(`Course de ${distanceKm} km enregistrée en privé ! Kilométrage des chaussures actualisé 👟🔒`);
+  };
+
+  // Option B : Sauvegarde et Partage sur le fil communautaire (avec usure chaussures)
   const handleSavePublic = () => {
     setIsSaveModalOpen(false);
-    if (distanceKm > 0 && onSaveRunPost) {
-      onSaveRunPost(`[Running] Sortie GPS de ${distanceKm} km en ${formatTime(seconds)} 🏃‍♂️`, distanceKm);
+    if (distanceKm > 0) {
+      if (onSaveRunPost) {
+        onSaveRunPost(`[Running] Sortie GPS de ${distanceKm} km en ${formatTime(seconds)} 🏃‍♂️`, distanceKm);
+      }
+      applyMileageToActiveShoe();
     }
     localStorage.removeItem('fitpulse_offline_run');
-    alert("Course enregistrée et publiée sur le fil d'actualité ! 🚀");
+    alert(`Course enregistrée, publiée et usure de vos chaussures mise à jour ! 🚀👟`);
   };
 
   const currentHours = seconds / 3600;
