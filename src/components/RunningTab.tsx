@@ -183,16 +183,10 @@ export default function RunningTab({
     }
 
     if (onSaveRunPost) {
-      onSavePostWithRoute();
-    } else {
-      alert(`🎯 Parcours de ${plannedDistanceKm} km (${circuitType.toUpperCase()}) prêt à être partagé au club !`);
-    }
-  };
-
-  const handleSavePostWithRoute = () => {
-    if (onSaveRunPost) {
       onSaveRunPost(`🗺️ [NOUVEAU PARCOURS DÉFI] Boucle de ${plannedDistanceKm} km (${circuitType.toUpperCase()}). Qui relève le défi de venir la courir ? 🚀`, plannedDistanceKm);
       alert(`🎯 Parcours partagé avec succès sur le fil d'actualité du club ! Les autres membres peuvent désormais le relever 🏆`);
+    } else {
+      alert(`🎯 Parcours de ${plannedDistanceKm} km (${circuitType.toUpperCase()}) prêt à être partagé au club !`);
     }
   };
 
