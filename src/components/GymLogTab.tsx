@@ -1,5 +1,5 @@
 import { useState, useEffect, FormEvent } from 'react';
-import { Dumbbell, Plus, Trash2, Trophy, Flame, Play, CheckCircle2, Activity, ShieldAlert, History } from 'lucide-react';
+import { Dumbbell, Plus, Trash2, Play, CheckCircle2, ShieldAlert, History, ChevronDown } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 
 interface GymLogTabProps {
@@ -10,8 +10,8 @@ interface GymLogTabProps {
 interface ExerciseLog {
   id: string;
   exerciseName: string;
-  category: 'Jambes' | 'Pecs/Triceps' | 'Dos/Biceps' | 'Épaules/Abdos' | 'Mobilité Hybride';
-  previousBest?: string; // Ex: "100kg x 5"
+  category: 'Jambes' | 'Pecs/Triceps' | 'Dos/Biceps' | 'Épaules/Abdos' | 'Mobilité Hybride' | 'Bras' | 'Fessiers';
+  previousBest?: string;
   sets: Array<{ weight: number; reps: number; completed: boolean }>;
 }
 
@@ -23,16 +23,63 @@ export default function GymLogTab({ currentUserId, onStartRestTimer }: GymLogTab
 
   // État d'ajout d'un nouvel exercice
   const [newExName, setNewExName] = useState('');
-  const [newExCategory, setNewExCategory] = useState<'Jambes' | 'Pecs/Triceps' | 'Dos/Biceps' | 'Épaules/Abdos' | 'Mobilité Hybride'>('Jambes');
+  const [newExCategory, setNewExCategory] = useState<'Jambes' | 'Pecs/Triceps' | 'Dos/Biceps' | 'Épaules/Abdos' | 'Mobilité Hybride' | 'Bras' | 'Fessiers'>('Jambes');
 
-  // Bibliothèque rapide d'exercices hybrides pré-configurés
-  const hybridPresets = [
-    { name: 'Back Squat (Force)', category: 'Jambes' as const, prev: '100kg x 5' },
-    { name: 'Soulevé de Terre Roumain', category: 'Jambes' as const, prev: '90kg x 8' },
-    { name: 'Développé Couché Incliné', category: 'Pecs/Triceps' as const, prev: '75kg x 8' },
-    { name: 'Tractions Lestées', category: 'Dos/Biceps' as const, prev: 'PDC + 10kg x 5' },
-    { name: 'Gainage Pallof (Anti-rotation)', category: 'Mobilité Hybride' as const, prev: '20kg x 12' },
-  ];
+  // Bibliothèque complète d'exercices classés par groupe musculaire (totalement modifiable et exhaustive)
+  const muscleGroupsDatabase: Record<string, string[]> = {
+    'Jambes': [
+      'Back Squat (Force)',
+      'Front Squat',
+      'Presse à cuisses inclinée',
+      'Fentes bulgares',
+      'Leg Extension',
+      'Leg Curl ischio-jambiers',
+      'Soulevé de Terre Roumain'
+    ],
+    'Fessiers': [
+      'Hip Thrust (Bassin)',
+      'Glute Bridge à la barre',
+      'Kickback poulie basse',
+      'Fentes marchées'
+    ],
+    'Dos/Biceps': [
+      'Tractions Lestées',
+      'Tractions pronation / supination',
+      'Rowing barre penché',
+      'Rowing poulie basse (T-Bar)',
+      'Tirage vertical poitrine',
+      'Curl Biceps haltères',
+      'Curl Pupitre (Larry Scott)'
+    ],
+    'Pecs/Triceps': [
+      'Développé Couché Incliné',
+      'Développé Couché plat',
+      'Dips aux barres parallèles',
+      'Écartés poulie vis-à-vis',
+      'Pompes lestées',
+      'Extension Triceps poulie haute',
+      'Barre Front Triceps'
+    ],
+    'Épaules/Abdos': [
+      'Développé Milieu Militaire (Overhead Press)',
+      'Élévations latérales haltères',
+      'Oiseau poulie vis-à-vis (arrière d\'épaule)',
+      'Crunch poulie haute (Abdos)',
+      'Gainage Pallof (Anti-rotation)'
+    ],
+    'Bras': [
+      'Curl Biceps haltères alternés',
+      'Curl Marteau (Hammer Curl)',
+      'Extension Triceps corde',
+      'Dips entre deux bancs'
+    ],
+    'Mobilité Hybride': [
+      'Mobilité de hanche 90/90',
+      'Étirements chaîne postérieure',
+      'Gainage Pallof (Anti-rotation)',
+      'Travail excentrique ischios'
+    ]
+  };
 
   // Chronographe de séance
   useEffect(() => {
@@ -70,13 +117,13 @@ export default function GymLogTab({ currentUserId, onStartRestTimer }: GymLogTab
     ]);
   };
 
-  const handleAddPresetExercise = (preset: typeof hybridPresets[0]) => {
+  const handleAddPresetExercise = (exerciseName: string, categoryKey: string) => {
     const newExercise: ExerciseLog = {
       id: Date.now().toString(),
-      exerciseName: preset.name,
-      category: preset.category,
-      previousBest: preset.prev,
-      sets: [{ weight: 60, reps: 8, completed: false }]
+      exerciseName: exerciseName,
+      category: categoryKey as any,
+      previousBest: 'Référence libre 🚀',
+      sets: [{ weight: 50, reps: 10, completed: false }]
     };
     setExercises(prev => [...prev, newExercise]);
   };
@@ -95,6 +142,16 @@ export default function GymLogTab({ currentUserId, onStartRestTimer }: GymLogTab
 
     setExercises(prev => [...prev, newExercise]);
     setNewExName('');
+  };
+
+  // Permet de changer l'exercice à la volée directement depuis la carte de séance active
+  const handleChangeExerciseName = (exerciseId: string, newName: string) => {
+    setExercises(prev => prev.map(ex => {
+      if (ex.id === exerciseId) {
+        return { ...ex, exerciseName: newName };
+      }
+      return ex;
+    }));
   };
 
   const handleAddSet = (exerciseId: string) => {
@@ -176,7 +233,7 @@ export default function GymLogTab({ currentUserId, onStartRestTimer }: GymLogTab
 
   return (
     <div className="space-y-6 pb-20 animate-fadeIn">
-       
+        
       {/* En-tête / Dashboard de Contrôle */}
       <div className="bg-gradient-to-r from-neutral-900 via-neutral-900 to-orange-950/40 border border-neutral-800 rounded-3xl p-5 shadow-xl flex items-center justify-between">
         <div>
@@ -216,7 +273,7 @@ export default function GymLogTab({ currentUserId, onStartRestTimer }: GymLogTab
           <span>💡 Comment utiliser le Carnet Muscu ?</span>
         </div>
         <p className="text-neutral-400 leading-relaxed">
-          Note tes exercices, tes séries, tes charges et tes répétitions en direct pendant ta séance. Utilise le minuteur de repos intégré entre chaque série pour optimiser ta récupération et progresser d'une semaine sur l'autre. 🏋️‍♂️
+          Note tes exercices, tes séries, change d'exercice à la volée selon ton matériel disponible (jambes, fessiers, dos, pecs, bras), et utilise le minuteur de repos intégré pour optimiser ta récupération. 🏋️‍♂️
         </p>
       </div>
 
@@ -251,7 +308,7 @@ export default function GymLogTab({ currentUserId, onStartRestTimer }: GymLogTab
             </div>
             <h3 className="text-sm font-black text-white">Prêt à valider tes perfs ?</h3>
             <p className="text-xs text-neutral-400 max-w-sm mx-auto">
-              Lance ta séance pour intégrer des exercices hybrides ciblés, suivre ton historique de surcharge et calculer ton 1RM en direct.
+              Lance ta séance pour intégrer des exercices hybrides ciblés (Jambes, Fessiers, Dos, Pecs, Bras), suivre ton historique et calculer ton 1RM en direct.
             </p>
             <button
               type="button"
@@ -277,26 +334,47 @@ export default function GymLogTab({ currentUserId, onStartRestTimer }: GymLogTab
             </span>
           </div>
 
-          {/* Liste des exercices */}
+          {/* Liste des exercices actifs de la séance */}
           {exercises.map((ex) => (
             <div key={ex.id} className="bg-neutral-900 border border-neutral-800 rounded-3xl p-4 sm:p-5 space-y-3 shadow-xl">
               <div className="flex items-center justify-between">
-                <div>
-                  <span className="text-[10px] font-bold text-orange-400 uppercase tracking-wider block">{ex.category}</span>
-                  <h4 className="text-sm font-black text-white">{ex.exerciseName}</h4>
+                <div className="w-full space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold text-orange-400 uppercase tracking-wider">{ex.category}</span>
+                    <button
+                      type="button"
+                      onClick={() => setExercises(prev => prev.filter(item => item.id !== ex.id))}
+                      className="text-neutral-500 hover:text-red-400 p-1 transition cursor-pointer"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                  
+                  {/* Sélecteur dynamique pour changer d'exercice à la volée */}
+                  <div className="relative">
+                    <select
+                      value={ex.exerciseName}
+                      onChange={(e) => handleChangeExerciseName(ex.id, e.target.value)}
+                      className="w-full bg-neutral-950 border border-neutral-700 rounded-2xl px-3 py-2 text-xs font-black text-white focus:outline-none focus:border-orange-500 appearance-none cursor-pointer"
+                    >
+                      <option value={ex.exerciseName}>{ex.exerciseName} (Actuel)</option>
+                      {Object.entries(muscleGroupsDatabase).map(([group, list]) => (
+                        <optgroup key={group} label={`--- ${group} ---`}>
+                          {list.map((item) => (
+                            <option key={item} value={item}>{item}</option>
+                          ))}
+                        </optgroup>
+                      ))}
+                    </select>
+                    <ChevronDown className="absolute right-3 top-3 w-4 h-4 text-neutral-400 pointer-events-none" />
+                  </div>
+
                   {ex.previousBest && (
-                    <span className="text-[10px] text-neutral-400 flex items-center gap-1 mt-0.5">
+                    <span className="text-[10px] text-neutral-400 flex items-center gap-1 pt-0.5">
                       <History className="w-3 h-3 text-cyan-400" /> Semaine dernière : <strong className="text-white">{ex.previousBest}</strong>
                     </span>
                   )}
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setExercises(prev => prev.filter(item => item.id !== ex.id))}
-                  className="text-neutral-500 hover:text-red-400 p-1.5 transition cursor-pointer"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
               </div>
 
               {/* Tableau des séries */}
@@ -368,27 +446,32 @@ export default function GymLogTab({ currentUserId, onStartRestTimer }: GymLogTab
             </div>
           ))}
 
-          {/* --- BIBLIOTHÈQUE RAPIDE D'EXERCICES HYBRIDES --- */}
-          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-4 sm:p-5 space-y-3 shadow-xl">
+          {/* --- BIBLIOTHÈQUE D'EXERCICES PAR CATÉGORIE (Jambes, Fessiers, Dos, Pecs, Bras, etc.) --- */}
+          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-4 sm:p-5 space-y-4 shadow-xl">
             <h4 className="text-xs font-black uppercase tracking-wider text-cyan-400 flex items-center gap-1.5">
-              ⚡ Bibliothèque d'exercices Recommandés (Athlète Hybride)
+              ⚡ Bibliothèque d'exercices Recommandés (Choisis ton groupe musculaire)
             </h4>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {hybridPresets.map((preset, idx) => (
-                <button
-                  key={idx}
-                  type="button"
-                  onClick={() => handleAddPresetExercise(preset)}
-                  className="p-3 bg-neutral-950 hover:bg-neutral-850 border border-neutral-800 hover:border-cyan-500/50 rounded-2xl text-left transition cursor-pointer flex flex-col gap-1"
-                >
-                  <span className="text-xs font-black text-white">{preset.name}</span>
-                  <div className="flex justify-between items-center text-[10px] text-neutral-400">
-                    <span className="text-orange-400 font-bold">{preset.category}</span>
-                    <span>Ref : {preset.prev}</span>
-                  </div>
-                </button>
-              ))}
-            </div>
+
+            {Object.entries(muscleGroupsDatabase).map(([groupName, items]) => (
+              <div key={groupName} className="space-y-2">
+                <span className="text-[11px] font-bold text-orange-400 uppercase tracking-wide block pt-1 border-t border-neutral-800/80">
+                  {groupName}
+                </span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {items.map((exName, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => handleAddPresetExercise(exName, groupName)}
+                      className="p-3 bg-neutral-950 hover:bg-neutral-850 border border-neutral-800 hover:border-cyan-500/50 rounded-2xl text-left transition cursor-pointer flex items-center justify-between"
+                    >
+                      <span className="text-xs font-black text-white">{exName}</span>
+                      <span className="text-[10px] bg-neutral-900 text-cyan-400 px-2 py-1 rounded-lg border border-neutral-800">+ Ajouter</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
 
           {/* Formulaire d'ajout personnalisé */}
@@ -400,7 +483,7 @@ export default function GymLogTab({ currentUserId, onStartRestTimer }: GymLogTab
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <input 
                 type="text"
-                placeholder="Nom personnalisé..."
+                placeholder="Nom personnalisé (ex: Hack Squat)..."
                 value={newExName}
                 onChange={(e) => setNewExName(e.target.value)}
                 className="w-full bg-neutral-950 border border-neutral-800 rounded-2xl px-4 py-3 text-xs text-white focus:outline-none focus:border-orange-500"
@@ -411,8 +494,10 @@ export default function GymLogTab({ currentUserId, onStartRestTimer }: GymLogTab
                 className="w-full bg-neutral-950 border border-neutral-800 rounded-2xl px-4 py-3 text-xs text-white focus:outline-none focus:border-orange-500 cursor-pointer"
               >
                 <option value="Jambes">Jambes</option>
+                <option value="Fessiers">Fessiers</option>
                 <option value="Pecs/Triceps">Pecs / Triceps</option>
                 <option value="Dos/Biceps">Dos / Biceps</option>
+                <option value="Bras">Bras</option>
                 <option value="Épaules/Abdos">Épaules / Core</option>
                 <option value="Mobilité Hybride">Mobilité & Renfo Coureurs</option>
               </select>
