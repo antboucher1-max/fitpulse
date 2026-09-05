@@ -73,7 +73,7 @@ export default function RunningTab({
   // État pour afficher la modale de rapport de fin de course / défi unifiée
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
 
-  // --- ARCHITECTE DE CIRCUITS INTELLIGENTS ---
+  // --- ARCHITECTE DE CIRCUITS INTELLIGENTS (ROUTAGE RÉEL OSRM) ---
   const [plannedRoutePositions, setPlannedRoutePositions] = useState<Array<[number, number]>>([]);
   const [plannedDistanceKm, setPlannedDistanceKm] = useState<number>(0);
   const [circuitType, setCircuitType] = useState<'route' | 'bois' | 'carriere'>('route');
@@ -123,30 +123,56 @@ export default function RunningTab({
 
   const lastPositionRef = useRef<[number, number]>([50.505, 3.325]);
 
-  // --- GÉNÉRATEUR AUTOMATIQUE DE CIRCUIT INTELLIGENT (CALIBRÉ PRÉCISÉMENT) ---
-  const handleGenerateSmartCircuit = (targetKm: number) => {
+  // --- GÉNÉRATEUR DE CIRCUIT RÉEL (Basé sur le réseau de vraies routes via OSRM) ---
+  const handleGenerateSmartCircuit = async (targetKm: number) => {
     const baseLat = currentPosition[0];
     const baseLng = currentPosition[1];
     
-    const pointsCount = 16;
-    const generated: Array<[number, number]> = [];
-    
-    // Formule mathématique exacte pour que le périmètre corresponde au kilométrage cible
-    const radiusKm = targetKm / (2 * Math.PI);
-    const radiusDegree = radiusKm / 111; 
+    alert(`⏳ Calcul d'un vrai circuit routier de ${targetKm} km autour de votre position...`);
 
-    for (let i = 0; i <= pointsCount; i++) {
-      const angle = (i / pointsCount) * (2 * Math.PI);
-      const jitter = 1 + (Math.sin(i * 2.5) * 0.08); 
-      const lat = baseLat + (Math.sin(angle) * radiusDegree * jitter);
-      const lng = baseLng + (Math.cos(angle) * radiusDegree * jitter * 1.3); 
-      generated.push([lat, lng]);
+    try {
+      const angleOffset = Math.random() * Math.PI; 
+      const halfDistKm = targetKm / 2;
+      
+      const latOffset = (halfDistKm / 111) * Math.cos(angleOffset);
+      const lngOffset = (halfDistKm / 75) * Math.sin(angleOffset);
+
+      const waypointLat = baseLat + latOffset;
+      const waypointLng = baseLng + lngOffset;
+
+      const response = await fetch(`https://router.project-osrm.org/route/v1/foot/${baseLng},${baseLat};${waypointLng},${waypointLat};${baseLng},${baseLat}?overview=full&geometries=geojson`);
+      const data = await response.json();
+
+      if (data && data.routes && data.routes.length > 0) {
+        const coords = data.routes[0].geometry.coordinates.map((c: [number, number]) => [c[1], c[0]] as [number, number]);
+        const actualKm = Number((data.routes[0].distance / 1000).toFixed(2));
+
+        setPlannedRoutePositions(coords);
+        setPlannedDistanceKm(actualKm);
+        alert(`✅ Vrai circuit sur route généré avec succès ! Distance réelle calculée : ${actualKm} km 🗺️`);
+      } else {
+        throw new Error("Impossible de trouver un itinéraire via OSRM");
+      }
+    } catch (e) {
+      console.warn("Erreur de routage réel, basculement sur la géométrie de secours :", e);
+      
+      const pointsCount = 20;
+      const generated: Array<[number, number]> = [];
+      const radiusKm = targetKm / (2 * Math.PI);
+      const radiusDegree = radiusKm / 111;
+
+      for (let i = 0; i <= pointsCount; i++) {
+        const angle = (i / pointsCount) * (2 * Math.PI);
+        const lat = baseLat + (Math.sin(angle) * radiusDegree);
+        const lng = baseLng + (Math.cos(angle) * radiusDegree * 1.4);
+        generated.push([lat, lng]);
+      }
+      generated.push(generated[0]);
+
+      setPlannedRoutePositions(generated);
+      setPlannedDistanceKm(targetKm);
+      alert(`⚡ Mode Hors-Ligne : Boucle de secours de ${targetKm} km générée.`);
     }
-    generated.push(generated[0]);
-
-    setPlannedRoutePositions(generated);
-    setPlannedDistanceKm(targetKm);
-    alert(`⚡ Boucle fermée calibrée de ${targetKm} km (${circuitType.toUpperCase()}) générée avec succès !`);
   };
 
   // Fonction d'import GPX unifiée (Circuit cible ou Course réalisée)
@@ -566,11 +592,11 @@ export default function RunningTab({
         </div>
       </div>
 
-      {/* 🗺️ ARCHITECTE DE CIRCUITS & GÉNÉRATEUR INTELLIGENT (Calibré précisément) */}
+      {/* 🗺️ ARCHITECTE DE CIRCUITS & ROUTAGE RÉEL OSRM */}
       <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4 shadow-xl">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 text-sky-400 font-bold text-xs uppercase tracking-wider">
-            <CompassIcon className="w-4 h-4" /> Architecte de Circuits & Itinéraires ⚡
+            <CompassIcon className="w-4 h-4" /> Architecte de Circuits & Itinéraires Réels ⚡
           </div>
           {plannedRoutePositions.length > 0 && (
             <button
@@ -582,7 +608,7 @@ export default function RunningTab({
           )}
         </div>
         <p className="text-xs text-neutral-400 leading-relaxed">
-          Génère instantanément un circuit en boucle fermé (route, bois ou carrière) autour de ta position pour ta préparation ou ton entraînement du jour.
+          Génère instantanément un vrai circuit routier basé sur les axes d'OpenStreetMap autour de ta position.
         </p>
 
         <div className="space-y-3 pt-1">
