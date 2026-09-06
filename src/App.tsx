@@ -40,6 +40,7 @@ import NutritionTab from './components/NutritionTab';
 import PacingMatrixPlanner from './components/PacingMatrixPlanner';
 import BioSyncTab from './components/BioSyncTab';
 import SncShieldWidget from './components/SncShieldWidget';
+import SpotSegmentsTab from './components/SpotSegmentsTab';
 
 import FatigueDashboardCard from './components/FatigueDashboardCard';
 import { calculateApexScore } from './ApexScoreEngine';
@@ -72,7 +73,7 @@ export default function App() {
 
   const [isWelcomeModalOpen, setIsWelcomeModalOpen] = useState(false);
 
-  const [currentTab, setCurrentTab] = useState<'today' | 'community' | 'profile' | 'feed' | 'buddy' | 'workout' | 'exercises' | 'chat' | 'calculator' | 'paces' | 'live_tracker' | 'rest_timer' | 'notifications' | 'leaderboard' | 'boxwars' | 'running' | 'readiness' | 'hall_of_fame' | 'fitbot' | 'fridge_scanner' | 'fitbot_pro' | 'nutrition' | 'matrix' | 'biosync'>(() => {
+  const [currentTab, setCurrentTab] = useState<'today' | 'community' | 'profile' | 'feed' | 'buddy' | 'workout' | 'exercises' | 'chat' | 'calculator' | 'paces' | 'live_tracker' | 'rest_timer' | 'notifications' | 'leaderboard' | 'boxwars' | 'running' | 'readiness' | 'hall_of_fame' | 'fitbot' | 'fridge_scanner' | 'fitbot_pro' | 'nutrition' | 'matrix' | 'biosync' | 'segments'>(() => {
     const savedTab = localStorage.getItem('fitpulse_active_tab');
     return (savedTab as any) || 'today';
   });
@@ -538,15 +539,15 @@ export default function App() {
       <div className="w-full max-w-md mx-auto min-h-screen bg-neutral-950 flex flex-col shadow-2xl sm:border-x sm:border-neutral-900 relative">
         <header className="sticky top-0 z-40 bg-neutral-950/80 backdrop-blur-md border-b border-neutral-900 px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className={`w-8 h-8 rounded-xl ${currentTab === 'boxwars' ? 'bg-cyan-500/20 text-cyan-400' : currentTab === 'running' ? 'bg-emerald-500/20 text-emerald-400' : currentTab === 'hall_of_fame' ? 'bg-red-500/20 text-red-400' : currentTab === 'buddy' ? 'bg-orange-500/20 text-orange-400' : currentTab === 'fitbot' || currentTab === 'fitbot_pro' ? 'bg-cyan-500/20 text-cyan-400' : currentTab === 'fridge_scanner' || currentTab === 'nutrition' || currentTab === 'biosync' ? 'bg-emerald-500/20 text-emerald-400' : currentTab === 'matrix' ? 'bg-orange-500/20 text-orange-400' : 'bg-orange-500/20 text-orange-500'} flex items-center justify-center`}>
+            <div className={`w-8 h-8 rounded-xl ${currentTab === 'boxwars' ? 'bg-cyan-500/20 text-cyan-400' : currentTab === 'running' ? 'bg-emerald-500/20 text-emerald-400' : currentTab === 'hall_of_fame' ? 'bg-red-500/20 text-red-400' : currentTab === 'buddy' ? 'bg-orange-500/20 text-orange-400' : currentTab === 'fitbot' || currentTab === 'fitbot_pro' ? 'bg-cyan-500/20 text-cyan-400' : currentTab === 'fridge_scanner' || currentTab === 'nutrition' || currentTab === 'biosync' ? 'bg-emerald-500/20 text-emerald-400' : currentTab === 'segments' ? 'bg-orange-500/20 text-orange-400' : currentTab === 'matrix' ? 'bg-orange-500/20 text-orange-400' : 'bg-orange-500/20 text-orange-500'} flex items-center justify-center`}>
               <Zap className="w-5 h-5" />
             </div>
             <h1 className="text-base font-black tracking-tight leading-none text-white">
-              {currentTab === 'boxwars' ? 'BOXWARS' : currentTab === 'running' ? 'RUNNING' : currentTab === 'hall_of_fame' ? 'HALL OF FAME' : currentTab === 'buddy' ? 'BUDDIES & MATCH' : currentTab === 'fitbot' || currentTab === 'fitbot_pro' ? 'FITBOT AI' : currentTab === 'fridge_scanner' ? 'SCAN FRIGO' : currentTab === 'nutrition' ? 'NUTRITION LAB' : currentTab === 'biosync' ? 'BIO-SYNC' : currentTab === 'matrix' ? 'PACING MATRIX' : 'FitPulse'}
+              {currentTab === 'boxwars' ? 'BOXWARS' : currentTab === 'running' ? 'RUNNING' : currentTab === 'hall_of_fame' ? 'HALL OF FAME' : currentTab === 'buddy' ? 'BUDDIES & MATCH' : currentTab === 'fitbot' || currentTab === 'fitbot_pro' ? 'FITBOT AI' : currentTab === 'fridge_scanner' ? 'SCAN FRIGO' : currentTab === 'nutrition' ? 'NUTRITION LAB' : currentTab === 'biosync' ? 'BIO-SYNC' : currentTab === 'segments' ? 'KING OF SPOT' : currentTab === 'matrix' ? 'PACING MATRIX' : 'FitPulse'}
             </h1>
           </div>
 
-          {currentTab !== 'boxwars' && currentTab !== 'running' && currentTab !== 'readiness' && currentTab !== 'paces' && currentTab !== 'calculator' && currentTab !== 'hall_of_fame' && currentTab !== 'buddy' && currentTab !== 'fitbot' && currentTab !== 'fitbot_pro' && currentTab !== 'fridge_scanner' && currentTab !== 'nutrition' && currentTab !== 'biosync' && currentTab !== 'matrix' && (
+          {currentTab !== 'boxwars' && currentTab !== 'running' && currentTab !== 'readiness' && currentTab !== 'paces' && currentTab !== 'calculator' && currentTab !== 'hall_of_fame' && currentTab !== 'buddy' && currentTab !== 'fitbot' && currentTab !== 'fitbot_pro' && currentTab !== 'fridge_scanner' && currentTab !== 'nutrition' && currentTab !== 'biosync' && currentTab !== 'segments' && currentTab !== 'matrix' && (
             <div className="w-[42%] sm:w-[40%]">
               <SpotSearchInput 
                 selectedSpot={selectedClub} 
@@ -676,17 +677,30 @@ export default function App() {
                 </div>
               </div>
 
-              {/* --- 3. ACCÈS PACING MATRIX --- */}
-              <button
-                type="button"
-                onClick={() => handleTabChange('matrix')}
-                className="w-full py-4 bg-neutral-900 hover:bg-neutral-850 border border-neutral-800 hover:border-orange-500/50 rounded-3xl px-5 flex items-center justify-between text-xs font-bold text-white shadow-xl transition cursor-pointer"
-              >
-                <span className="flex items-center gap-2 text-orange-400">
-                  <Target className="w-4 h-4" /> Planificateur de Cycle (Pacing Matrix)
-                </span>
-                <ChevronRight className="w-4 h-4 text-neutral-500" />
-              </button>
+              {/* --- 3. ACCÈS PACING MATRIX & SEGMENTS --- */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleTabChange('matrix')}
+                  className="w-full py-4 bg-neutral-900 hover:bg-neutral-850 border border-neutral-800 hover:border-orange-500/50 rounded-3xl px-5 flex items-center justify-between text-xs font-bold text-white shadow-xl transition cursor-pointer"
+                >
+                  <span className="flex items-center gap-2 text-orange-400">
+                    <Target className="w-4 h-4" /> Pacing Matrix
+                  </span>
+                  <ChevronRight className="w-4 h-4 text-neutral-500" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleTabChange('segments')}
+                  className="w-full py-4 bg-neutral-900 hover:bg-neutral-850 border border-neutral-800 hover:border-orange-500/50 rounded-3xl px-5 flex items-center justify-between text-xs font-bold text-white shadow-xl transition cursor-pointer"
+                >
+                  <span className="flex items-center gap-2 text-orange-400">
+                    <Trophy className="w-4 h-4" /> King of the Spot
+                  </span>
+                  <ChevronRight className="w-4 h-4 text-neutral-500" />
+                </button>
+              </div>
 
               {/* --- 4. MODULES IA & SCAN FRIGO --- */}
               <PaywallGate userId={user?.id} currentUserProfile={currentUserProfile} featureName="IA Coach Proactif & Scan Frigo">
@@ -785,6 +799,16 @@ export default function App() {
 
           {currentTab === 'biosync' && (
             <BioSyncTab currentSncScore={currentReadinessScore} onBack={() => handleTabChange('today')} />
+          )}
+
+          {currentTab === 'segments' && (
+            <SpotSegmentsTab 
+              currentUserId={user?.id}
+              currentUsername={currentUsername}
+              userAvatarUrl={currentUserProfile?.avatar_url || userAvatarUrl}
+              selectedClub={selectedClub}
+              onBack={() => handleTabChange('today')}
+            />
           )}
 
           {currentTab === 'fitbot' && (
@@ -1554,7 +1578,7 @@ export default function App() {
         })()}
 
         <nav className="sticky bottom-0 left-0 right-0 z-40 bg-neutral-950/95 backdrop-blur-xl border-t border-neutral-800 px-4 py-3 flex justify-around items-center">
-          <button onClick={() => handleTabChange('today')} className={`flex flex-col items-center gap-1 transition active:scale-95 cursor-pointer px-2 ${currentTab === 'today' || currentTab === 'running' || currentTab === 'readiness' || currentTab === 'boxwars' || currentTab === 'fridge_scanner' || currentTab === 'fitbot_pro' || currentTab === 'matrix' || currentTab === 'biosync' ? 'text-orange-500 font-bold' : 'text-neutral-500 hover:text-neutral-300'}`}>
+          <button onClick={() => handleTabChange('today')} className={`flex flex-col items-center gap-1 transition active:scale-95 cursor-pointer px-2 ${currentTab === 'today' || currentTab === 'running' || currentTab === 'readiness' || currentTab === 'boxwars' || currentTab === 'fridge_scanner' || currentTab === 'fitbot_pro' || currentTab === 'matrix' || currentTab === 'biosync' || currentTab === 'segments' ? 'text-orange-500 font-bold' : 'text-neutral-500 hover:text-neutral-300'}`}>
             <Home className="w-5 h-5" />
             <span className="text-[10px]">Aujourd'hui</span>
           </button>
