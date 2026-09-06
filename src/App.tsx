@@ -195,6 +195,13 @@ export default function App() {
     weeklyLoad: 45
   });
 
+  // Historique de charge dynamique pour le SncShieldWidget
+  const recentTrainingLoads = gymLogsData.map((log: any) => ({
+    date: log.created_at || new Date().toISOString(),
+    loadScore: Number(log.load_score || log.rpe || 70),
+    type: 'muscu' as const
+  }));
+
   const handleAddShoe = async (brand: string, model: string, maxKm: number) => {
     if (!user) return;
     const isFirst = userShoes.length === 0;
@@ -533,24 +540,6 @@ export default function App() {
       />
     );
   }
-
-  const currentReadinessScore = calculateDynamicReadiness();
-
-  // Calcul en direct du score Apex (type Yuka)
-  const todayApexData = calculateApexScore({
-    readinessScore: currentReadinessScore,
-    nutritionCompliance: true,
-    hydrationLiters: 2.2,
-    targetHydrationLiters: 3.0,
-    weeklyLoad: 45
-  });
-
-  // Historique de charge dynamique pour le SncShieldWidget
-  const recentTrainingLoads = gymLogsData.map((log: any) => ({
-    date: log.created_at || new Date().toISOString(),
-    loadScore: Number(log.load_score || log.rpe || 70),
-    type: 'muscu' as const
-  }));
 
   return (
     <div className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col font-sans select-none antialiased relative">
