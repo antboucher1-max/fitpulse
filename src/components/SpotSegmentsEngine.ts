@@ -1,57 +1,90 @@
-export interface SpotSegment {
+export interface SegmentAttempt {
+  id: string;
+  segmentName: string;
+  distanceKm: number;
+  clubSpot: string;
+  athleteId: string;
+  athleteUsername: string;
+  athleteAvatar: string;
+  timeSeconds: number;
+  date: string;
+}
+
+// Stockage local / mémoire pour les segments créés par la communauté
+export let COMMUNITY_SEGMENTS: Array<{
   id: string;
   name: string;
   distanceKm: number;
-  clubSpot: string; // Ex: 'Tournai (Quais de l’Escaut & Parc)'
-  currentKing: {
+  clubSpot: string;
+  king: {
+    userId: string;
     username: string;
     timeSeconds: number;
     avatarUrl: string;
     date: string;
   };
-}
-
-export const LOCAL_SPOT_SEGMENTS: SpotSegment[] = [
+}> = [
   {
-    id: 'seg_1',
-    name: '⚡ Le Sprint des Quais de l’Escaut',
-    distanceKm: 1.2,
-    clubSpot: 'Tournai (Quais de l’Escaut & Parc)',
-    currentKing: {
-      username: 'Antoine',
-      timeSeconds: 254, // 4:14
+    id: 'seg_default_1',
+    name: '⚡ Boucle Express Locale',
+    distanceKm: 2.0,
+    clubSpot: 'Global / Tous les spots',
+    king: {
+      userId: 'bot_1',
+      username: 'Pionnier',
+      timeSeconds: 480, // 8:00
       avatarUrl: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=150',
-      date: '2026-06-02'
-    }
-  },
-  {
-    id: 'seg_2',
-    name: '🔥 La Boucle Technique du Parc',
-    distanceKm: 2.5,
-    clubSpot: 'Tournai (Quais de l’Escaut & Parc)',
-    currentKing: {
-      username: 'Marc_CrossFit',
-      timeSeconds: 580, // 9:40
-      avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150',
-      date: '2026-06-04'
+      date: '2026-06-01'
     }
   }
 ];
 
-export function checkSegmentAttempt(segmentId: string, userTimeSeconds: number, username: string, avatarUrl: string) {
-  const segment = LOCAL_SPOT_SEGMENTS.find(s => s.id === segmentId);
+export function registerNewSegmentAttempt(
+  segmentId: string, 
+  userTimeSeconds: number, 
+  userId: string, 
+  username: string, 
+  avatarUrl: string
+) {
+  const segment = COMMUNITY_SEGMENTS.find(s => s.id === segmentId);
   if (!segment) return { isNewRecord: false, segment: null };
 
-  if (userTimeSeconds < segment.currentKing.timeSeconds) {
-    // Nouveau record ! L'athlète prend la couronne
-    segment.currentKing = {
+  if (userTimeSeconds < segment.king.timeSeconds) {
+    segment.king = {
+      userId,
       username,
       timeSeconds: userTimeSeconds,
       avatarUrl,
       date: new Date().toISOString().split('T')[0]
     };
-    return { isNewRecord: true, segment, diffSeconds: segment.currentKing.timeSeconds - userTimeSeconds };
+    return { isNewRecord: true, segment };
   }
 
   return { isNewRecord: false, segment };
+}
+
+export function createNewCustomSegment(
+  name: string, 
+  distanceKm: number, 
+  clubSpot: string, 
+  userId: string, 
+  username: string, 
+  avatarUrl: string, 
+  timeSeconds: number
+) {
+  const newSegment = {
+    id: 'seg_' + Date.now(),
+    name,
+    distanceKm,
+    clubSpot,
+    king: {
+      userId,
+      username,
+      timeSeconds,
+      avatarUrl,
+      date: new Date().toISOString().split('T')[0]
+    }
+  };
+  COMMUNITY_SEGMENTS.unshift(newSegment);
+  return newSegment;
 }
