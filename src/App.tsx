@@ -137,6 +137,7 @@ export default function App() {
   const [newTransIsPrivate, setNewTransIsPrivate] = useState<boolean>(true);
 
   const [, setActiveCommentPostId] = useState<string | null>(null);
+  const [todaySubTab, setTodaySubTab] = useState<'overview' | 'readiness' | 'ai'>('overview');
 
   const fetchCloudPosts = async () => {
     setFeedLoading(true);
@@ -541,9 +542,6 @@ export default function App() {
     );
   }
 
-  // État local pour gérer l'onglet actif sur la page d'accueil (Aperçu / Forme / IA & Outils)
-  const [todaySubTab, setTodaySubTab] = useState<'overview' | 'readiness' | 'ai'>('overview');
-
   return (
     <div className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col font-sans select-none antialiased relative">
       <div className="w-full max-w-md mx-auto min-h-screen bg-neutral-950 flex flex-col shadow-2xl sm:border-x sm:border-neutral-900 relative">
@@ -589,197 +587,228 @@ export default function App() {
           {currentTab === 'today' && (
             <div className="space-y-4 animate-fadeIn pb-16">
               
-              {/* --- MINI-ONGLETS DE NAVIGATION INTERNE (Pour enlever l'effet surchargé) --- */}
-              <div className="flex bg-neutral-900 p-1 rounded-2xl border border-neutral-800 shadow-inner">
-                <button 
-                  type="button"
-                  onClick={() => setTodaySubTab('overview')} 
-                  className={`flex-1 py-2 text-xs font-black rounded-xl transition cursor-pointer ${todaySubTab === 'overview' ? 'bg-orange-600 text-white shadow-md' : 'text-neutral-400 hover:text-white'}`}
-                >
-                  📊 Aperçu Global
-                </button>
-                <button 
-                  type="button"
-                  onClick={() => setTodaySubTab('readiness')} 
-                  className={`flex-1 py-2 text-xs font-black rounded-xl transition cursor-pointer ${todaySubTab === 'readiness' ? 'bg-orange-600 text-white shadow-md' : 'text-neutral-400 hover:text-white'}`}
-                >
-                  ⚡ Check-in Forme
-                </button>
-                <button 
-                  type="button"
-                  onClick={() => setTodaySubTab('ai')} 
-                  className={`flex-1 py-2 text-xs font-black rounded-xl transition cursor-pointer ${todaySubTab === 'ai' ? 'bg-orange-600 text-white shadow-md' : 'text-neutral-400 hover:text-white'}`}
-                >
-                  🤖 IA & Outils
-                </button>
-            </div>
-
-              {/* --- SOUS-ONGLET 1 : APERÇU GLOBAL --- */}
-              {todaySubTab === 'overview' && (
-                <div className="space-y-3 animate-fadeIn">
-                    {/* Index Apex Fusionné */}
-                    <div className={`border rounded-3xl p-5 space-y-4 shadow-2xl relative overflow-hidden transition-all duration-300 ${
-                      todayApexData.badgeColor === 'red' ? 'bg-gradient-to-br from-red-950/40 via-neutral-900 to-neutral-950 border-red-500/50' : 
-                      todayApexData.badgeColor === 'amber' ? 'bg-gradient-to-br from-amber-950/40 via-neutral-900 to-neutral-950 border-amber-500/50' : 'bg-gradient-to-br from-neutral-900 via-neutral-900 to-neutral-950 border-neutral-800'
-                    }`}>
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-black uppercase tracking-wider text-orange-400 flex items-center gap-2">
-                          <Target className="w-4 h-4" /> Index Apex (Score Global)
-                        </span>
-                        <span className={`text-xs font-black px-3.5 py-1 rounded-full border shadow-sm ${
-                          todayApexData.badgeColor === 'red' ? 'bg-red-500/20 text-red-400 border-red-500/30' : 
-                          todayApexData.badgeColor === 'amber' ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
-                        }`}>
-                          {todayApexData.score} / 100 🎯
-                        </span>
-                      </div>
-                      <p className="text-xs text-neutral-300 leading-relaxed font-medium">
-                        {todayApexData.message}
-                      </p>
-                      <div className="grid grid-cols-3 gap-2 pt-1">
-                        <div className="bg-neutral-950/80 p-2.5 rounded-2xl border border-neutral-800/80 text-center">
-                          <span className="text-[10px] text-neutral-400 block font-semibold">SNC & Forme</span>
-                          <span className="font-black text-white text-xs">{todayApexData.breakdown.snc}%</span>
-                        </div>
-                        <div className="bg-neutral-950/80 p-2.5 rounded-2xl border border-neutral-800/80 text-center">
-                          <span className="text-[10px] text-neutral-400 block font-semibold">Fuel-Lock</span>
-                          <span className="font-black text-cyan-400 text-xs">{todayApexData.breakdown.nutrition}%</span>
-                        </div>
-                        <div className="bg-neutral-950/80 p-2.5 rounded-2xl border border-neutral-800/80 text-center">
-                          <span className="text-[10px] text-neutral-400 block font-semibold">Hydratation</span>
-                          <span className="font-black text-emerald-400 text-xs">{todayApexData.breakdown.hydration}%</span>
-                        </div>
-                      </div>
+              {/* --- SECTION 1 : LE STATUT GLOBAL HÉRO (Design Whoop/Garmin) --- */}
+              <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-neutral-900 via-neutral-900 to-neutral-950 border border-neutral-800 p-5 shadow-2xl">
+                <div className="absolute -right-12 -top-12 w-36 h-36 bg-orange-500/10 rounded-full blur-3xl pointer-events-none" />
+                <div className="absolute -left-12 -bottom-12 w-36 h-36 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
+                
+                <div className="relative z-10 flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-9 h-9 rounded-2xl bg-orange-500/20 text-orange-500 flex items-center justify-center shadow-inner">
+                      <Zap className="w-5 h-5" />
                     </div>
-
-                    {/* SNC Shield */}
-                    <SncShieldWidget currentReadiness={currentReadinessScore} recentLoads={recentTrainingLoads} />
-
-                    {inTaperingWeek && (
-                      <div className="bg-gradient-to-r from-amber-950/60 via-neutral-900 to-neutral-900 border border-amber-500/40 rounded-3xl p-4 text-center space-y-1 shadow-xl">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-amber-400 bg-amber-500/20 px-3 py-1 rounded-full border border-amber-500/30">
-                          ⚡ Semaine de Tapering & Affûtage
-                        </span>
-                        <h3 className="text-sm font-black text-white pt-1">Objectif Marathon en approche</h3>
-                      </div>
-                    )}
-
-                    {/* Accès Rapide Entraînement */}
-                    <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-4 space-y-2.5 shadow-xl">
-                      <span className="text-[10px] font-black uppercase tracking-widest text-neutral-400 px-1 block">
-                        Lancer l'entraînement hybride
-                      </span>
-                      <div className="grid grid-cols-3 gap-2">
-                        <button onClick={() => setIsGymLogOpen(true)} className="py-3 px-2 bg-neutral-950 hover:bg-neutral-900 border border-neutral-800 hover:border-orange-500/60 rounded-2xl text-xs font-black text-white transition-all cursor-pointer flex items-center justify-center gap-2 shadow-md group">
-                          <span className="text-base">🏋️‍♂️</span>
-                          <span className="group-hover:text-orange-400 transition-colors">Muscu</span>
-                        </button>
-                        <button onClick={() => handleTabChange('boxwars')} className="py-3 px-2 bg-neutral-950 hover:bg-neutral-900 border border-neutral-800 hover:border-cyan-500/60 rounded-2xl text-xs font-black text-white transition-all cursor-pointer flex items-center justify-center gap-2 shadow-md group">
-                          <span className="text-base">🥵</span>
-                          <span className="group-hover:text-cyan-400 transition-colors">CrossFit</span>
-                        </button>
-                        <button onClick={() => handleTabChange('running')} className="py-3 px-2 bg-neutral-950 hover:bg-neutral-900 border border-neutral-800 hover:border-emerald-500/60 rounded-2xl text-xs font-black text-white transition-all cursor-pointer flex items-center justify-center gap-2 shadow-md group">
-                          <span className="text-base">🏃‍♂️</span>
-                          <span className="group-hover:text-emerald-400 transition-colors">Course</span>
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Pacing Matrix & King of Spot */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                      <button type="button" onClick={() => handleTabChange('matrix')} className="w-full py-3.5 bg-neutral-900 hover:bg-neutral-850 border border-neutral-800 hover:border-orange-500/50 rounded-3xl px-4 flex items-center justify-between text-xs font-bold text-white shadow-xl transition-all cursor-pointer group">
-                        <span className="flex items-center gap-2 text-orange-400"><Target className="w-4 h-4" /> Pacing Matrix</span>
-                        <ChevronRight className="w-4 h-4 text-neutral-500 group-hover:translate-x-1 transition-transform" />
-                      </button>
-                      <button type="button" onClick={() => handleTabChange('segments')} className="w-full py-3.5 bg-neutral-900 hover:bg-neutral-850 border border-neutral-800 hover:border-orange-500/50 rounded-3xl px-4 flex items-center justify-between text-xs font-bold text-white shadow-xl transition-all cursor-pointer group">
-                        <span className="flex items-center gap-2 text-orange-400"><Trophy className="w-4 h-4" /> King of the Spot</span>
-                        <ChevronRight className="w-4 h-4 text-neutral-500 group-hover:translate-x-1 transition-transform" />
-                      </button>
+                    <div>
+                      <span className="text-[10px] font-black uppercase tracking-widest text-neutral-400 block">Tableau de Bord</span>
+                      <h2 className="text-sm font-black text-white">Statut Biométrique</h2>
                     </div>
                   </div>
-                )}
+                  <span className="text-[10px] bg-neutral-950 text-neutral-300 font-bold px-3 py-1 rounded-full border border-neutral-800 shadow-sm flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" /> Live Sync
+                  </span>
+                </div>
 
-                {/* --- SOUS-ONGLET 2 : CHECK-IN FORME --- */}
-                {todaySubTab === 'readiness' && (
-                  <div className="space-y-3 animate-fadeIn">
-                    <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-3 shadow-xl">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-black uppercase tracking-wider text-orange-400 flex items-center gap-2">
-                          <Activity className="w-4 h-4" /> Check-in Forme & Sommeil
-                        </span>
-                        <span className="text-[10px] bg-orange-500/20 text-orange-400 font-bold px-2 py-0.5 rounded-full border border-orange-500/30">
-                          SNC Optimal ⚡
-                        </span>
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="bg-neutral-950/80 backdrop-blur-md p-3 rounded-2xl border border-neutral-800/80 flex flex-col items-center text-center">
+                    <span className="text-[10px] font-semibold text-neutral-400 mb-0.5">SNC & Forme</span>
+                    <span className="text-sm font-black text-white">{todayApexData.breakdown.snc}%</span>
+                  </div>
+                  <div className="bg-neutral-950/80 backdrop-blur-md p-3 rounded-2xl border border-neutral-800/80 flex flex-col items-center text-center">
+                    <span className="text-[10px] font-semibold text-neutral-400 mb-0.5">Fuel-Lock</span>
+                    <span className="text-sm font-black text-cyan-400">{todayApexData.breakdown.nutrition}%</span>
+                  </div>
+                  <div className="bg-neutral-950/80 backdrop-blur-md p-3 rounded-2xl border border-neutral-800/80 flex flex-col items-center text-center">
+                    <span className="text-[10px] font-semibold text-neutral-400 mb-0.5">Hydratation</span>
+                    <span className="text-sm font-black text-emerald-400">{todayApexData.breakdown.hydration}%</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* --- SECTION 2 : BOUCLIER PRÉDICTIF SNC SHIELD --- */}
+              <SncShieldWidget currentReadiness={currentReadinessScore} recentLoads={recentTrainingLoads} />
+
+              {/* --- SECTION 3 : WIDGET INDEX APEX (Score Type Yuka) --- */}
+              <div className={`border rounded-3xl p-5 space-y-3 shadow-2xl relative overflow-hidden transition-all duration-300 ${
+                todayApexData.badgeColor === 'red' ? 'bg-gradient-to-br from-red-950/40 via-neutral-900 to-neutral-950 border-red-500/50 shadow-red-950/20' : 
+                todayApexData.badgeColor === 'amber' ? 'bg-gradient-to-br from-amber-950/40 via-neutral-900 to-neutral-950 border-amber-500/50 shadow-amber-950/20' : 'bg-gradient-to-br from-neutral-900 via-neutral-900 to-neutral-950 border-neutral-800'
+              }`}>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black uppercase tracking-wider text-orange-400 flex items-center gap-2">
+                    <Target className="w-4 h-4" /> Index Apex (Score Global)
+                  </span>
+                  <span className={`text-xs font-black px-3.5 py-1 rounded-full border shadow-sm ${
+                    todayApexData.badgeColor === 'red' ? 'bg-red-500/20 text-red-400 border-red-500/30' : 
+                    todayApexData.badgeColor === 'amber' ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+                  }`}>
+                    {todayApexData.score} / 100 🎯
+                  </span>
+                </div>
+
+                <p className="text-xs text-neutral-300 leading-relaxed font-medium">
+                  {todayApexData.message}
+                </p>
+              </div>
+
+              {/* --- SECTION 4 : FORME & READINESS DU JOUR --- */}
+              <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-3 shadow-xl relative overflow-hidden">
+                <div className="absolute -right-8 -top-8 w-28 h-28 bg-orange-500/10 rounded-full blur-2xl pointer-events-none" />
+                <div className="flex items-center justify-between relative z-10">
+                  <span className="text-xs font-black uppercase tracking-wider text-orange-400 flex items-center gap-2">
+                    <Activity className="w-4 h-4" /> Check-in Forme & Sommeil
+                  </span>
+                  <span className="text-[10px] bg-orange-500/20 text-orange-400 font-bold px-2.5 py-0.5 rounded-full border border-orange-500/30">
+                    SNC Optimal ⚡
+                  </span>
+                </div>
+                <CleanReadinessTab currentUserId={user?.id} />
+              </div>
+
+              {inTaperingWeek && (
+                <div className="bg-gradient-to-r from-amber-950/60 via-neutral-900 to-neutral-900 border border-amber-500/40 rounded-3xl p-5 text-center space-y-1 shadow-2xl">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-amber-400 bg-amber-500/20 px-3 py-1 rounded-full border border-amber-500/30">
+                    ⚡ Semaine de Tapering & Affûtage
+                  </span>
+                  <h3 className="text-base font-black text-white pt-2">Objectif Marathon en approche</h3>
+                  <p className="text-xs text-neutral-400">
+                    Volume réduit, préservation des fibres musculaires et remplissage des stocks de glycogène.
+                  </p>
+                </div>
+              )}
+
+              {/* --- SECTION 5 : ACCÈS RAPIDE EN 1 CLIC (Les 3 grands modes) --- */}
+              <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-3 shadow-xl">
+                <span className="text-[10px] font-black uppercase tracking-widest text-neutral-400 px-1 block">
+                  Lancer l'entraînement hybride
+                </span>
+                <div className="grid grid-cols-3 gap-2.5">
+                  <button 
+                    onClick={() => setIsGymLogOpen(true)} 
+                    className="py-4 px-2 bg-neutral-950 hover:bg-neutral-900 border border-neutral-800 hover:border-orange-500/60 rounded-2xl text-xs font-black text-white transition-all transform hover:-translate-y-0.5 cursor-pointer flex flex-col items-center gap-2 shadow-lg group"
+                  >
+                    <span className="text-2xl group-hover:scale-110 transition-transform">🏋️‍♂️</span>
+                    <span className="group-hover:text-orange-400 transition-colors">Muscu</span>
+                  </button>
+
+                  <button 
+                    onClick={() => handleTabChange('boxwars')} 
+                    className="py-4 px-2 bg-neutral-950 hover:bg-neutral-900 border border-neutral-800 hover:border-cyan-500/60 rounded-2xl text-xs font-black text-white transition-all transform hover:-translate-y-0.5 cursor-pointer flex flex-col items-center gap-2 shadow-lg group"
+                  >
+                    <span className="text-2xl group-hover:scale-110 transition-transform">🥵</span>
+                    <span className="group-hover:text-cyan-400 transition-colors">CrossFit</span>
+                  </button>
+
+                  <button 
+                    onClick={() => handleTabChange('running')} 
+                    className="py-4 px-2 bg-neutral-950 hover:bg-neutral-900 border border-neutral-800 hover:border-emerald-500/60 rounded-2xl text-xs font-black text-white transition-all transform hover:-translate-y-0.5 cursor-pointer flex flex-col items-center gap-2 shadow-lg group"
+                  >
+                    <span className="text-2xl group-hover:scale-110 transition-transform">🏃‍♂️</span>
+                    <span className="group-hover:text-emerald-400 transition-colors">Course</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* --- SECTION 6 : ACCÈS PACING MATRIX & SEGMENTS --- */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => handleTabChange('matrix')}
+                  className="w-full py-4 bg-neutral-900 hover:bg-neutral-850 border border-neutral-800 hover:border-orange-500/50 rounded-3xl px-5 flex items-center justify-between text-xs font-bold text-white shadow-xl transition-all cursor-pointer group"
+                >
+                  <span className="flex items-center gap-2.5 text-orange-400">
+                    <Target className="w-4 h-4 group-hover:scale-110 transition-transform" /> Pacing Matrix
+                  </span>
+                  <ChevronRight className="w-4 h-4 text-neutral-500 group-hover:translate-x-1 transition-transform" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleTabChange('segments')}
+                  className="w-full py-4 bg-neutral-900 hover:bg-neutral-850 border border-neutral-800 hover:border-orange-500/50 rounded-3xl px-5 flex items-center justify-between text-xs font-bold text-white shadow-xl transition-all cursor-pointer group"
+                >
+                  <span className="flex items-center gap-2.5 text-orange-400">
+                    <Trophy className="w-4 h-4 group-hover:scale-110 transition-transform" /> King of the Spot
+                  </span>
+                  <ChevronRight className="w-4 h-4 text-neutral-500 group-hover:translate-x-1 transition-transform" />
+                </button>
+              </div>
+
+              {/* --- SECTION 7 : MODULES IA & SCAN FRIGO --- */}
+              <PaywallGate userId={user?.id} currentUserProfile={currentUserProfile} featureName="IA Coach Proactif & Scan Frigo">
+                <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-3 shadow-xl">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-neutral-400 px-1 block">
+                    Intelligence Artificielle & Nutrition
+                  </span>
+                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-2.5">
+                    <div 
+                      onClick={() => handleTabChange('fitbot')}
+                      className="bg-neutral-950 hover:bg-neutral-900 border border-neutral-800 hover:border-cyan-500/40 rounded-2xl p-3.5 flex items-center gap-3 cursor-pointer transition-all group"
+                    >
+                      <div className="w-8 h-8 rounded-xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center flex-shrink-0">
+                        <Bot className="w-4 h-4" />
                       </div>
-                      <CleanReadinessTab currentUserId={user?.id} />
+                      <div className="flex-1 min-w-0">
+                        <h4 className="text-xs font-bold text-white group-hover:text-cyan-300">FitBot AI</h4>
+                        <p className="text-[10px] text-neutral-400 truncate">Conseils de charge</p>
+                      </div>
+                    </div>
+
+                    <div 
+                      onClick={() => handleTabChange('fitbot_pro')}
+                      className="bg-neutral-950 hover:bg-neutral-900 border border-neutral-800 hover:border-cyan-500/40 rounded-2xl p-3.5 flex items-center gap-3 cursor-pointer transition-all group"
+                    >
+                      <div className="w-8 h-8 rounded-xl bg-cyan-500/30 text-cyan-300 flex items-center justify-center flex-shrink-0">
+                        <Brain className="w-4 h-4 animate-pulse" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="text-xs font-bold text-white group-hover:text-cyan-300">FitBot Pro</h4>
+                        <p className="text-[10px] text-neutral-400 truncate">SNC & Auto-régul</p>
+                      </div>
+                    </div>
+
+                    <div 
+                      onClick={() => handleTabChange('fridge_scanner')}
+                      className="bg-neutral-950 hover:bg-neutral-900 border border-neutral-800 hover:border-orange-500/40 rounded-2xl p-3.5 flex items-center gap-3 cursor-pointer transition-all group"
+                    >
+                      <div className="w-8 h-8 rounded-xl bg-orange-500/20 text-orange-400 flex items-center justify-center flex-shrink-0">
+                        <span className="text-sm">📸</span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="text-xs font-bold text-white group-hover:text-orange-300">Scan Frigo</h4>
+                        <p className="text-[10px] text-neutral-400 truncate">Recette post-WOD</p>
+                      </div>
+                    </div>
+
+                    <div 
+                      onClick={() => handleTabChange('biosync')}
+                      className="bg-neutral-950 hover:bg-neutral-900 border border-neutral-800 hover:border-emerald-500/40 rounded-2xl p-3.5 flex items-center gap-3 cursor-pointer transition-all group"
+                    >
+                      <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center flex-shrink-0">
+                        <Sparkles className="w-4 h-4" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="text-xs font-bold text-white group-hover:text-emerald-300">Bio-Sync</h4>
+                        <p className="text-[10px] text-neutral-400 truncate">Chronobiologie</p>
+                      </div>
                     </div>
                   </div>
-                )}
+                </div>
+              </PaywallGate>
 
-                {/* --- SOUS-ONGLET 3 : IA & OUTILS --- */}
-                {todaySubTab === 'ai' && (
-                  <div className="space-y-3 animate-fadeIn">
-                    <PaywallGate userId={user?.id} currentUserProfile={currentUserProfile} featureName="IA Coach Proactif & Scan Frigo">
-                      <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-4 space-y-3 shadow-xl">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-neutral-400 px-1 block">
-                          Intelligence Artificielle & Nutrition
-                        </span>
-                        <div className="grid grid-cols-2 gap-2">
-                          <div onClick={() => handleTabChange('fitbot')} className="bg-neutral-950 hover:bg-neutral-900 border border-neutral-800 hover:border-cyan-500/40 rounded-2xl p-3.5 flex items-center gap-3 cursor-pointer transition group">
-                            <div className="w-8 h-8 rounded-xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center flex-shrink-0">
-                              <Bot className="w-4 h-4" />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <h4 className="text-xs font-bold text-white group-hover:text-cyan-300">FitBot AI</h4>
-                              <p className="text-[10px] text-neutral-400 truncate">Conseils de charge</p>
-                            </div>
-                          </div>
+              {/* --- SECTION 8 : CARTE DE PARTAGE VIRAL --- */}
+              <button
+                type="button"
+                onClick={() => setIsHybridShareOpen(true)}
+                className="w-full py-4 bg-gradient-to-r from-orange-600 via-amber-600 to-orange-700 hover:opacity-95 text-white font-black rounded-3xl text-xs uppercase tracking-wider shadow-xl transition-all transform hover:scale-[1.01] flex items-center justify-center gap-2 cursor-pointer border border-orange-500/40"
+              >
+                <Share2 className="w-4 h-4" /> Générer ma Carte Hybrid Apex (Partage Viral) 🚀
+              </button>
 
-                          <div onClick={() => handleTabChange('fitbot_pro')} className="bg-neutral-950 hover:bg-neutral-900 border border-neutral-800 hover:border-cyan-500/40 rounded-2xl p-3.5 flex items-center gap-3 cursor-pointer transition group">
-                            <div className="w-8 h-8 rounded-xl bg-cyan-500/30 text-cyan-300 flex items-center justify-center flex-shrink-0">
-                              <Brain className="w-4 h-4 animate-pulse" />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <h4 className="text-xs font-bold text-white group-hover:text-cyan-300">FitBot Pro</h4>
-                              <p className="text-[10px] text-neutral-400 truncate">SNC & Auto-régul</p>
-                            </div>
-                          </div>
-
-                          <div onClick={() => handleTabChange('fridge_scanner')} className="bg-neutral-950 hover:bg-neutral-900 border border-neutral-800 hover:border-orange-500/40 rounded-2xl p-3.5 flex items-center gap-3 cursor-pointer transition group">
-                            <div className="w-8 h-8 rounded-xl bg-orange-500/20 text-orange-400 flex items-center justify-center flex-shrink-0">
-                              <span className="text-sm">📸</span>
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <h4 className="text-xs font-bold text-white group-hover:text-orange-300">Scan Frigo</h4>
-                              <p className="text-[10px] text-neutral-400 truncate">Recette post-WOD</p>
-                            </div>
-                          </div>
-
-                          <div onClick={() => handleTabChange('biosync')} className="bg-neutral-950 hover:bg-neutral-900 border border-neutral-800 hover:border-emerald-500/40 rounded-2xl p-3.5 flex items-center gap-3 cursor-pointer transition group">
-                            <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center flex-shrink-0">
-                              <Sparkles className="w-4 h-4" />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <h4 className="text-xs font-bold text-white group-hover:text-emerald-300">Bio-Sync</h4>
-                              <p className="text-[10px] text-neutral-400 truncate">Chronobiologie</p>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </PaywallGate>
-
-                    <button type="button" onClick={() => setIsHybridShareOpen(true)} className="w-full py-4 bg-gradient-to-r from-orange-600 via-amber-600 to-orange-700 hover:opacity-95 text-white font-black rounded-3xl text-xs uppercase tracking-wider shadow-xl transition cursor-pointer border border-orange-500/40">
-                      <Share2 className="w-4 h-4 inline mr-2" /> Générer ma Carte Hybrid Apex 🚀
-                    </button>
-
-                    <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-3 shadow-xl">
-                      <span className="text-xs font-black uppercase tracking-wider text-neutral-400 flex items-center gap-2 ml-1">
-                        <Calendar className="w-4 h-4 text-orange-500" /> Vue d'ensemble de la semaine
-                      </span>
-                      <HybridCalendar posts={posts} currentUserId={user?.id} onRefresh={fetchCloudPosts} />
-                    </div>
-                  </div>
-                )}
+              {/* --- SECTION 9 : CALENDRIER DE SEMAINE --- */}
+              <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-3 shadow-xl">
+                <span className="text-xs font-black uppercase tracking-wider text-neutral-400 flex items-center gap-2 ml-1">
+                  <Calendar className="w-4 h-4 text-orange-500" /> Vue d'ensemble de la semaine
+                </span>
+                <HybridCalendar posts={posts} currentUserId={user?.id} onRefresh={fetchCloudPosts} />
+              </div>
 
             </div>
           )}
@@ -1542,35 +1571,36 @@ export default function App() {
                           <p className="text-[11px] text-neutral-200 px-1 truncate">{trans.note}</p>
                         </div>
                       ))}
-                  </div>
-                </div>
-              )}
-
-              <div className="space-y-3">
-                <h4 className="text-xs font-black uppercase tracking-wider text-neutral-400 ml-1">
-                  Publications de {viewingProfileUser.username} ({userProfilePosts.length})
-                </h4>
-
-                {userProfilePosts.length === 0 ? (
-                  <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-8 text-center text-neutral-500 text-xs">
-                    Aucune publication pour le moment.
-                  </div>
-                ) : (
-                  userProfilePosts.map(post => (
-                    <div key={post.id} className="bg-neutral-900 border border-neutral-800 p-4 rounded-3xl space-y-3 shadow-xl">
-                      <div className="flex items-center justify-between text-xs text-neutral-400">
-                        <span className="font-bold text-orange-400">{post.session_type}</span>
-                        <span>{new Date(post.created_at).toLocaleDateString()}</span>
-                      </div>
-                      <p className="text-xs text-neutral-200 leading-relaxed">{post.caption}</p>
-                      {post.image_url && (
-                        <div className="rounded-2xl overflow-hidden h-48 border border-neutral-800">
-                          <img src={post.image_url} alt="" className="w-full h-full object-cover" />
-                        </div>
-                      )}
                     </div>
-                  ))
+                  </div>
                 )}
+
+                <div className="space-y-3">
+                  <h4 className="text-xs font-black uppercase tracking-wider text-neutral-400 ml-1">
+                    Publications de {viewingProfileUser.username} ({userProfilePosts.length})
+                  </h4>
+
+                  {userProfilePosts.length === 0 ? (
+                    <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-8 text-center text-neutral-500 text-xs">
+                      Aucune publication pour le moment.
+                    </div>
+                  ) : (
+                    userProfilePosts.map(post => (
+                      <div key={post.id} className="bg-neutral-900 border border-neutral-800 p-4 rounded-3xl space-y-3 shadow-xl">
+                        <div className="flex items-center justify-between text-xs text-neutral-400">
+                          <span className="font-bold text-orange-400">{post.session_type}</span>
+                          <span>{new Date(post.created_at).toLocaleDateString()}</span>
+                        </div>
+                        <p className="text-xs text-neutral-200 leading-relaxed">{post.caption}</p>
+                        {post.image_url && (
+                          <div className="rounded-2xl overflow-hidden h-48 border border-neutral-800">
+                            <img src={post.image_url} alt="" className="w-full h-full object-cover" />
+                          </div>
+                        )}
+                      </div>
+                    ))
+                  )}
+                </div>
               </div>
             </div>
           );
