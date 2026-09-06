@@ -1,14 +1,15 @@
 import { ShieldAlert, ShieldCheck, Lock, Activity, Sparkles } from 'lucide-react';
-import { analyzeSncShield } from './SncShieldEngine';
+import { analyzeSncShield, TrainingLoadEntry } from './SncShieldEngine';
 
 interface SncShieldWidgetProps {
   currentReadiness: number;
+  recentLoads?: TrainingLoadEntry[];
   onOpenDetails?: () => void;
 }
 
-export default function SncShieldWidget({ currentReadiness }: SncShieldWidgetProps) {
-  // Analyse en direct via l'algorithme
-  const shieldData = analyzeSncShield([], currentReadiness);
+export default function SncShieldWidget({ currentReadiness, recentLoads = [] }: SncShieldWidgetProps) {
+  // Analyse en direct via l'algorithme avec la charge réelle
+  const shieldData = analyzeSncShield(recentLoads, currentReadiness);
 
   const getBadgeStyle = () => {
     switch (shieldData.riskLevel) {
