@@ -14,18 +14,21 @@ export interface SncShieldAnalysis {
 }
 
 export function analyzeSncShield(recentLoads: TrainingLoadEntry[], currentReadiness: number): SncShieldAnalysis {
-  // Calcul de la charge moyenne des 14 derniers jours (simulée ou basée sur l'historique)
-  const totalLoad = recentLoads.reduce((acc, curr) => acc + curr.loadScore, 400); // Base de sécurité
-  const averageDailyLoad = totalLoad / Math.max(1, recentLoads.length);
+  // Gestion propre si le tableau d'historique est vide pour éviter le faux blocage à 400
+  const totalLoad = recentLoads.length > 0 
+    ? recentLoads.reduce((acc, curr) => acc + curr.loadScore, 0) 
+    : 0;
   
-  // Si le readiness est bas (< 50) et que la charge est élevée
-  const isCritical = currentReadiness < 40 || averageDailyLoad > 110;
-  const isWarning = currentReadiness < 65 || averageDailyLoad > 90;
+  const averageDailyLoad = recentLoads.length > 0 ? totalLoad / recentLoads.length : 0;
+  
+  // Évaluation basée sur le score de readiness et l'historique réel si disponible
+  const isCritical = currentReadiness < 40 || (recentLoads.length > 0 && averageDailyLoad > 110);
+  const isWarning = (currentReadiness >= 40 && currentReadiness < 65) || (recentLoads.length > 0 && averageDailyLoad > 90);
 
   if (isCritical) {
     return {
       riskLevel: 'critical',
-      fatigueTrend: +28, // Hausse anormale de la fatigue cumulative
+      fatigueTrend: +28,
       shieldMessage: "🚨 SNC Shield activé en mode Urgence : Vos récepteurs neuromusculaires affichent une saturation critique. Risque de micro-déchirure ou de stagnation imminent.",
       forcedAction: 'lockdown_active',
       adjustedPlanTitle: "Protocole de Décharge Neuronale (Deload Forcé)",
