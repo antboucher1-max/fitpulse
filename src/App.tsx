@@ -534,7 +534,18 @@ export default function App() {
     );
   }
 
-  // Construction d'un historique de charge dynamique basé sur gymLogsData ou posts récents pour le SncShieldWidget
+  const currentReadinessScore = calculateDynamicReadiness();
+
+  // Calcul en direct du score Apex (type Yuka)
+  const todayApexData = calculateApexScore({
+    readinessScore: currentReadinessScore,
+    nutritionCompliance: true,
+    hydrationLiters: 2.2,
+    targetHydrationLiters: 3.0,
+    weeklyLoad: 45
+  });
+
+  // Historique de charge dynamique pour le SncShieldWidget
   const recentTrainingLoads = gymLogsData.map((log: any) => ({
     date: log.created_at || new Date().toISOString(),
     loadScore: Number(log.load_score || log.rpe || 70),
@@ -584,21 +595,57 @@ export default function App() {
 
         <main className="flex-1 w-full mx-auto px-4 py-3 pb-32 space-y-3">
           {currentTab === 'today' && (
-            <div className="space-y-4 animate-fadeIn pb-12">
+            <div className="space-y-4 animate-fadeIn pb-16">
                
-              {/* --- BOUCLIER PRÉDICTIF SNC SHIELD --- */}
+              {/* --- SECTION 1 : LE STATUT GLOBAL HÉRO (Design Whoop/Garmin) --- */}
+              <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-neutral-900 via-neutral-900 to-neutral-950 border border-neutral-800 p-5 shadow-2xl">
+                <div className="absolute -right-12 -top-12 w-36 h-36 bg-orange-500/10 rounded-full blur-3xl pointer-events-none" />
+                <div className="absolute -left-12 -bottom-12 w-36 h-36 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
+                
+                <div className="relative z-10 flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-9 h-9 rounded-2xl bg-orange-500/20 text-orange-500 flex items-center justify-center shadow-inner">
+                      <Zap className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-neutral-400 block">Tableau de Bord</span>
+                    <h2 className="text-sm font-black text-white">Statut Biométrique</h2>
+                </div>
+                </div>
+                <span className="text-[10px] bg-neutral-950 text-neutral-300 font-bold px-3 py-1 rounded-full border border-neutral-800 shadow-sm flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" /> Live Sync
+                </span>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2">
+                <div className="bg-neutral-950/80 backdrop-blur-md p-3 rounded-2xl border border-neutral-800/80 flex flex-col items-center text-center">
+                  <span className="text-[10px] font-semibold text-neutral-400 mb-0.5">SNC & Forme</span>
+                  <span className="text-sm font-black text-white">{todayApexData.breakdown.snc}%</span>
+                </div>
+                <div className="bg-neutral-950/80 backdrop-blur-md p-3 rounded-2xl border border-neutral-800/80 flex flex-col items-center text-center">
+                  <span className="text-[10px] font-semibold text-neutral-400 mb-0.5">Fuel-Lock</span>
+                  <span className="text-sm font-black text-cyan-400">{todayApexData.breakdown.nutrition}%</span>
+                </div>
+                <div className="bg-neutral-950/80 backdrop-blur-md p-3 rounded-2xl border border-neutral-800/80 flex flex-col items-center text-center">
+                  <span className="text-[10px] font-semibold text-neutral-400 mb-0.5">Hydratation</span>
+                  <span className="text-sm font-black text-emerald-400">{todayApexData.breakdown.hydration}%</span>
+                </div>
+              </div>
+            </div>
+
+              {/* --- SECTION 2 : BOUCLIER PRÉDICTIF SNC SHIELD --- */}
               <SncShieldWidget currentReadiness={currentReadinessScore} recentLoads={recentTrainingLoads} />
 
-              {/* --- WIDGET INDEX APEX (Score Type Yuka) --- */}
-              <div className={`border rounded-3xl p-5 space-y-3 shadow-xl relative overflow-hidden transition-all ${
-                todayApexData.badgeColor === 'red' ? 'bg-red-950/30 border-red-500/50' : 
-                todayApexData.badgeColor === 'amber' ? 'bg-amber-950/30 border-amber-500/50' : 'bg-neutral-900 border-neutral-800'
+              {/* --- SECTION 3 : WIDGET INDEX APEX (Score Type Yuka) --- */}
+              <div className={`border rounded-3xl p-5 space-y-3 shadow-2xl relative overflow-hidden transition-all duration-300 ${
+                todayApexData.badgeColor === 'red' ? 'bg-gradient-to-br from-red-950/40 via-neutral-900 to-neutral-950 border-red-500/50 shadow-red-950/20' : 
+                todayApexData.badgeColor === 'amber' ? 'bg-gradient-to-br from-amber-950/40 via-neutral-900 to-neutral-950 border-amber-500/50 shadow-amber-950/20' : 'bg-gradient-to-br from-neutral-900 via-neutral-900 to-neutral-950 border-neutral-800'
               }`}>
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-black uppercase tracking-wider text-orange-400 flex items-center gap-2">
-                    <Zap className="w-4 h-4" /> Index Apex (Score Global du Jour)
+                    <Target className="w-4 h-4" /> Index Apex (Score Global)
                   </span>
-                  <span className={`text-xs font-black px-3 py-1 rounded-full border ${
+                  <span className={`text-xs font-black px-3.5 py-1 rounded-full border shadow-sm ${
                     todayApexData.badgeColor === 'red' ? 'bg-red-500/20 text-red-400 border-red-500/30' : 
                     todayApexData.badgeColor === 'amber' ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
                   }`}>
@@ -606,32 +653,17 @@ export default function App() {
                   </span>
                 </div>
 
-                <p className="text-xs text-neutral-300 leading-relaxed">
+                <p className="text-xs text-neutral-300 leading-relaxed font-medium">
                   {todayApexData.message}
                 </p>
-
-                <div className="grid grid-cols-3 gap-2 pt-1 text-center text-[10px]">
-                  <div className="bg-neutral-950 p-2.5 rounded-2xl border border-neutral-800">
-                    <span className="text-neutral-400 block font-semibold">SNC & Forme</span>
-                    <span className="font-black text-white text-xs">{todayApexData.breakdown.snc}%</span>
-                  </div>
-                  <div className="bg-neutral-950 p-2.5 rounded-2xl border border-neutral-800">
-                    <span className="text-neutral-400 block font-semibold">Fuel-Lock</span>
-                    <span className="font-black text-cyan-400 text-xs">{todayApexData.breakdown.nutrition}%</span>
-                  </div>
-                  <div className="bg-neutral-950 p-2.5 rounded-2xl border border-neutral-800">
-                    <span className="text-neutral-400 block font-semibold">Hydratation</span>
-                    <span className="font-black text-emerald-400 text-xs">{todayApexData.breakdown.hydration}%</span>
-                  </div>
-                </div>
               </div>
 
-              {/* --- 1. CARTE PRINCIPALE : Forme & Readiness --- */}
+              {/* --- SECTION 4 : FORME & READINESS DU JOUR --- */}
               <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-3 shadow-xl relative overflow-hidden">
                 <div className="absolute -right-8 -top-8 w-28 h-28 bg-orange-500/10 rounded-full blur-2xl pointer-events-none" />
                 <div className="flex items-center justify-between relative z-10">
                   <span className="text-xs font-black uppercase tracking-wider text-orange-400 flex items-center gap-2">
-                    <Activity className="w-4 h-4" /> Forme & Readiness du jour
+                    <Activity className="w-4 h-4" /> Check-in Forme & Sommeil
                   </span>
                   <span className="text-[10px] bg-orange-500/20 text-orange-400 font-bold px-2.5 py-0.5 rounded-full border border-orange-500/30">
                     SNC Optimal ⚡
@@ -641,7 +673,7 @@ export default function App() {
               </div>
 
               {inTaperingWeek && (
-                <div className="bg-amber-950/40 border border-amber-500/40 rounded-3xl p-5 text-center space-y-1 shadow-2xl">
+                <div className="bg-gradient-to-r from-amber-950/60 via-neutral-900 to-neutral-900 border border-amber-500/40 rounded-3xl p-5 text-center space-y-1 shadow-2xl">
                   <span className="text-[10px] font-black uppercase tracking-widest text-amber-400 bg-amber-500/20 px-3 py-1 rounded-full border border-amber-500/30">
                     ⚡ Semaine de Tapering & Affûtage
                   </span>
@@ -652,73 +684,73 @@ export default function App() {
                 </div>
               )}
 
-              {/* --- 2. ACCÈS RAPIDE EN 1 CLIC (Les 3 grands modes) --- */}
+              {/* --- SECTION 5 : ACCÈS RAPIDE EN 1 CLIC (Les 3 grands modes) --- */}
               <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-3 shadow-xl">
                 <span className="text-[10px] font-black uppercase tracking-widest text-neutral-400 px-1 block">
                   Lancer l'entraînement hybride
                 </span>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-3 gap-2.5">
                   <button 
                     onClick={() => setIsGymLogOpen(true)} 
-                    className="py-4 px-2 bg-neutral-950 hover:bg-neutral-850 border border-neutral-800 hover:border-orange-500/50 rounded-2xl text-xs font-black text-white transition cursor-pointer flex flex-col items-center gap-2 shadow-md group"
+                    className="py-4 px-2 bg-neutral-950 hover:bg-neutral-900 border border-neutral-800 hover:border-orange-500/60 rounded-2xl text-xs font-black text-white transition-all transform hover:-translate-y-0.5 cursor-pointer flex flex-col items-center gap-2 shadow-lg group"
                   >
-                    <span className="text-xl">🏋️‍♂️</span>
-                    <span className="group-hover:text-orange-400 transition">Muscu</span>
+                    <span className="text-2xl group-hover:scale-110 transition-transform">🏋️‍♂️</span>
+                    <span className="group-hover:text-orange-400 transition-colors">Muscu</span>
                   </button>
 
                   <button 
                     onClick={() => handleTabChange('boxwars')} 
-                    className="py-4 px-2 bg-neutral-950 hover:bg-neutral-850 border border-neutral-800 hover:border-cyan-500/50 rounded-2xl text-xs font-black text-white transition cursor-pointer flex flex-col items-center gap-2 shadow-md group"
+                    className="py-4 px-2 bg-neutral-950 hover:bg-neutral-900 border border-neutral-800 hover:border-cyan-500/60 rounded-2xl text-xs font-black text-white transition-all transform hover:-translate-y-0.5 cursor-pointer flex flex-col items-center gap-2 shadow-lg group"
                   >
-                    <span className="text-xl">🥵</span>
-                    <span className="group-hover:text-cyan-400 transition">CrossFit</span>
+                    <span className="text-2xl group-hover:scale-110 transition-transform">🥵</span>
+                    <span className="group-hover:text-cyan-400 transition-colors">CrossFit</span>
                   </button>
 
                   <button 
                     onClick={() => handleTabChange('running')} 
-                    className="py-4 px-2 bg-neutral-950 hover:bg-neutral-850 border border-neutral-800 hover:border-emerald-500/50 rounded-2xl text-xs font-black text-white transition cursor-pointer flex flex-col items-center gap-2 shadow-md group"
+                    className="py-4 px-2 bg-neutral-950 hover:bg-neutral-900 border border-neutral-800 hover:border-emerald-500/60 rounded-2xl text-xs font-black text-white transition-all transform hover:-translate-y-0.5 cursor-pointer flex flex-col items-center gap-2 shadow-lg group"
                   >
-                    <span className="text-xl">🏃‍♂️</span>
-                    <span className="group-hover:text-emerald-400 transition">Course</span>
+                    <span className="text-2xl group-hover:scale-110 transition-transform">🏃‍♂️</span>
+                    <span className="group-hover:text-emerald-400 transition-colors">Course</span>
                   </button>
                 </div>
               </div>
 
-              {/* --- 3. ACCÈS PACING MATRIX & SEGMENTS --- */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {/* --- SECTION 6 : ACCÈS PACING MATRIX & SEGMENTS --- */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 <button
                   type="button"
                   onClick={() => handleTabChange('matrix')}
-                  className="w-full py-4 bg-neutral-900 hover:bg-neutral-850 border border-neutral-800 hover:border-orange-500/50 rounded-3xl px-5 flex items-center justify-between text-xs font-bold text-white shadow-xl transition cursor-pointer"
+                  className="w-full py-4 bg-neutral-900 hover:bg-neutral-850 border border-neutral-800 hover:border-orange-500/50 rounded-3xl px-5 flex items-center justify-between text-xs font-bold text-white shadow-xl transition-all cursor-pointer group"
                 >
-                  <span className="flex items-center gap-2 text-orange-400">
-                    <Target className="w-4 h-4" /> Pacing Matrix
+                  <span className="flex items-center gap-2.5 text-orange-400">
+                    <Target className="w-4 h-4 group-hover:scale-110 transition-transform" /> Pacing Matrix
                   </span>
-                  <ChevronRight className="w-4 h-4 text-neutral-500" />
+                  <ChevronRight className="w-4 h-4 text-neutral-500 group-hover:translate-x-1 transition-transform" />
                 </button>
 
                 <button
                   type="button"
                   onClick={() => handleTabChange('segments')}
-                  className="w-full py-4 bg-neutral-900 hover:bg-neutral-850 border border-neutral-800 hover:border-orange-500/50 rounded-3xl px-5 flex items-center justify-between text-xs font-bold text-white shadow-xl transition cursor-pointer"
+                  className="w-full py-4 bg-neutral-900 hover:bg-neutral-850 border border-neutral-800 hover:border-orange-500/50 rounded-3xl px-5 flex items-center justify-between text-xs font-bold text-white shadow-xl transition-all cursor-pointer group"
                 >
-                  <span className="flex items-center gap-2 text-orange-400">
-                    <Trophy className="w-4 h-4" /> King of the Spot
+                  <span className="flex items-center gap-2.5 text-orange-400">
+                    <Trophy className="w-4 h-4 group-hover:scale-110 transition-transform" /> King of the Spot
                   </span>
-                  <ChevronRight className="w-4 h-4 text-neutral-500" />
+                  <ChevronRight className="w-4 h-4 text-neutral-500 group-hover:translate-x-1 transition-transform" />
                 </button>
               </div>
 
-              {/* --- 4. MODULES IA & SCAN FRIGO --- */}
+              {/* --- SECTION 7 : MODULES IA & SCAN FRIGO --- */}
               <PaywallGate userId={user?.id} currentUserProfile={currentUserProfile} featureName="IA Coach Proactif & Scan Frigo">
                 <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-3 shadow-xl">
                   <span className="text-[10px] font-black uppercase tracking-widest text-neutral-400 px-1 block">
                     Intelligence Artificielle & Nutrition
                   </span>
-                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-2.5">
                     <div 
                       onClick={() => handleTabChange('fitbot')}
-                      className="bg-neutral-950 hover:bg-neutral-900 border border-neutral-800 hover:border-cyan-500/40 rounded-2xl p-3.5 flex items-center gap-3 cursor-pointer transition group"
+                      className="bg-neutral-950 hover:bg-neutral-900 border border-neutral-800 hover:border-cyan-500/40 rounded-2xl p-3.5 flex items-center gap-3 cursor-pointer transition-all group"
                     >
                       <div className="w-8 h-8 rounded-xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center flex-shrink-0">
                         <Bot className="w-4 h-4" />
@@ -731,7 +763,7 @@ export default function App() {
 
                     <div 
                       onClick={() => handleTabChange('fitbot_pro')}
-                      className="bg-neutral-950 hover:bg-neutral-900 border border-neutral-800 hover:border-cyan-500/40 rounded-2xl p-3.5 flex items-center gap-3 cursor-pointer transition group"
+                      className="bg-neutral-950 hover:bg-neutral-900 border border-neutral-800 hover:border-cyan-500/40 rounded-2xl p-3.5 flex items-center gap-3 cursor-pointer transition-all group"
                     >
                       <div className="w-8 h-8 rounded-xl bg-cyan-500/30 text-cyan-300 flex items-center justify-center flex-shrink-0">
                         <Brain className="w-4 h-4 animate-pulse" />
@@ -744,7 +776,7 @@ export default function App() {
 
                     <div 
                       onClick={() => handleTabChange('fridge_scanner')}
-                      className="bg-neutral-950 hover:bg-neutral-900 border border-neutral-800 hover:border-orange-500/40 rounded-2xl p-3.5 flex items-center gap-3 cursor-pointer transition group"
+                      className="bg-neutral-950 hover:bg-neutral-900 border border-neutral-800 hover:border-orange-500/40 rounded-2xl p-3.5 flex items-center gap-3 cursor-pointer transition-all group"
                     >
                       <div className="w-8 h-8 rounded-xl bg-orange-500/20 text-orange-400 flex items-center justify-center flex-shrink-0">
                         <span className="text-sm">📸</span>
@@ -757,7 +789,7 @@ export default function App() {
 
                     <div 
                       onClick={() => handleTabChange('biosync')}
-                      className="bg-neutral-950 hover:bg-neutral-900 border border-neutral-800 hover:border-emerald-500/40 rounded-2xl p-3.5 flex items-center gap-3 cursor-pointer transition group"
+                      className="bg-neutral-950 hover:bg-neutral-900 border border-neutral-800 hover:border-emerald-500/40 rounded-2xl p-3.5 flex items-center gap-3 cursor-pointer transition-all group"
                     >
                       <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center flex-shrink-0">
                         <Sparkles className="w-4 h-4" />
@@ -771,16 +803,16 @@ export default function App() {
                 </div>
               </PaywallGate>
 
-              {/* --- 5. CARTE DE PARTAGE VIRAL --- */}
+              {/* --- SECTION 8 : CARTE DE PARTAGE VIRAL --- */}
               <button
                 type="button"
                 onClick={() => setIsHybridShareOpen(true)}
-                className="w-full py-4 bg-gradient-to-r from-orange-600 via-amber-600 to-orange-700 hover:opacity-95 text-white font-black rounded-3xl text-xs uppercase tracking-wider shadow-xl transition flex items-center justify-center gap-2 cursor-pointer border border-orange-500/40"
+                className="w-full py-4 bg-gradient-to-r from-orange-600 via-amber-600 to-orange-700 hover:opacity-95 text-white font-black rounded-3xl text-xs uppercase tracking-wider shadow-xl transition-all transform hover:scale-[1.01] flex items-center justify-center gap-2 cursor-pointer border border-orange-500/40"
               >
                 <Share2 className="w-4 h-4" /> Générer ma Carte Hybrid Apex (Partage Viral) 🚀
               </button>
 
-              {/* --- 6. CALENDRIER DE SEMAINE --- */}
+              {/* --- SECTION 9 : CALENDRIER DE SEMAINE --- */}
               <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-3 shadow-xl">
                 <span className="text-xs font-black uppercase tracking-wider text-neutral-400 flex items-center gap-2 ml-1">
                   <Calendar className="w-4 h-4 text-orange-500" /> Vue d'ensemble de la semaine
