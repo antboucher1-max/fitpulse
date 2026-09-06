@@ -534,6 +534,13 @@ export default function App() {
     );
   }
 
+  // Construction d'un historique de charge dynamique basé sur gymLogsData ou posts récents pour le SncShieldWidget
+  const recentTrainingLoads = gymLogsData.map((log: any) => ({
+    date: log.created_at || new Date().toISOString(),
+    loadScore: Number(log.load_score || log.rpe || 70),
+    type: 'muscu' as const
+  }));
+
   return (
     <div className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col font-sans select-none antialiased relative">
       <div className="w-full max-w-md mx-auto min-h-screen bg-neutral-950 flex flex-col shadow-2xl sm:border-x sm:border-neutral-900 relative">
@@ -580,7 +587,7 @@ export default function App() {
             <div className="space-y-4 animate-fadeIn pb-12">
                
               {/* --- BOUCLIER PRÉDICTIF SNC SHIELD --- */}
-              <SncShieldWidget currentReadiness={currentReadinessScore} />
+              <SncShieldWidget currentReadiness={currentReadinessScore} recentLoads={recentTrainingLoads} />
 
               {/* --- WIDGET INDEX APEX (Score Type Yuka) --- */}
               <div className={`border rounded-3xl p-5 space-y-3 shadow-xl relative overflow-hidden transition-all ${
