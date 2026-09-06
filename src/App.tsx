@@ -39,6 +39,7 @@ import FitBotProactiveCoach from './components/FitBotProactiveCoach';
 import NutritionTab from './components/NutritionTab';
 import PacingMatrixPlanner from './components/PacingMatrixPlanner';
 import BioSyncTab from './components/BioSyncTab';
+import SncShieldWidget from './components/SncShieldWidget';
 
 import FatigueDashboardCard from './components/FatigueDashboardCard';
 import { calculateApexScore } from './ApexScoreEngine';
@@ -577,6 +578,9 @@ export default function App() {
           {currentTab === 'today' && (
             <div className="space-y-4 animate-fadeIn pb-12">
                
+              {/* --- BOUCLIER PRÉDICTIF SNC SHIELD --- */}
+              <SncShieldWidget currentReadiness={currentReadinessScore} />
+
               {/* --- WIDGET INDEX APEX (Score Type Yuka) --- */}
               <div className={`border rounded-3xl p-5 space-y-3 shadow-xl relative overflow-hidden transition-all ${
                 todayApexData.badgeColor === 'red' ? 'bg-red-950/30 border-red-500/50' : 
