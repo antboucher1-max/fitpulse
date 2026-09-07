@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Compass, Share2, Download, Check, MapPin, Sparkles, Layers } from 'lucide-react';
+import { Compass, Share2, Download, Check, MapPin, Sparkles, Layers, Route } from 'lucide-react';
 import { MapContainer, TileLayer, Polyline, Marker, Popup, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
@@ -76,12 +76,12 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
   const [selectedTopoTrailId, setSelectedTopoTrailId] = useState<string>('topo-flines-10');
   const [topoCard, setTopoCard] = useState<any>(PRO_TOP_TRAILS[0]);
   
-  const [dynamicCard, setDynamicCard] = useState<any>(null);
+  const [roadCard, setRoadCard] = useState<any>(null);
   const [generating, setGenerating] = useState(false);
   const [shared, setShared] = useState(false);
   
   const [userCoords, setUserCoords] = useState<[number, number]>([50.5123, 3.3512]);
-  const [gpsStatus, setGpsStatus] = useState<string>('Laplaigne / Forêt de Flines 📍');
+  const [gpsStatus, setGpsStatus] = useState<string>('Laplaigne / Secteur actif 📍');
 
   useEffect(() => {
     if ('geolocation' in navigator) {
@@ -90,13 +90,14 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
           setUserCoords([pos.coords.latitude, pos.coords.longitude]);
           setGpsStatus('GPS Actif (Position Fixée) 📍');
         },
-        () => setGpsStatus('Secteur Laplaigne / Flines (Défaut)'),
+        () => setGpsStatus('Secteur Laplaigne (Défaut)'),
         { enableHighAccuracy: true, timeout: 10000 }
       );
     }
   }, []);
 
-  const handleGenerateDynamicRoute = async () => {
+  // Générateur pour les cartes Routières / Champs / Urbain (OpenStreetMap)
+  const handleGenerateRoadRoute = async () => {
     setGenerating(true);
     try {
       const [lat, lng] = userCoords;
@@ -135,11 +136,11 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
 
       if (surfacePreference === 'champs') {
         title = `Circuit des Champs & Pistes (${d} km)`;
-        desc = `Parcours routier et rural de ${d} km à travers les terres agricoles.`;
+        desc = `Parcours rural de ${d} km à travers les terres agricoles et chemins de terre.`;
         surf = 'Voies agricoles & chemins de terre';
       } else if (surfacePreference === 'urbain') {
         title = `Urban Trail & Asphalte (${d} km)`;
-        desc = `Itinéraire urbain et sécurisé de ${d} km sur les voiries.`;
+        desc = `Itinéraire urbain et sécurisé de ${d} km sur voiries.`;
         surf = 'Rues & asphalte';
       } else {
         title = `Circuit Mixte Global (${d} km)`;
@@ -147,7 +148,7 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
         surf = 'Chemins & Rues';
       }
 
-      setDynamicCard({
+      setRoadCard({
         id: Date.now(),
         name: title,
         distance: d,
@@ -167,7 +168,7 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
 
   useEffect(() => {
     if (surfacePreference !== 'bois') {
-      handleGenerateDynamicRoute();
+      handleGenerateRoadRoute();
     }
   }, [surfacePreference, selectedDistance, userCoords]);
 
@@ -178,10 +179,11 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
   };
 
   const isTopoMode = surfacePreference === 'bois';
-  const activeCard = isTopoMode ? topoCard : dynamicCard;
+  const activeCard = isTopoMode ? topoCard : roadCard;
   
-  // Centre de carte forcé précisément sur la Forêt de Flines en mode Topo
-  const mapCenter = isTopoMode ? [50.5100, 3.3650] : userCoords;
+  // Coordonnées et zoom spécifiques selon la carte active
+  const mapCenter = isTopoMode ? [50.5110, 3.3680] : userCoords;
+  const mapZoom = isTopoMode ? 14 : 13;
 
   const handlePublishToClub = () => {
     if (!activeCard) return;
@@ -207,9 +209,9 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-base font-black text-white uppercase tracking-tight flex items-center gap-2">
-            <Compass className="w-5 h-5 text-orange-500" /> Système Bi-Cartographie Pro (Topographie vs Routier)
+            <Compass className="w-5 h-5 text-orange-500" /> Système Bi-Cartographie Pro (Sentiers vs Routier)
           </h2>
-          <p className="text-xs text-neutral-400">Cartes de sentiers dédiées pour la forêt et réseaux routiers pour le reste</p>
+          <p className="text-xs text-neutral-400">Deux moteurs cartographiques indépendants pour la Forêt et les Routes</p>
         </div>
         <span className="text-xs font-mono bg-emerald-500/10 text-emerald-400 px-3 py-1 rounded-full border border-emerald-500/20 font-bold">
           {gpsStatus}
@@ -219,14 +221,14 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
       <div className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 space-y-4">
         <div className="space-y-2">
           <label className="text-xs font-bold text-neutral-300 uppercase tracking-wider block">
-            Sélectionner le Type de Parcours (Bascule automatique de moteur cartographique) :
+            Sélectionner le Type de Parcours (Bascule de carte) :
           </label>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             {[
-              { id: 'bois', label: '🌲 Forêts & Bois', desc: 'Vraie Carte Topo & Sentiers' },
-              { id: 'mixte', label: '⚖️ Mixte Global', desc: 'Carte Routière & Chemins' },
-              { id: 'champs', label: '🌾 Champs & Pistes', desc: 'Voies agricoles' },
-              { id: 'urbain', label: '🏙️ Rues & Asphalte', desc: 'Réseau routier standard' }
+              { id: 'bois', label: '🌲 Forêts & Bois', desc: 'Carte 1 : OpenTopoMap (Sentiers)' },
+              { id: 'mixte', label: '⚖️ Mixte Global', desc: 'Carte 2 : Routière & Chemins' },
+              { id: 'champs', label: '🌾 Champs & Pistes', desc: 'Carte 2 : Voies agricoles' },
+              { id: 'urbain', label: '🏙️ Rues & Asphalte', desc: 'Carte 2 : Réseau routier' }
             ].map(item => (
               <button
                 key={item.id}
@@ -245,10 +247,11 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
           </div>
         </div>
 
+        {/* OPTIONS SELON LE MODE DE CARTE */}
         {isTopoMode ? (
           <div className="space-y-2 animate-fadeIn border-t border-neutral-800 pt-4">
             <label className="text-xs font-bold text-orange-400 uppercase tracking-wider flex items-center gap-2">
-              <Layers className="w-4 h-4" /> Catalogue OpenTopoMap (Forêt de Flines depuis Laplaigne) :
+              <Layers className="w-4 h-4" /> Catalogue OpenTopoMap (Forêt de Flines - Vrais Sentiers) :
             </label>
             <div className="grid grid-cols-1 gap-2.5">
               {PRO_TOP_TRAILS.map(trail => (
@@ -301,30 +304,32 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
             </div>
             <button
               type="button"
-              onClick={handleGenerateDynamicRoute}
+              onClick={handleGenerateRoadRoute}
               disabled={generating}
               className="w-full py-3 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-white font-black rounded-xl text-xs uppercase tracking-wider transition cursor-pointer flex items-center justify-center gap-2 shadow-xl shadow-orange-600/20"
             >
-              <Sparkles className="w-4 h-4" /> {generating ? "Calcul du réseau routier..." : `Générer le tracé ${selectedDistance} km`}
+              <Route className="w-4 h-4" /> {generating ? "Calcul du réseau routier..." : `Générer le tracé routier de ${selectedDistance} km`}
             </button>
           </div>
         )}
       </div>
 
+      {/* AFFICHAGE DE LA CARTE ACTIVE */}
       {activeCard && (
         <div className={`border p-5 rounded-2xl space-y-4 animate-fadeIn shadow-2xl relative overflow-hidden ${
           isTopoMode ? 'bg-neutral-900 border-orange-500/60' : 'bg-neutral-950 border-neutral-700/50'
         }`}>
           
           <div className="w-full h-80 rounded-2xl overflow-hidden border border-neutral-800 relative shadow-2xl z-0">
+            {/* CARTE 1 : OPENTOPOMAP (Pour les bois) vs CARTE 2 : OPENSTREETMAP (Pour le reste) */}
             <MapContainer 
               key={activeCard.id + isTopoMode.toString()}
               center={mapCenter as [number, number]} 
-              zoom={isTopoMode ? 14 : 13} 
+              zoom={mapZoom} 
               scrollWheelZoom={false} 
               style={{ width: '100%', height: '100%' }}
             >
-              <MapController center={mapCenter as [number, number]} zoom={isTopoMode ? 14 : 13} />
+              <MapController center={mapCenter as [number, number]} zoom={mapZoom} />
               
               <TileLayer
                 attribution={isTopoMode 
@@ -345,9 +350,9 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
                 opacity={0.95} 
               />
               
-              <Marker position={[50.5123, 3.3512]} icon={userLocationIcon}>
+              <Marker position={userCoords} icon={userLocationIcon}>
                 <Popup>
-                  <strong>📍 Départ : Laplaigne</strong>
+                  <strong>📍 Point de Départ</strong>
                 </Popup>
               </Marker>
             </MapContainer>
