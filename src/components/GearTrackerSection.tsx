@@ -23,13 +23,16 @@ export default function GearTrackerSection({
   onDeleteShoe, 
   onSetActiveShoe 
 }: GearTrackerProps) {
-  // Initialisation propre : si aucune paire n'est fournie, on part d'une liste vide (0 km) plutôt que de valeurs fictives
+  // Initialisation propre : si aucune paire n'est enregistrée dans le localStorage, on commence avec une liste vide (0 chaussures)
   const [localShoes, setLocalShoes] = useState<Shoe[]>(() => {
     const saved = localStorage.getItem('fitpulse_gear_shoes');
     if (saved) {
-      try { return JSON.parse(saved); } catch (e) { /* ignore */ }
+      try { 
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      } catch (e) { /* ignore */ }
     }
-    return [];
+    return []; // Zéro chaussure par défaut, fini les valeurs fictives
   });
 
   const shoes = propShoes !== undefined ? propShoes : localShoes;
@@ -39,7 +42,7 @@ export default function GearTrackerSection({
   const [maxKm, setMaxKm] = useState(700);
   const [showAddForm, setShowAddForm] = useState(false);
 
-  // Synchronisation automatique des kilomètres de la paire active avec le GPS / LiveGpsTracker ou le stockage local
+  // Synchronisation automatique des kilomètres de la paire active avec le GPS en temps réel
   useEffect(() => {
     const syncShoeMileage = () => {
       const savedDistance = localStorage.getItem('fitpulse_total_run_km');
@@ -63,7 +66,7 @@ export default function GearTrackerSection({
     return () => clearInterval(interval);
   }, [propShoes]);
 
-  // Sauvegarde locale pour la persistance
+  // Sauvegarde locale de la liste des chaussures
   useEffect(() => {
     if (propShoes === undefined) {
       localStorage.setItem('fitpulse_gear_shoes', JSON.stringify(localShoes));
@@ -78,11 +81,12 @@ export default function GearTrackerSection({
       onAddShoe(brand.trim(), model.trim(), Number(maxKm));
     } else {
       const isFirst = shoes.length === 0;
+      const currentRunKm = Number(localStorage.getItem('fitpulse_total_run_km')) || 0;
       const newShoe: Shoe = {
         id: Date.now().toString(),
         brand: brand.trim(),
         model: model.trim(),
-        current_km: isFirst ? (Number(localStorage.getItem('fitpulse_total_run_km')) || 0) : 0,
+        current_km: isFirst ? currentRunKm : 0,
         max_km: Number(maxKm),
         is_active: isFirst
       };
@@ -98,7 +102,14 @@ export default function GearTrackerSection({
     if (onDeleteShoe) {
       onDeleteShoe(shoeId);
     } else {
-      setLocalShoes(localShoes.filter(s => s.id !== shoeId));
+      setLocalShoes(prev => {
+        const filtered = prev.filter(s => s.id !== shoeId);
+        // Si on supprime l'active et qu'il en reste, on active la première par défaut
+        if (filtered.length > 0 && !filtered.some(s => s.is_active)) {
+          filtered[0].is_active = true;
+        }
+        return filtered;
+      });
     }
   };
 
@@ -135,7 +146,7 @@ export default function GearTrackerSection({
           <div className="grid grid-cols-2 gap-2">
             <input 
               type="text" 
-              placeholder="Marque (ex: Nike)" 
+              placeholder="Marque (ex: Hoka)" 
               value={brand} 
               onChange={(e) => setBrand(e.target.value)} 
               className="bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
@@ -143,7 +154,7 @@ export default function GearTrackerSection({
             />
             <input 
               type="text" 
-              placeholder="Modèle (ex: Pegasus)" 
+              placeholder="Modèle (ex: Clifton 9)" 
               value={model} 
               onChange={(e) => setModel(e.target.value)} 
               className="bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
@@ -167,7 +178,7 @@ export default function GearTrackerSection({
 
       <div className="space-y-3">
         {shoes.length === 0 ? (
-          <p className="text-xs text-neutral-500 text-center py-4">Aucune paire enregistrée. Ajoute tes chaussures pour suivre leur usure en direct via tes sorties GPS !</p>
+          <p className="text-xs text-neutral-500 text-center py-4">Aucune paire enregistrée. Ajoutez vos chaussures pour suivre leur usure en direct via vos sorties GPS !</p>
         ) : (
           shoes.map((shoe) => {
             const percentage = Math.min(100, Math.round(((shoe.current_km || 0) / (shoe.max_km || 700)) * 100));
