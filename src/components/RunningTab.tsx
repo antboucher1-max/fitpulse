@@ -100,7 +100,6 @@ function FuelLockPostWod({ lastRunDistanceKm = 10, bodyWeightKg = 70 }: { lastRu
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [recipeGenerated, setRecipeGenerated] = useState<any>(null);
 
-  // Correction de la distance effective : si distance <= 0, on met 1 km par défaut pour éviter l'incohérence à 0 km
   const effectiveDistance = lastRunDistanceKm > 0 ? lastRunDistanceKm : 1.0;
 
   const estimatedCaloriesBurned = Math.round(effectiveDistance * bodyWeightKg * 0.9);
@@ -914,8 +913,14 @@ export default function RunningTab({
               </div>
             </div>
 
-            {/* Insertion du Fuel-Lock Post-Effort avec distance corrigée pour éviter 0 km */}
-            <FuelLockPostWod lastRunDistanceKm={distanceKm} bodyWeightKg={bodyWeight} />
+            {/* Condition stricte : Le Fuel-Lock ne s'affiche que si distance > 0.05 km */}
+            {distanceKm > 0.05 ? (
+              <FuelLockPostWod lastRunDistanceKm={distanceKm} bodyWeightKg={bodyWeight} />
+            ) : (
+              <div className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 text-center text-xs text-neutral-400">
+                ℹ️ Aucune distance significative enregistrée (session test à 0 km). Pas de calcul Fuel-Lock nécessaire.
+              </div>
+            )}
 
             <div className="space-y-2.5 pt-2">
               <button onClick={handlePublishChallenge} disabled={isSavingRun} className="w-full py-4 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-white font-black rounded-2xl text-xs uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer shadow-xl disabled:opacity-50">
