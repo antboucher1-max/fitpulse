@@ -5,17 +5,19 @@ interface SncShieldWidgetProps {
   currentReadiness?: number;
   weeklyLoad?: number;
   recentLoads?: TrainingLoadEntry[];
+  onOpenDetails?: () => void;
 }
 
 export default function SncShieldWidget({ 
-  currentReadiness = 75, 
-  weeklyLoad = 1800, 
+  currentReadiness = 80, 
+  weeklyLoad = 950, // Valeur nominale sécurisée par défaut (loin du seuil d'alerte)
   recentLoads 
 }: SncShieldWidgetProps) {
   const loadsToAnalyze: TrainingLoadEntry[] = recentLoads || [
     { date: new Date().toISOString(), loadScore: weeklyLoad, type: 'running' }
   ];
 
+  // Analyse en direct via l'algorithme intelligent
   const shieldData = analyzeSncShield(loadsToAnalyze, currentReadiness);
 
   const getBadgeStyle = () => {
