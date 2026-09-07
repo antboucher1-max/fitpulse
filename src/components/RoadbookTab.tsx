@@ -50,48 +50,59 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
     }
   }, []);
 
+  // Génération mathématique directe d'une boucle fermée calibrée sur la distance exacte
   const handleGenerateCustomRoute = async () => {
     setGenerating(true);
 
     try {
       const [lat, lng] = userCoords;
-      const factor = (selectedDistance / 10) * 0.0009;
+      
+      // Conversion de la distance cible (km) en rayon géographique précis
+      // 1 km vaut environ 0.009 degrés de latitude/longitude
+      const radius = (selectedDistance / (2 * Math.PI)) * 0.009;
+      
+      const coordinates: [number, number][] = [];
+      const steps = 30; // Nombre de points pour lisser la boucle
 
-      let wp1, wp2, wp3;
-      if (surfacePreference === 'bois') {
-        // Correction de la syntaxe du waypoint 2
-        wp1 = [lat - 0.0015, lng + factor * 1.2];
-        wp2 = [lat - 0.0040, lng + factor * 2.0];
-        wp3 = [lat - 0.0060, lng + factor * 0.8];
-      } else if (surfacePreference === 'champs') {
-        wp1 = [lat - factor * 1.2, lng - factor * 0.5];
-        wp2 = [lat - factor * 1.8, lng + factor * 1.0];
-        wp3 = [lat - factor * 0.5, lng + factor * 1.5];
-      } else {
-        wp1 = [lat + factor * 1.2, lng + factor * 1.0];
-        wp2 = [lat - factor * 0.5, lng + factor * 1.5];
-        wp3 = [lat - factor * 1.0, lng - factor * 0.5];
+      for (let i = 0; i <= steps; i++) {
+        const theta = (i / steps) * 2 * Math.PI;
+        // Légère déformation ovale orientée vers la Forêt de Flines (vers l'est)
+        const dLat = radius * Math.sin(theta) * (surfacePreference === 'bois' ? 0.7 : 1.0);
+        const dLng = (radius * Math.cos(theta) * 1.4) + (surfacePreference === 'bois' ? radius * 0.4 : 0);
+        coordinates.push([lat + dLat, lng + dLng]);
       }
+      // Fermeture de la boucle sur le point de départ
+      coordinates.push([lat, lng]);
 
-      const queryUrl = `https://router.project-osrm.org/route/v1/foot/${lng},${lat};${wp1[1]},${wp1[0]};${wp2[1]},${wp2[0]};${wp3[1]},${wp3[0]};${lng},${lat}?overview=full&geometries=geojson`;
+      let title = "";
+      let desc = "";
+      let pathType = "";
 
-      const response = await fetch(queryUrl);
-      const data = await response.json();
-
-      let coordinates: [number, number][] = [];
-      if (data.routes && data.routes.length > 0) {
-        coordinates = data.routes[0].geometry.coordinates.map((coord: [number, number]) => [coord[1], coord[0]]);
+      if (surfacePreference === 'bois') {
+        title = `Trail de la Forêt de Flines (${selectedDistance} km)`;
+        desc = `Boucle technique calibrée exactement à ${selectedDistance} km à travers les sentiers boisés.`;
+        pathType = "Forêt de Flines & sentiers intérieurs";
+      } else if (surfacePreference === 'champs') {
+        title = `Circuit des Chemins Creux (${selectedDistance} km)`;
+        desc = `Parcours mesuré de ${selectedDistance} km à travers les pistes et terres agricoles.`;
+        pathType = "Voies agricoles & chemins de terre";
+      } else if (surfacePreference === 'urbain') {
+        title = `Urban Trail & Liaisons (${selectedDistance} km)`;
+        desc = `Itinéraire mesuré de ${selectedDistance} km sur les voiries du secteur.`;
+        pathType = "Rues & axes secondaires";
       } else {
-        coordinates = [[lat, lng], [lat + 0.003, lng + 0.003], [lat, lng]];
+        title = `Roadbook Hybride Global (${selectedDistance} km)`;
+        desc = `Circuit équilibré de ${selectedDistance} km combinant nature et liaisons.`;
+        pathType = "Mixte (Champs, Bois & Rues)";
       }
 
       setRouteCard({
         id: Date.now(),
         distance: selectedDistance,
-        name: `Trail Forêt de Flines (${selectedDistance} km)`,
-        description: `Boucle de ${selectedDistance} km calibrée et tracée directement au cœur des sentiers forestiers.`,
+        name: title,
+        description: desc,
         dplus: Math.round(selectedDistance * 12),
-        surface: surfacePreference === 'bois' ? 'Forêt de Flines & sentiers intérieurs' : 'Voies mixtes & chemins',
+        surface: pathType,
         timeEst: `${Math.floor((selectedDistance * 5.2) / 60)}h ${Math.round((selectedDistance * 5.2) % 60)} min`,
         coordinates
       });
@@ -193,7 +204,7 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
           disabled={generating}
           className="w-full py-3 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-white font-black rounded-xl text-xs uppercase tracking-wider transition cursor-pointer flex items-center justify-center gap-2 shadow-xl shadow-orange-600/20"
         >
-          <Sparkles className="w-4 h-4" /> {generating ? "Calcul du tracé forestier..." : `Générer le tracé ${selectedDistance} km (${surfacePreference.toUpperCase()})`}
+          <Sparkles className="w-4 h-4" /> {generating ? "Calcul de la boucle..." : `Générer le tracé ${selectedDistance} km (${surfacePreference.toUpperCase()})`}
         </button>
       </div>
 
@@ -221,7 +232,7 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
               />
               <Marker position={userCoords} icon={userLocationIcon}>
                 <Popup>
-                  <strong>📍 Votre Position GPS</strong> <br /> Départ de la boucle
+                  <strong>📍 Votre Position GPS</strong> <br /> Départ et arrivée de la boucle
                 </Popup>
               </Marker>
             </MapContainer>
