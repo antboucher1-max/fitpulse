@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Compass, Share2, Download, Check, MapPin, Sparkles, Layers, Route, ExternalLink } from 'lucide-react';
+import { Compass, Share2, Download, Check, MapPin, Sparkles, Layers, Route, ExternalLink, Globe } from 'lucide-react';
 import { MapContainer, TileLayer, Polyline, Marker, Popup, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
@@ -23,7 +23,7 @@ const userLocationIcon = L.divIcon({
   iconAnchor: [8, 8]
 });
 
-// Réseaux belges ancrés précisément sur la vraie Forêt de Flines (à l'est de Laplaigne)
+// Réseaux de sentiers belges de référence (Forêt de Flines & Wallonie)
 const BELGIAN_SENTIER_NETWORKS = [
   {
     id: 'nodemapp-flines',
@@ -35,11 +35,11 @@ const BELGIAN_SENTIER_NETWORKS = [
     timeEst: '1h 50 min',
     description: 'Itinéraire connecté aux points-nœuds officiels locaux de la Forêt de Flines.',
     coordinates: [
-      [50.5123, 3.3512], // Laplaigne
-      [50.5140, 3.3620], // Entrée forêt
-      [50.5110, 3.3750], // Cœur du massif de Flines
-      [50.5050, 3.3820], // Est de la forêt
-      [50.4980, 3.3740], // Sud
+      [50.5123, 3.3512],
+      [50.5140, 3.3620],
+      [50.5110, 3.3750],
+      [50.5050, 3.3820],
+      [50.4980, 3.3740],
       [50.5010, 3.3600],
       [50.5123, 3.3512]
     ]
@@ -199,7 +199,6 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
   const isTopoMode = surfacePreference === 'bois';
   const activeCard = isTopoMode ? topoCard : roadCard;
   
-  // Centre de carte forcé précisément sur la Forêt de Flines en mode Topo
   const mapCenter = isTopoMode ? [50.5100, 3.3680] : userCoords;
   const mapZoom = isTopoMode ? 14 : 13;
 
@@ -227,9 +226,9 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-base font-black text-white uppercase tracking-tight flex items-center gap-2">
-            <Compass className="w-5 h-5 text-orange-500" /> Système Bi-Cartographie Pro (Réseaux Belges & Routier)
+            <Compass className="w-5 h-5 text-orange-500" /> Système Bi-Cartographie Pro (Sentiers vs Routier)
           </h2>
-          <p className="text-xs text-neutral-400">Intégration NodeMapp, RouteYou, SityTrail et cartographie OpenTopoMap</p>
+          <p className="text-xs text-neutral-400">Calque de sentiers dédiés (Waymarked Trails) pour les forêts et OpenStreetMap pour le routier</p>
         </div>
         <span className="text-xs font-mono bg-emerald-500/10 text-emerald-400 px-3 py-1 rounded-full border border-emerald-500/20 font-bold">
           {gpsStatus}
@@ -243,8 +242,8 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
           </label>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             {[
-              { id: 'bois', label: '🌲 Forêts & Bois', desc: 'Carte 1 : OpenTopoMap & Réseaux Belges' },
-              { id: 'mixte', label: '⚖️ Mixte Global', desc: 'Carte 2 : Routière & Chemins' },
+              { id: 'bois', label: '🌲 Forêts & Bois', desc: 'Carte 1 : Sentiers & Balisages' },
+              { id: 'mixte', label: '⚖️ Mixte Global', desc: 'Carte 2 : Routière' },
               { id: 'champs', label: '🌾 Champs & Pistes', desc: 'Carte 2 : Voies agricoles' },
               { id: 'urbain', label: '🏙️ Rues & Asphalte', desc: 'Carte 2 : Réseau routier' }
             ].map(item => (
@@ -265,14 +264,15 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
           </div>
         </div>
 
+        {/* OPTIONS MODE FORÊT : CATALOGUE DES SENTIERS DE RÉFÉRENCE */}
         {isTopoMode ? (
           <div className="space-y-3 animate-fadeIn border-t border-neutral-800 pt-4">
             <div className="flex items-center justify-between">
               <label className="text-xs font-bold text-orange-400 uppercase tracking-wider flex items-center gap-2">
-                <Layers className="w-4 h-4" /> Réseaux Belges & OpenTopoMap (Forêt de Flines) :
+                <Layers className="w-4 h-4" /> Calques & Sentiers Officiels (Forêt de Flines) :
               </label>
-              <span className="text-[10px] text-neutral-400 bg-neutral-900 px-2.5 py-1 rounded-md border border-neutral-800">
-                💡 Astuce : Vérifiez l'état des sentiers sur Komoot / VisitWallonia
+              <span className="text-[10px] text-emerald-400 bg-emerald-950/40 px-2.5 py-1 rounded-md border border-emerald-500/20 font-bold">
+                Affichage Sentiers Actif 🥾
               </span>
             </div>
             
@@ -304,15 +304,16 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
               ))}
             </div>
 
+            {/* Accès rapides vers Waymarked Trails et autres outils belges */}
             <div className="flex flex-wrap gap-2 pt-1 text-[11px]">
-              <a href="https://www.routeyou.com" target="_blank" rel="noreferrer" className="text-neutral-400 hover:text-orange-400 flex items-center gap-1 bg-neutral-900 px-3 py-1 rounded-lg border border-neutral-800">
-                🌐 Explorer RouteYou <ExternalLink className="w-3 h-3" />
+              <a href="https://hiking.waymarkedtrails.org" target="_blank" rel="noreferrer" className="text-neutral-400 hover:text-orange-400 flex items-center gap-1 bg-neutral-900 px-3 py-1 rounded-lg border border-neutral-800">
+                🥾 Waymarked Trails (Sentiers) <ExternalLink className="w-3 h-3" />
               </a>
-              <a href="https://www.visitwallonia.be" target="_blank" rel="noreferrer" className="text-neutral-400 hover:text-orange-400 flex items-center gap-1 bg-neutral-900 px-3 py-1 rounded-lg border border-neutral-800">
-                🥾 VisitWallonia Balades <ExternalLink className="w-3 h-3" />
+              <a href="https://geoportail.wallonie.be" target="_blank" rel="noreferrer" className="text-neutral-400 hover:text-orange-400 flex items-center gap-1 bg-neutral-900 px-3 py-1 rounded-lg border border-neutral-800">
+                🌐 WalOnMap (Calques) <ExternalLink className="w-3 h-3" />
               </a>
-              <a href="https://www.komoot.com" target="_blank" rel="noreferrer" className="text-neutral-400 hover:text-orange-400 flex items-center gap-1 bg-neutral-900 px-3 py-1 rounded-lg border border-neutral-800">
-                💬 Komoot (Avis boue/sentiers) <ExternalLink className="w-3 h-3" />
+              <a href="https://chemins.be" target="_blank" rel="noreferrer" className="text-neutral-400 hover:text-orange-400 flex items-center gap-1 bg-neutral-900 px-3 py-1 rounded-lg border border-neutral-800">
+                🌲 Chemins.be (Atlas vicinal) <ExternalLink className="w-3 h-3" />
               </a>
             </div>
           </div>
@@ -351,6 +352,7 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
         )}
       </div>
 
+      {/* AFFICHAGE DE LA CARTE ACTIVE */}
       {activeCard && (
         <div className={`border p-5 rounded-2xl space-y-4 animate-fadeIn shadow-2xl relative overflow-hidden ${
           isTopoMode ? 'bg-neutral-900 border-orange-500/60' : 'bg-neutral-950 border-neutral-700/50'
@@ -366,9 +368,13 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
             >
               <MapController center={mapCenter as [number, number]} zoom={mapZoom} />
               
+              {/* 
+                - Si Mode Forêt (isTopoMode) : On charge le fond OpenTopoMap + la couche transparente Waymarked Trails (sentiers balisés en surbrillance)
+                - Si Mode Routier : On charge OpenStreetMap classique 
+              */}
               <TileLayer
                 attribution={isTopoMode 
-                  ? 'Map data: &copy; OpenStreetMap contributors, SRTM | Map style: &copy; OpenTopoMap' 
+                  ? 'Map data: &copy; OpenStreetMap contributors, SRTM | Sentiers: &copy; Waymarked Trails' 
                   : '&copy; OpenStreetMap contributors'
                 }
                 url={isTopoMode 
@@ -377,6 +383,15 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
                 }
                 maxZoom={17}
               />
+
+              {/* Calque additionnel spécifique aux sentiers de randonnée pour afficher les traits de balisage en forêt */}
+              {isTopoMode && (
+                <TileLayer
+                  url="https://tile.waymarkedtrails.org/hiking/{z}/{x}/{y}.png"
+                  opacity={0.8}
+                  maxZoom={18}
+                />
+              )}
               
               <Polyline 
                 positions={activeCard.coordinates} 
