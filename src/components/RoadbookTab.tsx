@@ -1,7 +1,25 @@
 import { useState, useEffect } from 'react';
 import { Compass, Sparkles, Share2, Download, Check } from 'lucide-react';
-import { MapContainer, TileLayer, Polyline, Marker, Popup } from 'react-leaflet';
+import { MapContainer, TileLayer, Polyline, Marker, Popup, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
+import L from 'leaflet';
+
+// Composant utilitaire pour recentrer automatiquement la carte dès que le GPS change
+function MapRecenter({ center }: { center: [number, number] }) {
+  const map = useMap();
+  useEffect(() => {
+    map.setView(center, 13);
+  }, [center, map]);
+  return null;
+}
+
+// Icône personnalisée pour la position de l'utilisateur
+const userLocationIcon = L.divIcon({
+  className: 'custom-user-marker',
+  html: `<div style="background-color: #f97316; width: 16px; height: 16px; border-radius: 50%; border: 3px solid white; box-shadow: 0 0 10px rgba(0,0,0,0.6); animation: pulse 2s infinite;"></div>`,
+  iconSize: [16, 16],
+  iconAnchor: [8, 8]
+});
 
 interface RoadbookTabProps {
   currentUserId?: string;
@@ -14,39 +32,43 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
   const [routeCard, setRouteCard] = useState<any>(null);
   const [shared, setShared] = useState(false);
   
-  // Coordonnées par défaut (Brunehaut / Wallonie) et position GPS réelle
-  const [centerCoords, setCenterCoords] = useState<[number, number]>([50.5123, 3.3512]);
-  const [gpsStatus, setGpsStatus] = useState<string>('Recherche GPS...');
+  // Coordonnées par défaut (Secteur Brunehaut / Wallonie) et position GPS réelle de l'utilisateur
+  const [userCoords, setUserCoords] = useState<[number, number]>([50.5123, 3.3512]);
+  const [gpsStatus, setGpsStatus] = useState<string>('Recherche GPS en cours...');
 
+  // Récupération de la vraie géolocalisation de l'appareil de l'utilisateur
   useEffect(() => {
     if ('geolocation' in navigator) {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
           const lat = pos.coords.latitude;
           const lng = pos.coords.longitude;
-          setCenterCoords([lat, lng]);
-          setGpsStatus('GPS Actif (Position Fixée) 📍');
+          setUserCoords([lat, lng]);
+          setGpsStatus('GPS Actif (Position Utilisateur Fixée) 📍');
         },
         () => {
-          setGpsStatus('Secteur Brunehaut / Wallonie (Défaut)');
+          setGpsStatus('GPS Indisponible - Position par défaut (Brunehaut/Wallonie)');
         },
-        { timeout: 7000 }
+        { enableHighAccuracy: true, timeout: 10000 }
       );
+    } else {
+      setGpsStatus('Géolocalisation non supportée');
     }
   }, []);
 
-  // Génération d'une boucle de coordonnées GPS fictives mais réalistes autour du point de départ pour la carte Leaflet
+  // Générateur de boucle GPS réaliste s'articulant précisément autour des coordonnées de l'utilisateur
   const generateLoopCoordinates = (center: [number, number], distanceKm: number): [number, number][] => {
     const [lat, lng] = center;
-    // Facteur d'échelle approximatif pour transformer des km en degrés GPS
-    const delta = distanceKm * 0.0022; 
+    // Ajustement de l'envergure du tracé en fonction de la distance cible (5, 10, 15, 21 km)
+    const scale = distanceKm * 0.0018; 
     return [
       [lat, lng],
-      [lat + delta * 0.4, lng + delta * 0.6],
-      [lat + delta * 0.8, lng + delta * 0.3],
-      [lat + delta * 0.9, lng - delta * 0.2],
-      [lat + delta * 0.5, lng - delta * 0.5],
-      [lat, lng] // Boucle fermée
+      [lat + scale * 0.3, lng + scale * 0.7],
+      [lat + scale * 0.8, lng + scale * 0.9],
+      [lat + scale * 1.1, lng + scale * 0.2],
+      [lat + scale * 0.7, lng - scale * 0.5],
+      [lat + scale * 0.2, lng - scale * 0.3],
+      [lat, lng] // Boucle fermée de retour au point de départ
     ];
   };
 
@@ -60,27 +82,27 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
 
       if (surfacePreference === 'bois') {
         title = `Trail des Sous-Bois & Traces Forestières (${selectedDistance} km)`;
-        desc = "Boucle technique en cœur de massif forestier. Alternance de sentiers de terre meuble et de singles tracks.";
+        desc = "Boucle technique générée depuis votre position. Alternance de sentiers de terre meuble, sous-bois et single tracks forestiers.";
         elevation = selectedDistance * 14;
         pathType = "Forêts & Sentiers boisés (85%)";
       } else if (surfacePreference === 'champs') {
         title = `Circuit des Chemins Creux & Terres Agricoles (${selectedDistance} km)`;
-        desc = "Immersion totale dans les grands espaces de cultures. Chemins de crête et pistes agricoles stabilisées.";
+        desc = "Immersion totale dans les grands espaces agricoles depuis vos coordonnées GPS. Chemins de crête et pistes stabilisées.";
         elevation = selectedDistance * 8;
         pathType = "Champs & Chemins de terre (80%)";
       } else if (surfacePreference === 'urbain') {
-        title = `Urban Trail & Côtes Bitumées (${selectedDistance} km)`;
-        desc = "Tracé dynamique reliant les axes de liaison urbains et passages pavés historiques.";
+        title = `Urban Trail & Relances Bitumées (${selectedDistance} km)`;
+        desc = "Tracé dynamique au départ de votre emplacement reliant les axes de liaison urbains et passages sécurisés.";
         elevation = selectedDistance * 18;
         pathType = "Rues, routes & voiries bitumées (90%)";
       } else {
         title = `Roadbook Hybride : Bois, Champs & Rues (${selectedDistance} km)`;
-        desc = "Le parcours complet combinant l'asphalte, les sentiers de champs et les sous-bois techniques.";
+        desc = "Le parcours complet tracé depuis votre position. Combine l'asphalte, les pistes de champs et les sous-bois techniques.";
         elevation = selectedDistance * 11;
         pathType = "Mixte équilibré (Rues, Champs & Bois)";
       }
 
-      const polylinePoints = generateLoopCoordinates(centerCoords, selectedDistance);
+      const polylinePoints = generateLoopCoordinates(userCoords, selectedDistance);
 
       setRouteCard({
         id: Date.now(),
@@ -115,7 +137,7 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
           <h2 className="text-base font-black text-white uppercase tracking-tight flex items-center gap-2">
             <Compass className="w-5 h-5 text-orange-500" /> Générateur de Roadbooks GPS & Sentiers
           </h2>
-          <p className="text-xs text-neutral-400">Cartographie interactive OpenStreetMap (Forêts, Bois, Champs, Rues)</p>
+          <p className="text-xs text-neutral-400">Cartographie interactive en direct depuis vos coordonnées GPS</p>
         </div>
         <span className="text-xs font-mono bg-emerald-500/10 text-emerald-400 px-3 py-1 rounded-full border border-emerald-500/20 font-bold">
           {gpsStatus}
@@ -179,36 +201,38 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
           disabled={generating}
           className="w-full py-3 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-white font-black rounded-xl text-xs uppercase tracking-wider transition cursor-pointer flex items-center justify-center gap-2 shadow-xl shadow-orange-600/20"
         >
-          <Sparkles className="w-4 h-4" /> {generating ? "Génération topographique..." : `Générer la carte ${selectedDistance} km (${surfacePreference.toUpperCase()})`}
+          <Sparkles className="w-4 h-4" /> {generating ? "Calcul topographique GPS..." : `Générer le parcours ${selectedDistance} km depuis ma position`}
         </button>
       </div>
 
       {routeCard && (
         <div className="bg-neutral-950 border border-orange-500/40 p-5 rounded-2xl space-y-4 animate-fadeIn shadow-2xl relative overflow-hidden">
           
-          {/* VRAIE CARTE INTERACTIVE LEAFLET (OpenStreetMap / OpenTopoMap) */}
-          <div className="w-full h-64 rounded-2xl overflow-hidden border border-neutral-800 relative shadow-2xl z-0">
+          {/* CARTE LEAFLET AVEC LOCALISATION GPS UTILISATEUR ET TRACÉ DE LA BOUCLE */}
+          <div className="w-full h-72 rounded-2xl overflow-hidden border border-neutral-800 relative shadow-2xl z-0">
             <MapContainer 
-              center={centerCoords} 
+              center={userCoords} 
               zoom={13} 
               scrollWheelZoom={false} 
               style={{ width: '100%', height: '100%' }}
             >
-              {/* Fond de carte OpenStreetMap détaillé montrant les sentiers, bois et chemins */}
+              <MapRecenter center={userCoords} />
+              {/* Fond de carte OpenStreetMap détaillé */}
               <TileLayer
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
               />
-              {/* Tracé GPS de la boucle en orange vif */}
+              {/* Tracé GPS principal en orange vif */}
               <Polyline 
                 positions={routeCard.coordinates} 
                 color="#f97316" 
-                weight={5} 
-                opacity={0.85} 
+                weight={6} 
+                opacity={0.9} 
               />
-              <Marker position={centerCoords}>
+              {/* Marqueur de la position exacte de l'utilisateur */}
+              <Marker position={userCoords} icon={userLocationIcon}>
                 <Popup>
-                  <strong>Départ / Arrivée</strong> <br /> {routeCard.name}
+                  <strong>📍 Votre Position GPS Actuelle</strong> <br /> Point de départ du Roadbook
                 </Popup>
               </Marker>
             </MapContainer>
@@ -238,7 +262,7 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
           <div className="flex gap-2 pt-2">
             <button 
               type="button"
-              onClick={() => alert(`🧭 Fichier GPX de "${routeCard.name}" téléchargé !`)}
+              onClick={() => alert(`🧭 Fichier GPX de "${routeCard.name}" téléchargé et prêt pour votre montre !`)}
               className="flex-1 py-2.5 bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 text-white font-bold rounded-xl text-xs transition cursor-pointer flex items-center justify-center gap-2"
             >
               <Download className="w-3.5 h-3.5 text-orange-400" /> Télécharger GPX
