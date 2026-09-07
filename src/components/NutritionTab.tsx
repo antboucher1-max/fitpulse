@@ -1,15 +1,60 @@
-import { useState } from 'react';
-import { Apple, Droplet, Flame, Zap, Activity, Calendar, ShieldAlert } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Apple, Droplet, Flame, Zap, Activity, Calendar, ShieldAlert, CheckCircle2 } from 'lucide-react';
+import { supabase } from '../supabaseClient';
 
 interface NutritionTabProps {
   currentUserProfile?: any;
   bodyWeight?: number;
+  currentUserId?: string;
+  onNutritionValidated?: () => void;
 }
 
-export default function NutritionTab({ currentUserProfile, bodyWeight = 70 }: NutritionTabProps) {
+export default function NutritionTab({ currentUserProfile, bodyWeight = 70, currentUserId, onNutritionValidated }: NutritionTabProps) {
   const [targetHours, setTargetHours] = useState<number>(1.5);
   const [sessionType, setSessionType] = useState<'endurance' | 'seuil' | 'foot' | 'longue'>('endurance');
   const [ambientTemp, setAmbientTemp] = useState<number>(20); // Température extérieure estimée
+  const [isNutritionValidatedToday, setIsNutritionValidatedToday] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (!currentUserId) return;
+    const saved = localStorage.getItem(`fitpulse_nutrition_${currentUserId}`);
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        const todayStr = new Date().toISOString().split('T')[0];
+        if (parsed.date === todayStr && parsed.validated) {
+          setIsNutritionValidatedToday(true);
+        }
+      } catch (e) {
+        // Ignore
+      }
+    }
+  }, [currentUserId]);
+
+  const handleValidateNutrition = async () => {
+    const todayStr = new Date().toISOString().split('T')[0];
+    const data = { date: todayStr, validated: true, timestamp: Date.now() };
+
+    if (currentUserId) {
+      localStorage.setItem(`fitpulse_nutrition_${currentUserId}`, JSON.stringify(data));
+    }
+    setIsNutritionValidatedToday(true);
+    alert("Diète & Fuel-Lock validés pour aujourd'hui ! 100% 🍏");
+
+    if (onNutritionValidated) {
+      onNutritionValidated();
+    }
+  };
+
+  const handleResetNutrition = () => {
+    if (currentUserId) {
+      localStorage.removeItem(`fitpulse_nutrition_${currentUserId}`);
+    }
+    setIsNutritionValidatedToday(false);
+    if (onNutritionValidated) {
+      onNutritionValidated();
+    }
+  };
 
   // --- CALCULATEUR DE CARB-LOADING & RAVITO ---
   let targetCarbsPerHour = 60;
@@ -30,8 +75,8 @@ export default function NutritionTab({ currentUserProfile, bodyWeight = 70 }: Nu
   return (
     <div className="space-y-6 pb-24 animate-fadeIn">
       
-      {/* En-tête Nutrition Lab */}
-      <div className="bg-gradient-to-r from-neutral-900 via-neutral-900 to-emerald-950/35 border border-neutral-800 rounded-3xl p-6 shadow-2xl relative overflow-hidden">
+      {/* En-tête Nutrition Lab & Validation Fuel-Lock */}
+      <div className="bg-gradient-to-r from-neutral-900 via-neutral-900 to-emerald-950/35 border border-neutral-800 rounded-3xl p-6 shadow-2xl relative overflow-hidden space-y-4">
         <div className="absolute -right-6 -bottom-6 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
         <div className="relative z-10 space-y-1">
           <div className="flex items-center gap-2 text-emerald-400 font-bold text-xs uppercase tracking-widest">
@@ -39,6 +84,32 @@ export default function NutritionTab({ currentUserProfile, bodyWeight = 70 }: Nu
           </div>
           <h2 className="text-xl font-black text-white tracking-tight">Stratégie Énergétique & Fenêtre de Récupération</h2>
           <p className="text-xs text-neutral-400">Optimisez vos stocks de glycogène et vos apports électrolytiques selon vos séances et la météo.</p>
+        </div>
+
+        {/* Bouton de validation Fuel-Lock */}
+        <div className="pt-2 border-t border-neutral-800 flex items-center justify-between">
+          <div className="space-y-0.5">
+            <span className="text-xs font-bold text-white block">Validation Fuel-Lock du jour</span>
+            <span className="text-[10px] text-neutral-400 block">Passe le score nutritionnel de l'Index Apex à 100%</span>
+          </div>
+
+          {isNutritionValidatedToday ? (
+            <div className="flex items-center gap-2">
+              <span className="px-3 py-1.5 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-xl text-xs font-black flex items-center gap-1.5 shadow-md">
+                <CheckCircle2 className="w-4 h-4" /> Validé (100%)
+              </span>
+              <button onClick={handleResetNutrition} className="text-[10px] text-neutral-400 hover:text-white underline cursor-pointer">
+                Modifier
+              </button>
+            </div>
+          ) : (
+            <button 
+              onClick={handleValidateNutrition}
+              className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-xl text-xs shadow-lg transition cursor-pointer flex items-center gap-1.5"
+            >
+              Valider ma diète 🍏
+            </button>
+          )}
         </div>
       </div>
 
