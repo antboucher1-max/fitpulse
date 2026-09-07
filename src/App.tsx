@@ -176,18 +176,14 @@ export default function App() {
     if (data) setGymLogsData(data);
   };
 
-  const calculateDynamicReadiness = () => {
-    if (!user) return 88;
-    const now = new Date().getTime();
-    const myRecentPosts = posts.filter(p => p.user_id === user.id && (now - new Date(p.created_at).getTime() < 24 * 60 * 60 * 1000));
-     
-    let score = 88 - (myRecentPosts.length * 35);
-    return Math.max(12, Math.min(100, score));
-  };
+  // Source de vérité unique unifiée pour le score de forme (Readiness)
+  const currentUserProfile = registeredUsers.find(u => u.id === user?.id);
+  const currentUsername = currentUserProfile?.username || user?.user_metadata?.username || 'Athlète';
+  
+  // On récupère le score depuis le profil s'il existe (ex: stocké via le check-in), sinon valeur par défaut stable à 78
+  const currentReadinessScore = Number((currentUserProfile as any)?.readiness_score ?? 78);
 
-  const currentReadinessScore = calculateDynamicReadiness();
-
-  // Calcul en direct du score Apex (type Yuka)
+  // Calcul en direct du score Apex unifié
   const todayApexData = calculateApexScore({
     readinessScore: currentReadinessScore,
     nutritionCompliance: true,
@@ -361,9 +357,6 @@ export default function App() {
     setLastReadTimestamps(newTimestamps);
     localStorage.setItem('fitpulse_read_timestamps', JSON.stringify(newTimestamps));
   };
-
-  const currentUserProfile = registeredUsers.find(u => u.id === user?.id);
-  const currentUsername = currentUserProfile?.username || user?.user_metadata?.username || 'Athlète';
 
   const handleSendMessage = async () => {
     if (!currentMessageInput.trim() || !selectedBuddyChat || !user) return;
@@ -615,7 +608,7 @@ export default function App() {
               {/* --- VUE 1 : APERÇU GLOBAL (QG & Lancer) --- */}
               {todaySubTab === 'overview' && (
                 <div className="space-y-3 animate-fadeIn">
-                  {/* Index Apex & Stats Fusionnées */}
+                  {/* Index Apex & Stats Fusionnées unifiées */}
                   <div className={`border rounded-3xl p-5 space-y-4 shadow-2xl relative overflow-hidden transition-all duration-300 ${
                     todayApexData.badgeColor === 'red' ? 'bg-gradient-to-br from-red-950/40 via-neutral-900 to-neutral-950 border-red-500/50' : 
                     todayApexData.badgeColor === 'amber' ? 'bg-gradient-to-br from-amber-950/40 via-neutral-900 to-neutral-950 border-amber-500/50' : 'bg-gradient-to-br from-neutral-900 via-neutral-900 to-neutral-950 border-neutral-800'
@@ -650,7 +643,7 @@ export default function App() {
                     </div>
                   </div>
 
-                  {/* SNC Shield Widget */}
+                  {/* SNC Shield Widget synchro avec la readiness unifiée */}
                   <SncShieldWidget currentReadiness={currentReadinessScore} recentLoads={recentTrainingLoads} />
 
                   {inTaperingWeek && (
