@@ -3,9 +3,9 @@ import { Trophy, MapPin, X, Sparkles, Crown, ChevronRight } from 'lucide-react';
 import { Post, RealUser } from '../types';
 
 interface ClubLeaderboardProps {
-  posts: Post[];
-  registeredUsers: RealUser[];
-  calculateStreak: (userId: string) => number;
+  posts?: Post[];
+  registeredUsers?: RealUser[];
+  calculateStreak?: (userId: string) => number;
 }
 
 const CLUBS_LIST = [
@@ -22,7 +22,11 @@ const CLUBS_LIST = [
   'Club Jurbise'
 ];
 
-export default function ClubLeaderboard({ posts, registeredUsers, calculateStreak }: ClubLeaderboardProps) {
+export default function ClubLeaderboard({ 
+  posts = [], 
+  registeredUsers = [], 
+  calculateStreak = () => 0 
+}: ClubLeaderboardProps) {
   const [selectedClubDetail, setSelectedClubDetail] = useState<string | null>(null);
 
   const currentMonthName = new Date().toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
@@ -197,7 +201,7 @@ export default function ClubLeaderboard({ posts, registeredUsers, calculateStrea
 
               <button 
                 onClick={() => setSelectedClubDetail(null)}
-                className="w-full py-3 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-2xl text-xs transition shadow-lg mt-2"
+                className="w-full py-3 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-2xl text-xs transition shadow-lg mt-2 cursor-pointer"
               >
                 Fermer
               </button>
