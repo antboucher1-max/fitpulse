@@ -23,7 +23,7 @@ const userLocationIcon = L.divIcon({
   iconAnchor: [8, 8]
 });
 
-// Réseau de sentiers et points-nœuds belges de référence (Forêt de Flines & Wallonie)
+// Réseaux belges ancrés précisément sur la vraie Forêt de Flines (à l'est de Laplaigne)
 const BELGIAN_SENTIER_NETWORKS = [
   {
     id: 'nodemapp-flines',
@@ -33,14 +33,14 @@ const BELGIAN_SENTIER_NETWORKS = [
     dplus: 95,
     surface: 'Chemins de liaison balisés & points-nœuds',
     timeEst: '1h 50 min',
-    description: 'Itinéraire connecté aux points-nœuds officiels locaux, idéal pour composer à la carte.',
+    description: 'Itinéraire connecté aux points-nœuds officiels locaux de la Forêt de Flines.',
     coordinates: [
-      [50.5123, 3.3512],
-      [50.5150, 3.3620],
-      [50.5100, 3.3750],
-      [50.5020, 3.3820],
-      [50.4950, 3.3700],
-      [50.5010, 3.3580],
+      [50.5123, 3.3512], // Laplaigne
+      [50.5140, 3.3620], // Entrée forêt
+      [50.5110, 3.3750], // Cœur du massif de Flines
+      [50.5050, 3.3820], // Est de la forêt
+      [50.4980, 3.3740], // Sud
+      [50.5010, 3.3600],
       [50.5123, 3.3512]
     ]
   },
@@ -52,15 +52,15 @@ const BELGIAN_SENTIER_NETWORKS = [
     dplus: 130,
     surface: 'Singles boisés & sentiers de terre battue',
     timeEst: '2h 15 min',
-    description: 'Tracé partagé et validé par la communauté sur RouteYou, évitant les propriétés privées.',
+    description: 'Tracé partagé et validé par la communauté sur RouteYou au cœur de Flines.',
     coordinates: [
       [50.5123, 3.3512],
-      [50.5160, 3.3650],
-      [50.5130, 3.3820],
-      [50.5050, 3.3900],
+      [50.5160, 3.3680],
+      [50.5130, 3.3850],
+      [50.5020, 3.3920],
       [50.4920, 3.3800],
       [50.4960, 3.3620],
-      [50.5050, 3.3520],
+      [50.5080, 3.3520],
       [50.5123, 3.3512]
     ]
   },
@@ -72,7 +72,7 @@ const BELGIAN_SENTIER_NETWORKS = [
     dplus: 75,
     surface: 'Voies forestières réhabilitées',
     timeEst: '1h 35 min',
-    description: 'Parcours publié et maintenu par les services communaux locaux sur SityTrail.',
+    description: 'Parcours publié et maintenu par les services communaux dans le massif de Flines.',
     coordinates: [
       [50.5123, 3.3512],
       [50.5080, 3.3600],
@@ -100,7 +100,7 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
   const [shared, setShared] = useState(false);
   
   const [userCoords, setUserCoords] = useState<[number, number]>([50.5123, 3.3512]);
-  const [gpsStatus, setGpsStatus] = useState<string>('Laplaigne / Secteur actif 📍');
+  const [gpsStatus, setGpsStatus] = useState<string>('Laplaigne / Forêt de Flines 📍');
 
   useEffect(() => {
     if ('geolocation' in navigator) {
@@ -115,7 +115,6 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
     }
   }, []);
 
-  // Générateur pour les cartes Routières / Champs / Urbain (OpenStreetMap)
   const handleGenerateRoadRoute = async () => {
     setGenerating(true);
     try {
@@ -200,7 +199,8 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
   const isTopoMode = surfacePreference === 'bois';
   const activeCard = isTopoMode ? topoCard : roadCard;
   
-  const mapCenter = isTopoMode ? [50.5110, 3.3680] : userCoords;
+  // Centre de carte forcé précisément sur la Forêt de Flines en mode Topo
+  const mapCenter = isTopoMode ? [50.5100, 3.3680] : userCoords;
   const mapZoom = isTopoMode ? 14 : 13;
 
   const handlePublishToClub = () => {
@@ -239,7 +239,7 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
       <div className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 space-y-4">
         <div className="space-y-2">
           <label className="text-xs font-bold text-neutral-300 uppercase tracking-wider block">
-            Sélectionner le Type de Parcours (Bascule de moteur cartographique) :
+            Sélectionner le Type de Parcours (Bascule de carte) :
           </label>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             {[
@@ -265,12 +265,11 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
           </div>
         </div>
 
-        {/* OPTIONS SELON LE MODE DE CARTE */}
         {isTopoMode ? (
           <div className="space-y-3 animate-fadeIn border-t border-neutral-800 pt-4">
             <div className="flex items-center justify-between">
               <label className="text-xs font-bold text-orange-400 uppercase tracking-wider flex items-center gap-2">
-                <Layers className="w-4 h-4" /> Réseaux Belges & OpenTopoMap (NodeMapp, RouteYou, SityTrail) :
+                <Layers className="w-4 h-4" /> Réseaux Belges & OpenTopoMap (Forêt de Flines) :
               </label>
               <span className="text-[10px] text-neutral-400 bg-neutral-900 px-2.5 py-1 rounded-md border border-neutral-800">
                 💡 Astuce : Vérifiez l'état des sentiers sur Komoot / VisitWallonia
@@ -352,7 +351,6 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
         )}
       </div>
 
-      {/* AFFICHAGE DE LA CARTE ACTIVE */}
       {activeCard && (
         <div className={`border p-5 rounded-2xl space-y-4 animate-fadeIn shadow-2xl relative overflow-hidden ${
           isTopoMode ? 'bg-neutral-900 border-orange-500/60' : 'bg-neutral-950 border-neutral-700/50'
@@ -387,9 +385,9 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
                 opacity={0.95} 
               />
               
-              <Marker position={userCoords} icon={userLocationIcon}>
+              <Marker position={[50.5123, 3.3512]} icon={userLocationIcon}>
                 <Popup>
-                  <strong>📍 Point de Départ</strong>
+                  <strong>📍 Point de Départ (Laplaigne)</strong>
                 </Popup>
               </Marker>
             </MapContainer>
