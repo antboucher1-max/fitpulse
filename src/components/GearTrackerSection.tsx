@@ -1,14 +1,35 @@
 import { useState, FormEvent } from 'react';
 import { Footprints, Plus, Trash2, CheckCircle2, AlertTriangle } from 'lucide-react';
 
-interface GearTrackerProps {
-  shoes: any[];
-  onAddShoe: (brand: string, model: string, maxKm: number) => void;
-  onDeleteShoe: (shoeId: string) => void;
-  onSetActiveShoe: (shoeId: string) => void;
+interface Shoe {
+  id: string;
+  brand: string;
+  model: string;
+  current_km: number;
+  max_km: number;
+  is_active?: boolean;
 }
 
-export default function GearTrackerSection({ shoes, onAddShoe, onDeleteShoe, onSetActiveShoe }: GearTrackerProps) {
+interface GearTrackerProps {
+  shoes?: Shoe[];
+  onAddShoe?: (brand: string, model: string, maxKm: number) => void;
+  onDeleteShoe?: (shoeId: string) => void;
+  onSetActiveShoe?: (shoeId: string) => void;
+}
+
+export default function GearTrackerSection({ 
+  shoes: propShoes, 
+  onAddShoe, 
+  onDeleteShoe, 
+  onSetActiveShoe 
+}: GearTrackerProps) {
+  const [localShoes, setLocalShoes] = useState<Shoe[]>([
+    { id: '1', brand: 'Hoka', model: 'Clifton 9', current_km: 520, max_km: 700, is_active: true },
+    { id: '2', brand: 'Salomon', model: 'Speedcross 6', current_km: 180, max_km: 600, is_active: false }
+  ]);
+
+  const shoes = propShoes !== undefined ? propShoes : localShoes;
+
   const [brand, setBrand] = useState('');
   const [model, setModel] = useState('');
   const [maxKm, setMaxKm] = useState(700);
@@ -17,10 +38,43 @@ export default function GearTrackerSection({ shoes, onAddShoe, onDeleteShoe, onS
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
     if (!brand.trim() || !model.trim()) return;
-    onAddShoe(brand.trim(), model.trim(), Number(maxKm));
+
+    if (onAddShoe) {
+      onAddShoe(brand.trim(), model.trim(), Number(maxKm));
+    } else {
+      const newShoe: Shoe = {
+        id: Date.now().toString(),
+        brand: brand.trim(),
+        model: model.trim(),
+        current_km: 0,
+        max_km: Number(maxKm),
+        is_active: shoes.length === 0
+      };
+      setLocalShoes([newShoe, ...localShoes]);
+    }
+
     setBrand('');
     setModel('');
     setShowAddForm(false);
+  };
+
+  const handleDelete = (shoeId: string) => {
+    if (onDeleteShoe) {
+      onDeleteShoe(shoeId);
+    } else {
+      setLocalShoes(localShoes.filter(s => s.id !== shoeId));
+    }
+  };
+
+  const handleSetActive = (shoeId: string) => {
+    if (onSetActiveShoe) {
+      onSetActiveShoe(shoeId);
+    } else {
+      setLocalShoes(localShoes.map(s => ({
+        ...s,
+        is_active: s.id === shoeId
+      })));
+    }
   };
 
   return (
@@ -32,7 +86,7 @@ export default function GearTrackerSection({ shoes, onAddShoe, onDeleteShoe, onS
         <button 
           type="button"
           onClick={() => setShowAddForm(!showAddForm)}
-          className="text-xs font-bold text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 px-3 py-1.5 rounded-xl border border-emerald-500/20 transition flex items-center gap-1"
+          className="text-xs font-bold text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 px-3 py-1.5 rounded-xl border border-emerald-500/20 transition flex items-center gap-1 cursor-pointer"
         >
           <Plus className="w-3.5 h-3.5" /> Ajouter
         </button>
@@ -46,7 +100,7 @@ export default function GearTrackerSection({ shoes, onAddShoe, onDeleteShoe, onS
               placeholder="Marque (ex: Nike)" 
               value={brand} 
               onChange={(e) => setBrand(e.target.value)} 
-              className="bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white"
+              className="bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
               required 
             />
             <input 
@@ -54,7 +108,7 @@ export default function GearTrackerSection({ shoes, onAddShoe, onDeleteShoe, onS
               placeholder="Modèle (ex: Pegasus)" 
               value={model} 
               onChange={(e) => setModel(e.target.value)} 
-              className="bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white"
+              className="bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
               required 
             />
           </div>
@@ -64,10 +118,10 @@ export default function GearTrackerSection({ shoes, onAddShoe, onDeleteShoe, onS
               type="number" 
               value={maxKm} 
               onChange={(e) => setMaxKm(Number(e.target.value))} 
-              className="w-24 bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white text-center"
+              className="w-24 bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white text-center focus:outline-none focus:border-emerald-500"
             />
           </div>
-          <button type="submit" className="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs transition">
+          <button type="submit" className="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs transition cursor-pointer">
             Enregistrer la paire
           </button>
         </form>
@@ -78,7 +132,7 @@ export default function GearTrackerSection({ shoes, onAddShoe, onDeleteShoe, onS
           <p className="text-xs text-neutral-500 text-center py-4">Aucune paire enregistrée. Suis l'usure de tes chaussures pour éviter les blessures !</p>
         ) : (
           shoes.map((shoe) => {
-            const percentage = Math.min(100, Math.round((shoe.current_km / shoe.max_km) * 100));
+            const percentage = Math.min(100, Math.round(((shoe.current_km || 0) / (shoe.max_km || 700)) * 100));
             const isCritical = percentage >= 85;
 
             return (
@@ -94,7 +148,7 @@ export default function GearTrackerSection({ shoes, onAddShoe, onDeleteShoe, onS
                       )}
                     </div>
                     <span className="text-xs text-neutral-400">
-                      {shoe.current_km} / {shoe.max_km} km ({percentage}%)
+                      {shoe.current_km || 0} / {shoe.max_km} km ({percentage}%)
                     </span>
                   </div>
 
@@ -102,8 +156,8 @@ export default function GearTrackerSection({ shoes, onAddShoe, onDeleteShoe, onS
                     {!shoe.is_active && (
                       <button 
                         type="button"
-                        onClick={() => onSetActiveShoe(shoe.id)}
-                        className="p-1.5 bg-neutral-900 hover:bg-neutral-800 text-neutral-300 rounded-xl text-xs transition"
+                        onClick={() => handleSetActive(shoe.id)}
+                        className="p-1.5 bg-neutral-900 hover:bg-neutral-800 text-neutral-300 rounded-xl text-xs transition cursor-pointer"
                         title="Définir comme paire active"
                       >
                         <CheckCircle2 className="w-4 h-4 text-emerald-400" />
@@ -111,8 +165,8 @@ export default function GearTrackerSection({ shoes, onAddShoe, onDeleteShoe, onS
                     )}
                     <button 
                       type="button"
-                      onClick={() => onDeleteShoe(shoe.id)}
-                      className="p-1.5 bg-neutral-900 hover:bg-red-500/20 text-neutral-500 hover:text-red-400 rounded-xl transition"
+                      onClick={() => handleDelete(shoe.id)}
+                      className="p-1.5 bg-neutral-900 hover:bg-red-500/20 text-neutral-500 hover:text-red-400 rounded-xl transition cursor-pointer"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
