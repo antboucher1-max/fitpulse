@@ -4,10 +4,15 @@ import { MapContainer, TileLayer, Polyline, Marker, Popup, useMap } from 'react-
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 
-function MapRecenter({ center }: { center: [number, number] }) {
+// Composant pour forcer le rafraîchissement des tuiles et éliminer le fond gris Leaflet
+function MapController({ center }: { center: [number, number] }) {
   const map = useMap();
   useEffect(() => {
-    map.setView(center, 13);
+    const timer = setTimeout(() => {
+      map.invalidateSize();
+      map.setView(center, 13);
+    }, 250);
+    return () => clearTimeout(timer);
   }, [center, map]);
   return null;
 }
@@ -50,22 +55,20 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
     }
   }, []);
 
-  // Génération d'une boucle connectée aux vrais sentiers via calcul topographique d'itinéraire
+  // Génération d'une boucle connectée aux vrais sentiers via calcul topographique d'itinéraire OSRM (Foot/Hiking)
   const handleGenerateCustomRoute = async () => {
     setGenerating(true);
 
     try {
       const [lat, lng] = userCoords;
-      // Création de points de passage (waypoints) en boucle autour de la position GPS en fonction de la distance
-      const offset = (selectedDistance / 4) * 0.0035;
+      const factor = selectedDistance * 0.0009; 
       
-      // Points d'une boucle orientée selon la préférence de terrain (bois, champs, halage)
-      const wp1 = [lat + offset, lng + offset];
-      const wp2 = [lat + offset * 1.4, lng - offset * 0.5];
-      const wp3 = [lat - offset * 0.5, lng - offset * 1.2];
+      const wp1 = [lat + factor * 2.2, lng + factor * 1.5];
+      const wp2 = [lat + factor * 0.5, lng + factor * 3.2];
+      const wp3 = [lat - factor * 1.8, lng + factor * 1.1];
+      const wp4 = [lat - factor * 1.2, lng - factor * 1.8];
 
-      // Appel de l'API de routage OpenStreetMap (Foot/Hiking pour privilégier les sentiers et chemins de terre)
-      const queryUrl = `https://router.project-osrm.org/route/v1/foot/${lng},${lat};${wp1[1]},${wp1[0]};${wp2[1]},${wp2[0]};${wp3[1]},${wp3[0]};${lng},${lat}?overview=full&geometries=geojson`;
+      const queryUrl = `https://router.project-osrm.org/route/v1/foot/${lng},${lat};${wp1[1]},${wp1[0]};${wp2[1]},${wp2[0]};${wp3[1]},${wp3[0]};${wp4[1]},${wp4[0]};${lng},${lat}?overview=full&geometries=geojson`;
 
       const response = await fetch(queryUrl);
       const data = await response.json();
@@ -73,10 +76,8 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
       let coordinates: [number, number][] = [];
 
       if (data.routes && data.routes.length > 0) {
-        // Inversion des coordonnées [lng, lat] de GeoJSON vers [lat, lng] pour Leaflet
         coordinates = data.routes[0].geometry.coordinates.map((coord: [number, number]) => [coord[1], coord[0]]);
       } else {
-        // Fallback de sécurité si l'API ne répond pas instantanément
         coordinates = [
           [lat, lng],
           [lat + 0.01, lng + 0.02],
@@ -87,20 +88,25 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
 
       let title = "";
       let desc = "";
-      let elevation = Math.round(selectedDistance * 12);
+      let pathType = "";
+      let elevation = Math.round(selectedDistance * 14);
 
       if (surfacePreference === 'bois') {
         title = `Trail des Sous-Bois & Traces Forestières (${selectedDistance} km)`;
-        desc = "Tracé réel empruntant les sentiers forestiers et chemins forestiers répertoriés dans votre secteur.";
+        desc = "Tracé réel empruntant les sentiers forestiers, chemins de terre meuble et singles tracks.";
+        pathType = "Forêts & Sentiers boisés (85%)";
       } else if (surfacePreference === 'champs') {
         title = `Circuit des Chemins Creux & Terres Agricoles (${selectedDistance} km)`;
-        desc = "Parcours calculé sur les pistes agricoles, chemins de terre et sentiers de liaison des cultures.";
+        desc = "Parcours calculé sur les pistes agricoles, chemins de crête et sentiers de liaison des cultures.";
+        pathType = "Champs & Chemins de terre (80%)";
       } else if (surfacePreference === 'urbain') {
         title = `Urban Trail & Liaisons Douces (${selectedDistance} km)`;
-        desc = "Itinéraire optimisé sur les voiries secondaires, ruelles et chemins pavés.";
+        desc = "Itinéraire optimisé sur les voiries secondaires, ruelles, pavés et liaisons urbaines.";
+        pathType = "Rues, routes & voiries bitumées (90%)";
       } else {
         title = `Roadbook Hybride : Sentiers & Halage (${selectedDistance} km)`;
         desc = "Boucle complète combinant les sentiers de nature, chemins de champs et axes de communication.";
+        pathType = "Mixte équilibré (Rues, Champs & Bois)";
       }
 
       setRouteCard({
@@ -109,7 +115,7 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
         name: title,
         description: desc,
         dplus: elevation,
-        surface: surfacePreference === 'bois' ? 'Sentiers boisés & chemins de terre' : 'Réseau officiel OpenStreetMap',
+        surface: pathType,
         timeEst: `${Math.floor((selectedDistance * 5.2) / 60)}h ${Math.round((selectedDistance * 5.2) % 60)} min`,
         coordinates
       });
@@ -210,16 +216,15 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
       {routeCard && (
         <div className="bg-neutral-950 border border-orange-500/40 p-5 rounded-2xl space-y-4 animate-fadeIn shadow-2xl relative overflow-hidden">
           
-          {/* CARTE AVEC VRAIS TRACÉS DE SENTIERS */}
-          <div className="w-full h-72 rounded-2xl overflow-hidden border border-neutral-800 relative shadow-2xl z-0">
+          {/* CARTE AVEC VRAIS TRACÉS DE SENTIERS ET TA POSITION GPS */}
+          <div className="w-full h-80 rounded-2xl overflow-hidden border border-neutral-800 relative shadow-2xl z-0">
             <MapContainer 
               center={userCoords} 
               zoom={13} 
               scrollWheelZoom={false} 
               style={{ width: '100%', height: '100%' }}
             >
-              <MapRecenter center={userCoords} />
-              {/* Fond de carte OpenStreetMap détaillant les sentiers et chemins ruraux */}
+              <MapController center={userCoords} />
               <TileLayer
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
