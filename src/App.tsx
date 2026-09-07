@@ -587,7 +587,7 @@ export default function App() {
           {currentTab === 'today' && (
             <div className="space-y-4 animate-fadeIn pb-16">
               
-              {/* --- MINI-ONGLETS DE NAVIGATION INTERNE --- */}
+              {/* --- SÉLECTEUR DE CONTEXTE ÉPURÉ (Les 3 onglets de l'accueil) --- */}
               <div className="flex bg-neutral-900 p-1 rounded-2xl border border-neutral-800 shadow-inner">
                 <button 
                   type="button"
@@ -612,10 +612,10 @@ export default function App() {
                 </button>
               </div>
 
-              {/* --- SOUS-ONGLET 1 : APERÇU GLOBAL --- */}
+              {/* --- VUE 1 : APERÇU GLOBAL (QG & Lancer) --- */}
               {todaySubTab === 'overview' && (
                 <div className="space-y-3 animate-fadeIn">
-                  {/* Index Apex Fusionné */}
+                  {/* Index Apex & Stats Fusionnées */}
                   <div className={`border rounded-3xl p-5 space-y-4 shadow-2xl relative overflow-hidden transition-all duration-300 ${
                     todayApexData.badgeColor === 'red' ? 'bg-gradient-to-br from-red-950/40 via-neutral-900 to-neutral-950 border-red-500/50' : 
                     todayApexData.badgeColor === 'amber' ? 'bg-gradient-to-br from-amber-950/40 via-neutral-900 to-neutral-950 border-amber-500/50' : 'bg-gradient-to-br from-neutral-900 via-neutral-900 to-neutral-950 border-neutral-800'
@@ -650,7 +650,7 @@ export default function App() {
                     </div>
                   </div>
 
-                  {/* SNC Shield */}
+                  {/* SNC Shield Widget */}
                   <SncShieldWidget currentReadiness={currentReadinessScore} recentLoads={recentTrainingLoads} />
 
                   {inTaperingWeek && (
@@ -662,7 +662,7 @@ export default function App() {
                     </div>
                   )}
 
-                  {/* Accès Rapide Entraînement */}
+                  {/* Boutons d'accès rapide aux entraînements */}
                   <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-4 space-y-2.5 shadow-xl">
                     <span className="text-[10px] font-black uppercase tracking-widest text-neutral-400 px-1 block">
                       Lancer l'entraînement hybride
@@ -697,7 +697,7 @@ export default function App() {
                 </div>
               )}
 
-              {/* --- SOUS-ONGLET 2 : CHECK-IN FORME --- */}
+              {/* --- VUE 2 : CHECK-IN FORME --- */}
               {todaySubTab === 'readiness' && (
                 <div className="space-y-3 animate-fadeIn">
                   <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-3 shadow-xl">
@@ -714,7 +714,7 @@ export default function App() {
                 </div>
               )}
 
-              {/* --- SOUS-ONGLET 3 : IA & OUTILS --- */}
+              {/* --- VUE 3 : IA & OUTILS --- */}
               {todaySubTab === 'ai' && (
                 <div className="space-y-3 animate-fadeIn">
                   <PaywallGate userId={user?.id} currentUserProfile={currentUserProfile} featureName="IA Coach Proactif & Scan Frigo">
