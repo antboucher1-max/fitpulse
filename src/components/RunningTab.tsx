@@ -43,7 +43,7 @@ function WelcomeGuideModal({ username, onClose }: { username: string; onClose: (
           <span className="text-2xl">🔥</span>
           <h3 className="text-lg font-black text-white">Bienvenue dans ton QG, {username} !</h3>
           <p className="text-xs text-neutral-400 leading-relaxed">
-            Station d'entraînement blindée. Filtre anti-sauts GPS, calcul altimétrique GPX et mode focus actifs !
+            Station d'entraînement blindée. Filtre altimétrique avancé et mode focus actifs !
           </p>
         </div>
         <button
@@ -155,7 +155,6 @@ export default function RunningTab({
     return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   };
 
-  // --- GÉNÉRATEUR DE CIRCUITS INTELLIGENTS & TRAIL ---
   const handleGenerateSmartCircuit = async (targetKm: number) => {
     const baseLat = currentPosition[0];
     const baseLng = currentPosition[1];
@@ -208,7 +207,7 @@ export default function RunningTab({
     alert("🎯 Parcours partagé sur le fil du club !");
   };
 
-  // --- PARSEUR GPX BLINDÉ AVEC LISSAGE ALTIMÉTRIQUE (DEADBAND 1.5M) ---
+  // --- FILTRE ALTIMÉTRIQUE AVANCÉ (MOYENNE GLISSANTE + DEADBAND DE 2.5M) ---
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -222,21 +221,51 @@ export default function RunningTab({
           const points = tracks.points.map((p: any) => [p.lat, p.lon] as [number, number]);
           let km = Number((tracks.distance.total / 1000).toFixed(2));
           let dPlus = 0;
-          
-          if (tracks.points[0].ele !== undefined) {
-            let lastValidEle = tracks.points[0].ele;
-            for (let i = 1; i < tracks.points.length; i++) {
-              const currentEle = tracks.points[i].ele;
-              const diff = currentEle - lastValidEle;
-              if (diff > 1.5) {
-                dPlus += diff;
-                lastValidEle = currentEle;
-              } else if (currentEle < lastValidEle) {
-                lastValidEle = currentEle;
+
+          const elevations = tracks.points.map((p: any) => p.ele).filter((ele: any) => ele !== undefined);
+
+          if (elevations.length > 0) {
+            // Étape 1 : Lissage par moyenne glissante sur une fenêtre de 5 points pour casser le bruit brut
+            const smoothedElevations: number[] = [];
+            const windowSize = 5;
+            for (let i = 0; i < elevations.length; i++) {
+              let sum = 0;
+              let count = 0;
+              for (let w = -Math.floor(windowSize / 2); w <= Math.floor(windowSize / 2); w++) {
+                if (i + w >= 0 && i + w < elevations.length) {
+                  sum += elevations[i + w];
+                  count++;
+                }
+              }
+              smoothedElevations.push(sum / count);
+            }
+
+            // Étape 2 : Application du filtre Deadband (seuil de tolérance cumulé de 2.5m)
+            let climbingBuffer = 0;
+            let lastConfirmedEle = smoothedElevations[0];
+
+            for (let i = 1; i < smoothedElevations.length; i++) {
+              const diff = smoothedElevations[i] - lastConfirmedEle;
+              if (diff > 0) {
+                climbingBuffer += diff;
+              } else if (diff < -1.0) {
+                // Si on descend franchement de plus d'1m, on valide le buffer de montée accumulé s'il dépasse 2.5m
+                if (climbingBuffer >= 2.5) {
+                  dPlus += climbingBuffer;
+                }
+                climbingBuffer = 0;
+                lastConfirmedEle = smoothedElevations[i];
+              }
+              // Met à jour le plancher si l'altitude monte doucement
+              if (smoothedElevations[i] > lastConfirmedEle) {
+                lastConfirmedEle = smoothedElevations[i];
               }
             }
+            if (climbingBuffer >= 2.5) {
+              dPlus += climbingBuffer;
+            }
           } else {
-            dPlus = km * 25;
+            dPlus = km * 25; // Fallback si le GPX ne contient aucune balise d'altitude
           }
 
           setRoutePositions(points);
@@ -244,7 +273,7 @@ export default function RunningTab({
           setActualDPlus(Math.round(dPlus));
           setCurrentPosition(points[points.length - 1]);
           lastPositionRef.current = points[points.length - 1];
-          alert(`GPX importé : ${km} km, +${Math.round(dPlus)}m D+ certifiés`);
+          alert(`GPX importé avec succès : ${km} km, +${Math.round(dPlus)}m D+ (Filtré & Certifié) ⛰️`);
         }
       } catch {
         alert("Erreur de lecture GPX.");
@@ -278,7 +307,7 @@ export default function RunningTab({
               setCurrentPosition(newPos);
               setRoutePositions(p => [...p, newPos]);
               setDistanceKm(d => Number((d + delta).toFixed(2)));
-              setActualDPlus(d => d + Math.round(delta * 20));
+              setActualDPlus(d => d + Math.round(delta * 12));
             }
           },
           () => {},
@@ -395,15 +424,15 @@ export default function RunningTab({
           )}
         </div>
 
-        {/* 2. Terrain & Import GPX */}
+        {/* 2. Terrain & Import GPX (Filtre Altimétrique Avancé) */}
         <div className="bg-neutral-900 border border-neutral-800 rounded-3xl overflow-hidden shadow-xl">
           <button onClick={() => setOpenSection(openSection === 'terrain' ? 'none' : 'terrain')} className="w-full p-4 flex justify-between items-center text-xs font-bold text-cyan-400 cursor-pointer">
-            <span className="flex items-center gap-2"><Mountain className="w-4 h-4" /> Terrain & Import GPX Altimétrique 🗺️</span>
+            <span className="flex items-center gap-2"><Mountain className="w-4 h-4" /> Terrain & Import GPX (Filtre Alti Avancé) 🗺️</span>
             {openSection === 'terrain' ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
           </button>
           {openSection === 'terrain' && (
             <div className="p-4 pt-0 border-t border-neutral-800 space-y-2 text-xs">
-              <label className="text-neutral-400 font-bold block">Importer un fichier .GPX (Montre) :</label>
+              <label className="text-neutral-400 font-bold block">Importer un fichier .GPX (Montre) avec lissage anti-bruit :</label>
               <input type="file" accept=".gpx" onChange={handleFileUpload} className="w-full text-xs text-neutral-400 bg-neutral-950 border border-neutral-800 rounded-xl p-2 file:bg-orange-600 file:text-white file:rounded-lg file:border-0 file:text-xs cursor-pointer" />
             </div>
           )}
