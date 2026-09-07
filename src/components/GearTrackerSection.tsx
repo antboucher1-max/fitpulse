@@ -1,4 +1,4 @@
-import { useState, FormEvent } from 'react';
+import { useState, useEffect, FormEvent } from 'react';
 import { Footprints, Plus, Trash2, CheckCircle2, AlertTriangle } from 'lucide-react';
 
 interface Shoe {
@@ -23,10 +23,14 @@ export default function GearTrackerSection({
   onDeleteShoe, 
   onSetActiveShoe 
 }: GearTrackerProps) {
-  const [localShoes, setLocalShoes] = useState<Shoe[]>([
-    { id: '1', brand: 'Hoka', model: 'Clifton 9', current_km: 520, max_km: 700, is_active: true },
-    { id: '2', brand: 'Salomon', model: 'Speedcross 6', current_km: 180, max_km: 600, is_active: false }
-  ]);
+  // Initialisation propre : si aucune paire n'est fournie, on part d'une liste vide (0 km) plutôt que de valeurs fictives
+  const [localShoes, setLocalShoes] = useState<Shoe[]>(() => {
+    const saved = localStorage.getItem('fitpulse_gear_shoes');
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) { /* ignore */ }
+    }
+    return [];
+  });
 
   const shoes = propShoes !== undefined ? propShoes : localShoes;
 
@@ -35,6 +39,37 @@ export default function GearTrackerSection({
   const [maxKm, setMaxKm] = useState(700);
   const [showAddForm, setShowAddForm] = useState(false);
 
+  // Synchronisation automatique des kilomètres de la paire active avec le GPS / LiveGpsTracker ou le stockage local
+  useEffect(() => {
+    const syncShoeMileage = () => {
+      const savedDistance = localStorage.getItem('fitpulse_total_run_km');
+      const currentRunKm = savedDistance ? Number(savedDistance) : 0;
+
+      if (propShoes === undefined) {
+        setLocalShoes(prevShoes => {
+          if (prevShoes.length === 0) return prevShoes;
+          return prevShoes.map(shoe => {
+            if (shoe.is_active) {
+              return { ...shoe, current_km: currentRunKm };
+            }
+            return shoe;
+          });
+        });
+      }
+    };
+
+    syncShoeMileage();
+    const interval = setInterval(syncShoeMileage, 1000);
+    return () => clearInterval(interval);
+  }, [propShoes]);
+
+  // Sauvegarde locale pour la persistance
+  useEffect(() => {
+    if (propShoes === undefined) {
+      localStorage.setItem('fitpulse_gear_shoes', JSON.stringify(localShoes));
+    }
+  }, [localShoes, propShoes]);
+
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
     if (!brand.trim() || !model.trim()) return;
@@ -42,13 +77,14 @@ export default function GearTrackerSection({
     if (onAddShoe) {
       onAddShoe(brand.trim(), model.trim(), Number(maxKm));
     } else {
+      const isFirst = shoes.length === 0;
       const newShoe: Shoe = {
         id: Date.now().toString(),
         brand: brand.trim(),
         model: model.trim(),
-        current_km: 0,
+        current_km: isFirst ? (Number(localStorage.getItem('fitpulse_total_run_km')) || 0) : 0,
         max_km: Number(maxKm),
-        is_active: shoes.length === 0
+        is_active: isFirst
       };
       setLocalShoes([newShoe, ...localShoes]);
     }
@@ -70,9 +106,11 @@ export default function GearTrackerSection({
     if (onSetActiveShoe) {
       onSetActiveShoe(shoeId);
     } else {
+      const currentRunKm = Number(localStorage.getItem('fitpulse_total_run_km')) || 0;
       setLocalShoes(localShoes.map(s => ({
         ...s,
-        is_active: s.id === shoeId
+        is_active: s.id === shoeId,
+        current_km: s.id === shoeId ? currentRunKm : s.current_km
       })));
     }
   };
@@ -129,7 +167,7 @@ export default function GearTrackerSection({
 
       <div className="space-y-3">
         {shoes.length === 0 ? (
-          <p className="text-xs text-neutral-500 text-center py-4">Aucune paire enregistrée. Suis l'usure de tes chaussures pour éviter les blessures !</p>
+          <p className="text-xs text-neutral-500 text-center py-4">Aucune paire enregistrée. Ajoute tes chaussures pour suivre leur usure en direct via tes sorties GPS !</p>
         ) : (
           shoes.map((shoe) => {
             const percentage = Math.min(100, Math.round(((shoe.current_km || 0) / (shoe.max_km || 700)) * 100));
