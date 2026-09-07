@@ -28,23 +28,22 @@ interface RoadbookTabProps {
 }
 
 export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
-  // Position par défaut centrée sur la Forêt de Flines / Laplaigne
+  const [selectedDistance, setSelectedDistance] = useState<number>(10);
+  const [surfacePreference, setSurfacePreference] = useState<'mixte' | 'bois' | 'champs' | 'urbain'>('bois');
+  
   const [userCoords, setUserCoords] = useState<[number, number]>([50.5123, 3.3512]);
   const [gpsStatus, setGpsStatus] = useState<string>('Recherche GPS en cours...');
   
-  const [selectedRouteId, setSelectedRouteId] = useState<string>('flines-5');
   const [routeCard, setRouteCard] = useState<any>(null);
   const [loadingRoute, setLoadingRoute] = useState(false);
   const [shared, setShared] = useState(false);
 
-  // Géolocalisation réelle et dynamique de l'utilisateur
+  // Récupération de la position GPS réelle
   useEffect(() => {
     if ('geolocation' in navigator) {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
-          const lat = pos.coords.latitude;
-          const lng = pos.coords.longitude;
-          setUserCoords([lat, lng]);
+          setUserCoords([pos.coords.latitude, pos.coords.longitude]);
           setGpsStatus('GPS Actif (Position Fixée) 📍');
         },
         () => setGpsStatus('Secteur Forêt de Flines (Défaut)'),
@@ -53,66 +52,78 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
     }
   }, []);
 
-  // Génération dynamique de parcours interactifs basés sur la position réelle du GPS
+  // Génération dynamique des parcours interactifs basés sur le GPS, la distance et le type de terrain
   const generateInteractiveRoutes = (lat: number, lng: number) => {
-    return [
-      {
-        id: 'flines-5',
-        name: '🌲 Boucle Courte Forêt de Flines',
-        distance: 5.2,
-        dplus: 45,
-        surface: 'Sentiers boisés & sous-bois (80%)',
-        timeEst: '1h 00 min',
-        description: 'Parcours court et interactif calibré exactement à 5.2 km au départ immédiat de votre position vers le cœur de la forêt.',
-        // Waypoints calculés en partant de la position GPS exacte de l'utilisateur vers la forêt de Flines
-        waypoints: [
-          [lng, lat],
-          [lng + 0.008, lat + 0.002],
-          [lng + 0.015, lat - 0.001],
-          [lng + 0.005, lat - 0.004],
-          [lng, lat]
-        ]
-      },
-      {
-        id: 'flines-10',
-        name: '🌲 Trail Intégral Forêt de Flines',
-        distance: 10.4,
-        dplus: 120,
-        surface: 'Single tracks & chemins forestiers (90%)',
-        timeEst: '2h 00 min',
-        description: 'Boucle de référence de 10.4 km s’élançant de votre position GPS pour explorer l’intégralité des sentiers de Flines.',
-        waypoints: [
-          [lng, lat],
-          [lng + 0.010, lat + 0.003],
-          [lng + 0.022, lat - 0.002],
-          [lng + 0.014, lat - 0.008],
-          [lng + 0.004, lat - 0.005],
-          [lng, lat]
-        ]
-      },
-      {
-        id: 'escaut-14',
-        name: "🌊 Grand Circuit Berges de l'Escaut & Forêt",
-        distance: 14.2,
-        dplus: 65,
-        surface: 'Chemin de halage & pistes nature (85%)',
-        timeEst: '2h 45 min',
-        description: 'Grand circuit interactif de 14.2 km combinant votre position de départ, les berges de l’Escaut et les lisières boisées.',
-        waypoints: [
-          [lng, lat],
-          [lng - 0.008, lat + 0.006],
-          [lng - 0.015, lat + 0.012],
-          [lng + 0.010, lat + 0.010],
-          [lng + 0.020, lat - 0.004],
-          [lng, lat]
-        ]
-      }
-    ];
+    const d = selectedDistance;
+    let name = "";
+    let desc = "";
+    let surfaceDesc = "";
+    let dplus = Math.round(d * 12);
+    let timeEst = `${Math.floor((d * 5.2) / 60)}h ${Math.round((d * 5.2) % 60)} min`;
+
+    // Adaptation des waypoints et des descriptions selon le type de terrain choisi
+    let waypoints = [];
+    if (surfacePreference === 'bois') {
+      name = `Trail Forêt de Flines (${d} km)`;
+      desc = `Boucle immersive de ${d} km s'élançant de votre position GPS à travers les sentiers boisés.`;
+      surfaceDesc = 'Forêt & sentiers de terre (90%)';
+      waypoints = [
+        [lng, lat],
+        [lng + (d * 0.001), lat + 0.002],
+        [lng + (d * 0.002), lat - 0.001],
+        [lng + (d * 0.0008), lat - 0.004],
+        [lng, lat]
+      ];
+    } else if (surfacePreference === 'champs') {
+      name = `Circuit Chemins Creux & Champs (${d} km)`;
+      desc = `Parcours de ${d} km à travers les pistes agricoles et grands espaces ouverts.`;
+      surfaceDesc = 'Voies agricoles & terres (85%)';
+      waypoints = [
+        [lng, lat],
+        [lng - (d * 0.001), lat - 0.002],
+        [lng - (d * 0.0025), lat + 0.001],
+        [lng - (d * 0.0005), lat + 0.003],
+        [lng, lat]
+      ];
+    } else if (surfacePreference === 'urbain') {
+      name = `Urban Trail & Liaisons Douces (${d} km)`;
+      desc = `Itinéraire urbain et sécurisé de ${d} km reliant voiries et ruelles.`;
+      surfaceDesc = 'Rues & asphalte (90%)';
+      waypoints = [
+        [lng, lat],
+        [lng + (d * 0.001), lat + 0.0015],
+        [lng - (d * 0.001), lat + 0.0025],
+        [lng - (d * 0.0015), lat - 0.001],
+        [lng, lat]
+      ];
+    } else {
+      name = `Roadbook Hybride Global (${d} km)`;
+      desc = `Circuit mixte de ${d} km combinant nature, chemins de terre et liaisons.`;
+      surfaceDesc = 'Mixte équilibré (Bois, Champs & Rues)';
+      waypoints = [
+        [lng, lat],
+        [lng + (d * 0.001), lat + 0.002],
+        [lng - (d * 0.0012), lat + 0.001],
+        [lng + (d * 0.0005), lat - 0.002],
+        [lng, lat]
+      ];
+    }
+
+    return [{
+      id: `route-${d}-${surfacePreference}`,
+      name,
+      distance: d,
+      dplus,
+      surface: surfaceDesc,
+      timeEst,
+      description: desc,
+      waypoints
+    }];
   };
 
   const dynamicRoutes = generateInteractiveRoutes(userCoords[0], userCoords[1]);
 
-  // Chargement et accrochage du parcours sélectionné sur le réseau réel via OSRM
+  // Chargement et accrochage du tracé sur le réseau réel via OSRM
   const loadRoute = async (routeObj: typeof dynamicRoutes[0]) => {
     setLoadingRoute(true);
     try {
@@ -147,16 +158,10 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
     }
   };
 
-  // Met à jour le parcours affiché dès que la position GPS ou le choix change
+  // Recalcule et met à jour le tracé dès que la distance ou le type de terrain change
   useEffect(() => {
-    const current = dynamicRoutes.find(r => r.id === selectedRouteId) || dynamicRoutes[0];
-    loadRoute(current);
-  }, [userCoords, selectedRouteId]);
-
-  const handleSelectRoute = (routeObj: typeof dynamicRoutes[0]) => {
-    setSelectedRouteId(routeObj.id);
-    loadRoute(routeObj);
-  };
+    loadRoute(dynamicRoutes[0]);
+  }, [userCoords, selectedDistance, surfacePreference]);
 
   const handlePublishToClub = () => {
     if (!routeCard) return;
@@ -177,17 +182,23 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
     setTimeout(() => setShared(false), 3000);
   };
 
-  const tileLayerUrl = 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png';
-  const tileLayerAttribution = 'Map data: &copy; OpenStreetMap contributors, SRTM | Map style: &copy; OpenTopoMap';
+  // Basculement dynamique du fond de carte : OpenTopoMap (avec sentiers et reliefs de forêt) si "bois", sinon OpenStreetMap
+  const tileLayerUrl = surfacePreference === 'bois'
+    ? 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png'
+    : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+
+  const tileLayerAttribution = surfacePreference === 'bois'
+    ? 'Map data: &copy; OpenStreetMap contributors, SRTM | Map style: &copy; OpenTopoMap'
+    : '&copy; OpenStreetMap contributors';
 
   return (
     <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-6 space-y-6 shadow-xl">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-base font-black text-white uppercase tracking-tight flex items-center gap-2">
-            <Compass className="w-5 h-5 text-orange-500" /> Roadbooks Interactifs basés sur votre GPS
+            <Compass className="w-5 h-5 text-orange-500" /> Générateur de Roadbooks Interactifs
           </h2>
-          <p className="text-xs text-neutral-400">Parcours adaptés à votre proximité immédiate (Forêt de Flines)</p>
+          <p className="text-xs text-neutral-400">Tracés adaptatifs basés sur votre position GPS et vos préférences</p>
         </div>
         <span className="text-xs font-mono bg-emerald-500/10 text-emerald-400 px-3 py-1 rounded-full border border-emerald-500/20 font-bold">
           {gpsStatus}
@@ -195,37 +206,60 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
       </div>
 
       <div className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 space-y-4">
-        <label className="text-xs font-bold text-neutral-300 uppercase tracking-wider block">
-          Parcours interactifs proposés depuis votre position :
-        </label>
-        
-        <div className="grid grid-cols-1 gap-2.5">
-          {dynamicRoutes.map(route => (
-            <button
-              key={route.id}
-              type="button"
-              onClick={() => handleSelectRoute(route)}
-              className={`p-3.5 rounded-xl text-left border transition cursor-pointer flex items-center justify-between ${
-                selectedRouteId === route.id 
-                  ? 'bg-neutral-900 border-orange-500 text-white shadow-lg shadow-orange-600/20' 
-                  : 'bg-neutral-900/50 border-neutral-800 text-neutral-400 hover:text-neutral-200 hover:border-neutral-700'
-              }`}
-            >
-              <div className="space-y-1">
-                <div className="text-xs font-black text-white flex items-center gap-2">
-                  <MapPin className="w-3.5 h-3.5 text-orange-500" /> {route.name}
-                </div>
-                <div className="text-[11px] text-neutral-400">{route.description}</div>
-              </div>
-              <div className="text-right shrink-0 ml-4 font-mono">
-                <span className="text-xs font-bold text-orange-400 block">{route.distance} km</span>
-                <span className="text-[10px] text-neutral-500">+{route.dplus}m D+</span>
-              </div>
-            </button>
-          ))}
+        {/* 1. Sélection de la Distance */}
+        <div className="space-y-2">
+          <label className="text-xs font-bold text-neutral-300 uppercase tracking-wider block">
+            1. Choisir la Distance Cible : <span className="text-orange-400 font-mono text-sm">{selectedDistance} km</span>
+          </label>
+          <div className="grid grid-cols-4 gap-2">
+            {[5, 10, 15, 21].map(km => (
+              <button
+                key={km}
+                type="button"
+                onClick={() => setSelectedDistance(km)}
+                className={`py-2.5 rounded-xl text-xs font-bold transition cursor-pointer border ${
+                  selectedDistance === km 
+                    ? 'bg-orange-600 border-orange-500 text-white shadow-lg shadow-orange-600/30' 
+                    : 'bg-neutral-900 border-neutral-800 text-neutral-400 hover:text-white'
+                }`}
+              >
+                {km} km
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* 2. Préférence de Terrain (Bascule la carte Topo pour la forêt) */}
+        <div className="space-y-2">
+          <label className="text-xs font-bold text-neutral-300 uppercase tracking-wider block">
+            2. Préférence de Terrain & Sentiers (Bascule Topo Forêt automatique)
+          </label>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {[
+              { id: 'mixte', label: '⚖️ Mixte Global', desc: 'Chemins & Rues' },
+              { id: 'bois', label: '🌲 Forêts & Bois', desc: 'Carte Topo & Sentiers' },
+              { id: 'champs', label: '🌾 Champs & Pistes', desc: 'Voies agricoles' },
+              { id: 'urbain', label: '🏙️ Rues & Asphalte', desc: 'Réseau routier' }
+            ].map(item => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => setSurfacePreference(item.id as any)}
+                className={`p-2.5 rounded-xl text-left border transition cursor-pointer ${
+                  surfacePreference === item.id 
+                    ? 'bg-neutral-900 border-orange-500 text-white shadow-md' 
+                    : 'bg-neutral-900/50 border-neutral-800 text-neutral-400 hover:text-neutral-200'
+                }`}
+              >
+                <div className="text-xs font-bold">{item.label}</div>
+                <div className="text-[10px] text-neutral-500">{item.desc}</div>
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
+      {/* Affichage de la carte interactive et de la fiche du parcours sélectionné */}
       {routeCard && (
         <div className="bg-neutral-950 border border-orange-500/40 p-5 rounded-2xl space-y-4 animate-fadeIn shadow-2xl relative overflow-hidden">
           
@@ -243,7 +277,7 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
                 url={tileLayerUrl}
                 maxZoom={17}
               />
-              {/* Tracé en bleu électrique lumineux (#38bdf8) représentant réellement la distance */}
+              {/* Tracé en bleu électrique lumineux (#38bdf8) */}
               <Polyline 
                 positions={routeCard.coordinates} 
                 color="#38bdf8" 
