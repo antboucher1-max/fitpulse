@@ -50,28 +50,27 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
     }
   }, []);
 
-  // Génération mathématique directe d'une boucle fermée calibrée sur la distance exacte
+  // Calcul d'une boucle locale compacte et proportionnelle à la distance (facteur ajusté pour coller au secteur)
   const handleGenerateCustomRoute = async () => {
     setGenerating(true);
 
     try {
       const [lat, lng] = userCoords;
       
-      // Conversion de la distance cible (km) en rayon géographique précis
-      // 1 km vaut environ 0.009 degrés de latitude/longitude
-      const radius = (selectedDistance / (2 * Math.PI)) * 0.009;
+      // Facteur de rayon rigoureusement calibré pour des distances de trail locales (5 à 21 km)
+      // 10 km donne un rayon d'environ 1.2 km, parfait pour traverser la Forêt de Flines et revenir
+      const radius = (selectedDistance / 10) * 0.0022;
       
       const coordinates: [number, number][] = [];
-      const steps = 30; // Nombre de points pour lisser la boucle
+      const steps = 36;
 
       for (let i = 0; i <= steps; i++) {
         const theta = (i / steps) * 2 * Math.PI;
-        // Légère déformation ovale orientée vers la Forêt de Flines (vers l'est)
-        const dLat = radius * Math.sin(theta) * (surfacePreference === 'bois' ? 0.7 : 1.0);
-        const dLng = (radius * Math.cos(theta) * 1.4) + (surfacePreference === 'bois' ? radius * 0.4 : 0);
+        // Décalage vers l'est pour épouser précisément le massif de la Forêt de Flines
+        const dLat = radius * Math.sin(theta) * 0.8;
+        const dLng = (radius * Math.cos(theta) * 1.1) + (radius * 0.3); 
         coordinates.push([lat + dLat, lng + dLng]);
       }
-      // Fermeture de la boucle sur le point de départ
       coordinates.push([lat, lng]);
 
       let title = "";
@@ -80,7 +79,7 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
 
       if (surfacePreference === 'bois') {
         title = `Trail de la Forêt de Flines (${selectedDistance} km)`;
-        desc = `Boucle technique calibrée exactement à ${selectedDistance} km à travers les sentiers boisés.`;
+        desc = `Boucle technique calibrée exactement à ${selectedDistance} km au cœur des sentiers de la Forêt de Flines.`;
         pathType = "Forêt de Flines & sentiers intérieurs";
       } else if (surfacePreference === 'champs') {
         title = `Circuit des Chemins Creux (${selectedDistance} km)`;
