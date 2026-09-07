@@ -2,50 +2,50 @@ import { useState, useRef, useEffect, FormEvent, ChangeEvent, RefObject } from '
 import { User as SupabaseUser } from '@supabase/supabase-js';
 import { 
   ShieldCheck, MapPin, Camera, Key, LogOut, 
-  Dumbbell, Edit3, Check, X, Image as ImageIcon, AlertCircle, Trophy, Share2 
+  Dumbbell, Edit3, Check, X, Image as ImageIcon, Trophy, Share2 
 } from 'lucide-react';
 import { RealUser, TransformationPhoto } from '../types';
 import BadgesSection from './BadgesSection';
 import GearTrackerSection from './GearTrackerSection';
 
 interface ProfileTabProps {
-  user: SupabaseUser | null;
+  user?: SupabaseUser | null;
   currentUserProfile?: RealUser;
-  userAvatarUrl: string;
-  isAdmin: boolean;
-  registeredUsers: RealUser[];
-  transformations: TransformationPhoto[];
+  userAvatarUrl?: string;
+  isAdmin?: boolean;
+  registeredUsers?: RealUser[];
+  transformations?: TransformationPhoto[];
   posts?: any[];
   shoes?: any[];
   onAddShoe?: (brand: string, model: string, maxKm: number) => void;
   onDeleteShoe?: (shoeId: string) => void;
   onSetActiveShoe?: (shoeId: string) => void;
-  newTransWeight: number | '';
-  newTransNote: string;
-  newTransBefore: string | null;
-  newTransAfter: string | null;
-  newTransIsPrivate: boolean;
-  setNewTransWeight: (val: number | '') => void;
-  setNewTransNote: (val: string) => void;
-  setNewTransIsPrivate: (val: boolean) => void;
-  onAvatarClick: () => void;
-  onCameraStart: () => void;
-  onBeforeFileSelect: () => void;
-  onAfterFileSelect: () => void;
-  onAddTransformation: (e: FormEvent) => void;
-  onShareTransformation: (id: string) => void;
-  onUpdatePasswordSubmit: (e: FormEvent) => void;
-  password: string;
-  setPassword: (val: string) => void;
-  confirmPassword: string;
-  setConfirmPassword: (val: string) => void;
-  isPrivateMode: boolean;
-  setIsPrivateMode: (val: boolean) => void;
-  onSignOut: () => void;
-  onToggleVerifyAdmin: (userId: string, currentStatus: boolean) => void;
+  newTransWeight?: number | '';
+  newTransNote?: string;
+  newTransBefore?: string | null;
+  newTransAfter?: string | null;
+  newTransIsPrivate?: boolean;
+  setNewTransWeight?: (val: number | '') => void;
+  setNewTransNote?: (val: string) => void;
+  setNewTransIsPrivate?: (val: boolean) => void;
+  onAvatarClick?: () => void;
+  onCameraStart?: () => void;
+  onBeforeFileSelect?: () => void;
+  onAfterFileSelect?: () => void;
+  onAddTransformation?: (e: FormEvent) => void;
+  onShareTransformation?: (id: string) => void;
+  onUpdatePasswordSubmit?: (e: FormEvent) => void;
+  password?: string;
+  setPassword?: (val: string) => void;
+  confirmPassword?: string;
+  setConfirmPassword?: (val: string) => void;
+  isPrivateMode?: boolean;
+  setIsPrivateMode?: (val: boolean) => void;
+  onSignOut?: () => void;
+  onToggleVerifyAdmin?: (userId: string, currentStatus: boolean) => void;
   onUpdateProfile?: (updatedData: { username: string; home_club: string; goal: string; preferred_time: string; gender: string; avatar_url?: string; banner_url?: string; username_changes_count?: number }) => void;
-  beforeFileInputRef: RefObject<HTMLInputElement | null>;
-  afterFileInputRef: RefObject<HTMLInputElement | null>;
+  beforeFileInputRef?: RefObject<HTMLInputElement | null>;
+  afterFileInputRef?: RefObject<HTMLInputElement | null>;
 }
 
 const CLUBS_LIST = [
@@ -56,33 +56,33 @@ const CLUBS_LIST = [
 const MAX_USERNAME_CHANGES = 3;
 
 export default function ProfileTab({
-  user,
+  user = null,
   currentUserProfile,
-  userAvatarUrl,
-  isAdmin,
-  registeredUsers,
-  transformations,
+  userAvatarUrl = '',
+  isAdmin = false,
+  registeredUsers = [],
+  transformations = [],
   posts = [],
   shoes = [],
   onAddShoe = () => {},
   onDeleteShoe = () => {},
   onSetActiveShoe = () => {},
-  newTransWeight,
-  newTransNote,
-  newTransIsPrivate,
-  setNewTransWeight,
-  setNewTransNote,
-  setNewTransIsPrivate,
-  onBeforeFileSelect,
-  onAfterFileSelect,
-  onAddTransformation,
-  onUpdatePasswordSubmit,
-  password,
-  setPassword,
-  confirmPassword,
-  setConfirmPassword,
-  onSignOut,
-  onToggleVerifyAdmin,
+  newTransWeight = '',
+  newTransNote = '',
+  newTransIsPrivate = false,
+  setNewTransWeight = () => {},
+  setNewTransNote = () => {},
+  setNewTransIsPrivate = () => {},
+  onBeforeFileSelect = () => {},
+  onAfterFileSelect = () => {},
+  onAddTransformation = () => {},
+  onUpdatePasswordSubmit = () => {},
+  password = '',
+  setPassword = () => {},
+  confirmPassword = '',
+  setConfirmPassword = () => {},
+  onSignOut = () => {},
+  onToggleVerifyAdmin = () => {},
   onUpdateProfile,
   beforeFileInputRef,
   afterFileInputRef
@@ -120,8 +120,7 @@ export default function ProfileTab({
 
   const toggleStrava = () => {
     if (isStravaConnected) {
-      const nextState = false;
-      setIsStravaConnected(nextState);
+      setIsStravaConnected(false);
       localStorage.setItem('fitpulse_strava_connected', 'false');
       showToast('Strava déconnecté');
     } else {
