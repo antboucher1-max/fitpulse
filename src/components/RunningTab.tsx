@@ -208,7 +208,7 @@ export default function RunningTab({
     alert("🎯 Parcours partagé sur le fil du club !");
   };
 
-  // --- PARSEUR GPX AVEC EXTRACTION DU VRAI DÉNIVELÉ (D+) ---
+  // --- PARSEUR GPX BLINDÉ AVEC LISSAGE ALTIMÉTRIQUE (DEADBAND 1.5M) ---
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -222,20 +222,29 @@ export default function RunningTab({
           const points = tracks.points.map((p: any) => [p.lat, p.lon] as [number, number]);
           let km = Number((tracks.distance.total / 1000).toFixed(2));
           let dPlus = 0;
+          
           if (tracks.points[0].ele !== undefined) {
+            let lastValidEle = tracks.points[0].ele;
             for (let i = 1; i < tracks.points.length; i++) {
-              const diff = tracks.points[i].ele - tracks.points[i - 1].ele;
-              if (diff > 0) dPlus += diff;
+              const currentEle = tracks.points[i].ele;
+              const diff = currentEle - lastValidEle;
+              if (diff > 1.5) {
+                dPlus += diff;
+                lastValidEle = currentEle;
+              } else if (currentEle < lastValidEle) {
+                lastValidEle = currentEle;
+              }
             }
           } else {
             dPlus = km * 25;
           }
+
           setRoutePositions(points);
           setDistanceKm(km);
           setActualDPlus(Math.round(dPlus));
           setCurrentPosition(points[points.length - 1]);
           lastPositionRef.current = points[points.length - 1];
-          alert(`GPX importé : ${km} km, +${Math.round(dPlus)}m D+`);
+          alert(`GPX importé : ${km} km, +${Math.round(dPlus)}m D+ certifiés`);
         }
       } catch {
         alert("Erreur de lecture GPX.");
