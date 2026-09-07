@@ -48,15 +48,7 @@ export default function UnifiedTriptychModule({ currentUserId }: UnifiedTriptych
       } catch (e) { /* ignore */ }
     }
 
-    // Si tout est vide, on initialise avec un set propre
-    if (collected.length === 0) {
-      collected = [
-        { id: '1', type: 'run', title: 'Sortie Longue / Seuil', durationMins: 55, rpe: 8 },
-        { id: '2', type: 'gym', title: 'Squat & Force Athlétique', durationMins: 75, rpe: 9 },
-        { id: '3', type: 'fitcross', title: 'WOD Métabolique (Fran)', durationMins: 20, rpe: 10 }
-      ];
-    }
-
+    // SUPPRESSION DE LA CONDITION DE SECOURS QUI RÉINJECTAIT LES 3 SÉANCES PAR DÉFAUT
     return collected;
   });
 
@@ -222,20 +214,24 @@ export default function UnifiedTriptychModule({ currentUserId }: UnifiedTriptych
 
       {/* Liste compacte */}
       <div className="space-y-2 max-h-44 overflow-y-auto pr-1">
-        {sessions.map(s => (
-          <div key={s.id} className="bg-neutral-950 p-3 rounded-xl border border-neutral-800/80 flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <span className={`w-2 h-2 rounded-full ${s.type === 'run' ? 'bg-emerald-400' : s.type === 'gym' ? 'bg-orange-500' : 'bg-cyan-400'}`} />
-              <div>
-                <h4 className="font-bold text-xs text-white">{s.title}</h4>
-                <p className="text-[10px] text-neutral-400">{s.durationMins} min • RPE {s.rpe}/10 • {String(s.type).toUpperCase()}</p>
+        {sessions.length === 0 ? (
+          <p className="text-xs text-neutral-500 text-center py-4">Aucune brique active. Votre charge globale est à 0.</p>
+        ) : (
+          sessions.map(s => (
+            <div key={s.id} className="bg-neutral-950 p-3 rounded-xl border border-neutral-800/80 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <span className={`w-2 h-2 rounded-full ${s.type === 'run' ? 'bg-emerald-400' : s.type === 'gym' ? 'bg-orange-500' : 'bg-cyan-400'}`} />
+                <div>
+                  <h4 className="font-bold text-xs text-white">{s.title}</h4>
+                  <p className="text-[10px] text-neutral-400">{s.durationMins} min • RPE {s.rpe}/10 • {String(s.type).toUpperCase()}</p>
+                </div>
               </div>
+              <button onClick={() => handleRemove(s.id)} className="p-1 text-neutral-500 hover:text-red-400 rounded transition cursor-pointer">
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
             </div>
-            <button onClick={() => handleRemove(s.id)} className="p-1 text-neutral-500 hover:text-red-400 rounded transition cursor-pointer">
-              <Trash2 className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        ))}
+          ))
+        )}
       </div>
 
       <button 
