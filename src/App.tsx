@@ -176,13 +176,11 @@ export default function App() {
     if (data) setGymLogsData(data);
   };
 
-  // Source de vérité unique unifiée pour le score de forme (Readiness)
   const currentUserProfile = registeredUsers.find(u => u.id === user?.id);
   const currentUsername = currentUserProfile?.username || user?.user_metadata?.username || 'Athlète';
   
   const currentReadinessScore = Number((currentUserProfile as any)?.readiness_score ?? 78);
 
-  // Calcul en direct du score Apex unifié
   const todayApexData = calculateApexScore({
     readinessScore: currentReadinessScore,
     nutritionCompliance: true,
@@ -663,18 +661,6 @@ export default function App() {
                         <span className="group-hover:text-emerald-400 transition-colors">Course</span>
                       </button>
                     </div>
-                  </div>
-
-                  {/* Pacing Matrix & King of Spot */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                    <button type="button" onClick={() => handleTabChange('matrix')} className="w-full py-3.5 bg-neutral-900 hover:bg-neutral-850 border border-neutral-800 hover:border-orange-500/50 rounded-3xl px-4 flex items-center justify-between text-xs font-bold text-white shadow-xl transition-all cursor-pointer group">
-                      <span className="flex items-center gap-2 text-orange-400"><Target className="w-4 h-4" /> Pacing Matrix</span>
-                      <ChevronRight className="w-4 h-4 text-neutral-500 group-hover:translate-x-1 transition-transform" />
-                    </button>
-                    <button type="button" onClick={() => handleTabChange('segments')} className="w-full py-3.5 bg-neutral-900 hover:bg-neutral-850 border border-neutral-800 hover:border-orange-500/50 rounded-3xl px-4 flex items-center justify-between text-xs font-bold text-white shadow-xl transition-all cursor-pointer group">
-                      <span className="flex items-center gap-2 text-orange-400"><Trophy className="w-4 h-4" /> King of the Spot</span>
-                      <ChevronRight className="w-4 h-4 text-neutral-500 group-hover:translate-x-1 transition-transform" />
-                    </button>
                   </div>
                 </div>
               )}
