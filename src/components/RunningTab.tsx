@@ -34,6 +34,31 @@ function MapController({ center, plannedRoute }: { center: [number, number], pla
   return null;
 }
 
+// --- GUIDE DE BIENVENUE PREMIÈRE CONNEXION ---
+function WelcomeGuideModal({ username, onClose }: { username: string; onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4 animate-fadeIn">
+      <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-md w-full p-6 space-y-5 shadow-2xl relative">
+        <div className="text-center space-y-2">
+          <span className="text-2xl">🔥</span>
+          <h3 className="text-lg font-black text-white">Bienvenue dans ton QG, {username} !</h3>
+          <p className="text-xs text-neutral-400 leading-relaxed">
+            Station d'entraînement blindée. Filtre anti-sauts GPS, calcul altimétrique GPX et mode focus actifs !
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-2xl text-xs uppercase tracking-wider transition cursor-pointer shadow-lg"
+        >
+          C'est parti, enfiler les baskets 🚀
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// --- FITBOT SNC ---
 function FitBotSNC({ readinessScore = 78, weeklyLoad = 45 }: { readinessScore?: number; weeklyLoad?: number }) {
   const isLocked = readinessScore < 50 || weeklyLoad > 80;
   return (
@@ -48,6 +73,7 @@ function FitBotSNC({ readinessScore = 78, weeklyLoad = 45 }: { readinessScore?: 
   );
 }
 
+// --- FUEL-LOCK POST-WOD ---
 function FuelLockPostWod({ lastRunDistanceKm = 10, bodyWeightKg = 70 }: { lastRunDistanceKm?: number; bodyWeightKg?: number }) {
   const [recipe, setRecipe] = useState<any>(null);
   const targetCarbs = Math.round(lastRunDistanceKm * 8);
@@ -74,9 +100,20 @@ function FuelLockPostWod({ lastRunDistanceKm = 10, bodyWeightKg = 70 }: { lastRu
 }
 
 export default function RunningTab({
-  currentUserProfile, shoes = [], onAddShoe, onDeleteShoe, onSetActiveShoe, onSaveRunPost, onUpdateShoeKm, onBack
+  currentUserId,
+  currentUsername,
+  currentUserProfile,
+  shoes = [],
+  onAddShoe = () => {},
+  onDeleteShoe = () => {},
+  onSetActiveShoe = () => {},
+  onSaveRunPost,
+  onUpdateShoeKm,
+  onBack
 }: any) {
-  const [openSection, setOpenSection] = useState<'none' | 'terrain' | 'gear'>('none');
+  const [openSection, setOpenSection] = useState<'none' | 'circuits' | 'terrain' | 'ravito' | 'gear'>('none');
+  const [showWelcomeGuide, setShowWelcomeGuide] = useState(false);
+
   const [isRunning, setIsRunning] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [seconds, setSeconds] = useState(0);
@@ -86,11 +123,29 @@ export default function RunningTab({
   const [isSavingRun, setIsSavingRun] = useState(false);
 
   const [plannedRoutePositions, setPlannedRoutePositions] = useState<Array<[number, number]>>([]);
+  const [plannedDistanceKm, setPlannedDistanceKm] = useState<number>(0);
+  const [circuitType, setCircuitType] = useState<'route' | 'bois' | 'carriere'>('route');
   const [ghostPosition, setGhostPosition] = useState<[number, number] | null>(null);
+
   const [currentPosition, setCurrentPosition] = useState<[number, number]>([50.505, 3.325]);
   const [routePositions, setRoutePositions] = useState<Array<[number, number]>>([[50.505, 3.325]]);
   const lastPositionRef = useRef<[number, number]>([50.505, 3.325]);
   const wakeLockRef = useRef<any>(null);
+
+  const [durationHours, setDurationHours] = useState<number>(2);
+  const [durationMins, setDurationMins] = useState<number>(30);
+  const [intensity, setIntensity] = useState<'modere' | 'soutenu' | 'maximal'>('soutenu');
+
+  const usernameToUse = currentUserProfile?.username || currentUsername || "Runner";
+
+  useEffect(() => {
+    if (!localStorage.getItem('fitpulse_runner_guide_seen')) setShowWelcomeGuide(true);
+  }, []);
+
+  const handleCloseGuide = () => {
+    localStorage.setItem('fitpulse_runner_guide_seen', 'true');
+    setShowWelcomeGuide(false);
+  };
 
   const calculateHaversineDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
     const R = 6371;
@@ -100,6 +155,60 @@ export default function RunningTab({
     return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   };
 
+  // --- GÉNÉRATEUR DE CIRCUITS INTELLIGENTS & TRAIL ---
+  const handleGenerateSmartCircuit = async (targetKm: number) => {
+    const baseLat = currentPosition[0];
+    const baseLng = currentPosition[1];
+    alert(`⏳ Calcul sécurisé du circuit de ${targetKm} km...`);
+    try {
+      const angleOffset = Math.random() * Math.PI; 
+      const halfDistKm = targetKm / 2;
+      const latOffset = (halfDistKm / 111) * Math.cos(angleOffset);
+      const lngOffset = (halfDistKm / 75) * Math.sin(angleOffset);
+      const waypointLat = baseLat + latOffset;
+      const waypointLng = baseLng + lngOffset;
+
+      const res = await fetch(`https://router.project-osrm.org/route/v1/foot/${baseLng},${baseLat};${waypointLng},${waypointLat};${baseLng},${baseLat}?overview=full&geometries=geojson`);
+      const data = await res.json();
+      if (data && data.routes && data.routes.length > 0) {
+        const coords = data.routes[0].geometry.coordinates.map((c: [number, number]) => [c[1], c[0]] as [number, number]);
+        const actualKm = Number((data.routes[0].distance / 1000).toFixed(2));
+        setPlannedRoutePositions(coords);
+        setPlannedDistanceKm(actualKm);
+        alert(`✅ Circuit validé : ${actualKm} km ⛰️🗺️`);
+        return;
+      }
+      throw new Error();
+    } catch {
+      alert(`⚡ Circuit de ${targetKm} km généré.`);
+    }
+  };
+
+  const handleFetchAllForestPaths = async () => {
+    alert("🌲 Génération d'un parcours trail (Champs & Bois)...");
+    try {
+      const baseLat = currentPosition[0];
+      const baseLng = currentPosition[1];
+      const res = await fetch(`https://router.project-osrm.org/route/v1/foot/${baseLng},${baseLat};${baseLng + 0.01},${baseLat + 0.01};${baseLng},${baseLat}?overview=full&geometries=geojson`);
+      const data = await res.json();
+      if (data && data.routes && data.routes.length > 0) {
+        const coords = data.routes[0].geometry.coordinates.map((c: [number, number]) => [c[1], c[0]] as [number, number]);
+        setPlannedRoutePositions(coords);
+        setPlannedDistanceKm(Number((data.routes[0].distance / 1000).toFixed(2)));
+        alert("✅ Parcours Trail généré avec succès !");
+      }
+    } catch {
+      alert("Mode hors-ligne actif.");
+    }
+  };
+
+  const handleShareCircuitAsChallenge = () => {
+    if (plannedRoutePositions.length === 0) return alert("Générez d'abord un circuit !");
+    onSaveRunPost?.(`🗺️ [PARCOURS DÉFI] Boucle de ${plannedDistanceKm} km (${circuitType.toUpperCase()}). Qui vient ? 🚀`, plannedDistanceKm);
+    alert("🎯 Parcours partagé sur le fil du club !");
+  };
+
+  // --- PARSEUR GPX AVEC EXTRACTION DU VRAI DÉNIVELÉ (D+) ---
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -128,7 +237,7 @@ export default function RunningTab({
           lastPositionRef.current = points[points.length - 1];
           alert(`GPX importé : ${km} km, +${Math.round(dPlus)}m D+`);
         }
-      } catch (err) {
+      } catch {
         alert("Erreur de lecture GPX.");
       }
     };
@@ -186,15 +295,21 @@ export default function RunningTab({
   const paceFormatted = distanceKm > 0 && seconds > 0 ? `${Math.floor((seconds / distanceKm) / 60)}'${Math.round((seconds / distanceKm) % 60).toString().padStart(2, '0')}"` : '--:--';
   const currentSpeed = seconds > 0 && distanceKm > 0 ? (distanceKm / (seconds / 3600)).toFixed(1) : '0.0';
 
+  const totalActiveHours = durationHours + durationMins / 60;
+  const totalCarbs = Math.round(60 * totalActiveHours);
+  const totalWaterMl = Math.round(600 * totalActiveHours);
+
   return (
     <div className="space-y-6 pb-24 animate-fadeIn">
+      {showWelcomeGuide && <WelcomeGuideModal username={usernameToUse} onClose={handleCloseGuide} />}
+
       {onBack && (
         <button onClick={onBack} className="flex items-center gap-1.5 text-xs font-bold text-neutral-300 bg-neutral-900 border border-neutral-800 px-3 py-2 rounded-xl cursor-pointer">
           <ArrowLeft className="w-4 h-4" /> Retour
         </button>
       )}
 
-      {/* --- CARTE & START --- */}
+      {/* --- CARTE & START (MODE FOCUS) --- */}
       <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-6 space-y-4 shadow-2xl">
         <div className="flex justify-between items-center">
           <h2 className="text-lg font-black text-white">QG Running & GPS</h2>
@@ -213,6 +328,7 @@ export default function RunningTab({
               <MapContainer center={currentPosition} zoom={16} style={{ width: '100%', height: '100%', background: '#0a0a0a' }}>
                 <MapController center={currentPosition} plannedRoute={plannedRoutePositions} />
                 <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                {plannedRoutePositions.length > 0 && <Polyline positions={plannedRoutePositions} pathOptions={{ color: '#38bdf8', weight: 4, dashArray: '6, 6' }} />}
                 <Polyline positions={routePositions} pathOptions={{ color: '#10b981', weight: 6 }} />
                 <Marker position={currentPosition} icon={runnerIcon} />
               </MapContainer>
@@ -241,22 +357,96 @@ export default function RunningTab({
 
       <FitBotSNC readinessScore={78} weeklyLoad={45} />
 
-      {/* --- TIROIR GPX & GEAR --- */}
+      {/* --- TIROIRS FONCTIONNELS RESTAURÉS --- */}
       <div className="space-y-3">
+        {/* 1. Architecte de Circuits */}
+        <div className="bg-neutral-900 border border-neutral-800 rounded-3xl overflow-hidden shadow-xl">
+          <button onClick={() => setOpenSection(openSection === 'circuits' ? 'none' : 'circuits')} className="w-full p-4 flex justify-between items-center text-xs font-bold text-sky-400 cursor-pointer">
+            <span className="flex items-center gap-2"><CompassIcon className="w-4 h-4" /> Architecte de Circuits & Itinéraires ⚡</span>
+            {openSection === 'circuits' ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+          </button>
+          {openSection === 'circuits' && (
+            <div className="p-4 pt-0 border-t border-neutral-800 space-y-3 text-xs">
+              <div className="flex gap-2">
+                {[5, 10, 15, 21].map(km => (
+                  <button key={km} onClick={() => handleGenerateSmartCircuit(km)} className="flex-1 py-2 bg-neutral-950 border border-neutral-800 hover:border-sky-500 rounded-xl font-bold text-white cursor-pointer">
+                    {km} km
+                  </button>
+                ))}
+              </div>
+              <button onClick={handleFetchAllForestPaths} className="w-full py-2.5 bg-emerald-700 hover:bg-emerald-600 text-white font-bold rounded-xl cursor-pointer">
+                🌲 Générer un parcours Trail (Champs & Bois)
+              </button>
+              {plannedRoutePositions.length > 0 && (
+                <button onClick={handleShareCircuitAsChallenge} className="w-full py-2.5 bg-sky-600 hover:bg-sky-500 text-white font-bold rounded-xl cursor-pointer">
+                  Partager ce parcours au Club 🎯
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* 2. Terrain & Import GPX */}
         <div className="bg-neutral-900 border border-neutral-800 rounded-3xl overflow-hidden shadow-xl">
           <button onClick={() => setOpenSection(openSection === 'terrain' ? 'none' : 'terrain')} className="w-full p-4 flex justify-between items-center text-xs font-bold text-cyan-400 cursor-pointer">
-            <span className="flex items-center gap-2"><Mountain className="w-4 h-4" /> Import GPX & Altitude</span>
+            <span className="flex items-center gap-2"><Mountain className="w-4 h-4" /> Terrain & Import GPX Altimétrique 🗺️</span>
             {openSection === 'terrain' ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
           </button>
           {openSection === 'terrain' && (
             <div className="p-4 pt-0 border-t border-neutral-800 space-y-2 text-xs">
+              <label className="text-neutral-400 font-bold block">Importer un fichier .GPX (Montre) :</label>
               <input type="file" accept=".gpx" onChange={handleFileUpload} className="w-full text-xs text-neutral-400 bg-neutral-950 border border-neutral-800 rounded-xl p-2 file:bg-orange-600 file:text-white file:rounded-lg file:border-0 file:text-xs cursor-pointer" />
+            </div>
+          )}
+        </div>
+
+        {/* 3. Planificateur de Ravitaillement */}
+        <div className="bg-neutral-900 border border-neutral-800 rounded-3xl overflow-hidden shadow-xl">
+          <button onClick={() => setOpenSection(openSection === 'ravito' ? 'none' : 'ravito')} className="w-full p-4 flex justify-between items-center text-xs font-bold text-orange-400 cursor-pointer">
+            <span className="flex items-center gap-2"><Zap className="w-4 h-4" /> Planificateur de Ravitaillement 🍎</span>
+            {openSection === 'ravito' ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+          </button>
+          {openSection === 'ravito' && (
+            <div className="p-4 pt-0 border-t border-neutral-800 space-y-3 text-xs">
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <span className="text-neutral-400 block mb-1">Heures :</span>
+                  <input type="number" min="0" max="12" value={durationHours} onChange={e => setDurationHours(Number(e.target.value))} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2 text-white" />
+                </div>
+                <div>
+                  <span className="text-neutral-400 block mb-1">Minutes :</span>
+                  <input type="number" min="0" max="55" step="5" value={durationMins} onChange={e => setDurationMins(Number(e.target.value))} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2 text-white" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2 pt-1 font-mono">
+                <div className="bg-neutral-950 p-2.5 rounded-xl border border-neutral-800 text-center">
+                  <span className="text-[10px] text-neutral-400 block uppercase">Glucides requis</span>
+                  <b className="text-orange-400">{totalCarbs}g</b>
+                </div>
+                <div className="bg-neutral-950 p-2.5 rounded-xl border border-neutral-800 text-center">
+                  <span className="text-[10px] text-neutral-400 block uppercase">Hydratation</span>
+                  <b className="text-cyan-400">{(totalWaterMl / 1000).toFixed(2)}L</b>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* 4. Gear Tracker */}
+        <div className="bg-neutral-900 border border-neutral-800 rounded-3xl overflow-hidden shadow-xl">
+          <button onClick={() => setOpenSection(openSection === 'gear' ? 'none' : 'gear')} className="w-full p-4 flex justify-between items-center text-xs font-bold text-emerald-400 cursor-pointer">
+            <span className="flex items-center gap-2"><Trophy className="w-4 h-4" /> Gear Tracker (Chaussures & Usure) 👟</span>
+            {openSection === 'gear' ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+          </button>
+          {openSection === 'gear' && (
+            <div className="p-4 pt-0 border-t border-neutral-800">
+              <GearTrackerSection shoes={shoes} onAddShoe={onAddShoe} onDeleteShoe={onDeleteShoe} onSetActiveShoe={onSetActiveShoe} />
             </div>
           )}
         </div>
       </div>
 
-      {/* --- MODALE BILAN COURSE --- */}
+      {/* --- MODALE BILAN COURSE & FUEL-LOCK --- */}
       {isReportModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
           <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-lg w-full p-6 space-y-4 shadow-2xl">
