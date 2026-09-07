@@ -1,5 +1,5 @@
 import PaywallGate from './PaywallGate';
-import { useState, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { 
   Mountain, Compass as CompassIcon, Trophy, Award, Zap, ChevronDown, ChevronUp, ArrowLeft, Upload, Edit3, X, Download, Trees, Footprints, Volume2, CheckCircle2
 } from 'lucide-react';
@@ -550,7 +550,7 @@ export default function RunningTab({
               <button 
                 onClick={() => { 
                   setIsSavingRun(true); 
-                  onSaveRunPost?.(`🎯 [SORTIE CLUB] ${importedRunData.distance} km en ${formatTime(importedRunData.timeSec)} (+${importedRunData.dPlus}m D+) 🚀`, importedRunData.distance); 
+                  onSaveRunPost?.(`🎯 [SORTIE CLUB] ${importedRunData.distance} km en ${formatType(importedRunData.timeSec)} (+${importedRunData.dPlus}m D+) 🚀`, importedRunData.distance); 
                   setIsReportModalOpen(false); 
                   setIsSavingRun(false); 
                 }} 
