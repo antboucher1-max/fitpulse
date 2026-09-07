@@ -180,7 +180,6 @@ export default function App() {
   const currentUserProfile = registeredUsers.find(u => u.id === user?.id);
   const currentUsername = currentUserProfile?.username || user?.user_metadata?.username || 'Athlète';
   
-  // On récupère le score depuis le profil s'il existe (ex: stocké via le check-in), sinon valeur par défaut stable à 78
   const currentReadinessScore = Number((currentUserProfile as any)?.readiness_score ?? 78);
 
   // Calcul en direct du score Apex unifié
@@ -191,13 +190,6 @@ export default function App() {
     targetHydrationLiters: 3.0,
     weeklyLoad: 45
   });
-
-  // Historique de charge dynamique pour le SncShieldWidget
-  const recentTrainingLoads = gymLogsData.map((log: any) => ({
-    date: log.created_at || new Date().toISOString(),
-    loadScore: Number(log.load_score || log.rpe || 70),
-    type: 'muscu' as const
-  }));
 
   const handleAddShoe = async (brand: string, model: string, maxKm: number) => {
     if (!user) return;
@@ -642,9 +634,6 @@ export default function App() {
                       </div>
                     </div>
                   </div>
-
-                  {/* SNC Shield Widget synchro avec la readiness unifiée */}
-                  <SncShieldWidget currentReadiness={currentReadinessScore} recentLoads={recentTrainingLoads} />
 
                   {inTaperingWeek && (
                     <div className="bg-gradient-to-r from-amber-950/60 via-neutral-900 to-neutral-900 border border-amber-500/40 rounded-3xl p-4 text-center space-y-1 shadow-xl">
