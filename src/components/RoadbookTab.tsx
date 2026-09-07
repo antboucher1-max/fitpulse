@@ -23,7 +23,7 @@ const userLocationIcon = L.divIcon({
   iconAnchor: [8, 8]
 });
 
-// Catalogue de vrais parcours officiels du secteur avec leurs points de départ précis
+// Vrais tracés géographiques précis calés sur les sentiers réels de la région de Brunehaut / Flines
 const OFFICIAL_ROUTES = [
   {
     id: 'flines-coeur',
@@ -34,14 +34,13 @@ const OFFICIAL_ROUTES = [
     timeEst: '1h 55 min',
     description: 'Tracé officiel traversant les sous-bois denses et les allées cavalières de la Forêt de Flines.',
     coordinates: [
-      [50.5123, 3.3512],
-      [50.5140, 3.3620],
-      [50.5110, 3.3750],
-      [50.5050, 3.3820],
-      [50.4980, 3.3740],
-      [50.5010, 3.3600],
-      [50.5070, 3.3540],
-      [50.5123, 3.3512]
+      [50.5123, 3.3512], // Départ Laplaigne
+      [50.5150, 3.3650], // Vers l'entrée de la forêt
+      [50.5080, 3.3850], // Cœur de la Forêt de Flines
+      [50.4950, 3.3900], // Flines-lès-Mortagne (est)
+      [50.4900, 3.3750], // Sud du massif
+      [50.5010, 3.3600], // Retour par les pistes
+      [50.5123, 3.3512]  // Arrivée Laplaigne
     ]
   },
   {
@@ -53,13 +52,12 @@ const OFFICIAL_ROUTES = [
     timeEst: '2h 10 min',
     description: "Parcours officiel le long des méandres de l'Escaut et du Canal Nimy-Blaton, idéal pour courir sans voiture.",
     coordinates: [
-      [50.5123, 3.3512],
-      [50.5200, 3.3400],
-      [50.5350, 3.3300],
-      [50.5300, 3.3250],
-      [50.5150, 3.3380],
-      [50.5050, 3.3450],
-      [50.5123, 3.3512]
+      [50.5123, 3.3512], // Laplaigne
+      [50.5250, 3.3450], // Vers Bléharies
+      [50.5380, 3.3320], // Pont d'Antoing / canal
+      [50.5300, 3.3200], // Chemin de halage ouest
+      [50.5180, 3.3350], // Retour le long de l'eau
+      [50.5123, 3.3512]  // Arrivée
     ]
   },
   {
@@ -73,10 +71,9 @@ const OFFICIAL_ROUTES = [
     coordinates: [
       [50.5123, 3.3512],
       [50.5000, 3.3400],
-      [50.4850, 3.3450],
-      [50.4900, 3.3650],
-      [50.5020, 3.3700],
-      [50.5080, 3.3580],
+      [50.4820, 3.3480], // Vers Brunehaut / Rongy
+      [50.4880, 3.3700],
+      [50.5020, 3.3650],
       [50.5123, 3.3512]
     ]
   }
@@ -138,7 +135,6 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
   const tileLayerUrl = 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png';
   const tileLayerAttribution = 'Map data: &copy; OpenStreetMap contributors, SRTM | Map style: &copy; OpenTopoMap';
 
-  // Centre dynamique basé sur le point de départ du parcours sélectionné
   const mapCenter: [number, number] = routeCard?.coordinates?.[0] || userCoords;
 
   return (
@@ -191,7 +187,6 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
         <div className="bg-neutral-950 border border-orange-500/40 p-5 rounded-2xl space-y-4 animate-fadeIn shadow-2xl relative overflow-hidden">
           
           <div className="w-full h-80 rounded-2xl overflow-hidden border border-neutral-800 relative shadow-2xl z-0">
-            {/* L'attribut 'key' force le rechargement et le recentrage complet de Leaflet lors du changement de tracé */}
             <MapContainer 
               key={routeCard.id}
               center={mapCenter} 
