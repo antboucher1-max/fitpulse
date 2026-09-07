@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Activity, Dumbbell, Flame, Plus, Trash2, Zap } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 
@@ -15,11 +15,21 @@ interface UnifiedTriptychProps {
 }
 
 export default function UnifiedTriptychModule({ currentUserId }: UnifiedTriptychProps) {
-  const [sessions, setSessions] = useState<UnifiedSession[]>([
-    { id: '1', type: 'run', title: 'Sortie Longue / Seuil', durationMins: 55, rpe: 8 },
-    { id: '2', type: 'gym', title: 'Squat & Force Athlétique', durationMins: 75, rpe: 9 },
-    { id: '3', type: 'fitcross', title: 'WOD Métabolique (Fran)', durationMins: 20, rpe: 10 }
-  ]);
+  const [sessions, setSessions] = useState<UnifiedSession[]>(() => {
+    const saved = localStorage.getItem('fitpulse_triptych_sessions');
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) { /* ignore */ }
+    }
+    return [
+      { id: '1', type: 'run', title: 'Sortie Longue / Seuil', durationMins: 55, rpe: 8 },
+      { id: '2', type: 'gym', title: 'Squat & Force Athlétique', durationMins: 75, rpe: 9 },
+      { id: '3', type: 'fitcross', title: 'WOD Métabolique (Fran)', durationMins: 20, rpe: 10 }
+    ];
+  });
+
+  useEffect(() => {
+    localStorage.setItem('fitpulse_triptych_sessions', JSON.stringify(sessions));
+  }, [sessions]);
 
   const [newTitle, setNewTitle] = useState('');
   const [newType, setNewType] = useState<'run' | 'gym' | 'fitcross'>('run');
