@@ -317,7 +317,6 @@ export default function RunningTab({
 
   const usernameToUse = currentUserProfile?.username || currentUsername || "Runner";
 
-  // Gestion de la première connexion (Onboarding)
   useEffect(() => {
     const hasSeenGuide = localStorage.getItem('fitpulse_runner_guide_seen');
     if (!hasSeenGuide) {
@@ -736,7 +735,7 @@ export default function RunningTab({
     setIsReportModalOpen(false);
     if (distanceKm > 0) {
       if (onSaveRunPost) {
-        onSaveRunPost(`🎯 [DÉFI CLUB] Sortie GPS (${terrainType.toUpperCase()}) de ${distanceKm} km en ${formatTime(seconds)} (${paceFormatted}/km). Qui vient battre ce chrono ? 🚀`, distanceKm);
+        onSaveRunPost(`🎯 [DÉFI CLUB] Sortie GPS (${terrainType.toUpperCase()}) de ${distanceKm} km en ${formatTime(seconds)} (${paceFormatted}/km). D+ estimé : +${Math.round(distanceKm * 28)}m. Qui vient battre ce chrono ? 🚀`, distanceKm);
       }
       applyMileageToActiveShoe();
     }
@@ -756,6 +755,10 @@ export default function RunningTab({
     paceFormatted = `${rawMins}'${rawSecs < 10 ? '0' : ''}${rawSecs}"`;
   }
 
+  // Calcul du Dénivelé positif réalisé basé sur la distance et le terrain
+  const estimatedDPlus = Math.round(distanceKm * (terrainType === 'trail' ? 35 : terrainType === 'carriere' ? 25 : 18));
+  const estimatedEffortScore = Math.round(distanceKm * (terrainType === 'boue' ? 12 : terrainType === 'trail' ? 10 : 8));
+
   const activeHours = isRunning ? Math.floor(seconds / 3600) : durationHours;
   const activeMins = isRunning ? Math.floor((seconds % 3600) / 60) : durationMins;
   const totalActiveHours = activeHours + activeMins / 60;
@@ -771,7 +774,6 @@ export default function RunningTab({
 
   return (
     <div className="space-y-6 pb-24 animate-fadeIn">
-      {/* Guide de bienvenue s'affichant à la toute première connexion */}
       {showWelcomeGuide && (
         <WelcomeGuideModal username={usernameToUse} onClose={handleCloseGuide} />
       )}
@@ -859,7 +861,7 @@ export default function RunningTab({
       {/* --- FITBOT SNC (Intelligent Auto-Régulation) --- */}
       <FitBotSNC readinessScore={78} weeklyLoad={45} />
 
-      {/* --- TIROIRS INTELLIGENTS PLIABLES (Pour garder l'écran propre sans rien perdre) --- */}
+      {/* --- TIROIRS INTELLIGENTS PLIABLES --- */}
       <div className="space-y-3">
 
         {/* 1. Architecte de Circuits & Itinéraires */}
@@ -911,7 +913,6 @@ export default function RunningTab({
                 ))}
               </div>
 
-              {/* Bouton pour générer de vrais sentiers de champs et de bois via OSRM Piéton */}
               <button 
                 type="button" 
                 onClick={handleFetchAllForestPaths} 
@@ -1028,7 +1029,7 @@ export default function RunningTab({
 
       </div>
 
-      {/* --- MODALE DE RAPPORT DE COURSE & FUEL-LOCK --- */}
+      {/* --- MODALE DE RAPPORT DE COURSE & FUEL-LOCK ENRICHI --- */}
       {isReportModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 animate-fadeIn overflow-y-auto">
           <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-lg w-full p-6 space-y-5 shadow-2xl relative my-8">
@@ -1041,26 +1042,31 @@ export default function RunningTab({
               </button>
             </div>
 
+            {/* Bloc Synthèse Rapport Post-Course */}
             <div className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 space-y-3">
               <div className="flex justify-between items-center">
                 <span className="text-[10px] uppercase font-bold text-orange-400 bg-orange-500/10 px-2.5 py-1 rounded-full border border-orange-500/20">
                   Terrain : {terrainType.toUpperCase()}
                 </span>
-                <span className="text-xs text-neutral-400">{formatTime(seconds)}</span>
+                <span className="text-xs text-neutral-400 font-mono">{formatTime(seconds)}</span>
               </div>
 
-              <div className="grid grid-cols-3 gap-2 text-center pt-1">
+              <div className="grid grid-cols-4 gap-2 text-center pt-1">
                 <div className="bg-neutral-900 p-2.5 rounded-xl border border-neutral-800">
                   <span className="text-[9px] text-neutral-400 block uppercase font-bold">Distance</span>
-                  <span className="text-sm font-black text-white">{distanceKm.toFixed(2)} km</span>
+                  <span className="text-xs font-black text-white">{distanceKm.toFixed(2)} km</span>
                 </div>
                 <div className="bg-neutral-900 p-2.5 rounded-xl border border-neutral-800">
                   <span className="text-[9px] text-neutral-400 block uppercase font-bold">Allure</span>
-                  <span className="text-sm font-black text-orange-400">{paceFormatted}</span>
+                  <span className="text-xs font-black text-orange-400">{paceFormatted}</span>
                 </div>
                 <div className="bg-neutral-900 p-2.5 rounded-xl border border-neutral-800">
-                  <span className="text-[9px] text-neutral-400 block uppercase font-bold">Vitesse</span>
-                  <span className="text-sm font-black text-emerald-400">{currentSpeedKmh} km/h</span>
+                  <span className="text-[9px] text-neutral-400 block uppercase font-bold">Dénivelé</span>
+                  <span className="text-xs font-black text-emerald-400">+{estimatedDPlus}m</span>
+                </div>
+                <div className="bg-neutral-900 p-2.5 rounded-xl border border-neutral-800">
+                  <span className="text-[9px] text-neutral-400 block uppercase font-bold">Effort (TSS)</span>
+                  <span className="text-xs font-black text-sky-400">{estimatedEffortScore}</span>
                 </div>
               </div>
             </div>
