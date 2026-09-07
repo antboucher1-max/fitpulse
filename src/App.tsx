@@ -677,7 +677,7 @@ export default function App() {
                         SNC Optimal ⚡
                       </span>
                     </div>
-                    <CleanReadinessTab currentUserId={user?.id} />
+                    <CleanReadinessTab currentUserId={user?.id} onCheckinSaved={fetchRealUsers} />
                   </div>
                 </div>
               )}
@@ -897,7 +897,7 @@ export default function App() {
 
           {currentTab === 'readiness' && (
             <div className="space-y-4">
-              <CleanReadinessTab currentUserId={user?.id} onBack={() => handleTabChange('today')} />
+              <CleanReadinessTab currentUserId={user?.id} onBack={() => handleTabChange('today')} onCheckinSaved={fetchRealUsers} />
               <HybridCalendar posts={posts} currentUserId={user?.id} onRefresh={fetchCloudPosts} />
               <TrainingPlanTab currentUserId={user?.id} />
               <RoadbookTab currentUserId={user?.id} />
