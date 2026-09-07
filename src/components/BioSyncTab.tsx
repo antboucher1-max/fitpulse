@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import { generateBioSyncPrescription } from './BioSyncEngine';
-import { Sparkles, ArrowLeft, Utensils, Zap, Clock, ShieldCheck } from 'lucide-react';
+import { Sparkles, ArrowLeft, Utensils, Clock, ShieldCheck } from 'lucide-react';
 
 interface BioSyncTabProps {
   currentSncScore?: number;
-  onBack: () => void;
+  onBack?: () => void;
 }
 
-export default function BioSyncTab({ currentSncScore = 75, onBack }: BioSyncTabProps) {
+export default function BioSyncTab({ currentSncScore = 75, onBack = () => {} }: BioSyncTabProps) {
   const [sessionType, setSessionType] = useState<'running' | 'crossfit' | 'muscu' | 'repos'>('running');
   const [fridgeInput, setFridgeInput] = useState('riz blanc, œufs, avocat, épinards, poulet');
   const [prescription, setPrescription] = useState<any>(null);
