@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Compass, Sparkles, Share2, Download, Check, MapPin } from 'lucide-react';
+import { Compass, Share2, Download, Check, MapPin } from 'lucide-react';
 import { MapContainer, TileLayer, Polyline, Marker, Popup, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
@@ -9,8 +9,8 @@ function MapController({ center }: { center: [number, number] }) {
   useEffect(() => {
     const timer = setTimeout(() => {
       map.invalidateSize();
-      map.setView(center, 13);
-    }, 250);
+      map.setView(center, 13, { animate: true });
+    }, 200);
     return () => clearTimeout(timer);
   }, [center, map]);
   return null;
@@ -23,7 +23,7 @@ const userLocationIcon = L.divIcon({
   iconAnchor: [8, 8]
 });
 
-// Catalogue de vrais parcours officiels du secteur Brunehaut / Forêt de Flines / Escaut
+// Catalogue de vrais parcours officiels du secteur avec leurs points de départ précis
 const OFFICIAL_ROUTES = [
   {
     id: 'flines-coeur',
@@ -56,7 +56,7 @@ const OFFICIAL_ROUTES = [
       [50.5123, 3.3512],
       [50.5200, 3.3400],
       [50.5350, 3.3300],
-      [50.5300, 3.250],
+      [50.5300, 3.3250],
       [50.5150, 3.3380],
       [50.5050, 3.3450],
       [50.5123, 3.3512]
@@ -135,9 +135,11 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
     setTimeout(() => setShared(false), 3000);
   };
 
-  // Fond de carte OpenTopoMap activé par défaut pour afficher explicitement les sentiers et reliefs boisés
   const tileLayerUrl = 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png';
   const tileLayerAttribution = 'Map data: &copy; OpenStreetMap contributors, SRTM | Map style: &copy; OpenTopoMap';
+
+  // Centre dynamique basé sur le point de départ du parcours sélectionné
+  const mapCenter: [number, number] = routeCard?.coordinates?.[0] || userCoords;
 
   return (
     <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-6 space-y-6 shadow-xl">
@@ -189,13 +191,15 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
         <div className="bg-neutral-950 border border-orange-500/40 p-5 rounded-2xl space-y-4 animate-fadeIn shadow-2xl relative overflow-hidden">
           
           <div className="w-full h-80 rounded-2xl overflow-hidden border border-neutral-800 relative shadow-2xl z-0">
+            {/* L'attribut 'key' force le rechargement et le recentrage complet de Leaflet lors du changement de tracé */}
             <MapContainer 
-              center={userCoords} 
+              key={routeCard.id}
+              center={mapCenter} 
               zoom={13} 
               scrollWheelZoom={false} 
               style={{ width: '100%', height: '100%' }}
             >
-              <MapController center={userCoords} />
+              <MapController center={mapCenter} />
               <TileLayer
                 attribution={tileLayerAttribution}
                 url={tileLayerUrl}
@@ -207,9 +211,9 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
                 weight={6} 
                 opacity={0.95} 
               />
-              <Marker position={userCoords} icon={userLocationIcon}>
+              <Marker position={mapCenter} icon={userLocationIcon}>
                 <Popup>
-                  <strong>📍 Votre Position GPS</strong> <br /> Point de départ du circuit
+                  <strong>📍 Départ : {routeCard.name}</strong>
                 </Popup>
               </Marker>
             </MapContainer>
