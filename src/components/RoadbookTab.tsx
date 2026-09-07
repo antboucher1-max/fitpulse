@@ -55,14 +55,13 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
 
     try {
       const [lat, lng] = userCoords;
-      // Facteur d'échelle strictement proportionnel à la distance (ex: 5km = compact dans les bois, 21km = grand tour)
       const factor = (selectedDistance / 10) * 0.0009;
 
       let wp1, wp2, wp3;
       if (surfacePreference === 'bois') {
-        // Waypoints intérieurs en plein cœur de la Forêt de Flines pour éviter le contournement extérieur
+        // Correction de la syntaxe du waypoint 2
         wp1 = [lat - 0.0015, lng + factor * 1.2];
-        wp2 = [lat - scale_offset = 0.0040, lng + factor * 2.0];
+        wp2 = [lat - 0.0040, lng + factor * 2.0];
         wp3 = [lat - 0.0060, lng + factor * 0.8];
       } else if (surfacePreference === 'champs') {
         wp1 = [lat - factor * 1.2, lng - factor * 0.5];
@@ -74,7 +73,6 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
         wp3 = [lat - factor * 1.0, lng - factor * 0.5];
       }
 
-      // Requête OSRM ajustée avec des points intermédiaires resserrés
       const queryUrl = `https://router.project-osrm.org/route/v1/foot/${lng},${lat};${wp1[1]},${wp1[0]};${wp2[1]},${wp2[0]};${wp3[1]},${wp3[0]};${lng},${lat}?overview=full&geometries=geojson`;
 
       const response = await fetch(queryUrl);
