@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Compass, MapPin, Navigation, Sparkles, Share2, Download, Trees, Footprints, Layers, Check } from 'lucide-react';
+import { Compass, Sparkles, Share2, Download, Layers, Check, MapPin } from 'lucide-react';
 
 interface RoadbookTabProps {
   currentUserId?: string;
@@ -7,27 +7,22 @@ interface RoadbookTabProps {
 
 export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
   const [selectedDistance, setSelectedDistance] = useState<number>(10);
-  const [surfacePreference, setSurfacePreference] = useState<'mixte' | 'bois' | 'champs' | 'urbain'>('mixte');
+  const [surfacePreference, setSurfacePreference] = useState<'mixte' | 'bois' | 'champs' | 'urbain'>('bois');
   const [generating, setGenerating] = useState(false);
   const [routeCard, setRouteCard] = useState<any>(null);
   const [shared, setShared] = useState(false);
-
-  // Position GPS réelle
-  const [gpsStatus, setGpsStatus] = useState<string>('Recherche de position...');
+  const [gpsStatus, setGpsStatus] = useState<string>('GPS Actif (Brunehaut & Alentours)');
 
   useEffect(() => {
     if ('geolocation' in navigator) {
       navigator.geolocation.getCurrentPosition(
-        () => setGpsStatus('GPS Actif (Brunehaut & Alentours) 📍'),
-        () => setGpsStatus('Position par défaut (Secteur Wallonie)'),
+        () => setGpsStatus('GPS Actif (Position Fixée) 📍'),
+        () => setGpsStatus('Secteur Wallonie (Défaut)'),
         { timeout: 7000 }
       );
-    } else {
-      setGpsStatus('GPS non disponible');
     }
   }, []);
 
-  // Générateur topographique de sentiers (Bois, Forêts, Champs, Rues)
   const handleGenerateCustomRoute = () => {
     setGenerating(true);
     setTimeout(() => {
@@ -52,7 +47,7 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
         elevation = selectedDistance * 18;
         pathType = "Rues, routes & voiries bitumées (90%)";
       } else {
-        title = `Roadbook Hybride Majeur : Bois, Champs & Rues (${selectedDistance} km)`;
+        title = `Roadbook Hybride : Bois, Champs & Rues (${selectedDistance} km)`;
         desc = "Le parcours complet par excellence. Combine l'asphalte pour le rythme, les sentiers de champs pour l'air libre et les sous-bois pour le profil technique.";
         elevation = selectedDistance * 11;
         pathType = "Mixte équilibré (Rues, Champs & Bois)";
@@ -70,13 +65,12 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
 
       setGenerating(false);
       setShared(false);
-    }, 700);
+    }, 600);
   };
 
   const handlePublishToClub = () => {
     if (!routeCard) return;
     setShared(true);
-    // Sauvegarde locale pour le partage avec l'écosystème club
     const existingShared = localStorage.getItem('fitpulse_club_roadbooks');
     let list = existingShared ? JSON.parse(existingShared) : [];
     list.unshift(routeCard);
@@ -98,10 +92,7 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
         </span>
       </div>
 
-      {/* Panneau de configuration du parcours */}
       <div className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 space-y-4">
-        
-        {/* Sélecteur de Distance */}
         <div className="space-y-2">
           <label className="text-xs font-bold text-neutral-300 uppercase tracking-wider block">
             1. Choisir la Distance Cible : <span className="text-orange-400 font-mono text-sm">{selectedDistance} km</span>
@@ -124,7 +115,6 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
           </div>
         </div>
 
-        {/* Sélecteur de Type de Sentier / Surface */}
         <div className="space-y-2">
           <label className="text-xs font-bold text-neutral-300 uppercase tracking-wider block">
             2. Topographie & Type de Voie
@@ -159,24 +149,53 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
           disabled={generating}
           className="w-full py-3 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-white font-black rounded-xl text-xs uppercase tracking-wider transition cursor-pointer flex items-center justify-center gap-2 shadow-xl shadow-orange-600/20"
         >
-          <Sparkles className="w-4 h-4" /> {generating ? "Calcul cartographique des sentiers..." : `Générer la carte ${selectedDistance} km (${surfacePreference.toUpperCase()})`}
+          <Sparkles className="w-4 h-4" /> {generating ? "Calcul cartographique..." : `Générer la carte ${selectedDistance} km (${surfacePreference.toUpperCase()})`}
         </button>
       </div>
 
-      {/* Carte Interactive & Fiche du Roadbook Généré */}
       {routeCard && (
         <div className="bg-neutral-950 border border-orange-500/40 p-5 rounded-2xl space-y-4 animate-fadeIn shadow-2xl relative overflow-hidden">
-          {/* Simulation visuelle de carte topographique */}
-          <div className="w-full h-32 rounded-xl bg-neutral-900 border border-neutral-800 relative flex items-center justify-center overflow-hidden">
-            <div className="absolute inset-0 opacity-20 bg-[radial-gradient(#f97316_1px,transparent_1px)] [background-size:16px_16px]" />
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="flex items-center gap-2 text-xs font-mono text-orange-400 bg-neutral-950/90 px-4 py-2 rounded-xl border border-orange-500/30 shadow-lg">
-                <Layers className="w-4 h-4 animate-spin-slow text-orange-500" /> Tracé GPS actif : {routeCard.name}
-              </div>
+          
+          {/* CARTE TOPOGRAPHIQUE VISUELLE & TRACÉ GPS DE LA BOUCLE */}
+          <div className="w-full h-48 rounded-2xl bg-neutral-900 border border-neutral-800 relative flex items-center justify-center overflow-hidden shadow-inner">
+            {/* Grille cartographique de fond type fond de plan topo */}
+            <div className="absolute inset-0 opacity-15 bg-[radial-gradient(#f97316_1px,transparent_1px)] [background-size:20px_20px]" />
+            
+            {/* Simulation visuelle de courbes de niveau et topographie */}
+            <div className="absolute inset-0 flex items-center justify-center opacity-30 pointer-events-none">
+              <div className="w-72 h-36 rounded-full border border-orange-500/40 absolute scale-90" />
+              <div className="w-56 h-28 rounded-full border border-amber-500/40 absolute scale-100" />
+              <div className="w-40 h-20 rounded-full border border-emerald-500/40 absolute scale-110" />
             </div>
-            {/* Points simulés sur la carte */}
-            <div className="absolute top-4 left-6 w-3 h-3 rounded-full bg-emerald-400 animate-ping" />
-            <div className="absolute bottom-6 right-8 w-2.5 h-2.5 rounded-full bg-orange-500" />
+
+            {/* TRACÉ SVG DE LA BOUCLE DE COURSE */}
+            <svg className="absolute inset-0 w-full h-full p-4" viewBox="0 0 400 160">
+              {/* Lignes de relief fictives arrière-plan */}
+              <path d="M 20 130 Q 100 20, 220 90 T 380 40" fill="none" stroke="#262626" strokeWidth="3" strokeDasharray="4 4" />
+              
+              {/* Le tracé principal actif de la boucle GPS */}
+              <path 
+                d="M 60 120 C 80 40, 180 20, 240 70 C 300 120, 340 50, 360 80 C 380 110, 200 150, 60 120 Z" 
+                fill="rgba(249, 115, 22, 0.1)" 
+                stroke="#f97316" 
+                strokeWidth="3.5" 
+                strokeLinecap="round"
+                className="animate-pulse"
+              />
+
+              {/* Point de départ / arrivée (Start) */}
+              <circle cx="60" cy="120" r="6" fill="#10b981" className="animate-ping" />
+              <circle cx="60" cy="120" r="5" fill="#10b981" />
+            </svg>
+
+            {/* Badge d'indication sur la carte */}
+            <div className="absolute bottom-3 left-3 flex items-center gap-2 text-[11px] font-mono text-orange-400 bg-neutral-950/90 px-3 py-1.5 rounded-xl border border-orange-500/30 shadow-lg">
+              <Layers className="w-3.5 h-3.5 text-orange-500" /> Tracé GPS actif : {routeCard.name}
+            </div>
+
+            <div className="absolute top-3 right-3 bg-neutral-950/90 border border-neutral-800 px-2.5 py-1 rounded-lg text-[10px] text-emerald-400 font-mono">
+              Boucle fermée 🟢
+            </div>
           </div>
 
           <div className="flex items-center justify-between">
@@ -203,7 +222,7 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
           <div className="flex gap-2 pt-2">
             <button 
               type="button"
-              onClick={() => alert(`🧭 Fichier GPX de "${routeCard.name}" téléchargé et prêt pour la montre !`)}
+              onClick={() => alert(`🧭 Fichier GPX de "${routeCard.name}" téléchargé et prêt pour votre montre GPS !`)}
               className="flex-1 py-2.5 bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 text-white font-bold rounded-xl text-xs transition cursor-pointer flex items-center justify-center gap-2"
             >
               <Download className="w-3.5 h-3.5 text-orange-400" /> Télécharger GPX
