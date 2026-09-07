@@ -5,9 +5,10 @@ import { supabase } from '../supabaseClient';
 interface CleanReadinessTabProps {
   currentUserId?: string;
   onBack?: () => void;
+  onCheckinSaved?: () => void;
 }
 
-export default function CleanReadinessTab({ currentUserId, onBack }: CleanReadinessTabProps) {
+export default function CleanReadinessTab({ currentUserId, onBack, onCheckinSaved }: CleanReadinessTabProps) {
   const [hasCheckedIn, setHasCheckedIn] = useState(false);
   const [isWatchConnected, setIsWatchConnected] = useState(false);
   const [watchName, setWatchName] = useState<string>('');
@@ -105,7 +106,9 @@ export default function CleanReadinessTab({ currentUserId, onBack }: CleanReadin
         .update({ readiness_score: readinessScore })
         .eq('id', currentUserId);
 
-      if (error) {
+      if (!error && onCheckinSaved) {
+        onCheckinSaved(); // Déclenche le rafraîchissement dans App.tsx
+      } else if (error) {
         console.warn("Erreur synchro score readiness Supabase :", error.message);
       }
     }
@@ -120,6 +123,10 @@ export default function CleanReadinessTab({ currentUserId, onBack }: CleanReadin
         .from('profiles')
         .update({ readiness_score: 78 })
         .eq('id', currentUserId);
+
+      if (onCheckinSaved) {
+        onCheckinSaved();
+      }
     }
   };
 
