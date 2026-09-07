@@ -49,7 +49,7 @@ export default function App() {
   const [showHuaweiModal, setShowHuaweiModal] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
 
-  // État partagé pour synchroniser la charge globale en temps réel avec le SNC Shield
+  // État partagé pour synchroniser la charge globale en temps réel avec le SNC Shield (part de 0 si vide)
   const [currentGlobalLoad, setCurrentGlobalLoad] = useState<number>(() => {
     const saved = localStorage.getItem('fitpulse_triptych_sessions');
     if (saved) {
@@ -68,7 +68,7 @@ export default function App() {
         // ignore
       }
     }
-    return 1483;
+    return 0;
   });
 
   // Écouteur pour mettre à jour la charge globale instantanément lors des modifications du triptyque
@@ -194,14 +194,14 @@ export default function App() {
           </div>
         )}
 
-        {/* ENTRAÎNEMENT & GPS */}
+        {/* ENTRAÎNEMENT & GPS (Nettoyé des valeurs factices) */}
         {currentView === 'training' && (
           <div className="space-y-6 animate-fadeIn">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <GhostPacingEngine currentVma={15} />
               <LiveGpsTracker onUpdateDistance={(dist) => console.log('Distance GPS:', dist)} />
             </div>
-            <LiveCoachEngine currentKm={5} currentPaceSeconds={300} isRunActive={true} />
+            <LiveCoachEngine currentKm={0} currentPaceSeconds={0} isRunActive={false} />
             <GymLogTab currentUserId={currentUserId} />
             <ExercisesTab exercises={[]} exerciseSearch="" setExerciseSearch={() => {}} selectedCategoryFilter="Tous" setSelectedCategoryFilter={() => {}} onSelectExercise={() => {}} />
             <WodTimerTab />
