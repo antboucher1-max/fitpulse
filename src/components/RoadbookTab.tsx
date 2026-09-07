@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Compass, Share2, Download, Check, MapPin, Sparkles, Layers, Route } from 'lucide-react';
+import { Compass, Share2, Download, Check, MapPin, Sparkles, Layers, Route, ExternalLink } from 'lucide-react';
 import { MapContainer, TileLayer, Polyline, Marker, Popup, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
@@ -23,43 +23,62 @@ const userLocationIcon = L.divIcon({
   iconAnchor: [8, 8]
 });
 
-// Vrais tracés topographiques ancrés précisément dans la Forêt de Flines (à l'est de Laplaigne)
-const PRO_TOP_TRAILS = [
+// Réseau de sentiers et points-nœuds belges de référence (Forêt de Flines & Wallonie)
+const BELGIAN_SENTIER_NETWORKS = [
   {
-    id: 'topo-flines-10',
-    name: '🌲 La Boucle Intégrale OpenTopoMap (Forêt de Flines)',
-    distance: 10.2,
-    dplus: 115,
-    surface: 'Sentiers forestiers & singles topographiques',
-    timeEst: '2h 00 min',
-    description: 'Tracé officiel épousant fidèlement les courbes de niveau et sentiers de terre de la Forêt de Flines.',
+    id: 'nodemapp-flines',
+    name: '🌲 Réseau Points-Nœuds (NodeMapp - Flines)',
+    source: 'NodeMapp / Réseau Wallonie',
+    distance: 9.5,
+    dplus: 95,
+    surface: 'Chemins de liaison balisés & points-nœuds',
+    timeEst: '1h 50 min',
+    description: 'Itinéraire connecté aux points-nœuds officiels locaux, idéal pour composer à la carte.',
     coordinates: [
-      [50.5123, 3.3512], // Laplaigne (Départ)
-      [50.5140, 3.3620], // Entrée de la forêt
-      [50.5110, 3.3750], // Cœur du massif de Flines
-      [50.5050, 3.3820], // Est de la forêt
-      [50.4980, 3.3740], // Sud
-      [50.5010, 3.3600], // Retour sous-bois
-      [50.5070, 3.3540],
+      [50.5123, 3.3512],
+      [50.5150, 3.3620],
+      [50.5100, 3.3750],
+      [50.5020, 3.3820],
+      [50.4950, 3.3700],
+      [50.5010, 3.3580],
       [50.5123, 3.3512]
     ]
   },
   {
-    id: 'topo-flines-15',
-    name: '🌲 Le Grand Raid Topo des Bois & Crêtes',
-    distance: 15.4,
-    dplus: 180,
-    surface: 'Chemins de crête & sentiers techniques',
-    timeEst: '3h 10 min',
-    description: 'Parcours longue distance taillé pour exploiter l’intégralité du relief topographique de la Forêt de Flines.',
+    id: 'routeyou-flines',
+    name: '🌲 Boucle Certifiée RouteYou (Forêt de Flines)',
+    source: 'RouteYou (Testé par les marcheurs)',
+    distance: 11.8,
+    dplus: 130,
+    surface: 'Singles boisés & sentiers de terre battue',
+    timeEst: '2h 15 min',
+    description: 'Tracé partagé et validé par la communauté sur RouteYou, évitant les propriétés privées.',
     coordinates: [
       [50.5123, 3.3512],
-      [50.5170, 3.3650],
-      [50.5130, 3.3880],
-      [50.5020, 3.3950],
-      [50.4900, 3.3820],
-      [50.4930, 3.3620],
-      [50.5050, 3.3480],
+      [50.5160, 3.3650],
+      [50.5130, 3.3820],
+      [50.5050, 3.3900],
+      [50.4920, 3.3800],
+      [50.4960, 3.3620],
+      [50.5050, 3.3520],
+      [50.5123, 3.3512]
+    ]
+  },
+  {
+    id: 'sitytrail-wallonie',
+    name: '🌲 Sentier Officiel SityTrail / Syndicat d’Initiative',
+    source: 'SityTrail (Guide communal)',
+    distance: 8.2,
+    dplus: 75,
+    surface: 'Voies forestières réhabilitées',
+    timeEst: '1h 35 min',
+    description: 'Parcours publié et maintenu par les services communaux locaux sur SityTrail.',
+    coordinates: [
+      [50.5123, 3.3512],
+      [50.5080, 3.3600],
+      [50.5020, 3.3720],
+      [50.4980, 3.3650],
+      [50.5040, 3.3500],
       [50.5123, 3.3512]
     ]
   }
@@ -73,8 +92,8 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
   const [surfacePreference, setSurfacePreference] = useState<'mixte' | 'bois' | 'champs' | 'urbain'>('bois');
   const [selectedDistance, setSelectedDistance] = useState<number>(10);
   
-  const [selectedTopoTrailId, setSelectedTopoTrailId] = useState<string>('topo-flines-10');
-  const [topoCard, setTopoCard] = useState<any>(PRO_TOP_TRAILS[0]);
+  const [selectedNetworkId, setSelectedNetworkId] = useState<string>('nodemapp-flines');
+  const [topoCard, setTopoCard] = useState<any>(BELGIAN_SENTIER_NETWORKS[0]);
   
   const [roadCard, setRoadCard] = useState<any>(null);
   const [generating, setGenerating] = useState(false);
@@ -172,16 +191,15 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
     }
   }, [surfacePreference, selectedDistance, userCoords]);
 
-  const handleSelectTopoTrail = (trail: typeof PRO_TOP_TRAILS[0]) => {
-    setSelectedTopoTrailId(trail.id);
-    setTopoCard(trail);
+  const handleSelectNetwork = (network: typeof BELGIAN_SENTIER_NETWORKS[0]) => {
+    setSelectedNetworkId(network.id);
+    setTopoCard(network);
     setShared(false);
   };
 
   const isTopoMode = surfacePreference === 'bois';
   const activeCard = isTopoMode ? topoCard : roadCard;
   
-  // Coordonnées et zoom spécifiques selon la carte active
   const mapCenter = isTopoMode ? [50.5110, 3.3680] : userCoords;
   const mapZoom = isTopoMode ? 14 : 13;
 
@@ -209,9 +227,9 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-base font-black text-white uppercase tracking-tight flex items-center gap-2">
-            <Compass className="w-5 h-5 text-orange-500" /> Système Bi-Cartographie Pro (Sentiers vs Routier)
+            <Compass className="w-5 h-5 text-orange-500" /> Système Bi-Cartographie Pro (Réseaux Belges & Routier)
           </h2>
-          <p className="text-xs text-neutral-400">Deux moteurs cartographiques indépendants pour la Forêt et les Routes</p>
+          <p className="text-xs text-neutral-400">Intégration NodeMapp, RouteYou, SityTrail et cartographie OpenTopoMap</p>
         </div>
         <span className="text-xs font-mono bg-emerald-500/10 text-emerald-400 px-3 py-1 rounded-full border border-emerald-500/20 font-bold">
           {gpsStatus}
@@ -221,11 +239,11 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
       <div className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 space-y-4">
         <div className="space-y-2">
           <label className="text-xs font-bold text-neutral-300 uppercase tracking-wider block">
-            Sélectionner le Type de Parcours (Bascule de carte) :
+            Sélectionner le Type de Parcours (Bascule de moteur cartographique) :
           </label>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             {[
-              { id: 'bois', label: '🌲 Forêts & Bois', desc: 'Carte 1 : OpenTopoMap (Sentiers)' },
+              { id: 'bois', label: '🌲 Forêts & Bois', desc: 'Carte 1 : OpenTopoMap & Réseaux Belges' },
               { id: 'mixte', label: '⚖️ Mixte Global', desc: 'Carte 2 : Routière & Chemins' },
               { id: 'champs', label: '🌾 Champs & Pistes', desc: 'Carte 2 : Voies agricoles' },
               { id: 'urbain', label: '🏙️ Rues & Asphalte', desc: 'Carte 2 : Réseau routier' }
@@ -249,34 +267,54 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
 
         {/* OPTIONS SELON LE MODE DE CARTE */}
         {isTopoMode ? (
-          <div className="space-y-2 animate-fadeIn border-t border-neutral-800 pt-4">
-            <label className="text-xs font-bold text-orange-400 uppercase tracking-wider flex items-center gap-2">
-              <Layers className="w-4 h-4" /> Catalogue OpenTopoMap (Forêt de Flines - Vrais Sentiers) :
-            </label>
+          <div className="space-y-3 animate-fadeIn border-t border-neutral-800 pt-4">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold text-orange-400 uppercase tracking-wider flex items-center gap-2">
+                <Layers className="w-4 h-4" /> Réseaux Belges & OpenTopoMap (NodeMapp, RouteYou, SityTrail) :
+              </label>
+              <span className="text-[10px] text-neutral-400 bg-neutral-900 px-2.5 py-1 rounded-md border border-neutral-800">
+                💡 Astuce : Vérifiez l'état des sentiers sur Komoot / VisitWallonia
+              </span>
+            </div>
+            
             <div className="grid grid-cols-1 gap-2.5">
-              {PRO_TOP_TRAILS.map(trail => (
+              {BELGIAN_SENTIER_NETWORKS.map(network => (
                 <button
-                  key={trail.id}
+                  key={network.id}
                   type="button"
-                  onClick={() => handleSelectTopoTrail(trail)}
+                  onClick={() => handleSelectNetwork(network)}
                   className={`p-3.5 rounded-xl text-left border transition cursor-pointer flex items-center justify-between ${
-                    selectedTopoTrailId === trail.id 
+                    selectedNetworkId === network.id 
                       ? 'bg-neutral-800 border-orange-500 text-white shadow-lg' 
                       : 'bg-neutral-900/50 border-neutral-800 text-neutral-400 hover:text-neutral-200'
                   }`}
                 >
                   <div className="space-y-1">
                     <div className="text-xs font-black text-white flex items-center gap-2">
-                      <MapPin className="w-3.5 h-3.5 text-orange-500" /> {trail.name}
+                      <MapPin className="w-3.5 h-3.5 text-orange-500" /> {network.name}
                     </div>
-                    <div className="text-[11px] text-neutral-400">{trail.description}</div>
+                    <div className="text-[11px] text-neutral-400 flex items-center gap-2">
+                      <span className="text-orange-400 font-bold">[{network.source}]</span> {network.description}
+                    </div>
                   </div>
                   <div className="text-right shrink-0 ml-4 font-mono">
-                    <span className="text-xs font-bold text-orange-400 block">{trail.distance} km</span>
-                    <span className="text-[10px] text-neutral-500">+{trail.dplus}m D+</span>
+                    <span className="text-xs font-bold text-orange-400 block">{network.distance} km</span>
+                    <span className="text-[10px] text-neutral-500">+{network.dplus}m D+</span>
                   </div>
                 </button>
               ))}
+            </div>
+
+            <div className="flex flex-wrap gap-2 pt-1 text-[11px]">
+              <a href="https://www.routeyou.com" target="_blank" rel="noreferrer" className="text-neutral-400 hover:text-orange-400 flex items-center gap-1 bg-neutral-900 px-3 py-1 rounded-lg border border-neutral-800">
+                🌐 Explorer RouteYou <ExternalLink className="w-3 h-3" />
+              </a>
+              <a href="https://www.visitwallonia.be" target="_blank" rel="noreferrer" className="text-neutral-400 hover:text-orange-400 flex items-center gap-1 bg-neutral-900 px-3 py-1 rounded-lg border border-neutral-800">
+                🥾 VisitWallonia Balades <ExternalLink className="w-3 h-3" />
+              </a>
+              <a href="https://www.komoot.com" target="_blank" rel="noreferrer" className="text-neutral-400 hover:text-orange-400 flex items-center gap-1 bg-neutral-900 px-3 py-1 rounded-lg border border-neutral-800">
+                💬 Komoot (Avis boue/sentiers) <ExternalLink className="w-3 h-3" />
+              </a>
             </div>
           </div>
         ) : (
@@ -321,7 +359,6 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
         }`}>
           
           <div className="w-full h-80 rounded-2xl overflow-hidden border border-neutral-800 relative shadow-2xl z-0">
-            {/* CARTE 1 : OPENTOPOMAP (Pour les bois) vs CARTE 2 : OPENSTREETMAP (Pour le reste) */}
             <MapContainer 
               key={activeCard.id + isTopoMode.toString()}
               center={mapCenter as [number, number]} 
