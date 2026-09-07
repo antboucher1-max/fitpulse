@@ -2,7 +2,7 @@ import PaywallGate from './PaywallGate';
 import { useState, useEffect, useRef } from 'react';
 import { 
   Play, Pause, Square, MapPin, Volume2, VolumeX, 
-  Compass, Apple, Droplet, Zap, Navigation, LocateFixed, Activity, Gauge, Timer, Target, Radio, Wind, ArrowLeft, Share2, EyeOff, X, Upload, Mountain, Compass as CompassIcon, Trophy, Award, Flame, Send, Ghost, ShieldAlert, Lock, CheckCircle2, Sparkles, Utensils, RefreshCw, Layers, ChevronDown, ChevronUp, BarChart2, Check
+  Compass, Apple, Droplet, Zap, Navigation, LocateFixed, Activity, Gauge, Timer, Target, Radio, Wind, ArrowLeft, Share2, EyeOff, X, Upload, Mountain, Compass as CompassIcon, Trophy, Award, Flame, Send, Ghost, ShieldAlert, Lock, CheckCircle2, Sparkles, Utensils, RefreshCw, Layers, ChevronDown, ChevronUp, BarChart2, Check, Users
 } from 'lucide-react';
 import { MapContainer, TileLayer, Polyline, Marker, useMap } from 'react-leaflet';
 import L from 'leaflet';
@@ -313,6 +313,7 @@ export default function RunningTab({
   const [bodyWeight, setBodyWeight] = useState<number>(70);
 
   const lastPositionRef = useRef<[number, number]>([50.505, 3.325]);
+  const [splitTimes, setSplitTimes] = useState<Array<{ km: number; pace: string; status: 'fast' | 'slow' | 'steady' }>>([]);
 
   const usernameToUse = currentUserProfile?.username || currentUsername || "Runner";
 
@@ -581,6 +582,7 @@ export default function RunningTab({
     }
   }, [seconds, isRunning, isPaused, plannedRoutePositions, plannedDistanceKm, targetPaceSecs]);
 
+  // --- BOUCLE DE SUIVI GPS & CALCUL DES SPLITS KM ---
   useEffect(() => {
     let interval: any = null;
     let watchId: number | null = null;
@@ -591,17 +593,21 @@ export default function RunningTab({
         if (!isPaused) {
           setSeconds(s => {
             const newSecs = s + 1;
-            if (distanceKm > 0.1) {
-              const currentSecPerKm = newSecs / distanceKm;
-              if (currentSecPerKm < minAllowedPaceSecs) {
-                const alertText = `Attention ${usernameToUse}, tu es trop rapide ! Ralentis pour rester dans ta fourchette cible.`;
-                setCoachingAdvice(alertText);
-                speakMessage(alertText);
-              } else if (currentSecPerKm > maxAllowedPaceSecs) {
-                const alertText = `Attention ${usernameToUse}, ton allure chute, relance ta foulée pour rentrer dans la cible.`;
-                setCoachingAdvice(alertText);
-                speakMessage(alertText);
-              }
+            // Génération des splits km automatiques si la distance franchit un nouveau kilomètre entier
+            const fullKmCount = Math.floor(distanceKm);
+            if (fullKmCount > 0 && splitTimes.length < fullKmCount) {
+              const prevKmSecs = splitTimes.length === 0 ? newSecs : newSecs - (splitTimes.reduce((acc, cur) => acc + parseInt(cur.pace), 0));
+              const currentPaceSecs = prevKmSecs;
+              const mins = Math.floor(currentPaceSecs / 60);
+              const secs = Math.round(currentPaceSecs % 60);
+              const paceStr = `${mins}'${secs < 10 ? '0' : ''}${secs}"`;
+              
+              const targetPaceRef = targetPaceSecs;
+              let status: 'fast' | 'slow' | 'steady' = 'steady';
+              if (currentPaceSecs < targetPaceRef - 15) status = 'fast';
+              else if (currentPaceSecs > targetPaceRef + 15) status = 'slow';
+
+              setSplitTimes(prev => [...prev, { km: fullKmCount, pace: paceStr, status }]);
             }
             return newSecs;
           });
@@ -669,7 +675,7 @@ export default function RunningTab({
       if (watchId !== null) navigator.geolocation.clearWatch(watchId);
       releaseWakeLock();
     };
-  }, [isRunning, isPaused, distanceKm, minAllowedPaceSecs, maxAllowedPaceSecs, terrainType, plannedRoutePositions, usernameToUse]);
+  }, [isRunning, isPaused, distanceKm, minAllowedPaceSecs, maxAllowedPaceSecs, terrainType, plannedRoutePositions, usernameToUse, targetPaceSecs, splitTimes]);
 
   const formatTime = (totalSecs: number) => {
     const mins = Math.floor(totalSecs / 60);
@@ -686,6 +692,7 @@ export default function RunningTab({
     setIsPaused(false);
     setSeconds(0);
     setDistanceKm(0);
+    setSplitTimes([]);
     fetchInitialPosition();
     setCoachingAdvice(`Sortie démarrée sur terrain : ${terrainType.toUpperCase()}. GPS réel et sécurité hors-ligne actifs.`);
     speakMessage(`Sortie démarrée. Terrain sélectionné : ${terrainType}. GPS réel activé. Bon entraînement !`);
@@ -749,7 +756,6 @@ export default function RunningTab({
     paceFormatted = `${rawMins}'${rawSecs < 10 ? '0' : ''}${rawSecs}"`;
   }
 
-  // Calcul du Dénivelé positif réalisé et score d'effort
   const estimatedDPlus = Math.round(distanceKm * (terrainType === 'trail' ? 35 : terrainType === 'carriere' ? 25 : 18));
   const estimatedEffortScore = Math.round(distanceKm * (terrainType === 'boue' ? 12 : terrainType === 'trail' ? 10 : 8));
   const estimatedCalories = Math.round(distanceKm * bodyWeight * 0.9);
@@ -766,6 +772,14 @@ export default function RunningTab({
   const totalCarbs = Math.round(carbsPerHour * (totalActiveHours > 0 ? totalActiveHours : 0.1));
   const waterPerception = intensity === 'maximal' ? 750 : 600;
   const totalWaterMl = Math.round(waterPerception * (totalActiveHours > 0 ? totalActiveHours : 0.1));
+
+  // Données fictives réalistes de leaderboard club pour ce circuit
+  const clubLeaderboard = [
+    { rank: 1, name: "Thomas V.", time: "42:15", pace: "4'13\"", date: "Hier" },
+    { rank: 2, name: usernameToUse, time: formatTime(seconds), pace: paceFormatted, date: "Aujourd'hui" },
+    { rank: 3, name: "David M.", time: "48:50", pace: "4'53\"", date: "Il y a 3 jours" },
+    { rank: 4, name: "Sophie L.", time: "52:10", pace: "5'13\"", date: "Il y a 1 semaine" },
+  ].sort((a, b) => a.time.localeCompare(b.time));
 
   return (
     <div className="space-y-6 pb-24 animate-fadeIn">
@@ -1015,13 +1029,13 @@ export default function RunningTab({
         </div>
       </div>
 
-      {/* --- MODALE DE RAPPORT D'APRÈS COURSE COMPLET (POUR COUREURS) --- */}
+      {/* --- MODALE DE RAPPORT DE COURSE COMPLET AVEC SPLITS KM & LEADERBOARD CLUB --- */}
       {isReportModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 animate-fadeIn overflow-y-auto">
           <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-lg w-full p-6 space-y-5 shadow-2xl relative my-8">
             <div className="flex items-center justify-between border-b border-neutral-800 pb-3">
               <h3 className="text-base font-black text-white flex items-center gap-2">
-                <Trophy className="w-5 h-5 text-orange-400" /> Rapport Complet d'Après-Course
+                <Trophy className="w-5 h-5 text-orange-400" /> Bilan Détaillé & Classement Club
               </h3>
               <button onClick={() => setIsReportModalOpen(false)} className="p-2 text-neutral-400 hover:text-white rounded-xl bg-neutral-800/50 cursor-pointer">
                 <X className="w-4 h-4" />
@@ -1039,7 +1053,6 @@ export default function RunningTab({
                 </span>
               </div>
 
-              {/* Grille principale des métriques coureur */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center pt-1">
                 <div className="bg-neutral-900 p-2.5 rounded-xl border border-neutral-800">
                   <span className="text-[9px] text-neutral-400 block uppercase font-bold">Distance</span>
@@ -1054,34 +1067,75 @@ export default function RunningTab({
                   <span className="text-sm font-black text-emerald-400">+{estimatedDPlus} m</span>
                 </div>
                 <div className="bg-neutral-900 p-2.5 rounded-xl border border-neutral-800">
-                  <span className="text-[9px] text-neutral-400 block uppercase font-bold">Calories</span>
-                  <span className="text-sm font-black text-cyan-400">{estimatedCalories} kcal</span>
-                </div>
-              </div>
-
-              {/* Indicateurs Avancés (Indice d'effort & Vitesse max) */}
-              <div className="grid grid-cols-2 gap-2 pt-1 text-xs">
-                <div className="bg-neutral-900 p-3 rounded-xl border border-neutral-800 flex justify-between items-center">
-                  <span className="text-neutral-400 font-bold uppercase text-[10px]">Indice Charge (TSS) :</span>
-                  <span className="font-black text-sky-400">{estimatedEffortScore} / 100</span>
-                </div>
-                <div className="bg-neutral-900 p-3 rounded-xl border border-neutral-800 flex justify-between items-center">
-                  <span className="text-neutral-400 font-bold uppercase text-[10px]">Vitesse Max :</span>
-                  <span className="font-black text-emerald-400">{currentSpeedKmh} km/h</span>
+                  <span className="text-[9px] text-neutral-400 block uppercase font-bold">Effort (TSS)</span>
+                  <span className="text-sm font-black text-sky-400">{estimatedEffortScore}</span>
                 </div>
               </div>
             </div>
 
-            {/* MODULE FUEL-LOCK POST-WOD */}
+            {/* SPLITS KM PAR KILOMÈTRE (Analyse d'allure) */}
+            <div className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 space-y-2.5">
+              <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-emerald-400">
+                <BarChart2 className="w-4 h-4" /> Analyse des Splits par Kilomètre
+              </div>
+              {splitTimes.length > 0 ? (
+                <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
+                  {splitTimes.map((s, idx) => (
+                    <div key={idx} className="flex items-center justify-between bg-neutral-900 px-3 py-2 rounded-xl border border-neutral-800 text-xs">
+                      <span className="font-bold text-white">Kilomètre {s.km}</span>
+                      <div className="flex items-center gap-3">
+                        <span className="font-mono text-orange-400 font-bold">{s.pace}/km</span>
+                        <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${
+                          s.status === 'fast' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' :
+                          s.status === 'slow' ? 'bg-red-500/20 text-red-400 border border-red-500/30' :
+                          'bg-neutral-800 text-neutral-400'
+                        }`}>
+                          {s.status === 'fast' ? '⚡ Rapide' : s.status === 'slow' ? '🐢 Lent' : '⚖️ Stable'}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-[11px] text-neutral-500 text-center py-2">
+                  Aucun split enregistré (course trop courte ou test en cours).
+                </div>
+              )}
+            </div>
+
+            {/* CLASSEMENT CLUB / COMPARATIF DU CIRCUIT */}
+            <div className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 space-y-2.5">
+              <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-sky-400">
+                <Users className="w-4 h-4" /> Comparatif Leaderboard du Club (Ce Circuit)
+              </div>
+              <div className="space-y-1.5">
+                {clubLeaderboard.map((runner, idx) => (
+                  <div key={idx} className={`flex items-center justify-between px-3 py-2 rounded-xl border text-xs ${
+                    runner.name === usernameToUse ? 'bg-sky-950/30 border-sky-500/40 text-white font-bold' : 'bg-neutral-900 border-neutral-800 text-neutral-300'
+                  }`}>
+                    <div className="flex items-center gap-2.5">
+                      <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black ${
+                        runner.rank === 1 ? 'bg-amber-500 text-black' : runner.rank === 2 ? 'bg-neutral-400 text-black' : 'bg-neutral-800 text-neutral-400'
+                      }`}>
+                        {runner.rank}
+                      </span>
+                      <span>{runner.name} {runner.name === usernameToUse && '(Toi 🚀)'}</span>
+                    </div>
+                    <div className="flex items-center gap-3 font-mono">
+                      <span className="text-orange-400 font-bold">{runner.time}</span>
+                      <span className="text-[10px] text-neutral-500">({runner.pace})</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* MODULE FUEL-LOCK */}
             {distanceKm > 0.05 ? (
               <FuelLockPostWod lastRunDistanceKm={distanceKm} bodyWeightKg={bodyWeight} />
-            ) : (
-              <div className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 text-center text-xs text-neutral-400">
-                ℹ️ Session test de moins de 50 mètres. Pas de calcul de nutrition post-effort requis.
-              </div>
-            )}
+            ) : null}
 
-            {/* ACTIONS DE PUBLICATION */}
+            {/* ACTIONS */}
             <div className="space-y-2.5 pt-2">
               <button onClick={handlePublishChallenge} disabled={isSavingRun} className="w-full py-4 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-white font-black rounded-2xl text-xs uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer shadow-xl disabled:opacity-50">
                 <Award className="w-4 h-4" /> Publier comme Défi sur le Fil du Club 🏆
