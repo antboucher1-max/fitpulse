@@ -104,7 +104,7 @@ export default function RunningTab({
   const [selectedTerrain, setSelectedTerrain] = useState<'bois' | 'carrieres' | 'champs'>('bois');
   const [targetDistanceKm, setTargetDistanceKm] = useState<number>(10);
   const [basePaceMin, setBasePaceMin] = useState<number>(5);
-  const [basePaceSec, setBasePaceSec] = useState<number>isBasePaceSecValid => 30; // 5'30"/km de base
+  const [basePaceSec, setBasePaceSec] = useState<number>(30); // Corrigé : 30 secondes de base
   const [plannedRoutePositions, setPlannedRoutePositions] = useState<Array<[number, number]>>([[50.505, 3.325], [50.512, 3.335], [50.508, 3.345], [50.502, 3.330], [50.505, 3.325]]);
   const [plannedDPlus, setPlannedDPlus] = useState<number>(150);
   const [roadbook, setRoadbook] = useState<Array<{ km: number; elevation: number; targetPace: string; cumulativeTime: string }>>([]);
@@ -157,16 +157,12 @@ export default function RunningTab({
       const totalD = selectedTerrain === 'carrieres' ? Math.round(targetDistanceKm * 28) : selectedTerrain === 'bois' ? Math.round(targetDistanceKm * 18) : Math.round(targetDistanceKm * 8);
       setPlannedDPlus(totalD);
 
-      // Calcul des splits km par km avec impact du relief
       const baseSecPerKm = basePaceMin * 60 + basePaceSec;
       let cumulativeSec = 0;
       const newRoadbook = [];
 
       for (let i = 1; i <= targetDistanceKm; i++) {
-        // Simulation d'une variation de dénivelé par kilomètre selon le terrain
         const kmEle = Math.round((Math.sin(i * 1.5) * (selectedTerrain === 'carrieres' ? 25 : 12)) + (totalD / targetDistanceKm));
-        
-        // Ajustement de l'allure : chaque mètre de D+ positif rajoute 2.5 secondes au kilomètre
         const paceAdjustment = kmEle > 0 ? kmEle * 2.5 : -1;
         const kmSec = Math.max(200, baseSecPerKm + paceAdjustment);
         
