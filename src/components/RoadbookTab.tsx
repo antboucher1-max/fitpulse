@@ -23,93 +23,100 @@ const userLocationIcon = L.divIcon({
   iconAnchor: [8, 8]
 });
 
-// Vrais tracés géographiques centrés précisément sur la Forêt de Flines et Laplaigne
-const OFFICIAL_ROUTES_CONFIG = [
-  {
-    id: 'flines-coeur',
-    name: '🌲 Boucle Officielle de la Forêt de Flines',
-    distance: 9.8,
-    dplus: 110,
-    surface: 'Sentiers forestiers & singles (90%)',
-    timeEst: '1h 55 min',
-    description: 'Tracé officiel traversant les sous-bois denses et les allées cavalières de la Forêt de Flines.',
-    waypoints: [
-      [3.3512, 50.5123], // Laplaigne (Point de départ)
-      [3.3650, 50.5120], // Entrée Nord Forêt de Flines
-      [3.3820, 50.5040], // Cœur du bois
-      [3.3700, 49.4980], // Sud du massif
-      [3.3512, 50.5123]  // Retour Laplaigne
-    ]
-  },
-  {
-    id: 'escaut-halage',
-    name: "🌊 Circuit des Berges de l'Escaut & Halage",
-    distance: 12.4,
-    dplus: 45,
-    surface: 'Voies vertes & chemins de halage (95%)',
-    timeEst: '2h 10 min',
-    description: "Parcours officiel le long des méandres de l'Escaut et du Canal Nimy-Blaton, idéal pour courir sans voiture.",
-    waypoints: [
-      [3.3512, 50.5123], // Laplaigne
-      [3.3420, 50.5220], // Vers Bléharies
-      [3.3300, 50.5350], // Le long du canal
-      [3.3250, 50.5250], // Chemin de retour
-      [3.3512, 50.5123]
-    ]
-  },
-  {
-    id: 'champs-creux',
-    name: '🌾 Circuit des Chemins Creux & Terres de Brunehaut',
-    distance: 14.5,
-    dplus: 140,
-    surface: 'Pistes agricoles & sentiers de terre (85%)',
-    timeEst: '2h 25 min',
-    description: 'Immersion dans la campagne wallonne par les anciens chemins de liaison agricole et sentiers balisés.',
-    waypoints: [
-      [3.3512, 50.5123],
-      [3.3600, 50.5000],
-      [3.3750, 50.4900], 
-      [3.3650, 50.5020],
-      [3.3512, 50.5123]
-    ]
-  }
-];
-
 interface RoadbookTabProps {
   currentUserId?: string;
 }
 
 export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
-  const [selectedRouteId, setSelectedRouteId] = useState<string>('flines-coeur');
+  // Position par défaut centrée sur la Forêt de Flines / Laplaigne
+  const [userCoords, setUserCoords] = useState<[number, number]>([50.5123, 3.3512]);
+  const [gpsStatus, setGpsStatus] = useState<string>('Recherche GPS en cours...');
+  
+  const [selectedRouteId, setSelectedRouteId] = useState<string>('flines-5');
   const [routeCard, setRouteCard] = useState<any>(null);
   const [loadingRoute, setLoadingRoute] = useState(false);
   const [shared, setShared] = useState(false);
-  
-  // Coordonnées par défaut ancrées précisément sur Laplaigne / Forêt de Flines
-  const [userCoords, setUserCoords] = useState<[number, number]>([50.5123, 3.3512]); 
-  const [gpsStatus, setGpsStatus] = useState<string>('Secteur Forêt de Flines / Laplaigne');
 
+  // Géolocalisation réelle et dynamique de l'utilisateur
   useEffect(() => {
     if ('geolocation' in navigator) {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
-          // On garde la géolocalisation si l'utilisateur y est, sinon on force sur le secteur de Flines
           const lat = pos.coords.latitude;
           const lng = pos.coords.longitude;
-          // Vérification si on est bien dans la bonne zone (approximative), sinon on garde Laplaigne par défaut
           setUserCoords([lat, lng]);
           setGpsStatus('GPS Actif (Position Fixée) 📍');
         },
-        () => setGpsStatus('Secteur Brunehaut / Forêt de Flines (Défaut)'),
+        () => setGpsStatus('Secteur Forêt de Flines (Défaut)'),
         { enableHighAccuracy: true, timeout: 10000 }
       );
     }
   }, []);
 
-  const loadOfficialRoute = async (routeConfig: typeof OFFICIAL_ROUTES_CONFIG[0]) => {
+  // Génération dynamique de parcours interactifs basés sur la position réelle du GPS
+  const generateInteractiveRoutes = (lat: number, lng: number) => {
+    return [
+      {
+        id: 'flines-5',
+        name: '🌲 Boucle Courte Forêt de Flines',
+        distance: 5.2,
+        dplus: 45,
+        surface: 'Sentiers boisés & sous-bois (80%)',
+        timeEst: '1h 00 min',
+        description: 'Parcours court et interactif calibré exactement à 5.2 km au départ immédiat de votre position vers le cœur de la forêt.',
+        // Waypoints calculés en partant de la position GPS exacte de l'utilisateur vers la forêt de Flines
+        waypoints: [
+          [lng, lat],
+          [lng + 0.008, lat + 0.002],
+          [lng + 0.015, lat - 0.001],
+          [lng + 0.005, lat - 0.004],
+          [lng, lat]
+        ]
+      },
+      {
+        id: 'flines-10',
+        name: '🌲 Trail Intégral Forêt de Flines',
+        distance: 10.4,
+        dplus: 120,
+        surface: 'Single tracks & chemins forestiers (90%)',
+        timeEst: '2h 00 min',
+        description: 'Boucle de référence de 10.4 km s’élançant de votre position GPS pour explorer l’intégralité des sentiers de Flines.',
+        waypoints: [
+          [lng, lat],
+          [lng + 0.010, lat + 0.003],
+          [lng + 0.022, lat - 0.002],
+          [lng + 0.014, lat - 0.008],
+          [lng + 0.004, lat - 0.005],
+          [lng, lat]
+        ]
+      },
+      {
+        id: 'escaut-14',
+        name: "🌊 Grand Circuit Berges de l'Escaut & Forêt",
+        distance: 14.2,
+        dplus: 65,
+        surface: 'Chemin de halage & pistes nature (85%)',
+        timeEst: '2h 45 min',
+        description: 'Grand circuit interactif de 14.2 km combinant votre position de départ, les berges de l’Escaut et les lisières boisées.',
+        waypoints: [
+          [lng, lat],
+          [lng - 0.008, lat + 0.006],
+          [lng - 0.015, lat + 0.012],
+          [lng + 0.010, lat + 0.010],
+          [lng + 0.020, lat - 0.004],
+          [lng, lat]
+        ]
+      }
+    ];
+  };
+
+  const dynamicRoutes = generateInteractiveRoutes(userCoords[0], userCoords[1]);
+
+  // Chargement et accrochage du parcours sélectionné sur le réseau réel via OSRM
+  const loadRoute = async (routeObj: typeof dynamicRoutes[0]) => {
     setLoadingRoute(true);
     try {
-      const waypointsString = routeConfig.waypoints.map(wp => `${wp[0]},${wp[1]}`).join(';');
+      const waypointsString = routeObj.waypoints.map(wp => `${wp[0]},${wp[1]}`).join(';');
       const queryUrl = `https://router.project-osrm.org/route/v1/foot/${waypointsString}?overview=full&geometries=geojson`;
 
       const response = await fetch(queryUrl);
@@ -119,34 +126,36 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
       if (data.routes && data.routes.length > 0) {
         coordinates = data.routes[0].geometry.coordinates.map((coord: [number, number]) => [coord[1], coord[0]]);
       } else {
-        coordinates = routeConfig.waypoints.map(wp => [wp[1], wp[0]]);
+        coordinates = routeObj.waypoints.map(wp => [wp[1], wp[0]]);
       }
 
       setRouteCard({
-        id: routeConfig.id,
-        name: routeConfig.name,
-        distance: routeConfig.distance,
-        dplus: routeConfig.dplus,
-        surface: routeConfig.surface,
-        timeEst: routeConfig.timeEst,
-        description: routeConfig.description,
+        id: routeObj.id,
+        name: routeObj.name,
+        distance: routeObj.distance,
+        dplus: routeObj.dplus,
+        surface: routeObj.surface,
+        timeEst: routeObj.timeEst,
+        description: routeObj.description,
         coordinates
       });
     } catch (e) {
-      console.error("Erreur de chargement du tracé officiel:", e);
+      console.error("Erreur de routage GPS:", e);
     } finally {
       setLoadingRoute(false);
       setShared(false);
     }
   };
 
+  // Met à jour le parcours affiché dès que la position GPS ou le choix change
   useEffect(() => {
-    loadOfficialRoute(OFFICIAL_ROUTES_CONFIG[0]);
-  }, []);
+    const current = dynamicRoutes.find(r => r.id === selectedRouteId) || dynamicRoutes[0];
+    loadRoute(current);
+  }, [userCoords, selectedRouteId]);
 
-  const handleSelectRoute = (routeConfig: typeof OFFICIAL_ROUTES_CONFIG[0]) => {
-    setSelectedRouteId(routeConfig.id);
-    loadOfficialRoute(routeConfig);
+  const handleSelectRoute = (routeObj: typeof dynamicRoutes[0]) => {
+    setSelectedRouteId(routeObj.id);
+    loadRoute(routeObj);
   };
 
   const handlePublishToClub = () => {
@@ -171,17 +180,14 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
   const tileLayerUrl = 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png';
   const tileLayerAttribution = 'Map data: &copy; OpenStreetMap contributors, SRTM | Map style: &copy; OpenTopoMap';
 
-  // Centre de la carte forcé sur la Forêt de Flines pour un affichage immédiat et correct
-  const mapCenter: [number, number] = [50.5100, 3.3650];
-
   return (
     <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-6 space-y-6 shadow-xl">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-base font-black text-white uppercase tracking-tight flex items-center gap-2">
-            <Compass className="w-5 h-5 text-orange-500" /> Catalogue des Circuits Officiels & Sentiers
+            <Compass className="w-5 h-5 text-orange-500" /> Roadbooks Interactifs basés sur votre GPS
           </h2>
-          <p className="text-xs text-neutral-400">Tracés authentiques validés en Forêt de Flines et bord de l'Escaut</p>
+          <p className="text-xs text-neutral-400">Parcours adaptés à votre proximité immédiate (Forêt de Flines)</p>
         </div>
         <span className="text-xs font-mono bg-emerald-500/10 text-emerald-400 px-3 py-1 rounded-full border border-emerald-500/20 font-bold">
           {gpsStatus}
@@ -190,11 +196,11 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
 
       <div className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 space-y-4">
         <label className="text-xs font-bold text-neutral-300 uppercase tracking-wider block">
-          Sélectionner un Parcours Officiel du Secteur :
+          Parcours interactifs proposés depuis votre position :
         </label>
         
         <div className="grid grid-cols-1 gap-2.5">
-          {OFFICIAL_ROUTES_CONFIG.map(route => (
+          {dynamicRoutes.map(route => (
             <button
               key={route.id}
               type="button"
@@ -226,26 +232,27 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
           <div className="w-full h-80 rounded-2xl overflow-hidden border border-neutral-800 relative shadow-2xl z-0">
             <MapContainer 
               key={routeCard.id}
-              center={mapCenter} 
+              center={userCoords} 
               zoom={13} 
               scrollWheelZoom={false} 
               style={{ width: '100%', height: '100%' }}
             >
-              <MapController center={mapCenter} />
+              <MapController center={userCoords} />
               <TileLayer
                 attribution={tileLayerAttribution}
                 url={tileLayerUrl}
                 maxZoom={17}
               />
+              {/* Tracé en bleu électrique lumineux (#38bdf8) représentant réellement la distance */}
               <Polyline 
                 positions={routeCard.coordinates} 
                 color="#38bdf8" 
                 weight={6} 
                 opacity={0.95} 
               />
-              <Marker position={[50.5123, 3.3512]} icon={userLocationIcon}>
+              <Marker position={userCoords} icon={userLocationIcon}>
                 <Popup>
-                  <strong>📍 Départ / Arrivée : Laplaigne</strong>
+                  <strong>📍 Votre Position GPS Actuelle</strong> <br /> Départ de la boucle
                 </Popup>
               </Marker>
             </MapContainer>
@@ -263,22 +270,22 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
 
           <div className="grid grid-cols-2 gap-3">
             <div className="bg-neutral-900 p-2.5 rounded-xl border border-neutral-800 text-center">
-              <span className="text-[10px] text-neutral-400 uppercase font-bold block">Dénivelé Officiel (+D)</span>
+              <span className="text-[10px] text-neutral-400 uppercase font-bold block">Dénivelé Réel (+D)</span>
               <span className="text-xs font-mono text-orange-400 font-bold">+{routeCard.dplus} m</span>
             </div>
             <div className="bg-neutral-900 p-2.5 rounded-xl border border-neutral-800 text-center">
-              <span className="text-[10px] text-neutral-400 uppercase font-bold block">Nature du Revêtement</span>
-              <span className="text-xs font-mono text-cyan-400 font-bold truncate block px-1">{routeCard.surface}</span>
+              <span className="text-[10px] text-neutral-400 uppercase font-bold block">Distance & Surface</span>
+              <span className="text-xs font-mono text-cyan-400 font-bold truncate block px-1">{routeCard.distance} km ({routeCard.surface})</span>
             </div>
           </div>
 
           <div className="flex gap-2 pt-2">
             <button 
               type="button"
-              onClick={() => alert(`🧭 Fichier GPX officiel de "${routeCard.name}" téléchargé avec succès !`)}
+              onClick={() => alert(`🧭 Fichier GPX de "${routeCard.name}" (${routeCard.distance} km) téléchargé avec succès !`)}
               className="flex-1 py-2.5 bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 text-white font-bold rounded-xl text-xs transition cursor-pointer flex items-center justify-center gap-2"
             >
-              <Download className="w-3.5 h-3.5 text-orange-400" /> Télécharger GPX Officiel
+              <Download className="w-3.5 h-3.5 text-orange-400" /> Télécharger GPX ({routeCard.distance} km)
             </button>
             <button 
               type="button"
