@@ -1,7 +1,7 @@
 import PaywallGate from './PaywallGate';
 import { useState, useEffect, useRef } from 'react';
 import { 
-  Mountain, Compass as CompassIcon, Trophy, Award, Zap, ChevronDown, ChevronUp, ArrowLeft, Upload, Edit3, X, Download, Trees, Footprints, Volume2, CheckCircle2
+  Mountain, Compass as CompassIcon, Trophy, Award, Zap, ChevronDown, ChevronUp, ArrowLeft, Upload, Edit3, X, Download, Trees, Footprints, CheckCircle2, ListOrdered
 } from 'lucide-react';
 import { MapContainer, TileLayer, Polyline, Marker, useMap } from 'react-leaflet';
 import L from 'leaflet';
@@ -31,7 +31,7 @@ function WelcomeGuideModal({ username, onClose }: { username: string; onClose: (
           <span className="text-2xl">🌲</span>
           <h3 className="text-lg font-black text-white">Bienvenue dans ton QG Trail, {username} !</h3>
           <p className="text-xs text-neutral-400 leading-relaxed">
-            Générateur d'itinéraires pro (Bois, Carrières, Champs), export GPX direct pour ta montre et coaching audio d'allure actif !
+            Planificateur de sentiers pro, génération de table de marche altimétrique et export GPX pour votre montre.
           </p>
         </div>
         <button
@@ -39,7 +39,7 @@ function WelcomeGuideModal({ username, onClose }: { username: string; onClose: (
           onClick={onClose}
           className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-2xl text-xs uppercase tracking-wider transition cursor-pointer shadow-lg"
         >
-          Accéder au planificateur 🚀
+          Accéder au QG 🚀
         </button>
       </div>
     </div>
@@ -98,15 +98,16 @@ export default function RunningTab({
   onBack
 }: any) {
   const [showWelcomeGuide, setShowWelcomeGuide] = useState(() => !localStorage.getItem('fitpulse_runner_guide_seen'));
-  const [activeTabSection, setActiveTabSection] = useState<'none' | 'terrains' | 'terrain' | 'ravito' | 'gear'>('terrains');
+  const [activeTabSection, setActiveTabSection] = useState<'none' | 'terrains' | 'ravito' | 'gear'>('terrains');
 
-  // Planificateur d'itinéraires Pro
+  // Planificateur d'itinéraires Pro & Table de marche
   const [selectedTerrain, setSelectedTerrain] = useState<'bois' | 'carrieres' | 'champs'>('bois');
-  const [targetDistanceKm, setTargetDistanceKm] = useState<number>(12);
-  const [targetPaceMin, setTargetPaceMin] = useState<number>(5);
-  const [targetPaceSec, setTargetPaceSec] = useState<number>(30);
+  const [targetDistanceKm, setTargetDistanceKm] = useState<number>(10);
+  const [basePaceMin, setBasePaceMin] = useState<number>(5);
+  const [basePaceSec, setBasePaceSec] = useState<number>isBasePaceSecValid => 30; // 5'30"/km de base
   const [plannedRoutePositions, setPlannedRoutePositions] = useState<Array<[number, number]>>([[50.505, 3.325], [50.512, 3.335], [50.508, 3.345], [50.502, 3.330], [50.505, 3.325]]);
-  const [plannedDPlus, setPlannedDPlus] = useState<number>(180);
+  const [plannedDPlus, setPlannedDPlus] = useState<number>(150);
+  const [roadbook, setRoadbook] = useState<Array<{ km: number; elevation: number; targetPace: string; cumulativeTime: string }>>([]);
   const [isGeneratingRoute, setIsGeneratingRoute] = useState<boolean>(false);
 
   // Bilan Post-Effort (import GPX)
@@ -114,13 +115,13 @@ export default function RunningTab({
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [isSavingRun, setIsSavingRun] = useState(false);
   const [isManualModalOpen, setIsManualModalOpen] = useState(false);
-  const [manualDist, setManualDist] = useState<string>('12');
+  const [manualDist, setManualDist] = useState<string>('10');
   const [manualDPlus, setManualDPlus] = useState<string>('150');
-  const [manualHours, setManualHours] = useState<string>('1');
-  const [manualMins, setManualMins] = useState<string>('00');
+  const [manualHours, setManualHours] = useState<string>('0');
+  const [manualMins, setManualMins] = useState<string>('55');
 
   // Planificateur de ravitaillement
-  const [durationHours, setDurationHours] = useState<number>(2);
+  const [durationHours, setDurationHours] = useState<number>(1);
   const [durationMins, setDurationMins] = useState<number>(30);
 
   const usernameToUse = currentUserProfile?.username || "Runner";
@@ -130,21 +131,8 @@ export default function RunningTab({
     setShowWelcomeGuide(false);
   };
 
-  // --- SYNTHÈSE VOCALE / COACH AUDIO D'ALLURE ---
-  const speakAudioBriefing = () => {
-    if (!('speechSynthesis' in window)) {
-      return alert("La synthèse vocale n'est pas supportée par votre navigateur.");
-    }
-    window.speechSynthesis.cancel();
-    const text = `Briefing FitPulse activé. Sortie ${selectedTerrain} de ${targetDistanceKm} kilomètres. Allure cible fixée à ${targetPaceMin} minutes et ${targetPaceSec} secondes par kilomètre. Préparez votre ravitaillement et bon entraînement !`;
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = 'fr-FR';
-    utterance.rate = 1.0;
-    window.speechSynthesis.speak(utterance);
-  };
-
-  // --- GÉNÉRATEUR D'ITINÉRAIRES PRO (BOIS, CARRIÈRES, CHAMPS) ---
-  const handleGenerateProRoute = async () => {
+  // --- GÉNÉRATEUR DE ROADBOOK & TABLE DE MARCHE ALTIMÉTRIQUE ---
+  const generateRoadbookAndRoute = async () => {
     setIsGeneratingRoute(true);
     try {
       const baseLat = 50.505;
@@ -164,17 +152,44 @@ export default function RunningTab({
       if (data?.routes?.[0]) {
         const coords = data.routes[0].geometry.coordinates.map((c: [number, number]) => [c[1], c[0]] as [number, number]);
         setPlannedRoutePositions(coords);
-        const calculatedD = selectedTerrain === 'carrieres' ? Math.round(targetDistanceKm * 25) : selectedTerrain === 'bois' ? Math.round(targetDistanceKm * 18) : Math.round(targetDistanceKm * 8);
-        setPlannedDPlus(calculatedD);
-      } else {
-        throw new Error();
       }
+
+      const totalD = selectedTerrain === 'carrieres' ? Math.round(targetDistanceKm * 28) : selectedTerrain === 'bois' ? Math.round(targetDistanceKm * 18) : Math.round(targetDistanceKm * 8);
+      setPlannedDPlus(totalD);
+
+      // Calcul des splits km par km avec impact du relief
+      const baseSecPerKm = basePaceMin * 60 + basePaceSec;
+      let cumulativeSec = 0;
+      const newRoadbook = [];
+
+      for (let i = 1; i <= targetDistanceKm; i++) {
+        // Simulation d'une variation de dénivelé par kilomètre selon le terrain
+        const kmEle = Math.round((Math.sin(i * 1.5) * (selectedTerrain === 'carrieres' ? 25 : 12)) + (totalD / targetDistanceKm));
+        
+        // Ajustement de l'allure : chaque mètre de D+ positif rajoute 2.5 secondes au kilomètre
+        const paceAdjustment = kmEle > 0 ? kmEle * 2.5 : -1;
+        const kmSec = Math.max(200, baseSecPerKm + paceAdjustment);
+        
+        cumulativeSec += kmSec;
+        const mins = Math.floor(kmSec / 60);
+        const secs = Math.round(kmSec % 60);
+
+        const totalH = Math.floor(cumulativeSec / 3600);
+        const totalM = Math.floor((cumulativeSec % 3600) / 60);
+        const totalS = Math.round(cumulativeSec % 60);
+        const timeStr = totalH > 0 ? `${totalH}h ${totalM}m` : `${totalM}m ${totalS}s`;
+
+        newRoadbook.push({
+          km: i,
+          elevation: kmEle,
+          targetPace: `${mins}'${secs.toString().padStart(2, '0')}"`,
+          cumulativeTime: timeStr
+        });
+      }
+
+      setRoadbook(newRoadbook);
     } catch {
-      const mockCoords: Array<[number, number]> = [
-        [50.505, 3.325], [50.510, 3.330], [50.518, 3.340], [50.512, 3.355], [50.502, 3.345], [50.498, 3.330], [50.505, 3.325]
-      ];
-      setPlannedRoutePositions(mockCoords);
-      setPlannedDPlus(selectedTerrain === 'carrieres' ? targetDistanceKm * 22 : targetDistanceKm * 15);
+      alert("Erreur lors de la génération du parcours.");
     } finally {
       setIsGeneratingRoute(false);
     }
@@ -238,7 +253,7 @@ export default function RunningTab({
             dPlus = km * 20;
           }
 
-          const timeSec = Math.round(km * (targetPaceMin * 60 + targetPaceSec));
+          const timeSec = Math.round(km * (basePaceMin * 60 + basePaceSec));
           setImportedRunData({ distance: km, dPlus: Math.round(dPlus), timeSec });
           setIsReportModalOpen(true);
         }
@@ -288,16 +303,16 @@ export default function RunningTab({
       )}
 
       {/* =========================================================================
-          1. PLANIFICATEUR D'ITINÉRAIRES PRO & COACH AUDIO
+          1. ARCHITECTE DE SENTIERS & TABLE DE MARCHE PRO
           ========================================================================= */}
       <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-6 space-y-5 shadow-2xl">
         <div className="flex justify-between items-center">
           <div>
             <span className="text-[10px] font-black uppercase tracking-widest text-sky-400">Architecte de Sentiers Pro</span>
-            <h2 className="text-xl font-black text-white tracking-tight pt-0.5">Planificateur de Tracés & Coach Audio</h2>
+            <h2 className="text-xl font-black text-white tracking-tight pt-0.5">Planificateur & Table de Marche</h2>
           </div>
           <span className="text-xs font-bold bg-sky-500/20 text-sky-400 px-3.5 py-1.5 rounded-full border border-sky-500/30">
-            Pro 🧭
+            Roadbook 🧭
           </span>
         </div>
 
@@ -323,7 +338,7 @@ export default function RunningTab({
           </button>
         </div>
 
-        {/* Contrôles Distance & Allure Cible */}
+        {/* Contrôles Distance & Allure de Base */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className="space-y-2 bg-neutral-950 p-4 rounded-2xl border border-neutral-800">
             <div className="flex justify-between text-xs font-bold text-neutral-300">
@@ -331,7 +346,7 @@ export default function RunningTab({
               <span className="text-emerald-400 font-mono text-sm">{targetDistanceKm} km</span>
             </div>
             <input 
-              type="range" min="5" max="35" step="1" 
+              type="range" min="5" max="30" step="1" 
               value={targetDistanceKm} 
               onChange={e => setTargetDistanceKm(Number(e.target.value))} 
               className="w-full accent-emerald-500 cursor-pointer" 
@@ -340,20 +355,20 @@ export default function RunningTab({
 
           <div className="space-y-2 bg-neutral-950 p-4 rounded-2xl border border-neutral-800">
             <div className="flex justify-between text-xs font-bold text-neutral-300">
-              <span>Allure cible audio :</span>
-              <span className="text-orange-400 font-mono text-sm">{targetPaceMin}'{targetPaceSec.toString().padStart(2, '0')}" /km</span>
+              <span>Allure de base :</span>
+              <span className="text-orange-400 font-mono text-sm">{basePaceMin}'{basePaceSec.toString().padStart(2, '0')}" /km</span>
             </div>
             <div className="flex gap-2">
               <select 
-                value={targetPaceMin} 
-                onChange={e => setTargetPaceMin(Number(e.target.value))} 
+                value={basePaceMin} 
+                onChange={e => setBasePaceMin(Number(e.target.value))} 
                 className="flex-1 bg-neutral-900 border border-neutral-800 rounded-xl p-1.5 text-white font-mono text-xs"
               >
-                {[3, 4, 5, 6, 7].map(m => <option key={m} value={m}>{m} min</option>)}
+                {[4, 5, 6, 7].map(m => <option key={m} value={m}>{m} min</option>)}
               </select>
               <select 
-                value={targetPaceSec} 
-                onChange={e => setTargetPaceSec(Number(e.target.value))} 
+                value={basePaceSec} 
+                onChange={e => setBasePaceSec(Number(e.target.value))} 
                 className="flex-1 bg-neutral-900 border border-neutral-800 rounded-xl p-1.5 text-white font-mono text-xs"
               >
                 {[0, 15, 30, 45].map(s => <option key={s} value={s}>{s.toString().padStart(2, '0')} sec</option>)}
@@ -362,28 +377,43 @@ export default function RunningTab({
           </div>
         </div>
 
-        {/* Boutons d'Action Itinéraire & Coach Audio */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        {/* Boutons d'Action Itinéraire */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <button 
-            onClick={handleGenerateProRoute} 
+            onClick={generateRoadbookAndRoute} 
             disabled={isGeneratingRoute}
             className="py-3.5 bg-sky-600 hover:bg-sky-500 text-white font-black rounded-2xl text-xs uppercase tracking-wider transition cursor-pointer shadow-lg flex items-center justify-center gap-2"
           >
-            {isGeneratingRoute ? "Calcul..." : "Générer la boucle ⚡"}
-          </button>
-          <button 
-            onClick={speakAudioBriefing}
-            className="py-3.5 bg-orange-600 hover:bg-orange-500 text-white font-black rounded-2xl text-xs uppercase tracking-wider transition cursor-pointer shadow-lg flex items-center justify-center gap-2"
-          >
-            <Volume2 className="w-4 h-4" /> Briefing Audio 🎙️
+            {isGeneratingRoute ? "Calcul..." : "Générer le Roadbook & la Boucle ⚡"}
           </button>
           <button 
             onClick={handleExportGpx}
             className="py-3.5 bg-neutral-800 hover:bg-neutral-700 text-emerald-400 font-black rounded-2xl text-xs uppercase tracking-wider transition cursor-pointer border border-emerald-500/40 flex items-center justify-center gap-2"
           >
-            <Download className="w-4 h-4" /> Exporter .GPX 📥
+            <Download className="w-4 h-4" /> Exporter le .GPX Montre 📥
           </button>
         </div>
+
+        {/* Affichage de la Table de Marche Prévisionnelle (Roadbook) */}
+        {roadbook.length > 0 && (
+          <div className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 space-y-3">
+            <div className="flex items-center gap-2 text-xs font-black uppercase text-sky-400">
+              <ListOrdered className="w-4 h-4" /> Table de Marche Prévisionnelle (Ajustée au relief)
+            </div>
+            <div className="max-h-48 overflow-y-auto space-y-1 pr-1 font-mono text-xs">
+              {roadbook.map((row) => (
+                <div key={row.km} className="flex justify-between items-center bg-neutral-900/80 px-3 py-2 rounded-xl border border-neutral-800/60">
+                  <span className="text-neutral-300 font-bold">Km {row.km}</span>
+                  <span className={row.elevation >= 0 ? 'text-emerald-400' : 'text-cyan-400'}>
+                    {row.elevation >= 0 ? `+${row.elevation}m` : `${row.elevation}m`} D±
+                  </span>
+                  <span className="text-orange-400">Allure : {row.targetPace}</span>
+                  <span className="text-neutral-400">Temps : {row.cumulativeTime}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Aperçu Carte Leaflet */}
         <div className="w-full h-56 rounded-2xl overflow-hidden border border-neutral-800">
@@ -392,10 +422,6 @@ export default function RunningTab({
             <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
             <Polyline positions={plannedRoutePositions} pathOptions={{ color: '#38bdf8', weight: 6 }} />
           </MapContainer>
-        </div>
-        <div className="flex justify-between items-center text-xs px-2 text-neutral-400 font-mono">
-          <span>Tracé optimisé : <b>{targetDistanceKm} km</b></span>
-          <span>Dénivelé estimé : <b className="text-emerald-400">+{plannedDPlus}m D+</b></span>
         </div>
       </div>
 
@@ -416,7 +442,7 @@ export default function RunningTab({
         </div>
 
         <p className="text-xs text-neutral-400 leading-relaxed">
-          Importez votre fichier GPX de montre ou enregistrez votre effort manuellement pour mettre à jour votre usure de chaussures et vos stats de club.
+          Importez votre fichier GPX de montre ou enregistrez votre effort manuellement pour mettre à jour vos chaussures et vos stats de club.
         </p>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
