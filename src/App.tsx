@@ -214,7 +214,7 @@ export default function App() {
         {currentView === 'profile' && (
           <div className="space-y-6 animate-fadeIn">
             <HybridCalendar posts={[]} currentUserId={currentUserId} />
-            <ProgressTab />
+            <ProgressTab posts={[]} />
             <ProfileTab />
           </div>
         )}
