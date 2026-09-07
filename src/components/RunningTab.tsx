@@ -140,7 +140,9 @@ export default function RunningTab({
     let watchId: number | null = null;
 
     if (isRunning) {
-      if ('wakeLock' in navigator) navigator.wakeLock.request('screen').then(l => wakeLockRef.current = l).catch(() => {});
+      if ('wakeLock' in navigator) {
+        (navigator as any).wakeLock.request('screen').then((l: any) => wakeLockRef.current = l).catch(() => {});
+      }
       interval = setInterval(() => { if (!isPaused) setSeconds(s => s + 1); }, 1000);
 
       if ('geolocation' in navigator) {
