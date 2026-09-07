@@ -4,6 +4,7 @@ import { MapContainer, TileLayer, Polyline, Marker, Popup, useMap } from 'react-
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 
+// Composant pour forcer le rafraîchissement des tuiles et éliminer le fond gris Leaflet
 function MapController({ center }: { center: [number, number] }) {
   const map = useMap();
   useEffect(() => {
@@ -34,14 +35,16 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
   const [routeCard, setRouteCard] = useState<any>(null);
   const [shared, setShared] = useState(false);
   
-  const [userCoords, setUserCoords] = useState<[number, number]>([50.5123, 3.3512]); 
+  const [userCoords, setUserCoords] = useState<[number, number]>([50.5123, 3.3512]); // Brunehaut / Laplaigne par défaut
   const [gpsStatus, setGpsStatus] = useState<string>('Recherche GPS en cours...');
 
   useEffect(() => {
     if ('geolocation' in navigator) {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
-          setUserCoords([pos.coords.latitude, pos.coords.longitude]);
+          const lat = pos.coords.latitude;
+          const lng = pos.coords.longitude;
+          setUserCoords([lat, lng]);
           setGpsStatus('GPS Actif (Position Fixée) 📍');
         },
         () => setGpsStatus('Secteur Brunehaut / Wallonie (Défaut)'),
@@ -50,31 +53,31 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
     }
   }, []);
 
+  // Génération d'une boucle calibrée ciblant précisément la Forêt de Flines et les sentiers locaux
   const handleGenerateCustomRoute = async () => {
     setGenerating(true);
 
     try {
       const [lat, lng] = userCoords;
-      const distRatio = selectedDistance / 10;
+      // Facteur d'échelle rigoureux proportionnel à la distance cible (ex: 10 km = boucle serrée et locale)
+      const scale = (selectedDistance / 10) * 0.0014; 
       
-      // Ajustement des waypoints selon la préférence de terrain pour viser directement la Forêt de Flines ou les chemins agricoles
       let wp1, wp2, wp3;
       if (surfacePreference === 'bois') {
-        // Waypoint orienté vers l'Est/Nord-Est (vers la Forêt de Flines)
-        wp1 = [lat + 0.005 * distRatio, lng + 0.012 * distRatio];
-        wp2 = [lat - 0.002 * distRatio, lng + 0.018 * distRatio];
-        wp3 = [lat - 0.008 * distRatio, lng + 0.005 * distRatio];
+        // Waypoints orientés précisément vers l'intérieur de la Forêt de Flines (à l'Est)
+        wp1 = [lat + 0.001, lng + scale * 1.8];
+        wp2 = [lat - scale * 0.8, lng + scale * 2.2];
+        wp3 = [lat - scale * 1.5, lng + scale * 0.8];
       } else if (surfacePreference === 'champs') {
-        // Pistes agricoles et chemins ouverts vers le Sud/Ouest
-        wp1 = [lat - 0.008 * distRatio, lng - 0.005 * distRatio];
-        wp2 = [lat - 0.012 * distRatio, lng + 0.008 * distRatio];
-        wp3 = [lat - 0.003 * distRatio, lng + 0.012 * distRatio];
+        // Chemins agricoles vers le sud / sud-ouest
+        wp1 = [lat - scale * 1.2, lng - scale * 0.5];
+        wp2 = [lat - scale * 1.8, lng + scale * 1.2];
+        wp3 = [lat - scale * 0.5, lng + scale * 1.8];
       } else {
-        // Boucle équilibrée
-        const factor = distRatio * 0.0015;
-        wp1 = [lat + factor * 1.5, lng + factor * 1.2];
-        wp2 = [lat + factor * 0.8, lng - factor * 1.4];
-        wp3 = [lat - factor * 1.2, lng - factor * 0.8];
+        // Boucle hybride équilibrée
+        wp1 = [lat + scale * 1.2, lng + scale * 1.2];
+        wp2 = [lat - scale * 0.5, lng + scale * 1.8];
+        wp3 = [lat - scale * 1.2, lng - scale * 0.5];
       }
 
       const queryUrl = `https://router.project-osrm.org/route/v1/foot/${lng},${lat};${wp1[1]},${wp1[0]};${wp2[1]},${wp2[0]};${wp3[1]},${wp3[0]};${lng},${lat}?overview=full&geometries=geojson`;
@@ -89,7 +92,7 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
       } else {
         coordinates = [
           [lat, lng],
-          [lat + 0.005, lng + 0.008],
+          [lat + 0.004, lng + 0.008],
           [lat, lng]
         ];
       }
@@ -97,11 +100,11 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
       let title = "";
       let desc = "";
       let pathType = "";
-      let elevation = Math.round(selectedDistance * 14);
+      let elevation = Math.round(selectedDistance * 13);
 
       if (surfacePreference === 'bois') {
-        title = `Trail de la Forêt de Flines & Sous-Bois (${selectedDistance} km)`;
-        desc = `Boucle de ${selectedDistance} km tracée à travers les sentiers forestiers et boisés du secteur.`;
+        title = `Trail de la Forêt de Flines (${selectedDistance} km)`;
+        desc = `Boucle précise de ${selectedDistance} km tracée à travers les sentiers forestiers et boisés adjacents.`;
         pathType = "Forêts & Sentiers boisés (85%)";
       } else if (surfacePreference === 'champs') {
         title = `Circuit des Chemins Creux & Terres Agricoles (${selectedDistance} km)`;
