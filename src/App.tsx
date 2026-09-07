@@ -218,7 +218,7 @@ export default function App() {
     } catch (e) {
       // Ignore
     }
-    return false; // Par défaut à false si non validé, ou true selon ton choix initial
+    return false;
   };
 
   const todayApexData = calculateApexScore({
@@ -638,7 +638,7 @@ export default function App() {
               {/* --- VUE 1 : APERÇU GLOBAL (QG & Lancer) --- */}
               {todaySubTab === 'overview' && (
                 <div className="space-y-3 animate-fadeIn">
-                  {/* Index Apex & Stats Fusionnées unifiées */}
+                  {/* Index Apex & Stats Fusionnées unifiées avec raccourcis interactifs */}
                   <div className={`border rounded-3xl p-5 space-y-4 shadow-2xl relative overflow-hidden transition-all duration-300 ${
                     todayApexData.badgeColor === 'red' ? 'bg-gradient-to-br from-red-950/40 via-neutral-900 to-neutral-950 border-red-500/50' : 
                     todayApexData.badgeColor === 'amber' ? 'bg-gradient-to-br from-amber-950/40 via-neutral-900 to-neutral-950 border-amber-500/50' : 'bg-gradient-to-br from-neutral-900 via-neutral-900 to-neutral-950 border-neutral-800'
@@ -658,14 +658,26 @@ export default function App() {
                       {todayApexData.message}
                     </p>
                     <div className="grid grid-cols-3 gap-2 pt-1">
-                      <div className="bg-neutral-950/80 p-2.5 rounded-2xl border border-neutral-800/80 text-center">
-                        <span className="text-[10px] text-neutral-400 block font-semibold">SNC & Forme</span>
+                      <div 
+                        onClick={() => setTodaySubTab('readiness')}
+                        className="bg-neutral-950/80 p-2.5 rounded-2xl border border-neutral-800/80 text-center cursor-pointer hover:border-orange-500/50 transition group"
+                        title="Aller au Check-in Forme"
+                      >
+                        <span className="text-[10px] text-neutral-400 block font-semibold group-hover:text-white">SNC & Forme</span>
                         <span className="font-black text-white text-xs">{todayApexData.breakdown.snc}%</span>
                       </div>
-                      <div className="bg-neutral-950/80 p-2.5 rounded-2xl border border-neutral-800/80 text-center">
-                        <span className="text-[10px] text-neutral-400 block font-semibold">Fuel-Lock</span>
-                        <span className="font-black text-cyan-400 text-xs">{todayApexData.breakdown.nutrition}%</span>
+                      
+                      <div 
+                        onClick={() => handleTabChange('nutrition')}
+                        className="bg-neutral-950/80 p-2.5 rounded-2xl border border-neutral-800/80 text-center cursor-pointer hover:border-emerald-500/50 transition group"
+                        title="Aller au Lab Nutrition"
+                      >
+                        <span className="text-[10px] text-neutral-400 block font-semibold group-hover:text-emerald-300">Fuel-Lock</span>
+                        <span className={`font-black text-xs ${todayApexData.breakdown.nutrition === 100 ? 'text-emerald-400' : 'text-neutral-400'}`}>
+                          {todayApexData.breakdown.nutrition}%
+                        </span>
                       </div>
+
                       <div className="bg-neutral-950/80 p-2.5 rounded-2xl border border-neutral-800/80 text-center">
                         <span className="text-[10px] text-neutral-400 block font-semibold">Hydratation</span>
                         <span className="font-black text-emerald-400 text-xs">{todayApexData.breakdown.hydration}%</span>
