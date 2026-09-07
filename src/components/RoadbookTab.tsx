@@ -41,9 +41,7 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
     if ('geolocation' in navigator) {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
-          const lat = pos.coords.latitude;
-          const lng = pos.coords.longitude;
-          setUserCoords([lat, lng]);
+          setUserCoords([pos.coords.latitude, pos.coords.longitude]);
           setGpsStatus('GPS Actif (Position Fixée) 📍');
         },
         () => setGpsStatus('Secteur Brunehaut / Wallonie (Défaut)'),
@@ -57,24 +55,15 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
 
     try {
       const [lat, lng] = userCoords;
-      const scale = (selectedDistance / 10) * 0.0014; 
       
-      let wp1, wp2, wp3;
-      if (surfacePreference === 'bois') {
-        wp1 = [lat + 0.001, lng + scale * 1.8];
-        wp2 = [lat - scale * 0.8, lng + scale * 2.2];
-        wp3 = [lat - scale * 1.5, lng + scale * 0.8];
-      } else if (surfacePreference === 'champs') {
-        wp1 = [lat - scale * 1.2, lng - scale * 0.5];
-        wp2 = [lat - scale * 1.8, lng + scale * 1.2];
-        wp3 = [lat - scale * 0.5, lng + scale * 1.8];
-      } else {
-        wp1 = [lat + scale * 1.2, lng + scale * 1.2];
-        wp2 = [lat - scale * 0.5, lng + scale * 1.8];
-        wp3 = [lat - scale * 1.2, lng - scale * 0.5];
-      }
+      // Points d'ancrage spécifiques dans la Forêt de Flines pour garantir la visibilité et l'immersion boisée
+      const forestWpLat = lat - 0.0020;
+      const forestWpLng = lng + 0.0120;
+      
+      const returnWpLat = lat - 0.0080;
+      const returnWpLng = lng + 0.0040;
 
-      const queryUrl = `https://router.project-osrm.org/route/v1/foot/${lng},${lat};${wp1[1]},${wp1[0]};${wp2[1]},${wp2[0]};${wp3[1]},${wp3[0]};${lng},${lat}?overview=full&geometries=geojson`;
+      const queryUrl = `https://router.project-osrm.org/route/v1/foot/${lng},${lat};${forestWpLng},${forestWpLat};${returnWpLng},${returnWpLat};${lng},${lat}?overview=full&geometries=geojson`;
 
       const response = await fetch(queryUrl);
       const data = await response.json();
@@ -86,7 +75,7 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
       } else {
         coordinates = [
           [lat, lng],
-          [lat + 0.004, lng + 0.008],
+          [forestWpLat, forestWpLng],
           [lat, lng]
         ];
       }
@@ -98,7 +87,7 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
 
       if (surfacePreference === 'bois') {
         title = `Trail de la Forêt de Flines (${selectedDistance} km)`;
-        desc = `Boucle précise de ${selectedDistance} km tracée à travers les sentiers forestiers et boisés adjacents.`;
+        desc = `Boucle immersive directe à travers les sentiers de la Forêt de Flines depuis votre position.`;
         pathType = "Forêts & Sentiers boisés (85%)";
       } else if (surfacePreference === 'champs') {
         title = `Circuit des Chemins Creux & Terres Agricoles (${selectedDistance} km)`;
@@ -233,7 +222,7 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
               />
-              {/* Tracé en bleu électrique lumineux (#38bdf8) pour un contraste parfait sur les fonds de carte verts */}
+              {/* Tracé en bleu électrique lumineux (#38bdf8) pour un contraste optimal et immédiat */}
               <Polyline 
                 positions={routeCard.coordinates} 
                 color="#38bdf8" 
