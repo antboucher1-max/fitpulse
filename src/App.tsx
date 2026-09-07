@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   Activity, Dumbbell, Compass, Share2, Trophy, Watch, 
   Utensils, Home, HeartPulse, Map, User, Sparkles, ShieldAlert 
@@ -48,6 +48,62 @@ export default function App() {
 
   const [showHuaweiModal, setShowHuaweiModal] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
+
+  // État partagé pour synchroniser la charge globale en temps réel avec le SNC Shield
+  const [currentGlobalLoad, setCurrentGlobalLoad] = useState<number>(() => {
+    const saved = localStorage.getItem('fitpulse_triptych_sessions');
+    if (saved) {
+      try {
+        const sessions = JSON.parse(saved);
+        let totalLoad = 0;
+        sessions.forEach((session: any) => {
+          let multiplier = 1.0;
+          if (session.type === 'run') multiplier = 1.2;
+          if (session.type === 'gym') multiplier = 1.0;
+          if (session.type === 'fitcross') multiplier = 1.4;
+          totalLoad += (session.durationMins || 0) * (session.rpe || 0) * multiplier;
+        });
+        return Math.round(totalLoad);
+      } catch (e) {
+        // ignore
+      }
+    }
+    return 1483;
+  });
+
+  // Écouteur pour mettre à jour la charge globale instantanément lors des modifications du triptyque
+  useEffect(() => {
+    const handleStorageChange = () => {
+      const saved = localStorage.getItem('fitpulse_triptych_sessions');
+      if (saved) {
+        try {
+          const sessions = JSON.parse(saved);
+          let totalLoad = 0;
+          sessions.forEach((session: any) => {
+            let multiplier = 1.0;
+            if (session.type === 'run') multiplier = 1.2;
+            if (session.type === 'gym') multiplier = 1.0;
+            if (session.type === 'fitcross') multiplier = 1.4;
+            totalLoad += (session.durationMins || 0) * (session.rpe || 0) * multiplier;
+          });
+          setCurrentGlobalLoad(Math.round(totalLoad));
+        } catch (e) {
+          // ignore
+        }
+      } else {
+        setCurrentGlobalLoad(0);
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    // Intervalle court pour intercepter les modifications locales instantanément
+    const interval = setInterval(handleStorageChange, 500);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      clearInterval(interval);
+    };
+  }, []);
 
   return (
     <div className="min-h-screen bg-neutral-950 text-white pb-32 selection:bg-orange-500 selection:text-white font-sans antialiased">
@@ -131,7 +187,7 @@ export default function App() {
                 <SurgicalAutomationModule />
               </div>
               <div className="space-y-6">
-                <SncShieldWidget />
+                <SncShieldWidget weeklyLoad={currentGlobalLoad} />
                 <ClubBuddiesEcosystem />
               </div>
             </div>
@@ -156,7 +212,7 @@ export default function App() {
         {currentView === 'health' && (
           <div className="space-y-6 animate-fadeIn">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <SncShieldWidget />
+              <SncShieldWidget weeklyLoad={currentGlobalLoad} />
               <ReadinessCheckin />
             </div>
             <FitBotProactiveCoach />
@@ -184,7 +240,7 @@ export default function App() {
             <ClubLeaderboard />
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <LeaderboardTab registeredUsers={[]} />
-              <RoadbookTab />
+              <RoadbookTab currentUserId={currentUserId} />
             </div>
             <SpotSegmentsTab />
           </div>
