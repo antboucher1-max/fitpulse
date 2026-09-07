@@ -550,7 +550,7 @@ export default function RunningTab({
               <button 
                 onClick={() => { 
                   setIsSavingRun(true); 
-                  onSaveRunPost?.(`🎯 [SORTIE CLUB] ${importedRunData.distance} km en ${formatType(importedRunData.timeSec)} (+${importedRunData.dPlus}m D+) 🚀`, importedRunData.distance); 
+                  onSaveRunPost?.(`🎯 [SORTIE CLUB] ${importedRunData.distance} km en ${formatTime(importedRunData.timeSec)} (+${importedRunData.dPlus}m D+) 🚀`, importedRunData.distance); 
                   setIsReportModalOpen(false); 
                   setIsSavingRun(false); 
                 }} 
