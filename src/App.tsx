@@ -194,7 +194,7 @@ export default function App() {
           </div>
         )}
 
-        {/* ENTRAÎNEMENT & GPS (Nettoyé des valeurs factices) */}
+        {/* ENTRAÎNEMENT & GPS */}
         {currentView === 'training' && (
           <div className="space-y-6 animate-fadeIn">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -234,13 +234,13 @@ export default function App() {
           </div>
         )}
 
-        {/* COMMUNAUTÉ & CLUBS */}
+        {/* COMMUNAUTÉ & CLUBS : Mis en avant avec le Roadbook interactif en plein format */}
         {currentView === 'community' && (
           <div className="space-y-6 animate-fadeIn">
-            <ClubLeaderboard />
+            <RoadbookTab currentUserId={currentUserId} />
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <ClubLeaderboard />
               <LeaderboardTab registeredUsers={[]} />
-              <RoadbookTab currentUserId={currentUserId} />
             </div>
             <SpotSegmentsTab />
           </div>
