@@ -14,8 +14,8 @@ export default function SncShieldWidget({
   recentLoads 
 }: SncShieldWidgetProps) {
   const loadsToAnalyze = recentLoads || ([
-    { date: new Date().toISOString(), loadScore: weeklyLoad, type: 'mixed' }
-  ] as TrainingLoadEntry[]);
+    { date: new Date().toISOString(), loadScore: weeklyLoad, type: 'running' }
+  ] as unknown as TrainingLoadEntry[]);
 
   // Analyse en direct via l'algorithme intelligent
   const shieldData = analyzeSncShield(loadsToAnalyze, currentReadiness);
