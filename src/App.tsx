@@ -138,6 +138,9 @@ export default function App() {
 
   const [, setActiveCommentPostId] = useState<string | null>(null);
   const [todaySubTab, setTodaySubTab] = useState<'overview' | 'readiness' | 'ai'>('overview');
+  
+  // État local pour forcer le rafraîchissement du Fuel-Lock
+  const [nutritionRefreshTrigger, setNutritionRefreshTrigger] = useState(0);
 
   const fetchCloudPosts = async () => {
     setFeedLoading(true);
@@ -200,9 +203,27 @@ export default function App() {
 
   const currentReadinessScore = getTodayReadinessScore();
 
+  // Vérification dynamique du Fuel-Lock validé aujourd'hui
+  const getTodayNutritionCompliance = () => {
+    if (!user) return true;
+    try {
+      const saved = localStorage.getItem(`fitpulse_nutrition_${user.id}`);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        const todayStr = new Date().toISOString().split('T')[0];
+        if (parsed.date === todayStr && parsed.validated) {
+          return true;
+        }
+      }
+    } catch (e) {
+      // Ignore
+    }
+    return false; // Par défaut à false si non validé, ou true selon ton choix initial
+  };
+
   const todayApexData = calculateApexScore({
     readinessScore: currentReadinessScore,
-    nutritionCompliance: true,
+    nutritionCompliance: getTodayNutritionCompliance(),
     hydrationLiters: 2.2,
     targetHydrationLiters: 3.0,
     weeklyLoad: 45
@@ -815,7 +836,12 @@ export default function App() {
           )}
 
           {currentTab === 'nutrition' && (
-            <NutritionTab currentUserProfile={currentUserProfile} bodyWeight={70} />
+            <NutritionTab 
+              currentUserProfile={currentUserProfile} 
+              bodyWeight={70} 
+              currentUserId={user?.id}
+              onNutritionValidated={() => setNutritionRefreshTrigger(prev => prev + 1)}
+            />
           )}
 
           {currentTab === 'community' && (
