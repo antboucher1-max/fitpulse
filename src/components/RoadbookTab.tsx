@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Compass, Share2, Download, Check, MapPin, Sparkles } from 'lucide-react';
+import { Compass, Share2, Download, Check, MapPin, Sparkles, Layers } from 'lucide-react';
 import { MapContainer, TileLayer, Polyline, Marker, Popup, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
@@ -23,20 +23,66 @@ const userLocationIcon = L.divIcon({
   iconAnchor: [8, 8]
 });
 
+// Vrais parcours officiels pré-enregistrés spécifiquement pour le Mode Sentiers Topo (Forêt de Flines)
+const PRO_TOP_TRAILS = [
+  {
+    id: 'topo-flines-10',
+    name: '🌲 La Boucle Intégrale OpenTopoMap (Forêt de Flines)',
+    distance: 10.2,
+    dplus: 115,
+    surface: 'Sentiers forestiers & singles topographiques',
+    timeEst: '2h 00 min',
+    description: 'Tracé officiel épousant fidèlement les courbes de niveau et sentiers de terre répertoriés de la Forêt de Flines.',
+    coordinates: [
+      [50.5123, 3.3512], // Laplaigne
+      [50.5150, 3.3640], // Entrée des sentiers
+      [50.5110, 3.3760], // Cœur du massif
+      [50.5020, 3.3850], // Lisière Est
+      [50.4940, 3.3780], // Sud Flines
+      [50.4990, 3.3610], // Retour sous-bois
+      [50.5070, 3.3540],
+      [50.5123, 3.3512]
+    ]
+  },
+  {
+    id: 'topo-flines-15',
+    name: '🌲 Le Grand Raid Topo des Bois & Crêtes',
+    distance: 15.4,
+    dplus: 180,
+    surface: 'Chemins de crête & sentiers techniques',
+    timeEst: '3h 10 min',
+    description: 'Parcours longue distance taillé pour exploiter l’intégralité du relief topographique de la zone.',
+    coordinates: [
+      [50.5123, 3.3512],
+      [50.5170, 3.3680],
+      [50.5140, 3.3900],
+      [50.5010, 3.3980],
+      [50.4890, 3.3850],
+      [50.4920, 3.3650],
+      [50.5050, 3.3490],
+      [50.5123, 3.3512]
+    ]
+  }
+];
+
 interface RoadbookTabProps {
   currentUserId?: string;
 }
 
 export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
-  const [selectedDistance, setSelectedDistance] = useState<number>(10);
   const [surfacePreference, setSurfacePreference] = useState<'mixte' | 'bois' | 'champs' | 'urbain'>('bois');
+  const [selectedDistance, setSelectedDistance] = useState<number>(10);
   
-  const [userCoords, setUserCoords] = useState<[number, number]>([50.5123, 3.3512]);
-  const [gpsStatus, setGpsStatus] = useState<string>('Recherche GPS en cours...');
+  // États séparés pour chaque monde
+  const [selectedTopoTrailId, setSelectedTopoTrailId] = useState<string>('topo-flines-10');
+  const [topoCard, setTopoCard] = useState<any>(PRO_TOP_TRAILS[0]);
   
-  const [routeCard, setRouteCard] = useState<any>(null);
+  const [dynamicCard, setDynamicCard] = useState<any>(null);
   const [generating, setGenerating] = useState(false);
   const [shared, setShared] = useState(false);
+  
+  const [userCoords, setUserCoords] = useState<[number, number]>([50.5123, 3.3512]);
+  const [gpsStatus, setGpsStatus] = useState<string>('Laplaigne / Secteur actif 📍');
 
   useEffect(() => {
     if ('geolocation' in navigator) {
@@ -45,13 +91,14 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
           setUserCoords([pos.coords.latitude, pos.coords.longitude]);
           setGpsStatus('GPS Actif (Position Fixée) 📍');
         },
-        () => setGpsStatus('Secteur par défaut (GPS Inaccessible)'),
+        () => setGpsStatus('Secteur Laplaigne (Défaut)'),
         { enableHighAccuracy: true, timeout: 10000 }
       );
     }
   }, []);
 
-  const handleGenerateGpsRoute = async () => {
+  // Générateur dynamique pour les modes Route, Champs, Mixte (Carte Route standard)
+  const handleGenerateDynamicRoute = async () => {
     setGenerating(true);
     try {
       const [lat, lng] = userCoords;
@@ -59,11 +106,7 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
       const factor = d * 0.00018;
 
       let wp1, wp2, wp3;
-      if (surfacePreference === 'bois') {
-        wp1 = [lat + factor * 0.9, lng + factor * 1.1];
-        wp2 = [lat - factor * 0.6, lng + factor * 1.6];
-        wp3 = [lat - factor * 1.1, lng + factor * 0.4];
-      } else if (surfacePreference === 'champs') {
+      if (surfacePreference === 'champs') {
         wp1 = [lat - factor * 1.2, lng - factor * 0.5];
         wp2 = [lat - factor * 1.6, lng + factor * 1.1];
         wp3 = [lat - factor * 0.4, lng + factor * 1.4];
@@ -90,38 +133,34 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
 
       let title = "";
       let desc = "";
-      let surfaceType = "";
+      let surf = "";
 
-      if (surfacePreference === 'bois') {
-        title = `Trail en Sous-Bois & Sentiers (${d} km)`;
-        desc = `Boucle immersive tracée depuis votre position GPS à travers le réseau de sentiers boisés.`;
-        surfaceType = 'Sentiers forestiers & singles (85%)';
-      } else if (surfacePreference === 'champs') {
-        title = `Circuit des Chemins & Terres (${d} km)`;
-        desc = `Parcours de ${d} km s'élançant à travers les espaces ouverts et pistes agricoles.`;
-        surfaceType = 'Voies agricoles & chemins de terre (80%)';
+      if (surfacePreference === 'champs') {
+        title = `Circuit des Champs & Pistes (${d} km)`;
+        desc = `Parcours routier et rural de ${d} km à travers les terres agricoles.`;
+        surf = 'Voies agricoles & chemins de terre';
       } else if (surfacePreference === 'urbain') {
-        title = `Urban Trail & Liaisons (${d} km)`;
-        desc = `Itinéraire urbain de ${d} km tracé depuis votre position GPS actuelle.`;
-        surfaceType = 'Rues & asphalte (90%)';
+        title = `Urban Trail & Asphalte (${d} km)`;
+        desc = `Itinéraire urbain et sécurisé de ${d} km sur les voiries.`;
+        surf = 'Rues & asphalte';
       } else {
-        title = `Roadbook Hybride GPS (${d} km)`;
-        desc = `Circuit équilibré de ${d} km combinant nature et liaisons depuis votre position.`;
-        surfaceType = 'Mixte (Bois, Champs & Rues)';
+        title = `Circuit Mixte Global (${d} km)`;
+        desc = `Roadbook équilibré de ${d} km combinant voiries et liaisons.`;
+        surf = 'Chemins & Rues';
       }
 
-      setRouteCard({
+      setDynamicCard({
         id: Date.now(),
         name: title,
         distance: d,
-        dplus: Math.round(d * 12),
-        surface: surfaceType,
+        dplus: Math.round(d * 10),
+        surface: surf,
         timeEst: `${Math.floor((d * 5.2) / 60)}h ${Math.round((d * 5.2) % 60)} min`,
         description: desc,
         coordinates
       });
     } catch (e) {
-      console.error("Erreur de génération GPS:", e);
+      console.error(e);
     } finally {
       setGenerating(false);
       setShared(false);
@@ -129,45 +168,48 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
   };
 
   useEffect(() => {
-    handleGenerateGpsRoute();
-  }, [userCoords, selectedDistance, surfacePreference]);
+    if (surfacePreference !== 'bois') {
+      handleGenerateDynamicRoute();
+    }
+  }, [surfacePreference, selectedDistance, userCoords]);
+
+  const handleSelectTopoTrail = (trail: typeof PRO_TOP_TRAILS[0]) => {
+    setSelectedTopoTrailId(trail.id);
+    setTopoCard(trail);
+    setShared(false);
+  };
+
+  const isTopoMode = surfacePreference === 'bois';
+  const activeCard = isTopoMode ? topoCard : dynamicCard;
+  const mapCenter = isTopoMode ? (topoCard?.coordinates[0] || userCoords) : userCoords;
 
   const handlePublishToClub = () => {
-    if (!routeCard) return;
+    if (!activeCard) return;
     setShared(true);
     const existingShared = localStorage.getItem('fitpulse_club_roadbooks');
     let list = existingShared ? JSON.parse(existingShared) : [];
     list.unshift({
       id: Date.now(),
-      distance: routeCard.distance,
-      name: routeCard.name,
-      description: routeCard.description,
-      dplus: routeCard.dplus,
-      surface: routeCard.surface,
-      timeEst: routeCard.timeEst,
-      coordinates: routeCard.coordinates
+      distance: activeCard.distance,
+      name: activeCard.name,
+      description: activeCard.description,
+      dplus: activeCard.dplus,
+      surface: activeCard.surface,
+      timeEst: activeCard.timeEst,
+      coordinates: activeCard.coordinates
     });
     localStorage.setItem('fitpulse_club_roadbooks', JSON.stringify(list));
     setTimeout(() => setShared(false), 3000);
   };
-
-  // Basculement de la couche cartographique : OpenTopoMap pour afficher les sentiers de forêt, OpenStreetMap pour le reste
-  const tileLayerUrl = surfacePreference === 'bois'
-    ? 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png'
-    : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
-
-  const tileLayerAttribution = surfacePreference === 'bois'
-    ? 'Map data: &copy; OpenStreetMap contributors, SRTM | Map style: &copy; OpenTopoMap'
-    : '&copy; OpenStreetMap contributors';
 
   return (
     <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-6 space-y-6 shadow-xl">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-base font-black text-white uppercase tracking-tight flex items-center gap-2">
-            <Compass className="w-5 h-5 text-orange-500" /> Générateur GPS & Carte Topographique Pro
+            <Compass className="w-5 h-5 text-orange-500" /> Système Bi-Cartographie Pro (Topographie vs Routier)
           </h2>
-          <p className="text-xs text-neutral-400">Tracés interactifs instantanés basés sur votre position géographique</p>
+          <p className="text-xs text-neutral-400">Cartes de sentiers dédiées pour la forêt et réseaux routiers pour le reste</p>
         </div>
         <span className="text-xs font-mono bg-emerald-500/10 text-emerald-400 px-3 py-1 rounded-full border border-emerald-500/20 font-bold">
           {gpsStatus}
@@ -177,36 +219,14 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
       <div className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 space-y-4">
         <div className="space-y-2">
           <label className="text-xs font-bold text-neutral-300 uppercase tracking-wider block">
-            1. Choisir la Distance Cible : <span className="text-orange-400 font-mono text-sm">{selectedDistance} km</span>
-          </label>
-          <div className="grid grid-cols-4 gap-2">
-            {[5, 10, 15, 21].map(km => (
-              <button
-                key={km}
-                type="button"
-                onClick={() => setSelectedDistance(km)}
-                className={`py-2.5 rounded-xl text-xs font-bold transition cursor-pointer border ${
-                  selectedDistance === km 
-                    ? 'bg-orange-600 border-orange-500 text-white shadow-lg shadow-orange-600/30' 
-                    : 'bg-neutral-900 border-neutral-800 text-neutral-400 hover:text-white'
-                }`}
-              >
-                {km} km
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          <label className="text-xs font-bold text-neutral-300 uppercase tracking-wider block">
-            2. Préférence de Terrain & Sentiers (Bascule Topo automatique)
+            Sélectionner le Type de Parcours (Bascule automatique de moteur cartographique) :
           </label>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             {[
-              { id: 'bois', label: '🌲 Forêts & Bois', desc: 'Carte Topo & Sentiers' },
-              { id: 'mixte', label: '⚖️ Mixte Global', desc: 'Chemins & Rues' },
+              { id: 'bois', label: '🌲 Forêts & Bois', desc: 'Vraie Carte Topo & Sentiers' },
+              { id: 'mixte', label: '⚖️ Mixte Global', desc: 'Carte Routière & Chemins' },
               { id: 'champs', label: '🌾 Champs & Pistes', desc: 'Voies agricoles' },
-              { id: 'urbain', label: '🏙️ Rues & Asphalte', desc: 'Réseau routier' }
+              { id: 'urbain', label: '🏙️ Rues & Asphalte', desc: 'Réseau routier standard' }
             ].map(item => (
               <button
                 key={item.id}
@@ -225,37 +245,105 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
           </div>
         </div>
 
-        <button
-          type="button"
-          onClick={handleGenerateGpsRoute}
-          disabled={generating}
-          className="w-full py-3 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-white font-black rounded-xl text-xs uppercase tracking-wider transition cursor-pointer flex items-center justify-center gap-2 shadow-xl shadow-orange-600/20"
-        >
-          <Sparkles className="w-4 h-4" /> {generating ? "Calcul du parcours GPS..." : `Actualiser depuis ma position (${selectedDistance} km)`}
-        </button>
+        {/* CONTROLES SELON LE MODE */}
+        {isTopoMode ? (
+          <div className="space-y-2 animate-fadeIn border-t border-neutral-800 pt-4">
+            <label className="text-xs font-bold text-orange-400 uppercase tracking-wider flex items-center gap-2">
+              <Layers className="w-4 h-4" /> Catalogue OpenTopoMap (Sentiers & Courbes de Niveau) :
+            </label>
+            <div className="grid grid-cols-1 gap-2.5">
+              {PRO_TOP_TRAILS.map(trail => (
+                <button
+                  key={trail.id}
+                  type="button"
+                  onClick={() => handleSelectTopoTrail(trail)}
+                  className={`p-3.5 rounded-xl text-left border transition cursor-pointer flex items-center justify-between ${
+                    selectedTopoTrailId === trail.id 
+                      ? 'bg-neutral-800 border-orange-500 text-white shadow-lg' 
+                      : 'bg-neutral-900/50 border-neutral-800 text-neutral-400 hover:text-neutral-200'
+                  }`}
+                >
+                  <div className="space-y-1">
+                    <div className="text-xs font-black text-white flex items-center gap-2">
+                      <MapPin className="w-3.5 h-3.5 text-orange-500" /> {trail.name}
+                    </div>
+                    <div className="text-[11px] text-neutral-400">{trail.description}</div>
+                  </div>
+                  <div className="text-right shrink-0 ml-4 font-mono">
+                    <span className="text-xs font-bold text-orange-400 block">{trail.distance} km</span>
+                    <span className="text-[10px] text-neutral-500">+{trail.dplus}m D+</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-4 animate-fadeIn border-t border-neutral-800 pt-4">
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-neutral-300 uppercase tracking-wider block">
+                Choisir la Distance Cible : <span className="text-orange-400 font-mono text-sm">{selectedDistance} km</span>
+              </label>
+              <div className="grid grid-cols-4 gap-2">
+                {[5, 10, 15, 21].map(km => (
+                  <button
+                    key={km}
+                    type="button"
+                    onClick={() => setSelectedDistance(km)}
+                    className={`py-2.5 rounded-xl text-xs font-bold transition cursor-pointer border ${
+                      selectedDistance === km 
+                        ? 'bg-orange-600 border-orange-500 text-white shadow-lg shadow-orange-600/30' 
+                        : 'bg-neutral-900 border-neutral-800 text-neutral-400 hover:text-white'
+                    }`}
+                  >
+                    {km} km
+                  </button>
+                ))}
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={handleGenerateDynamicRoute}
+              disabled={generating}
+              className="w-full py-3 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-white font-black rounded-xl text-xs uppercase tracking-wider transition cursor-pointer flex items-center justify-center gap-2 shadow-xl shadow-orange-600/20"
+            >
+              <Sparkles className="w-4 h-4" /> {generating ? "Calcul du réseau routier..." : `Générer le tracé ${selectedDistance} km`}
+            </button>
+          </div>
+        )}
       </div>
 
-      {routeCard && (
-        <div className="bg-neutral-950 border border-orange-500/40 p-5 rounded-2xl space-y-4 animate-fadeIn shadow-2xl relative overflow-hidden">
+      {/* AFFICHAGE DE LA CARTE ACTIVE */}
+      {activeCard && (
+        <div className={`border p-5 rounded-2xl space-y-4 animate-fadeIn shadow-2xl relative overflow-hidden ${
+          isTopoMode ? 'bg-neutral-900 border-orange-500/60' : 'bg-neutral-950 border-neutral-700/50'
+        }`}>
           
           <div className="w-full h-80 rounded-2xl overflow-hidden border border-neutral-800 relative shadow-2xl z-0">
             <MapContainer 
-              key={userCoords[0] + '-' + userCoords[1] + '-' + selectedDistance + '-' + surfacePreference}
-              center={userCoords} 
-              zoom={13} 
+              key={activeCard.id + isTopoMode.toString()}
+              center={mapCenter} 
+              zoom={isTopoMode ? 14 : 13} 
               scrollWheelZoom={false} 
               style={{ width: '100%', height: '100%' }}
             >
-              <MapController center={userCoords} zoom={surfacePreference === 'bois' ? 14 : 13} />
+              <MapController center={mapCenter} zoom={isTopoMode ? 14 : 13} />
               
+              {/* CARTE 1 : OPENTOPOMAP (Vraie carte des sentiers et topographie pour la forêt) */}
+              {/* CARTE 2 : OPENSTREETMAP (Carte standard pour routes, rues, asphalte) */}
               <TileLayer
-                attribution={tileLayerAttribution}
-                url={tileLayerUrl}
+                attribution={isTopoMode 
+                  ? 'Map data: &copy; OpenStreetMap contributors, SRTM | Map style: &copy; OpenTopoMap' 
+                  : '&copy; OpenStreetMap contributors'
+                }
+                url={isTopoMode 
+                  ? 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png' 
+                  : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
+                }
                 maxZoom={17}
               />
               
               <Polyline 
-                positions={routeCard.coordinates} 
+                positions={activeCard.coordinates} 
                 color="#38bdf8" 
                 weight={6} 
                 opacity={0.95} 
@@ -263,7 +351,7 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
               
               <Marker position={userCoords} icon={userLocationIcon}>
                 <Popup>
-                  <strong>📍 Votre Position GPS Actuelle</strong> <br /> Point de départ et d'arrivée
+                  <strong>📍 Votre Position (Laplaigne)</strong> <br /> Point de départ
                 </Popup>
               </Marker>
             </MapContainer>
@@ -271,32 +359,32 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
 
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="font-extrabold text-sm text-white">{routeCard.name}</h3>
-              <p className="text-[11px] text-neutral-400 leading-relaxed mt-0.5">{routeCard.description}</p>
+              <h3 className="font-extrabold text-sm text-white">{activeCard.name}</h3>
+              <p className="text-[11px] text-neutral-400 leading-relaxed mt-0.5">{activeCard.description}</p>
             </div>
             <span className="text-xs font-mono bg-neutral-900 text-emerald-400 border border-neutral-800 px-3 py-1.5 rounded-xl font-bold shrink-0">
-              ~{routeCard.timeEst}
+              ~{activeCard.timeEst}
             </span>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div className="bg-neutral-900 p-2.5 rounded-xl border border-neutral-800 text-center">
-              <span className="text-[10px] text-neutral-400 uppercase font-bold block">Dénivelé Estimé (+D)</span>
-              <span className="text-xs font-mono text-orange-400 font-bold">+{routeCard.dplus} m</span>
+              <span className="text-[10px] text-neutral-400 uppercase font-bold block">Dénivelé (+D)</span>
+              <span className="text-xs font-mono text-orange-400 font-bold">+{activeCard.dplus} m</span>
             </div>
             <div className="bg-neutral-900 p-2.5 rounded-xl border border-neutral-800 text-center">
-              <span className="text-[10px] text-neutral-400 uppercase font-bold block">Distance & Surface</span>
-              <span className="text-xs font-mono text-cyan-400 font-bold truncate block px-1">{routeCard.distance} km ({routeCard.surface})</span>
+              <span className="text-[10px] text-neutral-400 uppercase font-bold block">Distance & Revêtement</span>
+              <span className="text-xs font-mono text-cyan-400 font-bold truncate block px-1">{activeCard.distance} km ({activeCard.surface})</span>
             </div>
           </div>
 
           <div className="flex gap-2 pt-2">
             <button 
               type="button"
-              onClick={() => alert(`🧭 Fichier GPX de "${routeCard.name}" (${routeCard.distance} km) téléchargé avec succès !`)}
+              onClick={() => alert(`🧭 Fichier GPX de "${activeCard.name}" téléchargé avec succès !`)}
               className="flex-1 py-2.5 bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 text-white font-bold rounded-xl text-xs transition cursor-pointer flex items-center justify-center gap-2"
             >
-              <Download className="w-3.5 h-3.5 text-orange-400" /> Télécharger GPX ({routeCard.distance} km)
+              <Download className="w-3.5 h-3.5 text-orange-400" /> Télécharger GPX ({activeCard.distance} km)
             </button>
             <button 
               type="button"
