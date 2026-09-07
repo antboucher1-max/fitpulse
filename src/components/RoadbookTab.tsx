@@ -1,10 +1,6 @@
 import { useState, useEffect, FormEvent } from 'react';
 import { Flag, Trash2 } from 'lucide-react';
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseUrl = 'https://obtahwmcoqrcauscpksv.supabase.co';
-const supabaseAnonKey = 'sb_publishable_O8CKhUtzgq9nO9lKavNE9A__fAdRWoB';
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+import { supabase } from '../supabaseClient';
 
 export default function RoadbookTab({ currentUserId }: { currentUserId?: string }) {
   const [raceName, setRaceName] = useState('Semi de Tournai');
@@ -138,7 +134,7 @@ export default function RoadbookTab({ currentUserId }: { currentUserId?: string 
               </div>
             </div>
 
-            <button type="submit" className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-neutral-950 font-extrabold rounded-2xl text-xs transition shadow-lg">
+            <button type="submit" className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-neutral-950 font-extrabold rounded-2xl text-xs transition shadow-lg cursor-pointer">
               Calculer mon plan de course 🎯
             </button>
           </form>
@@ -153,13 +149,13 @@ export default function RoadbookTab({ currentUserId }: { currentUserId?: string 
                     <span className="text-[10px] text-neutral-400">{rb.distance_km} km • Allure : {Math.floor(rb.target_pace_seconds / 60)}:{(rb.target_pace_seconds % 60).toString().padStart(2, '0')}/km</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <button onClick={() => setSelectedRoadbook(rb)} className="px-3 py-1.5 bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 rounded-xl text-xs font-bold">
+                    <button onClick={() => setSelectedRoadbook(rb)} className="px-3 py-1.5 bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 rounded-xl text-xs font-bold cursor-pointer">
                       Voir
                     </button>
                     <button onClick={async () => {
                       await supabase.from('race_roadbooks').delete().eq('id', rb.id);
                       fetchRoadbooks();
-                    }} className="p-1.5 text-neutral-500 hover:text-red-400">
+                    }} className="p-1.5 text-neutral-500 hover:text-red-400 cursor-pointer">
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
@@ -175,7 +171,7 @@ export default function RoadbookTab({ currentUserId }: { currentUserId?: string 
               <span className="text-[10px] text-emerald-400 font-bold uppercase block">Stratégie Active</span>
               <span className="text-sm font-black text-white">{selectedRoadbook.race_name} ({selectedRoadbook.distance_km} km)</span>
             </div>
-            <button onClick={() => setSelectedRoadbook(null)} className="text-[11px] text-neutral-400 underline hover:text-white">
+            <button onClick={() => setSelectedRoadbook(null)} className="text-[11px] text-neutral-400 underline hover:text-white cursor-pointer">
               Retour
             </button>
           </div>
