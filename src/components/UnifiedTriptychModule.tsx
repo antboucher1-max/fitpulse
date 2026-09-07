@@ -170,7 +170,7 @@ export default function UnifiedTriptychModule({ currentUserId }: UnifiedTriptych
               <span className={`w-2.5 h-2.5 rounded-full ${s.type === 'run' ? 'bg-emerald-400' : s.type === 'gym' ? 'bg-orange-500' : 'bg-cyan-400'}`} />
               <div>
                 <h4 className="font-bold text-xs text-white">{s.title}</h4>
-                <p className="text-[10px] text-neutral-400">{s.durationMins} min • RPE {s.rpe}/10 • Type : {s.toUpperCase?.() || s.type}</p>
+                <p className="text-[10px] text-neutral-400">{s.durationMins} min • RPE {s.rpe}/10 • Type : {String(s.type || 'Mixte').toUpperCase()}</p>
               </div>
             </div>
             <button onClick={() => handleRemove(s.id)} className="p-1.5 text-neutral-500 hover:text-red-400 rounded-lg transition">
