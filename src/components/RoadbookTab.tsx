@@ -31,7 +31,6 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
   const [selectedDistance, setSelectedDistance] = useState<number>(10);
   const [surfacePreference, setSurfacePreference] = useState<'mixte' | 'bois' | 'champs' | 'urbain'>('bois');
   
-  // Position par défaut sur ton secteur, mise à jour par le GPS réel de l'appareil
   const [userCoords, setUserCoords] = useState<[number, number]>([50.5123, 3.3512]);
   const [gpsStatus, setGpsStatus] = useState<string>('Recherche GPS en cours...');
   
@@ -39,7 +38,6 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
   const [generating, setGenerating] = useState(false);
   const [shared, setShared] = useState(false);
 
-  // Activation du GPS réel de l'appareil de l'utilisateur
   useEffect(() => {
     if ('geolocation' in navigator) {
       navigator.geolocation.getCurrentPosition(
@@ -53,40 +51,32 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
     }
   }, []);
 
-  // Générateur universel de boucles GPS (fonctionne pour n'importe quel bois/secteur dans le monde)
   const handleGenerateGpsRoute = async () => {
     setGenerating(true);
     try {
       const [lat, lng] = userCoords;
       const d = selectedDistance;
-      
-      // Facteur d'échelle proportionnel à la distance cible
       const factor = d * 0.00018;
 
       let wp1, wp2, wp3;
       if (surfacePreference === 'bois') {
-        // Boucle technique orientée sous-bois / sentiers autour de la position GPS
         wp1 = [lat + factor * 0.9, lng + factor * 1.1];
         wp2 = [lat - factor * 0.6, lng + factor * 1.6];
         wp3 = [lat - factor * 1.1, lng + factor * 0.4];
       } else if (surfacePreference === 'champs') {
-        // Boucle rurale ouverte
         wp1 = [lat - factor * 1.2, lng - factor * 0.5];
         wp2 = [lat - factor * 1.6, lng + factor * 1.1];
         wp3 = [lat - factor * 0.4, lng + factor * 1.4];
       } else if (surfacePreference === 'urbain') {
-        // Boucle urbaine / voiries
         wp1 = [lat + factor * 1.1, lng + factor * 0.8];
         wp2 = [lat - factor * 0.3, lng + factor * 1.3];
         wp3 = [lat - factor * 0.9, lng - factor * 0.3];
       } else {
-        // Mixte équilibré
         wp1 = [lat + factor * 1.0, lng + factor * 1.0];
         wp2 = [lat - factor * 0.5, lng + factor * 1.4];
         wp3 = [lat - factor * 0.8, lng - factor * 0.2];
       }
 
-      // Appel de l'API de routage piéton basée sur les coordonnées GPS exactes de l'utilisateur
       const queryUrl = `https://router.project-osrm.org/route/v1/foot/${lng},${lat};${wp1[1]},${wp1[0]};${wp2[1]},${wp2[0]};${wp3[1]},${wp3[0]};${lng},${lat}?overview=full&geometries=geojson`;
       const response = await fetch(queryUrl);
       const data = await response.json();
@@ -103,12 +93,12 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
       let surfaceType = "";
 
       if (surfacePreference === 'bois') {
-        title = `Trail en Sous-Bois (${d} km)`;
-        desc = `Boucle immersive générée depuis votre position GPS à travers le massif boisé le plus proche.`;
+        title = `Trail en Sous-Bois & Sentiers (${d} km)`;
+        desc = `Boucle immersive tracée depuis votre position GPS à travers le réseau de sentiers boisés.`;
         surfaceType = 'Sentiers forestiers & singles (85%)';
       } else if (surfacePreference === 'champs') {
         title = `Circuit des Chemins & Terres (${d} km)`;
-        desc = `Parcours de ${d} km s'élançant de votre position à travers les espaces ouverts et pistes agricoles.`;
+        desc = `Parcours de ${d} km s'élançant à travers les espaces ouverts et pistes agricoles.`;
         surfaceType = 'Voies agricoles & chemins de terre (80%)';
       } else if (surfacePreference === 'urbain') {
         title = `Urban Trail & Liaisons (${d} km)`;
@@ -138,7 +128,6 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
     }
   };
 
-  // Recalcule automatiquement le parcours dès que le GPS, la distance ou le terrain change
   useEffect(() => {
     handleGenerateGpsRoute();
   }, [userCoords, selectedDistance, surfacePreference]);
@@ -162,7 +151,7 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
     setTimeout(() => setShared(false), 3000);
   };
 
-  // Basculement intelligent de la carte : OpenTopoMap (vue pro avec sentiers et relief des bois) si "bois", sinon OpenStreetMap standard
+  // Basculement de la couche cartographique : OpenTopoMap pour afficher les sentiers de forêt, OpenStreetMap pour le reste
   const tileLayerUrl = surfacePreference === 'bois'
     ? 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png'
     : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
@@ -176,7 +165,7 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-base font-black text-white uppercase tracking-tight flex items-center gap-2">
-            <Compass className="w-5 h-5 text-orange-500" /> Générateur GPS Universel & Cartographie Pro
+            <Compass className="w-5 h-5 text-orange-500" /> Générateur GPS & Carte Topographique Pro
           </h2>
           <p className="text-xs text-neutral-400">Tracés interactifs instantanés basés sur votre position géographique</p>
         </div>
@@ -186,7 +175,6 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
       </div>
 
       <div className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 space-y-4">
-        {/* 1. Sélection de la Distance Cible */}
         <div className="space-y-2">
           <label className="text-xs font-bold text-neutral-300 uppercase tracking-wider block">
             1. Choisir la Distance Cible : <span className="text-orange-400 font-mono text-sm">{selectedDistance} km</span>
@@ -209,7 +197,6 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
           </div>
         </div>
 
-        {/* 2. Préférence de Terrain (Bascule automatiquement la carte Topo pour les bois) */}
         <div className="space-y-2">
           <label className="text-xs font-bold text-neutral-300 uppercase tracking-wider block">
             2. Préférence de Terrain & Sentiers (Bascule Topo automatique)
@@ -244,11 +231,10 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
           disabled={generating}
           className="w-full py-3 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-white font-black rounded-xl text-xs uppercase tracking-wider transition cursor-pointer flex items-center justify-center gap-2 shadow-xl shadow-orange-600/20"
         >
-          <Sparkles className="w-4 h-4" /> {generating ? "Calcul du parcours GPS..." : `Actualiser depuis ma position GPS (${selectedDistance} km)`}
+          <Sparkles className="w-4 h-4" /> {generating ? "Calcul du parcours GPS..." : `Actualiser depuis ma position (${selectedDistance} km)`}
         </button>
       </div>
 
-      {/* Affichage de la carte interactive et de la fiche du parcours */}
       {routeCard && (
         <div className="bg-neutral-950 border border-orange-500/40 p-5 rounded-2xl space-y-4 animate-fadeIn shadow-2xl relative overflow-hidden">
           
@@ -268,7 +254,6 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
                 maxZoom={17}
               />
               
-              {/* Tracé Bleu Électrique Pro (#38bdf8) */}
               <Polyline 
                 positions={routeCard.coordinates} 
                 color="#38bdf8" 
@@ -276,7 +261,6 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
                 opacity={0.95} 
               />
               
-              {/* Marqueur de position GPS réelle de l'utilisateur */}
               <Marker position={userCoords} icon={userLocationIcon}>
                 <Popup>
                   <strong>📍 Votre Position GPS Actuelle</strong> <br /> Point de départ et d'arrivée
