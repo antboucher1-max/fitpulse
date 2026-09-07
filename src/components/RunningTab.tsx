@@ -197,6 +197,7 @@ interface RunningTabProps {
 
 export default function RunningTab({
   currentUserId,
+  currentUsername,
   currentUserProfile,
   shoes = [],
   onAddShoe = () => {},
@@ -261,6 +262,8 @@ export default function RunningTab({
   const [bodyWeight, setBodyWeight] = useState<number>(70);
 
   const lastPositionRef = useRef<[number, number]>([50.505, 3.325]);
+
+  const usernameToUse = currentUserProfile?.username || currentUsername || "Runner";
 
   const handleGenerateSmartCircuit = async (targetKm: number) => {
     const baseLat = currentPosition[0];
@@ -342,7 +345,6 @@ export default function RunningTab({
         const coords = data.routes[0].geometry.coordinates.map((c: [number, number]) => [c[1], c[0]] as [number, number]);
         const actualKm = Number((data.routes[0].distance / 1000).toFixed(2));
         
-        // Calcul du dénivelé positif estimé (environ 32m D+ par km en sous-bois / champs vallonnés)
         const estimatedElevationGain = Math.round(actualKm * 32);
 
         setPlannedRoutePositions(coords);
@@ -443,7 +445,7 @@ export default function RunningTab({
   }, []);
 
   useEffect(() => {
-    if (isRunning) {
+    if (isRunning && !isPaused) {
       localStorage.setItem('fitpulse_offline_run', JSON.stringify({
         routePositions,
         distanceKm,
@@ -451,7 +453,7 @@ export default function RunningTab({
         timestamp: Date.now()
       }));
     }
-  }, [routePositions, distanceKm, seconds, isRunning]);
+  }, [routePositions, distanceKm, seconds, isRunning, isPaused]);
 
   const speakMessage = (text: string) => {
     if (!audioCoaching || !isRunning || !('speechSynthesis' in window)) return;
@@ -518,29 +520,32 @@ export default function RunningTab({
     }
   }, [seconds, isRunning, isPaused, plannedRoutePositions, plannedDistanceKm, targetPaceSecs]);
 
+  // --- BOUCLE PRINCIPALE DE SUIVI GPS, AUTO-PAUSE & ALERTE HORS-ROUTE ---
   useEffect(() => {
     let interval: any = null;
     let watchId: number | null = null;
 
-    if (isRunning && !isPaused) {
+    if (isRunning) {
       requestWakeLock();
       interval = setInterval(() => {
-        setSeconds(s => {
-          const newSecs = s + 1;
-          if (distanceKm > 0.1) {
-            const currentSecPerKm = newSecs / distanceKm;
-            if (currentSecPerKm < minAllowedPaceSecs) {
-              const alertText = "Attention Antoine, tu es trop rapide ! Ralentis pour rester dans ta fourchette cible.";
-              setCoachingAdvice(alertText);
-              speakMessage(alertText);
-            } else if (currentSecPerKm > maxAllowedPaceSecs) {
-              const alertText = "Attention Antoine, ton allure chute, relance ta foulée pour rentrer dans la cible.";
-              setCoachingAdvice(alertText);
-              speakMessage(alertText);
+        if (!isPaused) {
+          setSeconds(s => {
+            const newSecs = s + 1;
+            if (distanceKm > 0.1) {
+              const currentSecPerKm = newSecs / distanceKm;
+              if (currentSecPerKm < minAllowedPaceSecs) {
+                const alertText = `Attention ${usernameToUse}, tu es trop rapide ! Ralentis pour rester dans ta fourchette cible.`;
+                setCoachingAdvice(alertText);
+                speakMessage(alertText);
+              } else if (currentSecPerKm > maxAllowedPaceSecs) {
+                const alertText = `Attention ${usernameToUse}, ton allure chute, relance ta foulée pour rentrer dans la cible.`;
+                setCoachingAdvice(alertText);
+                speakMessage(alertText);
+              }
             }
-          }
-          return newSecs;
-        });
+            return newSecs;
+          });
+        }
       }, 1000);
 
       if ('geolocation' in navigator) {
@@ -548,6 +553,20 @@ export default function RunningTab({
           (position) => {
             const newPos: [number, number] = [position.coords.latitude, position.coords.longitude];
             const deltaKm = calculateHaversineDistance(lastPositionRef.current[0], lastPositionRef.current[1], newPos[0], newPos[1]);
+
+            // AUTO-PAUSE : Si l'utilisateur est quasi immobile (< 1 km/h ou delta < 0.001 km sur l'intervalle)
+            if (deltaKm < 0.001) {
+              if (!isPaused) {
+                setIsPaused(true);
+                speakMessage("Chrono en pause automatique.");
+              }
+              return;
+            } else {
+              if (isPaused) {
+                setIsPaused(false);
+                speakMessage("Reprise automatique de la course.");
+              }
+            }
 
             if (deltaKm > 0.002) {
               lastPositionRef.current = newPos;
@@ -562,6 +581,21 @@ export default function RunningTab({
 
               setDistanceKm(d => Number((d + deltaKm * mult).toFixed(2)));
               fetchRealTimeWindAndPosition(newPos[0], newPos[1]);
+
+              // ALERTE HORS-ROUTE : Si un circuit cible est chargé, vérifier l'écart (> 45 mètres)
+              if (plannedRoutePositions.length > 0) {
+                let minDistanceToRouteMeters = 99999;
+                plannedRoutePositions.forEach(pt => {
+                  const dist = calculateHaversineDistance(newPos[0], newPos[1], pt[0], pt[1]) * 1000;
+                  if (dist < minDistanceToRouteMeters) minDistanceToRouteMeters = dist;
+                });
+
+                if (minDistanceToRouteMeters > 45) {
+                  const offRouteMsg = `Attention ${usernameToUse}, tu t'éloignes du parcours prévu de plus de 45 mètres !`;
+                  setCoachingAdvice(offRouteMsg);
+                  speakMessage(offRouteMsg);
+                }
+              }
             }
           },
           (error) => console.warn("GPS watch error :", error),
@@ -577,7 +611,7 @@ export default function RunningTab({
       if (watchId !== null) navigator.geolocation.clearWatch(watchId);
       releaseWakeLock();
     };
-  }, [isRunning, isPaused, distanceKm, minAllowedPaceSecs, maxAllowedPaceSecs, terrainType]);
+  }, [isRunning, isPaused, distanceKm, minAllowedPaceSecs, maxAllowedPaceSecs, terrainType, plannedRoutePositions, usernameToUse]);
 
   const formatTime = (totalSecs: number) => {
     const mins = Math.floor(totalSecs / 60);
@@ -601,7 +635,7 @@ export default function RunningTab({
 
   const handlePauseRun = () => {
     setIsPaused(!isPaused);
-    speakMessage(isPaused ? "Reprise de la course." : "Chrono en pause.");
+    speakMessage(isPaused ? "Chrono en pause." : "Reprise de la course.");
   };
 
   const handleOpenReportModal = () => {
