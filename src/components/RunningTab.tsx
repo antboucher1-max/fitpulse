@@ -1,7 +1,7 @@
 import PaywallGate from './PaywallGate';
 import { useState, useRef } from 'react';
 import { 
-  Mountain, Compass as CompassIcon, Trophy, Award, Zap, ChevronDown, ChevronUp, ArrowLeft, Upload, Edit3, X, Download, Trees, Footprints, CheckCircle2
+  Mountain, Compass as CompassIcon, Trophy, Award, Zap, ChevronDown, ChevronUp, ArrowLeft, Upload, Edit3, X, Download, Trees, Footprints, Volume2, CheckCircle2
 } from 'lucide-react';
 import { MapContainer, TileLayer, Polyline, Marker, useMap } from 'react-leaflet';
 import L from 'leaflet';
@@ -31,7 +31,7 @@ function WelcomeGuideModal({ username, onClose }: { username: string; onClose: (
           <span className="text-2xl">🌲</span>
           <h3 className="text-lg font-black text-white">Bienvenue dans ton QG Trail, {username} !</h3>
           <p className="text-xs text-neutral-400 leading-relaxed">
-            Générateur d'itinéraires pro (Bois, Carrières, Champs), export GPX direct pour ta montre et analyse altimétrique blindée.
+            Générateur d'itinéraires pro (Bois, Carrières, Champs), export GPX direct pour ta montre et coaching audio d'allure actif !
           </p>
         </div>
         <button
@@ -103,6 +103,8 @@ export default function RunningTab({
   // Planificateur d'itinéraires Pro
   const [selectedTerrain, setSelectedTerrain] = useState<'bois' | 'carrieres' | 'champs'>('bois');
   const [targetDistanceKm, setTargetDistanceKm] = useState<number>(12);
+  const [targetPaceMin, setTargetPaceMin] = useState<number>(5);
+  const [targetPaceSec, setTargetPaceSec] = useState<number>(30);
   const [plannedRoutePositions, setPlannedRoutePositions] = useState<Array<[number, number]>>([[50.505, 3.325], [50.512, 3.335], [50.508, 3.345], [50.502, 3.330], [50.505, 3.325]]);
   const [plannedDPlus, setPlannedDPlus] = useState<number>(180);
   const [isGeneratingRoute, setIsGeneratingRoute] = useState<boolean>(false);
@@ -128,19 +130,30 @@ export default function RunningTab({
     setShowWelcomeGuide(false);
   };
 
+  // --- SYNTHÈSE VOCALE / COACH AUDIO D'ALLURE ---
+  const speakAudioBriefing = () => {
+    if (!('speechSynthesis' in window)) {
+      return alert("La synthèse vocale n'est pas supportée par votre navigateur.");
+    }
+    window.speechSynthesis.cancel();
+    const text = `Briefing FitPulse activé. Sortie ${selectedTerrain} de ${targetDistanceKm} kilomètres. Allure cible fixée à ${targetPaceMin} minutes et ${targetPaceSec} secondes par kilomètre. Préparez votre ravitaillement et bon entraînement !`;
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'fr-FR';
+    utterance.rate = 1.0;
+    window.speechSynthesis.speak(utterance);
+  };
+
   // --- GÉNÉRATEUR D'ITINÉRAIRES PRO (BOIS, CARRIÈRES, CHAMPS) ---
   const handleGenerateProRoute = async () => {
     setIsGeneratingRoute(true);
     try {
-      // Coordonnées de base (région Tournai / carrières / sentiers)
       const baseLat = 50.505;
       const baseLng = 3.325;
       
-      // Ajustement des offsets selon le terrain choisi pour simuler de vrais sentiers spécifiques
       let latMultiplier = 0.015;
       let lngMultiplier = 0.02;
-      if (selectedTerrain === 'carrieres') { latMultiplier = 0.02; lngMultiplier = 0.012; } // technique & cassant
-      else if (selectedTerrain === 'champs') { latMultiplier = 0.008; lngMultiplier = 0.035; } // longiligne & roulant
+      if (selectedTerrain === 'carrieres') { latMultiplier = 0.02; lngMultiplier = 0.012; }
+      else if (selectedTerrain === 'champs') { latMultiplier = 0.008; lngMultiplier = 0.035; }
 
       const targetLat = baseLat + (targetDistanceKm / 10) * latMultiplier;
       const targetLng = baseLng + (targetDistanceKm / 10) * lngMultiplier;
@@ -151,14 +164,12 @@ export default function RunningTab({
       if (data?.routes?.[0]) {
         const coords = data.routes[0].geometry.coordinates.map((c: [number, number]) => [c[1], c[0]] as [number, number]);
         setPlannedRoutePositions(coords);
-        // Calcul d'un D+ réaliste selon le type de terrain
         const calculatedD = selectedTerrain === 'carrieres' ? Math.round(targetDistanceKm * 25) : selectedTerrain === 'bois' ? Math.round(targetDistanceKm * 18) : Math.round(targetDistanceKm * 8);
         setPlannedDPlus(calculatedD);
       } else {
         throw new Error();
       }
     } catch {
-      // Fallback géométrique si l'API réseau rencontre un délai
       const mockCoords: Array<[number, number]> = [
         [50.505, 3.325], [50.510, 3.330], [50.518, 3.340], [50.512, 3.355], [50.502, 3.345], [50.498, 3.330], [50.505, 3.325]
       ];
@@ -176,7 +187,6 @@ export default function RunningTab({
     let gpxContent = `<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="FitPulse Pro">\n  <trk>\n    <name>FitPulse - Boucle ${selectedTerrain.toUpperCase()} (${targetDistanceKm}km)</name>\n    <trkseg>\n`;
     
     plannedRoutePositions.forEach(([lat, lon], idx) => {
-      // Simulation d'une altimétrie cohérente selon l'index
       const ele = 40 + Math.sin(idx) * (selectedTerrain === 'carrieres' ? 25 : 12);
       gpxContent += `      <trkpt lat="${lat}" lon="${lon}"><ele>${ele.toFixed(1)}</ele></trkpt>\n`;
     });
@@ -192,7 +202,7 @@ export default function RunningTab({
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    alert(`✅ Fichier GPX exporté avec succès ! Transférez-le sur votre montre (Garmin / Coros / Wahoo).`);
+    alert(`✅ Fichier GPX exporté ! Transférez-le sur votre montre (Garmin / Coros / Wahoo).`);
   };
 
   // --- PARSEUR GPX POST-EFFORT AVEC FILTRE ALTIMÉTRIQUE AVANCÉ ---
@@ -228,7 +238,7 @@ export default function RunningTab({
             dPlus = km * 20;
           }
 
-          const timeSec = Math.round(km * 300);
+          const timeSec = Math.round(km * (targetPaceMin * 60 + targetPaceSec));
           setImportedRunData({ distance: km, dPlus: Math.round(dPlus), timeSec });
           setIsReportModalOpen(true);
         }
@@ -278,16 +288,16 @@ export default function RunningTab({
       )}
 
       {/* =========================================================================
-          1. PLANIFICATEUR D'ITINÉRAIRES PRO (BOIS, CARRIÈRES, CHAMPS)
+          1. PLANIFICATEUR D'ITINÉRAIRES PRO & COACH AUDIO
           ========================================================================= */}
       <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-6 space-y-5 shadow-2xl">
         <div className="flex justify-between items-center">
           <div>
             <span className="text-[10px] font-black uppercase tracking-widest text-sky-400">Architecte de Sentiers Pro</span>
-            <h2 className="text-xl font-black text-white tracking-tight pt-0.5">Planificateur de Tracés GPX</h2>
+            <h2 className="text-xl font-black text-white tracking-tight pt-0.5">Planificateur de Tracés & Coach Audio</h2>
           </div>
           <span className="text-xs font-bold bg-sky-500/20 text-sky-400 px-3.5 py-1.5 rounded-full border border-sky-500/30">
-            Export Montre 🧭
+            Pro 🧭
           </span>
         </div>
 
@@ -313,41 +323,69 @@ export default function RunningTab({
           </button>
         </div>
 
-        {/* Contrôle de Distance */}
-        <div className="space-y-2 bg-neutral-950 p-4 rounded-2xl border border-neutral-800">
-          <div className="flex justify-between text-xs font-bold text-neutral-300">
-            <span>Distance cible :</span>
-            <span className="text-emerald-400 font-mono text-sm">{targetDistanceKm} km</span>
+        {/* Contrôles Distance & Allure Cible */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="space-y-2 bg-neutral-950 p-4 rounded-2xl border border-neutral-800">
+            <div className="flex justify-between text-xs font-bold text-neutral-300">
+              <span>Distance cible :</span>
+              <span className="text-emerald-400 font-mono text-sm">{targetDistanceKm} km</span>
+            </div>
+            <input 
+              type="range" min="5" max="35" step="1" 
+              value={targetDistanceKm} 
+              onChange={e => setTargetDistanceKm(Number(e.target.value))} 
+              className="w-full accent-emerald-500 cursor-pointer" 
+            />
           </div>
-          <input 
-            type="range" 
-            min="5" 
-            max="35" 
-            step="1" 
-            value={targetDistanceKm} 
-            onChange={e => setTargetDistanceKm(Number(e.target.value))} 
-            className="w-full accent-emerald-500 cursor-pointer" 
-          />
+
+          <div className="space-y-2 bg-neutral-950 p-4 rounded-2xl border border-neutral-800">
+            <div className="flex justify-between text-xs font-bold text-neutral-300">
+              <span>Allure cible audio :</span>
+              <span className="text-orange-400 font-mono text-sm">{targetPaceMin}'{targetPaceSec.toString().padStart(2, '0')}" /km</span>
+            </div>
+            <div className="flex gap-2">
+              <select 
+                value={targetPaceMin} 
+                onChange={e => setTargetPaceMin(Number(e.target.value))} 
+                className="flex-1 bg-neutral-900 border border-neutral-800 rounded-xl p-1.5 text-white font-mono text-xs"
+              >
+                {[3, 4, 5, 6, 7].map(m => <option key={m} value={m}>{m} min</option>)}
+              </select>
+              <select 
+                value={targetPaceSec} 
+                onChange={e => setTargetPaceSec(Number(e.target.value))} 
+                className="flex-1 bg-neutral-900 border border-neutral-800 rounded-xl p-1.5 text-white font-mono text-xs"
+              >
+                {[0, 15, 30, 45].map(s => <option key={s} value={s}>{s.toString().padStart(2, '0')} sec</option>)}
+              </select>
+            </div>
+          </div>
         </div>
 
-        {/* Boutons d'Action Itinéraire */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {/* Boutons d'Action Itinéraire & Coach Audio */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <button 
             onClick={handleGenerateProRoute} 
             disabled={isGeneratingRoute}
             className="py-3.5 bg-sky-600 hover:bg-sky-500 text-white font-black rounded-2xl text-xs uppercase tracking-wider transition cursor-pointer shadow-lg flex items-center justify-center gap-2"
           >
-            {isGeneratingRoute ? "Calcul en cours..." : "Générer la boucle sentiers ⚡"}
+            {isGeneratingRoute ? "Calcul..." : "Générer la boucle ⚡"}
+          </button>
+          <button 
+            onClick={speakAudioBriefing}
+            className="py-3.5 bg-orange-600 hover:bg-orange-500 text-white font-black rounded-2xl text-xs uppercase tracking-wider transition cursor-pointer shadow-lg flex items-center justify-center gap-2"
+          >
+            <Volume2 className="w-4 h-4" /> Briefing Audio 🎙️
           </button>
           <button 
             onClick={handleExportGpx}
             className="py-3.5 bg-neutral-800 hover:bg-neutral-700 text-emerald-400 font-black rounded-2xl text-xs uppercase tracking-wider transition cursor-pointer border border-emerald-500/40 flex items-center justify-center gap-2"
           >
-            <Download className="w-4 h-4" /> Télécharger le .GPX Montre 📥
+            <Download className="w-4 h-4" /> Exporter .GPX 📥
           </button>
         </div>
 
-        {/* Aperçu Carte Leaflet de l'Itinéraire Prévu */}
+        {/* Aperçu Carte Leaflet */}
         <div className="w-full h-56 rounded-2xl overflow-hidden border border-neutral-800">
           <MapContainer center={plannedRoutePositions[0] || [50.505, 3.325]} zoom={14} style={{ width: '100%', height: '100%', background: '#0a0a0a' }}>
             <MapController center={plannedRoutePositions[0] || [50.505, 3.325]} plannedRoute={plannedRoutePositions} />
@@ -378,7 +416,7 @@ export default function RunningTab({
         </div>
 
         <p className="text-xs text-neutral-400 leading-relaxed">
-          Importez le fichier GPX enregistré par votre montre après votre course dans les bois ou les carrières, ou enregistrez l'effort manuellement.
+          Importez votre fichier GPX de montre ou enregistrez votre effort manuellement pour mettre à jour votre usure de chaussures et vos stats de club.
         </p>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
