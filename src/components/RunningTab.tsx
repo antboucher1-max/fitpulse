@@ -2,7 +2,7 @@ import PaywallGate from './PaywallGate';
 import { useState, useEffect, useRef } from 'react';
 import { 
   Play, Pause, Square, MapPin, Volume2, VolumeX, 
-  Compass, Apple, Droplet, Zap, Navigation, LocateFixed, Activity, Gauge, Timer, Target, Radio, Wind, ArrowLeft, Share2, EyeOff, X, Upload, Mountain, Compass as CompassIcon, Trophy, Award, Flame, Send, Ghost, ShieldAlert, Lock, CheckCircle2, Sparkles, Utensils, RefreshCw, Layers
+  Compass, Apple, Droplet, Zap, Navigation, LocateFixed, Activity, Gauge, Timer, Target, Radio, Wind, ArrowLeft, Share2, EyeOff, X, Upload, Mountain, Compass as CompassIcon, Trophy, Award, Flame, Send, Ghost, ShieldAlert, Lock, CheckCircle2, Sparkles, Utensils, RefreshCw, Layers, ChevronDown, ChevronUp
 } from 'lucide-react';
 import { MapContainer, TileLayer, Polyline, Marker, useMap } from 'react-leaflet';
 import L from 'leaflet';
@@ -205,8 +205,8 @@ export default function RunningTab({
   onNavigateTab,
   onBack
 }: RunningTabProps) {
-  // Navigation interne par sous-onglets ultra-épurés : 'overview' (Dashboard résumé), 'live' (Carte & Chrono), 'gear' (Matériel & Chaussures)
-  const [runningSubTab, setRunningSubTab] = useState<'overview' | 'live' | 'gear'>('overview');
+  // Mode d'affichage par cartes pliables/dépliables fluides (zéro onglet rigide, tout est conservé)
+  const [openSection, setOpenSection] = useState<'none' | 'circuits' | 'terrain' | 'ravito' | 'gear'>('none');
 
   const [isRunning, setIsRunning] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
@@ -555,7 +555,6 @@ export default function RunningTab({
     setSeconds(0);
     setDistanceKm(0);
     fetchInitialPosition();
-    setRunningSubTab('live'); // Basculement automatique sur la vue Live pour démarrer l'action
     setCoachingAdvice(`Sortie démarrée sur terrain : ${terrainType.toUpperCase()}. GPS réel et sécurité hors-ligne actifs.`);
     speakMessage(`Sortie démarrée. Terrain sélectionné : ${terrainType}. GPS réel activé. Bon entraînement !`);
   };
@@ -633,72 +632,116 @@ export default function RunningTab({
 
   return (
     <div className="space-y-6 pb-24 animate-fadeIn">
-      {/* En-tête simplifié avec switch par sous-onglets épurés pour ne rien perdre */}
+      {/* En-tête avec bouton retour */}
       <div className="flex items-center justify-between">
         {onBack && (
           <button type="button" onClick={onBack} className="flex items-center gap-1.5 text-xs font-bold text-neutral-300 hover:text-white bg-neutral-900 border border-neutral-800 px-3 py-2 rounded-xl transition cursor-pointer">
             <ArrowLeft className="w-4 h-4" /> Retour
           </button>
         )}
-        <div className="flex bg-neutral-900 p-1 rounded-2xl border border-neutral-800 ml-auto">
-          <button
-            onClick={() => setRunningSubTab('overview')}
-            className={`px-3 py-2 rounded-xl text-xs font-black transition cursor-pointer ${runningSubTab === 'overview' ? 'bg-orange-600 text-white shadow' : 'text-neutral-400 hover:text-white'}`}
-          >
-            📋 Dashboard
-          </button>
-          <button
-            onClick={() => setRunningSubTab('live')}
-            className={`px-3 py-2 rounded-xl text-xs font-black transition cursor-pointer ${runningSubTab === 'live' ? 'bg-emerald-600 text-white shadow' : 'text-neutral-400 hover:text-white'}`}
-          >
-            🔴 Live & Carte
-          </button>
-          <button
-            onClick={() => setRunningSubTab('gear')}
-            className={`px-3 py-2 rounded-xl text-xs font-black transition cursor-pointer ${runningSubTab === 'gear' ? 'bg-orange-600 text-white shadow' : 'text-neutral-400 hover:text-white'}`}
-          >
-            👟 Matériel
-          </button>
-        </div>
       </div>
 
-      {/* --- SOUS-ONGLET 1 : DASHBOARD (Vue d'ensemble rapide, circuits, météo, ravito) --- */}
-      {runningSubTab === 'overview' && (
-        <div className="space-y-6 animate-fadeIn">
-          {/* FitBot SNC */}
-          <FitBotSNC readinessScore={78} weeklyLoad={45} />
+      {/* --- CARTE PRINCIPALE : PRÊT À COURIR & LANCEMENT RAPIDE --- */}
+      <div className="bg-gradient-to-br from-neutral-900 via-neutral-900 to-emerald-950/35 border border-neutral-800 rounded-3xl p-6 space-y-5 shadow-2xl relative overflow-hidden">
+        <div className="flex items-center justify-between">
+          <div>
+            <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400">QG Running & GPS</span>
+            <h2 className="text-xl font-black text-white tracking-tight pt-0.5">Session d'Effort & Live Tracking</h2>
+          </div>
+          <span className="text-xs font-bold bg-emerald-500/20 text-emerald-400 px-3.5 py-1.5 rounded-full border border-emerald-500/30 shadow-sm flex items-center gap-1.5">
+            <Activity className="w-4 h-4 animate-pulse" /> GPS Actif
+          </span>
+        </div>
 
-          {/* Raccourci lancement direct */}
-          <div className="bg-gradient-to-br from-neutral-900 via-neutral-900 to-emerald-950/30 border border-neutral-800 rounded-3xl p-5 space-y-4 shadow-xl">
+        {/* Bloc Live Actif si la course a démarré */}
+        {isRunning ? (
+          <div className="bg-neutral-950 border border-emerald-500/50 rounded-2xl p-5 space-y-4 shadow-inner animate-fadeIn">
             <div className="flex items-center justify-between">
-              <div>
-                <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400">Prêt pour l'effort</span>
-                <h3 className="text-sm font-black text-white pt-0.5">Lancer une session GPS</h3>
+              <span className="text-xs font-black uppercase text-emerald-400 flex items-center gap-2">
+                <Navigation className="w-4 h-4 animate-spin" /> Enregistrement en cours...
+              </span>
+              <span className="text-xs text-neutral-400 font-mono">{formatTime(seconds)}</span>
+            </div>
+
+            <div className="w-full h-64 rounded-xl overflow-hidden border border-neutral-800 relative z-0">
+              <MapContainer center={currentPosition} zoom={16} scrollWheelZoom={true} style={{ width: '100%', height: '100%', background: '#0a0a0a' }}>
+                <MapController center={currentPosition} plannedRoute={plannedRoutePositions} />
+                <TileLayer attribution='&copy; OpenStreetMap' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                {plannedRoutePositions.length > 0 && (
+                  <Polyline positions={plannedRoutePositions} pathOptions={{ color: '#38bdf8', weight: 4, opacity: 0.8, dashArray: '6, 6' }} />
+                )}
+                <Polyline positions={routePositions} pathOptions={{ color: '#10b981', weight: 6, opacity: 0.95 }} />
+                <Marker position={currentPosition} icon={runnerIcon} />
+                {ghostPosition && <Marker position={ghostPosition} icon={ghostIcon} />}
+              </MapContainer>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2 text-center">
+              <div className="bg-neutral-900 p-2.5 rounded-xl border border-neutral-800">
+                <span className="text-[9px] text-neutral-400 font-bold block uppercase">Distance</span>
+                <span className="text-sm font-black text-white">{distanceKm.toFixed(2)} km</span>
               </div>
-              <button 
-                type="button" 
-                onClick={handleStartRun} 
-                className="px-5 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-2xl text-xs uppercase tracking-wider flex items-center gap-2 shadow-lg transition cursor-pointer"
-              >
-                <Play className="w-4 h-4 fill-white" /> Démarrer 🚀
+              <div className="bg-neutral-900 p-2.5 rounded-xl border border-neutral-800">
+                <span className="text-[9px] text-neutral-400 font-bold block uppercase">Vitesse</span>
+                <span className="text-sm font-black text-emerald-400">{currentSpeedKmh} km/h</span>
+              </div>
+              <div className="bg-neutral-900 p-2.5 rounded-xl border border-neutral-800">
+                <span className="text-[9px] text-neutral-400 font-bold block uppercase">Allure</span>
+                <span className="text-sm font-black text-orange-400">{paceFormatted}</span>
+              </div>
+            </div>
+
+            <div className="flex gap-2 pt-1">
+              <button type="button" onClick={handlePauseRun} className="flex-1 py-3 bg-neutral-800 hover:bg-neutral-700 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 cursor-pointer">
+                {isPaused ? <Play className="w-4 h-4 fill-white" /> : <Pause className="w-4 h-4 fill-white" />}
+                {isPaused ? 'Reprendre' : 'Pause'}
+              </button>
+              <button type="button" onClick={handleOpenReportModal} className="flex-1 py-3 bg-red-950 border border-red-900 hover:bg-red-900 text-red-400 font-black rounded-xl text-xs uppercase flex items-center justify-center gap-2 cursor-pointer">
+                <Square className="w-4 h-4 fill-red-400" /> Terminer
               </button>
             </div>
           </div>
+        ) : (
+          <button 
+            type="button" 
+            onClick={handleStartRun} 
+            className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-2xl text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-xl transition cursor-pointer"
+          >
+            <Play className="w-4 h-4 fill-white" /> Démarrer la session GPS maintenant 🚀
+          </button>
+        )}
+      </div>
 
-          {/* Architecte de circuits rapides */}
-          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4 shadow-xl">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-sky-400 font-bold text-xs uppercase tracking-wider">
-                <CompassIcon className="w-4 h-4" /> Architecte de Circuits ⚡
-              </div>
-              {plannedRoutePositions.length > 0 && (
-                <button onClick={() => { setPlannedRoutePositions([]); setPlannedDistanceKm(0); }} className="text-[10px] text-red-400 hover:underline font-bold">
-                  Effacer ✕
-                </button>
-              )}
+      {/* --- FITBOT SNC (Intelligent Auto-Régulation) --- */}
+      <FitBotSNC readinessScore={78} weeklyLoad={45} />
+
+      {/* --- TIROIRS INTELLIGENTS PLIABLES (Pour garder l'écran propre sans rien perdre) --- */}
+      <div className="space-y-3">
+
+        {/* 1. Architecte de Circuits & Itinéraires */}
+        <div className="bg-neutral-900 border border-neutral-800 rounded-3xl overflow-hidden shadow-xl">
+          <button 
+            type="button"
+            onClick={() => setOpenSection(openSection === 'circuits' ? 'none' : 'circuits')}
+            className="w-full p-5 flex items-center justify-between text-left cursor-pointer hover:bg-neutral-800/40 transition"
+          >
+            <div className="flex items-center gap-2 text-sky-400 font-bold text-xs uppercase tracking-wider">
+              <CompassIcon className="w-4 h-4" /> Architecte de Circuits & Itinéraires ⚡
             </div>
+            {openSection === 'circuits' ? <ChevronUp className="w-4 h-4 text-neutral-400" /> : <ChevronDown className="w-4 h-4 text-neutral-400" />}
+          </button>
 
-            <div className="space-y-3">
+          {openSection === 'circuits' && (
+            <div className="p-5 pt-0 space-y-4 border-t border-neutral-800 animate-fadeIn">
+              <div className="flex justify-between items-center pt-2">
+                <span className="text-xs text-neutral-400">Génère un circuit routier sécurisé autour de ta position.</span>
+                {plannedRoutePositions.length > 0 && (
+                  <button onClick={() => { setPlannedRoutePositions([]); setPlannedDistanceKm(0); }} className="text-[10px] text-red-400 hover:underline font-bold">
+                    Effacer ✕
+                  </button>
+                )}
+              </div>
+
               <div className="flex items-center gap-2">
                 <span className="text-[11px] font-bold text-neutral-300">Sol :</span>
                 {(['route', 'bois', 'carriere'] as const).map(type => (
@@ -730,138 +773,107 @@ export default function RunningTab({
                 </button>
               )}
             </div>
-          </div>
+          )}
+        </div>
 
-          {/* Sélection du Type de Terrain & Import GPX condensés */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-3 shadow-xl">
-              <div className="flex items-center gap-2 text-cyan-400 font-bold text-xs uppercase tracking-wider">
-                <Mountain className="w-4 h-4" /> Terrain d'effort
-              </div>
-              <select
-                value={terrainType}
-                onChange={(e: any) => setTerrainType(e.target.value)}
-                className="w-full bg-neutral-950 border border-neutral-800 rounded-2xl px-4 py-3 text-xs text-white focus:outline-none cursor-pointer"
-              >
-                <option value="route">🛣️ Route / Asphalte (1.0x)</option>
-                <option value="chemin">🛤️ Chemin / Terre (1.05x)</option>
-                <option value="trail">⛰️ Trail & Dénivelé (1.1x)</option>
-                <option value="carriere">🏗️ Carrière / Gravier (1.15x)</option>
-                <option value="boue">🌧️ Boue / Sable / Neige (1.25x)</option>
-              </select>
+        {/* 2. Terrain & Import GPX */}
+        <div className="bg-neutral-900 border border-neutral-800 rounded-3xl overflow-hidden shadow-xl">
+          <button 
+            type="button"
+            onClick={() => setOpenSection(openSection === 'terrain' ? 'none' : 'terrain')}
+            className="w-full p-5 flex items-center justify-between text-left cursor-pointer hover:bg-neutral-800/40 transition"
+          >
+            <div className="flex items-center gap-2 text-cyan-400 font-bold text-xs uppercase tracking-wider">
+              <Mountain className="w-4 h-4" /> Terrain d'Effort & Import GPX 🗺️
             </div>
+            {openSection === 'terrain' ? <ChevronUp className="w-4 h-4 text-neutral-400" /> : <ChevronDown className="w-4 h-4 text-neutral-400" />}
+          </button>
 
-            <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-3 shadow-xl">
-              <div className="flex items-center gap-2 text-orange-400 font-bold text-xs uppercase tracking-wider">
-                <Upload className="w-4 h-4" /> Import GPX Montre
-              </div>
-              <input type="file" accept=".gpx" onChange={handleFileUpload} className="w-full text-xs text-neutral-400 file:mr-2 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-[10px] file:font-bold file:bg-orange-600 file:text-white hover:file:bg-orange-500 cursor-pointer bg-neutral-950 border border-neutral-800 rounded-2xl p-1.5" />
-            </div>
-          </div>
-
-          {/* Planificateur de Ravitaillement */}
-          <div className="bg-neutral-900 border border-neutral-800/80 rounded-3xl p-5 space-y-4 shadow-xl">
-            <div className="flex items-center gap-2 text-orange-400 font-bold text-xs uppercase tracking-widest">
-              <Zap className="w-4 h-4" /> Planificateur de Ravitaillement
-            </div>
-            <div className="grid grid-cols-2 gap-3">
+          {openSection === 'terrain' && (
+            <div className="p-5 pt-0 space-y-4 border-t border-neutral-800 animate-fadeIn pt-3">
               <div>
-                <label className="block text-[11px] font-bold text-neutral-400 mb-1">Durée (Heures) :</label>
-                <input type="number" min="0" max="12" value={activeHours} onChange={(e) => setDurationHours(Number(e.target.value))} className="w-full bg-neutral-950 border border-neutral-800 rounded-2xl px-3 py-2.5 text-xs text-white focus:outline-none" />
+                <label className="block text-xs font-bold text-neutral-400 mb-1.5">Type de sol (Ajustement d'effort) :</label>
+                <select
+                  value={terrainType}
+                  onChange={(e: any) => setTerrainType(e.target.value)}
+                  className="w-full bg-neutral-950 border border-neutral-800 rounded-2xl px-4 py-3 text-xs text-white focus:outline-none cursor-pointer"
+                >
+                  <option value="route">🛣️ Route / Asphalte (1.0x)</option>
+                  <option value="chemin">🛤️ Chemin / Terre (1.05x)</option>
+                  <option value="trail">⛰️ Trail & Dénivelé (1.1x)</option>
+                  <option value="carriere">🏗️ Carrière / Gravier (1.15x)</option>
+                  <option value="boue">🌧️ Boue / Sable / Neige (1.25x)</option>
+                </select>
               </div>
+
               <div>
-                <label className="block text-[11px] font-bold text-neutral-400 mb-1">Durée (Minutes) :</label>
-                <input type="number" min="0" max="55" step="5" value={activeMins} onChange={(e) => setDurationMins(Number(e.target.value))} className="w-full bg-neutral-950 border border-neutral-800 rounded-2xl px-3 py-2.5 text-xs text-white focus:outline-none" />
+                <label className="block text-xs font-bold text-neutral-400 mb-1.5">Import Fichier Montre (.GPX) :</label>
+                <input type="file" accept=".gpx" onChange={handleFileUpload} className="w-full text-xs text-neutral-400 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-orange-600 file:text-white hover:file:bg-orange-500 cursor-pointer bg-neutral-950 border border-neutral-800 rounded-2xl p-2" />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="bg-neutral-950 p-3.5 rounded-2xl border border-neutral-800 space-y-1">
-                <span className="text-[10px] uppercase font-bold text-neutral-400 flex items-center gap-1"><Apple className="w-3 h-3 text-orange-500" /> Glucides</span>
-                <div className="text-xl font-black text-white">{totalCarbs} <span className="text-xs font-normal text-orange-400">g</span></div>
-              </div>
-              <div className="bg-neutral-950 p-3.5 rounded-2xl border border-neutral-800 space-y-1">
-                <span className="text-[10px] uppercase font-bold text-neutral-400 flex items-center gap-1"><Droplet className="w-3 h-3 text-cyan-400" /> Hydratation</span>
-                <div className="text-xl font-black text-white">{(totalWaterMl / 1000).toFixed(2)} <span className="text-xs font-normal text-cyan-400">L</span></div>
-              </div>
-            </div>
-          </div>
+          )}
         </div>
-      )}
 
-      {/* --- SOUS-ONGLET 2 : MODE LIVE & CARTE (Action pure) --- */}
-      {runningSubTab === 'live' && (
-        <div className="space-y-6 animate-fadeIn">
-          <div className="bg-neutral-900 border border-neutral-800/80 rounded-3xl p-4 sm:p-6 space-y-4 shadow-xl">
-            <div className="flex items-center justify-between px-1">
-              <h3 className="text-xs font-black text-white flex items-center gap-2 uppercase tracking-wider">
-                <Navigation className="w-4 h-4 text-emerald-400 animate-pulse" /> Carte Live & Ghost Pacer
-              </h3>
-              <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1 rounded-full">
-                {isRunning ? 'Enregistrement actif...' : 'En attente'}
-              </span>
+        {/* 3. Planificateur de Ravitaillement */}
+        <div className="bg-neutral-900 border border-neutral-800 rounded-3xl overflow-hidden shadow-xl">
+          <button 
+            type="button"
+            onClick={() => setOpenSection(openSection === 'ravito' ? 'none' : 'ravito')}
+            className="w-full p-5 flex items-center justify-between text-left cursor-pointer hover:bg-neutral-800/40 transition"
+          >
+            <div className="flex items-center gap-2 text-orange-400 font-bold text-xs uppercase tracking-wider">
+              <Zap className="w-4 h-4" /> Planificateur de Ravitaillement 🍎
             </div>
+            {openSection === 'ravito' ? <ChevronUp className="w-4 h-4 text-neutral-400" /> : <ChevronDown className="w-4 h-4 text-neutral-400" />}
+          </button>
 
-            <div className="w-full h-80 rounded-2xl overflow-hidden border border-neutral-800 relative z-0">
-              <MapContainer center={currentPosition} zoom={16} scrollWheelZoom={true} style={{ width: '100%', height: '100%', background: '#0a0a0a' }}>
-                <MapController center={currentPosition} plannedRoute={plannedRoutePositions} />
-                <TileLayer attribution='&copy; OpenStreetMap' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-                {plannedRoutePositions.length > 0 && (
-                  <Polyline positions={plannedRoutePositions} pathOptions={{ color: '#38bdf8', weight: 4, opacity: 0.8, dashArray: '6, 6' }} />
-                )}
-                <Polyline positions={routePositions} pathOptions={{ color: '#10b981', weight: 6, opacity: 0.95 }} />
-                <Marker position={currentPosition} icon={runnerIcon} />
-                {ghostPosition && <Marker position={ghostPosition} icon={ghostIcon} />}
-              </MapContainer>
-            </div>
-          </div>
-
-          <div className="bg-neutral-900 border border-neutral-800/80 rounded-3xl p-6 space-y-5 shadow-xl">
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
-              <div className="bg-neutral-950 p-3 rounded-2xl border border-neutral-800">
-                <span className="text-[10px] text-neutral-400 font-semibold block uppercase">Distance</span>
-                <span className="text-lg font-black text-white">{distanceKm.toFixed(2)} km</span>
+          {openSection === 'ravito' && (
+            <div className="p-5 pt-0 space-y-4 border-t border-neutral-800 animate-fadeIn pt-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-bold text-neutral-400 mb-1">Durée (Heures) :</label>
+                  <input type="number" min="0" max="12" value={activeHours} onChange={(e) => setDurationHours(Number(e.target.value))} className="w-full bg-neutral-950 border border-neutral-800 rounded-2xl px-3.5 py-3 text-xs text-white focus:outline-none" />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-neutral-400 mb-1">Durée (Minutes) :</label>
+                  <input type="number" min="0" max="55" step="5" value={activeMins} onChange={(e) => setDurationMins(Number(e.target.value))} className="w-full bg-neutral-950 border border-neutral-800 rounded-2xl px-3.5 py-3 text-xs text-white focus:outline-none" />
+                </div>
               </div>
-              <div className="bg-neutral-950 p-3 rounded-2xl border border-neutral-800">
-                <span className="text-[10px] text-neutral-400 font-semibold block uppercase">Vitesse</span>
-                <span className="text-lg font-black text-emerald-400">{currentSpeedKmh} km/h</span>
-              </div>
-              <div className="bg-neutral-950 p-3 rounded-2xl border border-neutral-800">
-                <span className="text-[10px] text-neutral-400 font-semibold block uppercase">Allure</span>
-                <span className="text-lg font-black text-orange-400">{paceFormatted}</span>
-              </div>
-              <div className="bg-neutral-950 p-3 rounded-2xl border border-neutral-800">
-                <span className="text-[10px] text-neutral-400 font-semibold block uppercase">Chrono</span>
-                <span className="text-lg font-black text-white">{formatTime(seconds)}</span>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 space-y-1">
+                  <span className="text-[10px] uppercase font-bold text-neutral-400 flex items-center gap-1"><Apple className="w-3.5 h-3.5 text-orange-500" /> Glucides Requis</span>
+                  <div className="text-xl font-black text-white">{totalCarbs} <span className="text-xs font-normal text-orange-400">g</span></div>
+                </div>
+                <div className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 space-y-1">
+                  <span className="text-[10px] uppercase font-bold text-neutral-400 flex items-center gap-1"><Droplet className="w-3.5 h-3.5 text-cyan-400" /> Hydratation</span>
+                  <div className="text-xl font-black text-white">{(totalWaterMl / 1000).toFixed(2)} <span className="text-xs font-normal text-cyan-400">L</span></div>
+                </div>
               </div>
             </div>
-
-            <div className="flex gap-3 pt-2">
-              {!isRunning ? (
-                <button type="button" onClick={handleStartRun} className="flex-1 py-4 bg-orange-600 hover:bg-orange-500 text-white font-black rounded-2xl text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-xl transition cursor-pointer">
-                  <Play className="w-4 h-4 fill-white" /> Démarrer la sortie ({terrainType.toUpperCase()})
-                </button>
-              ) : (
-                <>
-                  <button type="button" onClick={handlePauseRun} className="flex-1 py-4 bg-neutral-800 hover:bg-neutral-700 text-white font-bold rounded-2xl text-xs flex items-center justify-center gap-2 transition cursor-pointer">
-                    {isPaused ? <Play className="w-4 h-4 fill-white" /> : <Pause className="w-4 h-4 fill-white" />}
-                    {isPaused ? 'Reprendre' : 'Pause'}
-                  </button>
-                  <button type="button" onClick={handleOpenReportModal} className="flex-1 py-4 bg-red-950/65 border border-red-900/50 hover:bg-red-900/60 text-red-400 font-black rounded-2xl text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition cursor-pointer">
-                    <Square className="w-4 h-4 fill-red-400" /> Terminer la course
-                  </button>
-                </>
-              )}
-            </div>
-          </div>
+          )}
         </div>
-      )}
 
-      {/* --- SOUS-ONGLET 3 : MATÉRIEL (Gear Tracker dédié) --- */}
-      {runningSubTab === 'gear' && (
-        <div className="space-y-6 animate-fadeIn">
-          <GearTrackerSection shoes={shoes} onAddShoe={onAddShoe} onDeleteShoe={onDeleteShoe} onSetActiveShoe={onSetActiveShoe} />
+        {/* 4. Gear Tracker & Matériel */}
+        <div className="bg-neutral-900 border border-neutral-800 rounded-3xl overflow-hidden shadow-xl">
+          <button 
+            type="button"
+            onClick={() => setOpenSection(openSection === 'gear' ? 'none' : 'gear')}
+            className="w-full p-5 flex items-center justify-between text-left cursor-pointer hover:bg-neutral-800/40 transition"
+          >
+            <div className="flex items-center gap-2 text-emerald-400 font-bold text-xs uppercase tracking-wider">
+              <Trophy className="w-4 h-4" /> Gear Tracker (Chaussures & Usure) 👟
+            </div>
+            {openSection === 'gear' ? <ChevronUp className="w-4 h-4 text-neutral-400" /> : <ChevronDown className="w-4 h-4 text-neutral-400" />}
+          </button>
+
+          {openSection === 'gear' && (
+            <div className="p-5 pt-0 border-t border-neutral-800 animate-fadeIn pt-3">
+              <GearTrackerSection shoes={shoes} onAddShoe={onAddShoe} onDeleteShoe={onDeleteShoe} onSetActiveShoe={onSetActiveShoe} />
+            </div>
+          )}
         </div>
-      )}
+
+      </div>
 
       {/* --- MODALE DE RAPPORT DE COURSE & FUEL-LOCK --- */}
       {isReportModalOpen && (
