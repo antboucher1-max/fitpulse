@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Compass, Sparkles, Share2, Download, Layers, Check, MapPin } from 'lucide-react';
+import { Compass, Sparkles, Share2, Download, Layers, Check } from 'lucide-react';
 
 interface RoadbookTabProps {
   currentUserId?: string;
@@ -156,45 +156,48 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
       {routeCard && (
         <div className="bg-neutral-950 border border-orange-500/40 p-5 rounded-2xl space-y-4 animate-fadeIn shadow-2xl relative overflow-hidden">
           
-          {/* CARTE TOPOGRAPHIQUE VISUELLE & TRACÉ GPS DE LA BOUCLE */}
-          <div className="w-full h-48 rounded-2xl bg-neutral-900 border border-neutral-800 relative flex items-center justify-center overflow-hidden shadow-inner">
-            {/* Grille cartographique de fond type fond de plan topo */}
-            <div className="absolute inset-0 opacity-15 bg-[radial-gradient(#f97316_1px,transparent_1px)] [background-size:20px_20px]" />
+          {/* CARTE TYPE STRAVA / MINIMALISTE PRO */}
+          <div className="w-full h-52 rounded-2xl bg-neutral-950 border border-neutral-800 relative flex items-center justify-center overflow-hidden shadow-2xl">
+            {/* Texture de fond de carte sombre (style dark mode outdoor) */}
+            <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#38bdf8_1px,transparent_1px)] [background-size:24px_24px]" />
             
-            {/* Simulation visuelle de courbes de niveau et topographie */}
-            <div className="absolute inset-0 flex items-center justify-center opacity-30 pointer-events-none">
-              <div className="w-72 h-36 rounded-full border border-orange-500/40 absolute scale-90" />
-              <div className="w-56 h-28 rounded-full border border-amber-500/40 absolute scale-100" />
-              <div className="w-40 h-20 rounded-full border border-emerald-500/40 absolute scale-110" />
-            </div>
-
-            {/* TRACÉ SVG DE LA BOUCLE DE COURSE */}
-            <svg className="absolute inset-0 w-full h-full p-4" viewBox="0 0 400 160">
-              {/* Lignes de relief fictives arrière-plan */}
-              <path d="M 20 130 Q 100 20, 220 90 T 380 40" fill="none" stroke="#262626" strokeWidth="3" strokeDasharray="4 4" />
-              
-              {/* Le tracé principal actif de la boucle GPS */}
-              <path 
-                d="M 60 120 C 80 40, 180 20, 240 70 C 300 120, 340 50, 360 80 C 380 110, 200 150, 60 120 Z" 
-                fill="rgba(249, 115, 22, 0.1)" 
-                stroke="#f97316" 
-                strokeWidth="3.5" 
-                strokeLinecap="round"
-                className="animate-pulse"
-              />
-
-              {/* Point de départ / arrivée (Start) */}
-              <circle cx="60" cy="120" r="6" fill="#10b981" className="animate-ping" />
-              <circle cx="60" cy="120" r="5" fill="#10b981" />
+            {/* Lignes de niveau / topographie subtiles */}
+            <svg className="absolute inset-0 w-full h-full opacity-20 pointer-events-none" viewBox="0 0 500 200">
+              <path d="M 0 50 Q 150 10, 300 80 T 500 30" fill="none" stroke="#64748b" strokeWidth="1" />
+              <path d="M 0 120 Q 200 180, 350 100 T 500 150" fill="none" stroke="#64748b" strokeWidth="1" />
+              <path d="M 0 170 Q 120 120, 280 160 T 500 110" fill="none" stroke="#64748b" strokeWidth="1" />
             </svg>
 
-            {/* Badge d'indication sur la carte */}
-            <div className="absolute bottom-3 left-3 flex items-center gap-2 text-[11px] font-mono text-orange-400 bg-neutral-950/90 px-3 py-1.5 rounded-xl border border-orange-500/30 shadow-lg">
-              <Layers className="w-3.5 h-3.5 text-orange-500" /> Tracé GPS actif : {routeCard.name}
+            {/* TRACÉ DU PARCOURS PRINCIPAL (Style Strava Orange Vif) */}
+            <svg className="absolute inset-0 w-full h-full p-6" viewBox="0 0 500 200" preserveAspectRatio="xMidYMid meet">
+              <path 
+                d="M 80 140 C 120 40, 220 30, 310 90 C 390 140, 420 60, 440 90 C 460 120, 300 170, 80 140 Z" 
+                fill="none" 
+                stroke="#000000" 
+                strokeWidth="6" 
+                strokeLinecap="round"
+                opacity="0.6"
+              />
+              <path 
+                d="M 80 140 C 120 40, 220 30, 310 90 C 390 140, 420 60, 440 90 C 460 120, 300 170, 80 140 Z" 
+                fill="none" 
+                stroke="#f97316" 
+                strokeWidth="4" 
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <circle cx="80" cy="140" r="7" fill="#10b981" className="animate-pulse" />
+              <circle cx="80" cy="140" r="3" fill="#ffffff" />
+            </svg>
+
+            {/* Badges d'information surimprimés sur la carte */}
+            <div className="absolute top-3 left-3 flex items-center gap-2 text-[11px] font-mono text-white bg-neutral-900/90 backdrop-blur-md px-3 py-1.5 rounded-xl border border-neutral-700 shadow-xl">
+              <span className="w-2 h-2 rounded-full bg-orange-500 animate-ping" />
+              <span>{routeCard.name}</span>
             </div>
 
-            <div className="absolute top-3 right-3 bg-neutral-950/90 border border-neutral-800 px-2.5 py-1 rounded-lg text-[10px] text-emerald-400 font-mono">
-              Boucle fermée 🟢
+            <div className="absolute bottom-3 right-3 bg-neutral-900/90 backdrop-blur-md border border-neutral-700 px-3 py-1.5 rounded-xl text-[11px] text-emerald-400 font-mono shadow-xl flex items-center gap-1.5">
+              <span>Boucle fermée</span> • <span>{routeCard.distance} km</span>
             </div>
           </div>
 
