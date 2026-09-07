@@ -13,10 +13,9 @@ export default function SncShieldWidget({
   weeklyLoad = 1800, 
   recentLoads 
 }: SncShieldWidgetProps) {
-  // Rétrocompatibilité typée correctement avec TrainingLoadEntry
-  const loadsToAnalyze: TrainingLoadEntry[] = recentLoads || [
-    { date: new Date().toISOString(), loadScore: weeklyLoad, sessionType: 'mixed' }
-  ];
+  const loadsToAnalyze = recentLoads || ([
+    { date: new Date().toISOString(), loadScore: weeklyLoad, type: 'mixed' }
+  ] as TrainingLoadEntry[]);
 
   // Analyse en direct via l'algorithme intelligent
   const shieldData = analyzeSncShield(loadsToAnalyze, currentReadiness);
