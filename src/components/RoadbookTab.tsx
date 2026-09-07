@@ -69,9 +69,9 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
         wp1 = [lat + 0.003, lng + 0.008];
         wp2 = [lat - 0.002, lng + 0.015];
         wp3 = [lat - 0.005, lng + 0.005];
-        title = `Boucle Forêt & Sentiers (${d} km)`;
-        desc = `Tracé officiel s'élançant directement de votre position GPS actuelle vers les sentiers boisés.`;
-        surf = 'Sentiers forestiers & singles (Waymarked Trails)';
+        title = `Boucle Forêt & Sentiers Balisés (${d} km)`;
+        desc = `Tracé officiel s'élançant directement de votre position GPS à travers le réseau officiel et ses repères de sentiers.`;
+        surf = 'Sentiers forestiers & balisages officiels';
       } else if (surfacePreference === 'champs') {
         wp1 = [lat - factor * 1.2, lng - factor * 0.5];
         wp2 = [lat - factor * 1.6, lng + factor * 1.1];
@@ -156,9 +156,9 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-base font-black text-white uppercase tracking-tight flex items-center gap-2">
-            <Compass className="w-5 h-5 text-orange-500" /> Système Bi-Cartographie Pro (Sentiers vs Routier)
+            <Compass className="w-5 h-5 text-orange-500" /> Générateur GPS & Carte Pro Forêt
           </h2>
-          <p className="text-xs text-neutral-400">Générateur GPS en temps réel ancré sur votre position exacte</p>
+          <p className="text-xs text-neutral-400">Mode Forêt spécialisé avec affichage direct des sentiers balisés et numéros de repère</p>
         </div>
         <span className="text-xs font-mono bg-emerald-500/10 text-emerald-400 px-3 py-1 rounded-full border border-emerald-500/20 font-bold">
           {gpsStatus}
@@ -172,10 +172,10 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
           </label>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             {[
-              { id: 'bois', label: '🌲 Forêts & Bois', desc: 'Carte 1 : Sentiers & Balisages' },
-              { id: 'mixte', label: '⚖️ Mixte Global', desc: 'Carte 2 : Routière' },
-              { id: 'champs', label: '🌾 Champs & Pistes', desc: 'Carte 2 : Voies agricoles' },
-              { id: 'urbain', label: '🏙️ Rues & Asphalte', desc: 'Carte 2 : Réseau routier' }
+              { id: 'bois', label: '🌲 Forêts & Bois', desc: 'Carte Topo & Sentiers Balisés' },
+              { id: 'mixte', label: '⚖️ Mixte Global', desc: 'Carte Routière' },
+              { id: 'champs', label: '🌾 Champs & Pistes', desc: 'Voies agricoles' },
+              { id: 'urbain', label: '🏙️ Rues & Asphalte', desc: 'Réseau routier' }
             ].map(item => (
               <button
                 key={item.id}
@@ -194,55 +194,44 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
           </div>
         </div>
 
-        {/* OPTIONS MODE FORÊT : LIENS EXTERNES ET OUTILS DE RÉFÉRENCE */}
-        {isTopoMode ? (
-          <div className="space-y-3 animate-fadeIn border-t border-neutral-800 pt-4">
-            <div className="flex items-center justify-between">
-              <label className="text-xs font-bold text-orange-400 uppercase tracking-wider flex items-center gap-2">
-                <Layers className="w-4 h-4" /> Calques & Sentiers Officiels (GPS Live) :
-              </label>
-              <span className="text-[10px] text-emerald-400 bg-emerald-950/40 px-2.5 py-1 rounded-md border border-emerald-500/20 font-bold">
-                Affichage Sentiers Actif 🥾
-              </span>
+        {/* OPTIONS : DISTANCE ET LIENS EXTERNES DE CONTRÔLE */}
+        <div className="space-y-4 animate-fadeIn border-t border-neutral-800 pt-4">
+          <div className="space-y-2">
+            <label className="text-xs font-bold text-neutral-300 uppercase tracking-wider block">
+              Choisir la Distance Cible : <span className="text-orange-400 font-mono text-sm">{selectedDistance} km</span>
+            </label>
+            <div className="grid grid-cols-4 gap-2">
+              {[5, 10, 15, 21].map(km => (
+                <button
+                  key={km}
+                  type="button"
+                  onClick={() => setSelectedDistance(km)}
+                  className={`py-2.5 rounded-xl text-xs font-bold transition cursor-pointer border ${
+                    selectedDistance === km 
+                      ? 'bg-orange-600 border-orange-500 text-white shadow-lg shadow-orange-600/30' 
+                      : 'bg-neutral-900 border-neutral-800 text-neutral-400 hover:text-white'
+                  }`}
+                >
+                  {km} km
+                </button>
+              ))}
             </div>
+          </div>
 
+          {isTopoMode && (
             <div className="flex flex-wrap gap-2 pt-1 text-[11px]">
               <a href="https://hiking.waymarkedtrails.org" target="_blank" rel="noreferrer" className="text-neutral-400 hover:text-orange-400 flex items-center gap-1 bg-neutral-900 px-3 py-1 rounded-lg border border-neutral-800">
-                🥾 Waymarked Trails (Sentiers) <ExternalLink className="w-3 h-3" />
+                🥾 Waymarked Trails <ExternalLink className="w-3 h-3" />
               </a>
               <a href="https://geoportail.wallonie.be" target="_blank" rel="noreferrer" className="text-neutral-400 hover:text-orange-400 flex items-center gap-1 bg-neutral-900 px-3 py-1 rounded-lg border border-neutral-800">
-                🌐 WalOnMap (Calques) <ExternalLink className="w-3 h-3" />
+                🌐 WalOnMap <ExternalLink className="w-3 h-3" />
               </a>
               <a href="https://chemins.be" target="_blank" rel="noreferrer" className="text-neutral-400 hover:text-orange-400 flex items-center gap-1 bg-neutral-900 px-3 py-1 rounded-lg border border-neutral-800">
-                🌲 Chemins.be (Atlas vicinal) <ExternalLink className="w-3 h-3" />
+                🌲 Chemins.be <ExternalLink className="w-3 h-3" />
               </a>
             </div>
-          </div>
-        ) : (
-          <div className="space-y-4 animate-fadeIn border-t border-neutral-800 pt-4">
-            <div className="space-y-2">
-              <label className="text-xs font-bold text-neutral-300 uppercase tracking-wider block">
-                Choisir la Distance Cible : <span className="text-orange-400 font-mono text-sm">{selectedDistance} km</span>
-              </label>
-              <div className="grid grid-cols-4 gap-2">
-                {[5, 10, 15, 21].map(km => (
-                  <button
-                    key={km}
-                    type="button"
-                    onClick={() => setSelectedDistance(km)}
-                    className={`py-2.5 rounded-xl text-xs font-bold transition cursor-pointer border ${
-                      selectedDistance === km 
-                        ? 'bg-orange-600 border-orange-500 text-white shadow-lg shadow-orange-600/30' 
-                        : 'bg-neutral-900 border-neutral-800 text-neutral-400 hover:text-white'
-                    }`}
-                  >
-                    {km} km
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
+          )}
+        </div>
 
         <button
           type="button"
@@ -250,7 +239,7 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
           disabled={generating}
           className="w-full py-3 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-white font-black rounded-xl text-xs uppercase tracking-wider transition cursor-pointer flex items-center justify-center gap-2 shadow-xl shadow-orange-600/20"
         >
-          <Sparkles className="w-4 h-4" /> {generating ? "Calcul depuis votre position..." : `Actualiser depuis mon GPS (${selectedDistance} km)`}
+          <Sparkles className="w-4 h-4" /> {generating ? "Calcul depuis votre position..." : `Actualiser le parcours GPS (${selectedDistance} km)`}
         </button>
       </div>
 
@@ -282,7 +271,7 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
                 maxZoom={17}
               />
 
-              {/* Calque additionnel des sentiers de randonnée pour les forêts */}
+              {/* Calque dédié affichant les sentiers balisés et leurs numéros de repère (122, 123...) pour les forêts */}
               {isTopoMode && (
                 <TileLayer
                   url="https://tile.waymarkedtrails.org/hiking/{z}/{x}/{y}.png"
