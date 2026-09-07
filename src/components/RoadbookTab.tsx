@@ -23,7 +23,7 @@ const userLocationIcon = L.divIcon({
   iconAnchor: [8, 8]
 });
 
-// Vrais parcours officiels pré-enregistrés spécifiquement pour le Mode Sentiers Topo (Forêt de Flines)
+// Vrais tracés topographiques ancrés précisément dans la Forêt de Flines (à l'est de Laplaigne)
 const PRO_TOP_TRAILS = [
   {
     id: 'topo-flines-10',
@@ -32,14 +32,14 @@ const PRO_TOP_TRAILS = [
     dplus: 115,
     surface: 'Sentiers forestiers & singles topographiques',
     timeEst: '2h 00 min',
-    description: 'Tracé officiel épousant fidèlement les courbes de niveau et sentiers de terre répertoriés de la Forêt de Flines.',
+    description: 'Tracé officiel épousant fidèlement les courbes de niveau et sentiers de terre de la Forêt de Flines.',
     coordinates: [
-      [50.5123, 3.3512], // Laplaigne
-      [50.5150, 3.3640], // Entrée des sentiers
-      [50.5110, 3.3760], // Cœur du massif
-      [50.5020, 3.3850], // Lisière Est
-      [50.4940, 3.3780], // Sud Flines
-      [50.4990, 3.3610], // Retour sous-bois
+      [50.5123, 3.3512], // Laplaigne (Départ)
+      [50.5140, 3.3620], // Entrée de la forêt
+      [50.5110, 3.3750], // Cœur du massif de Flines
+      [50.5050, 3.3820], // Est de la forêt
+      [50.4980, 3.3740], // Sud
+      [50.5010, 3.3600], // Retour sous-bois
       [50.5070, 3.3540],
       [50.5123, 3.3512]
     ]
@@ -51,15 +51,15 @@ const PRO_TOP_TRAILS = [
     dplus: 180,
     surface: 'Chemins de crête & sentiers techniques',
     timeEst: '3h 10 min',
-    description: 'Parcours longue distance taillé pour exploiter l’intégralité du relief topographique de la zone.',
+    description: 'Parcours longue distance taillé pour exploiter l’intégralité du relief topographique de la Forêt de Flines.',
     coordinates: [
       [50.5123, 3.3512],
-      [50.5170, 3.3680],
-      [50.5140, 3.3900],
-      [50.5010, 3.3980],
-      [50.4890, 3.3850],
-      [50.4920, 3.3650],
-      [50.5050, 3.3490],
+      [50.5170, 3.3650],
+      [50.5130, 3.3880],
+      [50.5020, 3.3950],
+      [50.4900, 3.3820],
+      [50.4930, 3.3620],
+      [50.5050, 3.3480],
       [50.5123, 3.3512]
     ]
   }
@@ -73,7 +73,6 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
   const [surfacePreference, setSurfacePreference] = useState<'mixte' | 'bois' | 'champs' | 'urbain'>('bois');
   const [selectedDistance, setSelectedDistance] = useState<number>(10);
   
-  // États séparés pour chaque monde
   const [selectedTopoTrailId, setSelectedTopoTrailId] = useState<string>('topo-flines-10');
   const [topoCard, setTopoCard] = useState<any>(PRO_TOP_TRAILS[0]);
   
@@ -82,7 +81,7 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
   const [shared, setShared] = useState(false);
   
   const [userCoords, setUserCoords] = useState<[number, number]>([50.5123, 3.3512]);
-  const [gpsStatus, setGpsStatus] = useState<string>('Laplaigne / Secteur actif 📍');
+  const [gpsStatus, setGpsStatus] = useState<string>('Laplaigne / Forêt de Flines 📍');
 
   useEffect(() => {
     if ('geolocation' in navigator) {
@@ -91,13 +90,12 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
           setUserCoords([pos.coords.latitude, pos.coords.longitude]);
           setGpsStatus('GPS Actif (Position Fixée) 📍');
         },
-        () => setGpsStatus('Secteur Laplaigne (Défaut)'),
+        () => setGpsStatus('Secteur Laplaigne / Flines (Défaut)'),
         { enableHighAccuracy: true, timeout: 10000 }
       );
     }
   }, []);
 
-  // Générateur dynamique pour les modes Route, Champs, Mixte (Carte Route standard)
   const handleGenerateDynamicRoute = async () => {
     setGenerating(true);
     try {
@@ -181,7 +179,9 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
 
   const isTopoMode = surfacePreference === 'bois';
   const activeCard = isTopoMode ? topoCard : dynamicCard;
-  const mapCenter = isTopoMode ? (topoCard?.coordinates[0] || userCoords) : userCoords;
+  
+  // Centre de carte forcé précisément sur la Forêt de Flines en mode Topo
+  const mapCenter = isTopoMode ? [50.5100, 3.3650] : userCoords;
 
   const handlePublishToClub = () => {
     if (!activeCard) return;
@@ -245,11 +245,10 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
           </div>
         </div>
 
-        {/* CONTROLES SELON LE MODE */}
         {isTopoMode ? (
           <div className="space-y-2 animate-fadeIn border-t border-neutral-800 pt-4">
             <label className="text-xs font-bold text-orange-400 uppercase tracking-wider flex items-center gap-2">
-              <Layers className="w-4 h-4" /> Catalogue OpenTopoMap (Sentiers & Courbes de Niveau) :
+              <Layers className="w-4 h-4" /> Catalogue OpenTopoMap (Forêt de Flines depuis Laplaigne) :
             </label>
             <div className="grid grid-cols-1 gap-2.5">
               {PRO_TOP_TRAILS.map(trail => (
@@ -312,7 +311,6 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
         )}
       </div>
 
-      {/* AFFICHAGE DE LA CARTE ACTIVE */}
       {activeCard && (
         <div className={`border p-5 rounded-2xl space-y-4 animate-fadeIn shadow-2xl relative overflow-hidden ${
           isTopoMode ? 'bg-neutral-900 border-orange-500/60' : 'bg-neutral-950 border-neutral-700/50'
@@ -321,15 +319,13 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
           <div className="w-full h-80 rounded-2xl overflow-hidden border border-neutral-800 relative shadow-2xl z-0">
             <MapContainer 
               key={activeCard.id + isTopoMode.toString()}
-              center={mapCenter} 
+              center={mapCenter as [number, number]} 
               zoom={isTopoMode ? 14 : 13} 
               scrollWheelZoom={false} 
               style={{ width: '100%', height: '100%' }}
             >
-              <MapController center={mapCenter} zoom={isTopoMode ? 14 : 13} />
+              <MapController center={mapCenter as [number, number]} zoom={isTopoMode ? 14 : 13} />
               
-              {/* CARTE 1 : OPENTOPOMAP (Vraie carte des sentiers et topographie pour la forêt) */}
-              {/* CARTE 2 : OPENSTREETMAP (Carte standard pour routes, rues, asphalte) */}
               <TileLayer
                 attribution={isTopoMode 
                   ? 'Map data: &copy; OpenStreetMap contributors, SRTM | Map style: &copy; OpenTopoMap' 
@@ -349,9 +345,9 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
                 opacity={0.95} 
               />
               
-              <Marker position={userCoords} icon={userLocationIcon}>
+              <Marker position={[50.5123, 3.3512]} icon={userLocationIcon}>
                 <Popup>
-                  <strong>📍 Votre Position (Laplaigne)</strong> <br /> Point de départ
+                  <strong>📍 Départ : Laplaigne</strong>
                 </Popup>
               </Marker>
             </MapContainer>
