@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Activity, Dumbbell, Flame, Plus, Trash2, Zap } from 'lucide-react';
+import { Activity, Dumbbell, Flame, Plus, Trash2, Zap, RefreshCcw } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 
 interface UnifiedSession {
@@ -16,20 +16,89 @@ interface UnifiedTriptychProps {
 
 export default function UnifiedTriptychModule({ currentUserId }: UnifiedTriptychProps) {
   const [sessions, setSessions] = useState<UnifiedSession[]>(() => {
+    let collected: UnifiedSession[] = [];
+
+    // 1. Récupération automatique des logs de musculation enregistrés dans l'onglet Entraînement
+    const savedGymLogs = localStorage.getItem('fitpulse_gym_logs');
+    if (savedGymLogs) {
+      try {
+        const parsedGym = JSON.parse(savedGymLogs);
+        parsedGym.forEach((log: any) => {
+          collected.push({
+            id: `gym-auto-${log.id || Math.random()}`,
+            type: 'gym',
+            title: log.exerciseName || log.sessionTitle || 'Séance Musculation (Auto)',
+            durationMins: Number(log.durationMins || 60),
+            rpe: Number(log.rpe || 8)
+          });
+        });
+      } catch (e) { /* ignore */ }
+    }
+
+    // 2. Récupération des briques stockées localement
     const saved = localStorage.getItem('fitpulse_triptych_sessions');
     if (saved) {
-      try { return JSON.parse(saved); } catch (e) { /* ignore */ }
+      try { 
+        const parsedSaved = JSON.parse(saved);
+        parsedSaved.forEach((item: UnifiedSession) => {
+          if (!collected.some(s => s.title === item.title && s.type === item.type)) {
+            collected.push(item);
+          }
+        });
+      } catch (e) { /* ignore */ }
     }
-    return [
-      { id: '1', type: 'run', title: 'Sortie Longue / Seuil', durationMins: 55, rpe: 8 },
-      { id: '2', type: 'gym', title: 'Squat & Force Athlétique', durationMins: 75, rpe: 9 },
-      { id: '3', type: 'fitcross', title: 'WOD Métabolique (Fran)', durationMins: 20, rpe: 10 }
-    ];
+
+    // Si tout est vide, on initialise avec un set propre
+    if (collected.length === 0) {
+      collected = [
+        { id: '1', type: 'run', title: 'Sortie Longue / Seuil', durationMins: 55, rpe: 8 },
+        { id: '2', type: 'gym', title: 'Squat & Force Athlétique', durationMins: 75, rpe: 9 },
+        { id: '3', type: 'fitcross', title: 'WOD Métabolique (Fran)', durationMins: 20, rpe: 10 }
+      ];
+    }
+
+    return collected;
   });
 
+  // Sauvegarde automatique des sessions dans le localStorage pour maintenir la cohérence avec le SNC Shield
   useEffect(() => {
     localStorage.setItem('fitpulse_triptych_sessions', JSON.stringify(sessions));
   }, [sessions]);
+
+  // Écouteur pour actualiser les données si un log de muscu change dans l'autre onglet
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const savedGymLogs = localStorage.getItem('fitpulse_gym_logs');
+      if (savedGymLogs) {
+        try {
+          const parsedGym = JSON.parse(savedGymLogs);
+          // S'assure que les nouveaux logs de muscu se reflètent dynamiquement
+          setSessions(prev => {
+            const hasNew = parsedGym.some((log: any) => !prev.some(p => p.title === (log.exerciseName || log.sessionTitle)));
+            if (hasNew) {
+              // Fusion propre
+              const updated = [...prev];
+              parsedGym.forEach((log: any) => {
+                const title = log.exerciseName || log.sessionTitle || 'Séance Musculation (Auto)';
+                if (!updated.some(s => s.title === title)) {
+                  updated.unshift({
+                    id: `gym-auto-${log.id || Math.random()}`,
+                    type: 'gym',
+                    title,
+                    durationMins: Number(log.durationMins || 60),
+                    rpe: Number(log.rpe || 8)
+                  });
+                }
+              });
+              return updated;
+            }
+            return prev;
+          });
+        } catch (e) { /* ignore */ }
+      }
+    }, 2000);
+    return () => clearInterval(interval);
+  }, []);
 
   const [newTitle, setNewTitle] = useState('');
   const [newType, setNewType] = useState<'run' | 'gym' | 'fitcross'>('run');
@@ -44,7 +113,7 @@ export default function UnifiedTriptychModule({ currentUserId }: UnifiedTriptych
       if (session.type === 'run') multiplier = 1.2;
       if (session.type === 'gym') multiplier = 1.0;
       if (session.type === 'fitcross') multiplier = 1.4;
-      totalLoad += session.durationMins * session.rpe * multiplier;
+      totalLoad += Number(session.durationMins || 0) * Number(session.rpe || 0) * multiplier;
     });
     return Math.round(totalLoad);
   };
@@ -88,7 +157,7 @@ export default function UnifiedTriptychModule({ currentUserId }: UnifiedTriptych
     <div className="bg-neutral-900/90 border border-neutral-800/80 rounded-3xl p-5 space-y-4 shadow-xl">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 text-orange-400 font-bold text-xs uppercase tracking-wider">
-          <Activity className="w-4 h-4" /> Le Triptyque Unifié
+          <Activity className="w-4 h-4" /> Le Triptyque Unifié (Auto-Sync)
         </div>
         <span className="text-xs font-mono bg-orange-500/10 text-orange-400 px-3 py-1 rounded-full border border-orange-500/20 font-bold">
           {currentLoad} pts globaux
@@ -111,7 +180,7 @@ export default function UnifiedTriptychModule({ currentUserId }: UnifiedTriptych
         </div>
       </div>
 
-      {/* Ajout rapide */}
+      {/* Ajout rapide optionnel */}
       <form onSubmit={handleAddSession} className="bg-neutral-950 p-3 rounded-2xl border border-neutral-800/80 space-y-2.5">
         <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
           <input 
@@ -147,7 +216,7 @@ export default function UnifiedTriptychModule({ currentUserId }: UnifiedTriptych
           />
         </div>
         <button type="submit" className="w-full py-2 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-xl text-xs transition cursor-pointer flex items-center justify-center gap-1">
-          <Plus className="w-3.5 h-3.5" /> Ajouter la brique
+          <Plus className="w-3.5 h-3.5" /> Ajouter manuellement la brique
         </button>
       </form>
 
