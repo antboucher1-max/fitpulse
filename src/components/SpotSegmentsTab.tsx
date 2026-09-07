@@ -1,16 +1,22 @@
 import { useState } from 'react';
 import { COMMUNITY_SEGMENTS, registerNewSegmentAttempt, createNewCustomSegment } from './SpotSegmentsEngine';
-import { Trophy, Crown, MapPin, ArrowLeft, Timer, Flame, Plus, X } from 'lucide-react';
+import { Trophy, Crown, MapPin, ArrowLeft, Flame, Plus, X } from 'lucide-react';
 
 interface SpotSegmentsTabProps {
   currentUserId?: string;
-  currentUsername: string;
-  userAvatarUrl: string;
-  selectedClub: string;
-  onBack: () => void;
+  currentUsername?: string;
+  userAvatarUrl?: string;
+  selectedClub?: string;
+  onBack?: () => void;
 }
 
-export default function SpotSegmentsTab({ currentUserId, currentUsername, userAvatarUrl, selectedClub, onBack }: SpotSegmentsTabProps) {
+export default function SpotSegmentsTab({ 
+  currentUserId = "ant-boucher-id-70", 
+  currentUsername = "Antoine Boucher", 
+  userAvatarUrl = "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=150", 
+  selectedClub = "Club Tournai (Bastion)", 
+  onBack = () => {} 
+}: SpotSegmentsTabProps) {
   const [segments, setSegments] = useState(COMMUNITY_SEGMENTS);
   const [isCreating, setIsCreating] = useState(false);
   
