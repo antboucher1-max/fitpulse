@@ -23,8 +23,8 @@ const userLocationIcon = L.divIcon({
   iconAnchor: [8, 8]
 });
 
-// Vrais tracés géographiques précis calés sur les sentiers réels de la région de Brunehaut / Flines
-const OFFICIAL_ROUTES = [
+// Définition des points de passage clés pour chaque circuit officiel
+const OFFICIAL_ROUTES_CONFIG = [
   {
     id: 'flines-coeur',
     name: '🌲 Boucle Officielle de la Forêt de Flines',
@@ -33,14 +33,13 @@ const OFFICIAL_ROUTES = [
     surface: 'Sentiers forestiers & singles (90%)',
     timeEst: '1h 55 min',
     description: 'Tracé officiel traversant les sous-bois denses et les allées cavalières de la Forêt de Flines.',
-    coordinates: [
-      [50.5123, 3.3512], // Départ Laplaigne
-      [50.5150, 3.3650], // Vers l'entrée de la forêt
-      [50.5080, 3.3850], // Cœur de la Forêt de Flines
-      [50.4950, 3.3900], // Flines-lès-Mortagne (est)
-      [50.4900, 3.3750], // Sud du massif
-      [50.5010, 3.3600], // Retour par les pistes
-      [50.5123, 3.3512]  // Arrivée Laplaigne
+    // [lng, lat] pour l'API OSRM
+    waypoints: [
+      [3.3512, 50.5123], // Laplaigne (Départ)
+      [3.3650, 50.5140], // Entrée Nord Forêt
+      [3.3820, 50.5050], // Cœur de la Forêt de Flines
+      [3.3600, 50.5010], // Sentier de retour
+      [3.3512, 50.5123]  // Arrivée Laplaigne
     ]
   },
   {
@@ -51,13 +50,12 @@ const OFFICIAL_ROUTES = [
     surface: 'Voies vertes & chemins de halage (95%)',
     timeEst: '2h 10 min',
     description: "Parcours officiel le long des méandres de l'Escaut et du Canal Nimy-Blaton, idéal pour courir sans voiture.",
-    coordinates: [
-      [50.5123, 3.3512], // Laplaigne
-      [50.5250, 3.3450], // Vers Bléharies
-      [50.5380, 3.3320], // Pont d'Antoing / canal
-      [50.5300, 3.3200], // Chemin de halage ouest
-      [50.5180, 3.3350], // Retour le long de l'eau
-      [50.5123, 3.3512]  // Arrivée
+    waypoints: [
+      [3.3512, 50.5123], // Laplaigne
+      [3.3420, 50.5220], // Vers Bléharies
+      [3.3300, 50.5350], // Le long du canal
+      [3.3250, 50.5250], // Chemin de retour
+      [3.3512, 50.5123]
     ]
   },
   {
@@ -66,15 +64,14 @@ const OFFICIAL_ROUTES = [
     distance: 14.5,
     dplus: 140,
     surface: 'Pistes agricoles & sentiers de terre (85%)',
-    timeEst: '2h 35 min',
+    timeEst: '2h 25 min',
     description: 'Immersion dans la campagne wallonne par les anciens chemins de liaison agricole et sentiers balisés.',
-    coordinates: [
-      [50.5123, 3.3512],
-      [50.5000, 3.3400],
-      [50.4820, 3.3480], // Vers Brunehaut / Rongy
-      [50.4880, 3.3700],
-      [50.5020, 3.3650],
-      [50.5123, 3.3512]
+    waypoints: [
+      [3.3512, 50.5123],
+      [3.3400, 50.5000],
+      [3.3480, 50.4850], // Vers Rongy / Brunehaut
+      [3.3650, 50.4920],
+      [3.3512, 50.5123]
     ]
   }
 ];
@@ -85,7 +82,8 @@ interface RoadbookTabProps {
 
 export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
   const [selectedRouteId, setSelectedRouteId] = useState<string>('flines-coeur');
-  const [routeCard, setRouteCard] = useState<any>(OFFICIAL_ROUTES[0]);
+  const [routeCard, setRouteCard] = useState<any>(null);
+  const [loadingRoute, setLoadingRoute] = useState(false);
   const [shared, setShared] = useState(false);
   
   const [userCoords, setUserCoords] = useState<[number, number]>([50.5123, 3.3512]); 
@@ -104,13 +102,49 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
     }
   }, []);
 
-  const handleSelectRoute = (id: string) => {
-    setSelectedRouteId(id);
-    const found = OFFICIAL_ROUTES.find(r => r.id === id);
-    if (found) {
-      setRouteCard(found);
+  // Chargement et accrochage automatique du tracé sur les vrais sentiers via OSRM
+  const loadOfficialRoute = async (routeConfig: typeof OFFICIAL_ROUTES_CONFIG[0]) => {
+    setLoadingRoute(true);
+    try {
+      const waypointsString = routeConfig.waypoints.map(wp => `${wp[0]},${wp[1]}`).join(';');
+      const queryUrl = `https://router.project-osrm.org/route/v1/foot/${waypointsString}?overview=full&geometries=geojson`;
+
+      const response = await fetch(queryUrl);
+      const data = await response.json();
+
+      let coordinates: [number, number][] = [];
+      if (data.routes && data.routes.length > 0) {
+        coordinates = data.routes[0].geometry.coordinates.map((coord: [number, number]) => [coord[1], coord[0]]);
+      } else {
+        coordinates = routeConfig.waypoints.map(wp => [wp[1], wp[0]]);
+      }
+
+      setRouteCard({
+        id: routeConfig.id,
+        name: routeConfig.name,
+        distance: routeConfig.distance,
+        dplus: routeConfig.dplus,
+        surface: routeConfig.surface,
+        timeEst: routeConfig.timeEst,
+        description: routeConfig.description,
+        coordinates
+      });
+    } catch (e) {
+      console.error("Erreur de chargement du tracé officiel:", e);
+    } finally {
+      setLoadingRoute(false);
       setShared(false);
     }
+  };
+
+  useEffect(() => {
+    // Charger le premier parcours par défaut au montage
+    loadOfficialRoute(OFFICIAL_ROUTES_CONFIG[0]);
+  }, []);
+
+  const handleSelectRoute = (routeConfig: typeof OFFICIAL_ROUTES_CONFIG[0]) => {
+    setSelectedRouteId(routeConfig.id);
+    loadOfficialRoute(routeConfig);
   };
 
   const handlePublishToClub = () => {
@@ -144,7 +178,7 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
           <h2 className="text-base font-black text-white uppercase tracking-tight flex items-center gap-2">
             <Compass className="w-5 h-5 text-orange-500" /> Catalogue des Circuits Officiels & Sentiers
           </h2>
-          <p className="text-xs text-neutral-400">Tracés authentiques validés en Forêt de Flines et bord de l'Escaut</p>
+          <p className="text-xs text-neutral-400">Tracés authentiques accrochés au réseau OpenStreetMap (Forêt de Flines & Escaut)</p>
         </div>
         <span className="text-xs font-mono bg-emerald-500/10 text-emerald-400 px-3 py-1 rounded-full border border-emerald-500/20 font-bold">
           {gpsStatus}
@@ -157,11 +191,11 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
         </label>
         
         <div className="grid grid-cols-1 gap-2.5">
-          {OFFICIAL_ROUTES.map(route => (
+          {OFFICIAL_ROUTES_CONFIG.map(route => (
             <button
               key={route.id}
               type="button"
-              onClick={() => handleSelectRoute(route.id)}
+              onClick={() => handleSelectRoute(route)}
               className={`p-3.5 rounded-xl text-left border transition cursor-pointer flex items-center justify-between ${
                 selectedRouteId === route.id 
                   ? 'bg-neutral-900 border-orange-500 text-white shadow-lg shadow-orange-600/20' 
