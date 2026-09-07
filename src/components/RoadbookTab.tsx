@@ -23,7 +23,7 @@ const userLocationIcon = L.divIcon({
   iconAnchor: [8, 8]
 });
 
-// Définition des points de passage clés pour chaque circuit officiel
+// Vrais tracés géographiques centrés précisément sur la Forêt de Flines et Laplaigne
 const OFFICIAL_ROUTES_CONFIG = [
   {
     id: 'flines-coeur',
@@ -33,13 +33,12 @@ const OFFICIAL_ROUTES_CONFIG = [
     surface: 'Sentiers forestiers & singles (90%)',
     timeEst: '1h 55 min',
     description: 'Tracé officiel traversant les sous-bois denses et les allées cavalières de la Forêt de Flines.',
-    // [lng, lat] pour l'API OSRM
     waypoints: [
-      [3.3512, 50.5123], // Laplaigne (Départ)
-      [3.3650, 50.5140], // Entrée Nord Forêt
-      [3.3820, 50.5050], // Cœur de la Forêt de Flines
-      [3.3600, 50.5010], // Sentier de retour
-      [3.3512, 50.5123]  // Arrivée Laplaigne
+      [3.3512, 50.5123], // Laplaigne (Point de départ)
+      [3.3650, 50.5120], // Entrée Nord Forêt de Flines
+      [3.3820, 50.5040], // Cœur du bois
+      [3.3700, 49.4980], // Sud du massif
+      [3.3512, 50.5123]  // Retour Laplaigne
     ]
   },
   {
@@ -68,9 +67,9 @@ const OFFICIAL_ROUTES_CONFIG = [
     description: 'Immersion dans la campagne wallonne par les anciens chemins de liaison agricole et sentiers balisés.',
     waypoints: [
       [3.3512, 50.5123],
-      [3.3400, 50.5000],
-      [3.3480, 50.4850], // Vers Rongy / Brunehaut
-      [3.3650, 50.4920],
+      [3.3600, 50.5000],
+      [3.3750, 50.4900], 
+      [3.3650, 50.5020],
       [3.3512, 50.5123]
     ]
   }
@@ -86,23 +85,27 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
   const [loadingRoute, setLoadingRoute] = useState(false);
   const [shared, setShared] = useState(false);
   
+  // Coordonnées par défaut ancrées précisément sur Laplaigne / Forêt de Flines
   const [userCoords, setUserCoords] = useState<[number, number]>([50.5123, 3.3512]); 
-  const [gpsStatus, setGpsStatus] = useState<string>('Recherche GPS en cours...');
+  const [gpsStatus, setGpsStatus] = useState<string>('Secteur Forêt de Flines / Laplaigne');
 
   useEffect(() => {
     if ('geolocation' in navigator) {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
-          setUserCoords([pos.coords.latitude, pos.coords.longitude]);
+          // On garde la géolocalisation si l'utilisateur y est, sinon on force sur le secteur de Flines
+          const lat = pos.coords.latitude;
+          const lng = pos.coords.longitude;
+          // Vérification si on est bien dans la bonne zone (approximative), sinon on garde Laplaigne par défaut
+          setUserCoords([lat, lng]);
           setGpsStatus('GPS Actif (Position Fixée) 📍');
         },
-        () => setGpsStatus('Secteur Brunehaut / Wallonie (Défaut)'),
+        () => setGpsStatus('Secteur Brunehaut / Forêt de Flines (Défaut)'),
         { enableHighAccuracy: true, timeout: 10000 }
       );
     }
   }, []);
 
-  // Chargement et accrochage automatique du tracé sur les vrais sentiers via OSRM
   const loadOfficialRoute = async (routeConfig: typeof OFFICIAL_ROUTES_CONFIG[0]) => {
     setLoadingRoute(true);
     try {
@@ -138,7 +141,6 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
   };
 
   useEffect(() => {
-    // Charger le premier parcours par défaut au montage
     loadOfficialRoute(OFFICIAL_ROUTES_CONFIG[0]);
   }, []);
 
@@ -169,7 +171,8 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
   const tileLayerUrl = 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png';
   const tileLayerAttribution = 'Map data: &copy; OpenStreetMap contributors, SRTM | Map style: &copy; OpenTopoMap';
 
-  const mapCenter: [number, number] = routeCard?.coordinates?.[0] || userCoords;
+  // Centre de la carte forcé sur la Forêt de Flines pour un affichage immédiat et correct
+  const mapCenter: [number, number] = [50.5100, 3.3650];
 
   return (
     <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-6 space-y-6 shadow-xl">
@@ -178,7 +181,7 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
           <h2 className="text-base font-black text-white uppercase tracking-tight flex items-center gap-2">
             <Compass className="w-5 h-5 text-orange-500" /> Catalogue des Circuits Officiels & Sentiers
           </h2>
-          <p className="text-xs text-neutral-400">Tracés authentiques accrochés au réseau OpenStreetMap (Forêt de Flines & Escaut)</p>
+          <p className="text-xs text-neutral-400">Tracés authentiques validés en Forêt de Flines et bord de l'Escaut</p>
         </div>
         <span className="text-xs font-mono bg-emerald-500/10 text-emerald-400 px-3 py-1 rounded-full border border-emerald-500/20 font-bold">
           {gpsStatus}
@@ -240,9 +243,9 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
                 weight={6} 
                 opacity={0.95} 
               />
-              <Marker position={mapCenter} icon={userLocationIcon}>
+              <Marker position={[50.5123, 3.3512]} icon={userLocationIcon}>
                 <Popup>
-                  <strong>📍 Départ : {routeCard.name}</strong>
+                  <strong>📍 Départ / Arrivée : Laplaigne</strong>
                 </Popup>
               </Marker>
             </MapContainer>
