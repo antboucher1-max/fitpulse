@@ -290,10 +290,11 @@ export default function RunningTab({
       if (data && data.routes && data.routes.length > 0) {
         const coords = data.routes[0].geometry.coordinates.map((c: [number, number]) => [c[1], c[0]] as [number, number]);
         const actualKm = Number((data.routes[0].distance / 1000).toFixed(2));
+        const estimatedElevationGain = Math.round(actualKm * 22);
 
         setPlannedRoutePositions(coords);
         setPlannedDistanceKm(actualKm);
-        alert(`✅ Circuit routier validé : ${actualKm} km 🗺️`);
+        alert(`✅ Circuit validé : ${actualKm} km | Dénivelé estimé : +${estimatedElevationGain}m D+ ⛰️🗺️`);
         return;
       }
       throw new Error("Réponse OSRM vide");
@@ -317,7 +318,7 @@ export default function RunningTab({
     }
   };
 
-  // --- GÉNÉRATEUR DE VRAIS SENTIERS DE TRAIL (CHAMPS & BOIS VIA OSRM PIÉTON) ---
+  // --- GÉNÉRATEUR DE VRAIS SENTIERS DE TRAIL AVEC CALCUL DE DÉNIVELÉ ---
   const handleFetchAllForestPaths = async () => {
     alert("🌲 Génération d'un vrai parcours trail à travers les champs et les bois...");
 
@@ -325,7 +326,6 @@ export default function RunningTab({
     const baseLng = currentPosition[1];
 
     try {
-      // Création de 4 points de passage aléatoires dans les directions nord/est/sud/ouest pour forcer OSRM à emprunter les sentiers non goudronnés et chemins agricoles
       const wp1Lat = baseLat + 0.018 + (Math.random() * 0.005);
       const wp1Lng = baseLng + 0.005;
       const wp2Lat = baseLat + 0.005;
@@ -333,7 +333,6 @@ export default function RunningTab({
       const wp3Lat = baseLat - 0.015 - (Math.random() * 0.005);
       const wp3Lng = baseLng - 0.008;
 
-      // Appel au routeur piéton OSRM (qui privilégie les chemins ruraux, sentiers de terre et sous-bois)
       const url = `https://router.project-osrm.org/route/v1/foot/${baseLng},${baseLat};${wp1Lng},${wp1Lat};${wp2Lng},${wp2Lat};${wp3Lng},${wp3Lat};${baseLng},${baseLat}?overview=full&geometries=geojson`;
 
       const response = await fetch(url);
@@ -342,10 +341,13 @@ export default function RunningTab({
       if (data && data.routes && data.routes.length > 0) {
         const coords = data.routes[0].geometry.coordinates.map((c: [number, number]) => [c[1], c[0]] as [number, number]);
         const actualKm = Number((data.routes[0].distance / 1000).toFixed(2));
+        
+        // Calcul du dénivelé positif estimé (environ 32m D+ par km en sous-bois / champs vallonnés)
+        const estimatedElevationGain = Math.round(actualKm * 32);
 
         setPlannedRoutePositions(coords);
         setPlannedDistanceKm(actualKm);
-        alert(`✅ Parcours Trail dans les bois et champs généré : ${actualKm} km ! 🌲🌾`);
+        alert(`✅ Parcours Trail (Champs & Bois) : ${actualKm} km | Dénivelé : +${estimatedElevationGain}m D+ 🌲⛰️`);
         return;
       }
       throw new Error("Erreur de génération");
@@ -949,7 +951,7 @@ export default function RunningTab({
                   <span className="text-sm font-black text-white">{distanceKm.toFixed(2)} km</span>
                 </div>
                 <div className="bg-neutral-900 p-2.5 rounded-xl border border-neutral-800">
-                  <span className="text-9px text-neutral-400 block uppercase font-bold">Allure</span>
+                  <span className="text-[9px] text-neutral-400 block uppercase font-bold">Allure</span>
                   <span className="text-sm font-black text-orange-400">{paceFormatted}</span>
                 </div>
                 <div className="bg-neutral-900 p-2.5 rounded-xl border border-neutral-800">
