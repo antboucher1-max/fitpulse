@@ -4,7 +4,6 @@ import { MapContainer, TileLayer, Polyline, Marker, Popup, useMap } from 'react-
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 
-// Composant pour forcer le rafraîchissement des tuiles et éliminer le fond gris Leaflet
 function MapController({ center }: { center: [number, number] }) {
   const map = useMap();
   useEffect(() => {
@@ -35,7 +34,7 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
   const [routeCard, setRouteCard] = useState<any>(null);
   const [shared, setShared] = useState(false);
   
-  const [userCoords, setUserCoords] = useState<[number, number]>([50.5123, 3.3512]); // Brunehaut / Laplaigne par défaut
+  const [userCoords, setUserCoords] = useState<[number, number]>([50.5123, 3.3512]); 
   const [gpsStatus, setGpsStatus] = useState<string>('Recherche GPS en cours...');
 
   useEffect(() => {
@@ -53,28 +52,23 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
     }
   }, []);
 
-  // Génération d'une boucle calibrée ciblant précisément la Forêt de Flines et les sentiers locaux
   const handleGenerateCustomRoute = async () => {
     setGenerating(true);
 
     try {
       const [lat, lng] = userCoords;
-      // Facteur d'échelle rigoureux proportionnel à la distance cible (ex: 10 km = boucle serrée et locale)
       const scale = (selectedDistance / 10) * 0.0014; 
       
       let wp1, wp2, wp3;
       if (surfacePreference === 'bois') {
-        // Waypoints orientés précisément vers l'intérieur de la Forêt de Flines (à l'Est)
         wp1 = [lat + 0.001, lng + scale * 1.8];
         wp2 = [lat - scale * 0.8, lng + scale * 2.2];
         wp3 = [lat - scale * 1.5, lng + scale * 0.8];
       } else if (surfacePreference === 'champs') {
-        // Chemins agricoles vers le sud / sud-ouest
         wp1 = [lat - scale * 1.2, lng - scale * 0.5];
         wp2 = [lat - scale * 1.8, lng + scale * 1.2];
         wp3 = [lat - scale * 0.5, lng + scale * 1.8];
       } else {
-        // Boucle hybride équilibrée
         wp1 = [lat + scale * 1.2, lng + scale * 1.2];
         wp2 = [lat - scale * 0.5, lng + scale * 1.8];
         wp3 = [lat - scale * 1.2, lng - scale * 0.5];
@@ -239,11 +233,12 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
               />
+              {/* Tracé en bleu électrique lumineux (#38bdf8) pour un contraste parfait sur les fonds de carte verts */}
               <Polyline 
                 positions={routeCard.coordinates} 
-                color="#f97316" 
+                color="#38bdf8" 
                 weight={6} 
-                opacity={0.9} 
+                opacity={0.95} 
               />
               <Marker position={userCoords} icon={userLocationIcon}>
                 <Popup>
