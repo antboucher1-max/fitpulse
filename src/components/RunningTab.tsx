@@ -38,6 +38,57 @@ function MapController({ center, plannedRoute }: { center: [number, number], pla
   return null;
 }
 
+// --- SOUS-MODULE 0 : Guide de Bienvenue Première Connexion ---
+function WelcomeGuideModal({ username, onClose }: { username: string; onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4 animate-fadeIn">
+      <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-md w-full p-6 space-y-5 shadow-2xl relative">
+        <div className="text-center space-y-2">
+          <span className="text-2xl">🔥</span>
+          <h3 className="text-lg font-black text-white">Bienvenue dans ton QG, {username} !</h3>
+          <p className="text-xs text-neutral-400 leading-relaxed">
+            Tu t'apprêtes à utiliser une station d'entraînement conçue pour le terrain. Voici comment dompter l'application :
+          </p>
+        </div>
+
+        <div className="space-y-3 text-xs text-neutral-300">
+          <div className="bg-neutral-950 p-3 rounded-2xl border border-neutral-800 flex items-start gap-3">
+            <span className="text-base">🌲</span>
+            <div>
+              <span className="font-bold text-emerald-400 block">Architecte de Trails & Dénivelé</span>
+              Génère instantanément de vrais parcours à travers les bois et les champs avec calcul du dénivelé positif (D+).
+            </div>
+          </div>
+
+          <div className="bg-neutral-950 p-3 rounded-2xl border border-neutral-800 flex items-start gap-3">
+            <span className="text-base">👻</span>
+            <div>
+              <span className="font-bold text-red-400 block">Ghost Pacer & Auto-Pause</span>
+              Affronte ton fantôme sur la carte. Si tu t'arrêtes pour souffler au milieu des bois, le chrono se met en pause tout seul !
+            </div>
+          </div>
+
+          <div className="bg-neutral-950 p-3 rounded-2xl border border-neutral-800 flex items-start gap-3">
+            <span className="text-base">🛡️</span>
+            <div>
+              <span className="font-bold text-sky-400 block">Alerte Hors-Route & FitBot</span>
+              Le coach vocal t'appelle par ton nom si tu t'écartes de ton chemin, et l'IA surveille ta fatigue nerveuse (SNC).
+            </div>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={onClose}
+          className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-2xl text-xs uppercase tracking-wider transition cursor-pointer shadow-lg"
+        >
+          C'est parti, enfiler les baskets 🚀
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // --- SOUS-MODULE 1 : FitBot SNC (Auto-régulation du Système Nerveux Central) ---
 function FitBotSNC({ readinessScore = 78, weeklyLoad = 45 }: { readinessScore?: number; weeklyLoad?: number }) {
   const [isLocked, setIsLocked] = useState<boolean>(false);
@@ -209,6 +260,7 @@ export default function RunningTab({
   onBack
 }: RunningTabProps) {
   const [openSection, setOpenSection] = useState<'none' | 'circuits' | 'terrain' | 'ravito' | 'gear'>('none');
+  const [showWelcomeGuide, setShowWelcomeGuide] = useState(false);
 
   const [isRunning, setIsRunning] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
@@ -264,6 +316,19 @@ export default function RunningTab({
   const lastPositionRef = useRef<[number, number]>([50.505, 3.325]);
 
   const usernameToUse = currentUserProfile?.username || currentUsername || "Runner";
+
+  // Gestion de la première connexion (Onboarding)
+  useEffect(() => {
+    const hasSeenGuide = localStorage.getItem('fitpulse_runner_guide_seen');
+    if (!hasSeenGuide) {
+      setShowWelcomeGuide(true);
+    }
+  }, []);
+
+  const handleCloseGuide = () => {
+    localStorage.setItem('fitpulse_runner_guide_seen', 'true');
+    setShowWelcomeGuide(false);
+  };
 
   const handleGenerateSmartCircuit = async (targetKm: number) => {
     const baseLat = currentPosition[0];
@@ -706,6 +771,11 @@ export default function RunningTab({
 
   return (
     <div className="space-y-6 pb-24 animate-fadeIn">
+      {/* Guide de bienvenue s'affichant à la toute première connexion */}
+      {showWelcomeGuide && (
+        <WelcomeGuideModal username={usernameToUse} onClose={handleCloseGuide} />
+      )}
+
       {/* En-tête avec bouton retour */}
       <div className="flex items-center justify-between">
         {onBack && (
