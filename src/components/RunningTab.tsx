@@ -100,8 +100,11 @@ function FuelLockPostWod({ lastRunDistanceKm = 10, bodyWeightKg = 70 }: { lastRu
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [recipeGenerated, setRecipeGenerated] = useState<any>(null);
 
-  const estimatedCaloriesBurned = Math.round(lastRunDistanceKm * bodyWeightKg * 0.9);
-  const targetCarbsGrams = Math.round(lastRunDistanceKm * 8);
+  // Correction de la distance effective : si distance <= 0, on met 1 km par défaut pour éviter l'incohérence à 0 km
+  const effectiveDistance = lastRunDistanceKm > 0 ? lastRunDistanceKm : 1.0;
+
+  const estimatedCaloriesBurned = Math.round(effectiveDistance * bodyWeightKg * 0.9);
+  const targetCarbsGrams = Math.round(effectiveDistance * 8);
   const targetProteinGrams = Math.round(bodyWeightKg * 0.4);
 
   const handleScanAndGenerateRecipe = () => {
@@ -130,7 +133,7 @@ function FuelLockPostWod({ lastRunDistanceKm = 10, bodyWeightKg = 70 }: { lastRu
       <div className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 space-y-2 text-xs">
         <div className="flex justify-between text-neutral-400">
           <span>Dernière séance estimée :</span>
-          <span className="font-bold text-white">{lastRunDistanceKm} km (~{estimatedCaloriesBurned} kcal)</span>
+          <span className="font-bold text-white">{effectiveDistance.toFixed(2)} km (~{estimatedCaloriesBurned} kcal)</span>
         </div>
         <div className="flex justify-between text-neutral-400">
           <span>Cible Glucides (Recharge) :</span>
@@ -205,7 +208,6 @@ export default function RunningTab({
   onNavigateTab,
   onBack
 }: RunningTabProps) {
-  // Mode d'affichage par cartes pliables/dépliables fluides (zéro onglet rigide, tout est conservé)
   const [openSection, setOpenSection] = useState<'none' | 'circuits' | 'terrain' | 'ravito' | 'gear'>('none');
 
   const [isRunning, setIsRunning] = useState(false);
@@ -912,8 +914,8 @@ export default function RunningTab({
               </div>
             </div>
 
-            {/* Insertion du Fuel-Lock Post-Effort */}
-            <FuelLockPostWod lastRunDistanceKm={distanceKm > 0 ? distanceKm : 5} bodyWeightKg={bodyWeight} />
+            {/* Insertion du Fuel-Lock Post-Effort avec distance corrigée pour éviter 0 km */}
+            <FuelLockPostWod lastRunDistanceKm={distanceKm} bodyWeightKg={bodyWeight} />
 
             <div className="space-y-2.5 pt-2">
               <button onClick={handlePublishChallenge} disabled={isSavingRun} className="w-full py-4 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-white font-black rounded-2xl text-xs uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer shadow-xl disabled:opacity-50">
