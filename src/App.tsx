@@ -173,7 +173,7 @@ export default function App() {
             </div>
             <LiveCoachEngine currentKm={5} currentPaceSeconds={300} isRunActive={true} />
             <GymLogTab currentUserId={currentUserId} />
-            <ExercisesTab />
+            <ExercisesTab exercises={[]} exerciseSearch="" setExerciseSearch={() => {}} selectedCategoryFilter="Tous" setSelectedCategoryFilter={() => {}} onSelectExercise={() => {}} />
             <WodTimerTab />
           </div>
         )}
