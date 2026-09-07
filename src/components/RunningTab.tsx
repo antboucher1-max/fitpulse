@@ -317,78 +317,40 @@ export default function RunningTab({
     }
   };
 
-  // --- FONCTION ROBUSTE : CHARGEMENT DE TOUS LES SENTIERS & CHEMINS (AVEC SECOURS GARANTI) ---
+  // --- GÉNÉRATEUR DE VRAIS SENTIERS DE TRAIL (CHAMPS & BOIS VIA OSRM PIÉTON) ---
   const handleFetchAllForestPaths = async () => {
-    alert("🌲 Recherche des sentiers et chemins de la zone...");
+    alert("🌲 Génération d'un vrai parcours trail à travers les champs et les bois...");
 
     const baseLat = currentPosition[0];
     const baseLng = currentPosition[1];
 
     try {
-      const latDelta = 0.012;
-      const lngDelta = 0.020;
-      const south = baseLat - latDelta;
-      const west = baseLng - lngDelta;
-      const north = baseLat + latDelta;
-      const east = baseLng + lngDelta;
+      // Création de 4 points de passage aléatoires dans les directions nord/est/sud/ouest pour forcer OSRM à emprunter les sentiers non goudronnés et chemins agricoles
+      const wp1Lat = baseLat + 0.018 + (Math.random() * 0.005);
+      const wp1Lng = baseLng + 0.005;
+      const wp2Lat = baseLat + 0.005;
+      const wp2Lng = baseLng + 0.022 + (Math.random() * 0.005);
+      const wp3Lat = baseLat - 0.015 - (Math.random() * 0.005);
+      const wp3Lng = baseLng - 0.008;
 
-      const overpassQuery = `
-        [out:json][timeout:10];
-        (
-          way["highway"~"path|track|footway|pedestrian|unpaved|bridleway"](${south},${west},${north},${east});
-        );
-        out geom;
-      `;
+      // Appel au routeur piéton OSRM (qui privilégie les chemins ruraux, sentiers de terre et sous-bois)
+      const url = `https://router.project-osrm.org/route/v1/foot/${baseLng},${baseLat};${wp1Lng},${wp1Lat};${wp2Lng},${wp2Lat};${wp3Lng},${wp3Lat};${baseLng},${baseLat}?overview=full&geometries=geojson`;
 
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 6000);
+      const response = await fetch(url);
+      const data = await response.json();
 
-      const response = await fetch('https://overpass-api.de/api/interpreter', {
-        method: 'POST',
-        body: overpassQuery,
-        signal: controller.signal
-      });
-      clearTimeout(timeoutId);
+      if (data && data.routes && data.routes.length > 0) {
+        const coords = data.routes[0].geometry.coordinates.map((c: [number, number]) => [c[1], c[0]] as [number, number]);
+        const actualKm = Number((data.routes[0].distance / 1000).toFixed(2));
 
-      if (response.ok) {
-        const data = await response.json();
-        if (data && data.elements && data.elements.length > 0) {
-          const allPaths: Array<[number, number]> = [];
-          data.elements.forEach((el: any) => {
-            if (el.geometry && el.geometry.length > 1) {
-              const segmentPoints: Array<[number, number]> = el.geometry.map((pt: any) => [pt.lat, pt.lon]);
-              allPaths.push(...segmentPoints);
-            }
-          });
-
-          if (allPaths.length > 0) {
-            setPlannedRoutePositions(allPaths);
-            setPlannedDistanceKm(Number((allPaths.length * 0.035).toFixed(2)));
-            alert(`✅ ${data.elements.length} sentiers chargés avec succès ! 🌲🏃‍♂️`);
-            return;
-          }
-        }
+        setPlannedRoutePositions(coords);
+        setPlannedDistanceKm(actualKm);
+        alert(`✅ Parcours Trail dans les bois et champs généré : ${actualKm} km ! 🌲🌾`);
+        return;
       }
-      throw new Error("Basculement secours");
+      throw new Error("Erreur de génération");
     } catch (err) {
-      // GÉNÉRATEUR DE SECOURS GARANTI (Zéro échec, trace une magnifique boucle de trail organique locale)
-      const pointsCount = 35;
-      const generated: Array<[number, number]> = [];
-      const radiusKm = 4.5;
-      const radiusDegree = radiusKm / 111;
-
-      for (let i = 0; i <= pointsCount; i++) {
-        const angle = (i / pointsCount) * (2 * Math.PI);
-        const wiggle = Math.sin(i * 3) * 0.002;
-        const lat = baseLat + ((Math.sin(angle) + wiggle) * radiusDegree);
-        const lng = baseLng + ((Math.cos(angle) + wiggle) * radiusDegree * 1.4);
-        generated.push([lat, lng]);
-      }
-      generated.push(generated[0]);
-
-      setPlannedRoutePositions(generated);
-      setPlannedDistanceKm(8.2);
-      alert("🌲 [Mode Sentiers Intégré] Tracé forestier de 8.2 km généré et affiché sur la carte !");
+      alert("⚠️ Mode hors-ligne : Utilise l'import de fichier GPX (.gpx) pour charger tes tracés de champs et de bois précis !");
     }
   };
 
@@ -810,7 +772,7 @@ export default function RunningTab({
           {openSection === 'circuits' && (
             <div className="p-5 pt-0 space-y-4 border-t border-neutral-800 animate-fadeIn">
               <div className="flex justify-between items-center pt-2">
-                <span className="text-xs text-neutral-400">Génère un circuit routier ou importe tous les sentiers de la zone.</span>
+                <span className="text-xs text-neutral-400">Génère un circuit ou trace des sentiers de campagne/bois.</span>
                 {plannedRoutePositions.length > 0 && (
                   <button onClick={() => { setPlannedRoutePositions([]); setPlannedDistanceKm(0); }} className="text-[10px] text-red-400 hover:underline font-bold">
                     Effacer ✕
@@ -843,13 +805,13 @@ export default function RunningTab({
                 ))}
               </div>
 
-              {/* Bouton pour charger TOUS les sentiers et chemins (avec sécurité garantie) */}
+              {/* Bouton pour générer de vrais sentiers de champs et de bois via OSRM Piéton */}
               <button 
                 type="button" 
                 onClick={handleFetchAllForestPaths} 
                 className="w-full py-3 bg-emerald-700 hover:bg-emerald-600 text-white font-black rounded-2xl text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition cursor-pointer shadow-lg"
               >
-                🌲 Charger TOUS les sentiers et chemins autour de moi
+                🌲 Générer un parcours Trail (Champs & Bois)
               </button>
 
               {plannedRoutePositions.length > 0 && (
@@ -987,7 +949,7 @@ export default function RunningTab({
                   <span className="text-sm font-black text-white">{distanceKm.toFixed(2)} km</span>
                 </div>
                 <div className="bg-neutral-900 p-2.5 rounded-xl border border-neutral-800">
-                  <span className="text-[9px] text-neutral-400 block uppercase font-bold">Allure</span>
+                  <span className="text-9px text-neutral-400 block uppercase font-bold">Allure</span>
                   <span className="text-sm font-black text-orange-400">{paceFormatted}</span>
                 </div>
                 <div className="bg-neutral-900 p-2.5 rounded-xl border border-neutral-800">
