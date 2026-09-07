@@ -55,24 +55,26 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
 
     try {
       const [lat, lng] = userCoords;
-      const scale = (selectedDistance / 10) * 0.0015;
+      // Facteur d'échelle strictement proportionnel à la distance (ex: 5km = compact dans les bois, 21km = grand tour)
+      const factor = (selectedDistance / 10) * 0.0009;
 
       let wp1, wp2, wp3;
       if (surfacePreference === 'bois') {
-        // Waypoints orientés précisément sur la Forêt de Flines (à l'est de Laplaigne)
-        wp1 = [lat + 0.001, lng + scale * 1.5];
-        wp2 = [lat - scale * 0.9, lng + scale * 1.8];
-        wp3 = [lat - scale * 1.2, lng + scale * 0.4];
+        // Waypoints intérieurs en plein cœur de la Forêt de Flines pour éviter le contournement extérieur
+        wp1 = [lat - 0.0015, lng + factor * 1.2];
+        wp2 = [lat - scale_offset = 0.0040, lng + factor * 2.0];
+        wp3 = [lat - 0.0060, lng + factor * 0.8];
       } else if (surfacePreference === 'champs') {
-        wp1 = [lat - scale * 1.2, lng - scale * 0.5];
-        wp2 = [lat - scale * 1.5, lng + scale * 1.0];
-        wp3 = [lat - scale * 0.3, lng + scale * 1.5];
+        wp1 = [lat - factor * 1.2, lng - factor * 0.5];
+        wp2 = [lat - factor * 1.8, lng + factor * 1.0];
+        wp3 = [lat - factor * 0.5, lng + factor * 1.5];
       } else {
-        wp1 = [lat + scale * 1.2, lng + scale * 1.0];
-        wp2 = [lat - scale * 0.5, lng + scale * 1.5];
-        wp3 = [lat - scale * 1.0, lng - scale * 0.5];
+        wp1 = [lat + factor * 1.2, lng + factor * 1.0];
+        wp2 = [lat - factor * 0.5, lng + factor * 1.5];
+        wp3 = [lat - factor * 1.0, lng - factor * 0.5];
       }
 
+      // Requête OSRM ajustée avec des points intermédiaires resserrés
       const queryUrl = `https://router.project-osrm.org/route/v1/foot/${lng},${lat};${wp1[1]},${wp1[0]};${wp2[1]},${wp2[0]};${wp3[1]},${wp3[0]};${lng},${lat}?overview=full&geometries=geojson`;
 
       const response = await fetch(queryUrl);
@@ -82,16 +84,16 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
       if (data.routes && data.routes.length > 0) {
         coordinates = data.routes[0].geometry.coordinates.map((coord: [number, number]) => [coord[1], coord[0]]);
       } else {
-        coordinates = [[lat, lng], [lat + 0.005, lng + 0.005], [lat, lng]];
+        coordinates = [[lat, lng], [lat + 0.003, lng + 0.003], [lat, lng]];
       }
 
       setRouteCard({
         id: Date.now(),
         distance: selectedDistance,
-        name: `Trail ${surfacePreference.toUpperCase()} (${selectedDistance} km)`,
-        description: `Circuit optimisé de ${selectedDistance} km à travers les sentiers du secteur.`,
-        dplus: Math.round(selectedDistance * 14),
-        surface: surfacePreference === 'bois' ? 'Forêt de Flines, sentiers & singles' : 'Voies mixtes & chemins',
+        name: `Trail Forêt de Flines (${selectedDistance} km)`,
+        description: `Boucle de ${selectedDistance} km calibrée et tracée directement au cœur des sentiers forestiers.`,
+        dplus: Math.round(selectedDistance * 12),
+        surface: surfacePreference === 'bois' ? 'Forêt de Flines & sentiers intérieurs' : 'Voies mixtes & chemins',
         timeEst: `${Math.floor((selectedDistance * 5.2) / 60)}h ${Math.round((selectedDistance * 5.2) % 60)} min`,
         coordinates
       });
@@ -114,7 +116,6 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
     setTimeout(() => setShared(false), 3000);
   };
 
-  // Basculement intelligent vers OpenTopoMap si l'utilisateur clique sur "bois/forêt" pour voir explicitement les reliefs et sentiers boisés
   const tileLayerUrl = surfacePreference === 'bois' 
     ? 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png' 
     : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
@@ -194,7 +195,7 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
           disabled={generating}
           className="w-full py-3 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-white font-black rounded-xl text-xs uppercase tracking-wider transition cursor-pointer flex items-center justify-center gap-2 shadow-xl shadow-orange-600/20"
         >
-          <Sparkles className="w-4 h-4" /> {generating ? "Génération de la carte Topo..." : `Générer le tracé ${selectedDistance} km (${surfacePreference.toUpperCase()})`}
+          <Sparkles className="w-4 h-4" /> {generating ? "Calcul du tracé forestier..." : `Générer le tracé ${selectedDistance} km (${surfacePreference.toUpperCase()})`}
         </button>
       </div>
 
@@ -209,13 +210,11 @@ export default function RoadbookTab({ currentUserId }: RoadbookTabProps) {
               style={{ width: '100%', height: '100%' }}
             >
               <MapController center={userCoords} />
-              {/* Le fond de carte s'adapte : OpenTopoMap pour les bois, OpenStreetMap pour le reste */}
               <TileLayer
                 attribution={tileLayerAttribution}
                 url={tileLayerUrl}
                 maxZoom={17}
               />
-              {/* Tracé en bleu électrique lumineux (#38bdf8) pour un contraste optimal et immédiat */}
               <Polyline 
                 positions={routeCard.coordinates} 
                 color="#38bdf8" 
