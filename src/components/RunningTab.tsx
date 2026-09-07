@@ -317,6 +317,58 @@ export default function RunningTab({
     }
   };
 
+  // --- NOUVELLE FONCTION : CHARGEMENT DE TOUS LES SENTIERS & CHEMINS (OVERPASS API / OSM) ---
+  const handleFetchAllForestPaths = async () => {
+    alert("🌲 Interrogation de la base cartographique pour récupérer TOUS les petits sentiers et chemins...");
+
+    const latDelta = 0.015;
+    const lngDelta = 0.025;
+    const south = currentPosition[0] - latDelta;
+    const west = currentPosition[1] - lngDelta;
+    const north = currentPosition[0] + latDelta;
+    const east = currentPosition[1] + lngDelta;
+
+    const overpassQuery = `
+      [out:json][timeout:15];
+      (
+        way["highway"~"path|track|footway|pedestrian|unpaved|bridleway"](${south},${west},${north},${east});
+      );
+      out geom;
+    `;
+
+    try {
+      const response = await fetch('https://overpass-api.de/api/interpreter', {
+        method: 'POST',
+        body: overpassQuery
+      });
+      const data = await response.json();
+
+      if (data && data.elements && data.elements.length > 0) {
+        const allPaths: Array<[number, number]> = [];
+
+        data.elements.forEach((el: any) => {
+          if (el.geometry && el.geometry.length > 1) {
+            const segmentPoints: Array<[number, number]> = el.geometry.map((pt: any) => [pt.lat, pt.lon]);
+            allPaths.push(...segmentPoints);
+          }
+        });
+
+        if (allPaths.length > 0) {
+          setPlannedRoutePositions(allPaths);
+          setPlannedDistanceKm(Number((allPaths.length * 0.04).toFixed(2)));
+          alert(`✅ ${data.elements.length} sentiers et chemins de terre chargés avec succès sur la carte ! 🌲🏃‍♂️`);
+        } else {
+          alert("Aucun sentier spécifique détecté dans ce rayon immédiat.");
+        }
+      } else {
+        alert("Aucun résultat renvoyé par la base cartographique pour cette zone.");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Erreur de connexion aux serveurs de cartographie des sentiers.");
+    }
+  };
+
   const handleShareCircuitAsChallenge = () => {
     if (plannedRoutePositions.length === 0 || plannedDistanceKm <= 0) {
       alert("Veuillez d'abord générer ou importer un circuit cible !");
@@ -735,7 +787,7 @@ export default function RunningTab({
           {openSection === 'circuits' && (
             <div className="p-5 pt-0 space-y-4 border-t border-neutral-800 animate-fadeIn">
               <div className="flex justify-between items-center pt-2">
-                <span className="text-xs text-neutral-400">Génère un circuit routier sécurisé autour de ta position.</span>
+                <span className="text-xs text-neutral-400">Génère un circuit routier ou importe tous les sentiers de la zone.</span>
                 {plannedRoutePositions.length > 0 && (
                   <button onClick={() => { setPlannedRoutePositions([]); setPlannedDistanceKm(0); }} className="text-[10px] text-red-400 hover:underline font-bold">
                     Effacer ✕
@@ -767,6 +819,15 @@ export default function RunningTab({
                   </button>
                 ))}
               </div>
+
+              {/* Bouton pour charger TOUS les sentiers et chemins (OSM / Overpass) */}
+              <button 
+                type="button" 
+                onClick={handleFetchAllForestPaths} 
+                className="w-full py-3 bg-emerald-700 hover:bg-emerald-600 text-white font-black rounded-2xl text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition cursor-pointer shadow-lg"
+              >
+                🌲 Charger TOUS les sentiers et chemins autour de moi
+              </button>
 
               {plannedRoutePositions.length > 0 && (
                 <button type="button" onClick={handleShareCircuitAsChallenge} className="w-full py-3 bg-sky-600 hover:bg-sky-500 text-white font-black rounded-2xl text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition cursor-pointer shadow-lg">
