@@ -13,9 +13,9 @@ export default function SncShieldWidget({
   weeklyLoad = 1800, 
   recentLoads 
 }: SncShieldWidgetProps) {
-  // Rétrocompatibilité : si recentLoads n'est pas fourni, on simule une entrée basée sur weeklyLoad
-  const loadsToAnalyze = recentLoads || [
-    { date: new Date().toISOString(), load: weeklyLoad, type: 'mixed' }
+  // Rétrocompatibilité typée correctement avec TrainingLoadEntry
+  const loadsToAnalyze: TrainingLoadEntry[] = recentLoads || [
+    { date: new Date().toISOString(), loadScore: weeklyLoad, sessionType: 'mixed' }
   ];
 
   // Analyse en direct via l'algorithme intelligent
