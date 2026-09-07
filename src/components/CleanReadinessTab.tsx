@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { ArrowLeft, HelpCircle, Sparkles, Watch, Activity, CheckCircle2 } from 'lucide-react';
+import { supabase } from '../supabaseClient';
 
 interface CleanReadinessTabProps {
   currentUserId?: string;
@@ -24,7 +25,6 @@ export default function CleanReadinessTab({ currentUserId, onBack }: CleanReadin
         const todayStr = new Date().toISOString().split('T')[0];
         const checkinDateStr = parsed.date || new Date(parsed.timestamp).toISOString().split('T')[0];
 
-        // Si le check-in a été fait aujourd'hui, on bascule sur la vue validée (image)
         if (checkinDateStr === todayStr) {
           setHasCheckedIn(true);
           setSleepHours(parsed.sleepHours || '');
@@ -32,7 +32,6 @@ export default function CleanReadinessTab({ currentUserId, onBack }: CleanReadin
           setSoreness(parsed.soreness || 2);
           setStressLevel(parsed.stressLevel || 2);
         } else {
-          // Si on est le lendemain, on nettoie pour réafficher le formulaire du matin
           localStorage.removeItem(`fitpulse_readiness_${currentUserId}`);
           setHasCheckedIn(false);
         }
@@ -80,7 +79,7 @@ export default function CleanReadinessTab({ currentUserId, onBack }: CleanReadin
 
   const readinessScore = calculateReadinessScore();
 
-  const handleSaveCheckin = () => {
+  const handleSaveCheckin = async () => {
     if (sleepHours === '') {
       alert("Veuillez renseigner votre nombre d'heures de sommeil pour calculer votre Readiness.");
       return;
@@ -99,11 +98,29 @@ export default function CleanReadinessTab({ currentUserId, onBack }: CleanReadin
 
     localStorage.setItem(`fitpulse_readiness_${currentUserId}`, JSON.stringify(data));
     setHasCheckedIn(true);
+
+    if (currentUserId) {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ readiness_score: readinessScore })
+        .eq('id', currentUserId);
+
+      if (error) {
+        console.warn("Erreur synchro score readiness Supabase :", error.message);
+      }
+    }
   };
 
-  const handleResetCheckin = () => {
+  const handleResetCheckin = async () => {
     localStorage.removeItem(`fitpulse_readiness_${currentUserId}`);
     setHasCheckedIn(false);
+
+    if (currentUserId) {
+      await supabase
+        .from('profiles')
+        .update({ readiness_score: 78 })
+        .eq('id', currentUserId);
+    }
   };
 
   return (
@@ -143,7 +160,6 @@ export default function CleanReadinessTab({ currentUserId, onBack }: CleanReadin
         </div>
       )}
 
-      {/* VUE VALIDÉE (Identique à ton image) */}
       {hasCheckedIn ? (
         <div className="bg-neutral-950 border border-emerald-500/30 rounded-3xl p-6 space-y-4 shadow-2xl relative overflow-hidden">
           <div className="flex items-center justify-between">
@@ -175,7 +191,6 @@ export default function CleanReadinessTab({ currentUserId, onBack }: CleanReadin
           </div>
         </div>
       ) : (
-        /* VUE FORMULAIRE DU MATIN */
         <>
           <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 flex items-center justify-between shadow-xl">
             <div className="flex items-center gap-3">
