@@ -179,7 +179,26 @@ export default function App() {
   const currentUserProfile = registeredUsers.find(u => u.id === user?.id);
   const currentUsername = currentUserProfile?.username || user?.user_metadata?.username || 'Athlète';
   
-  const currentReadinessScore = Number((currentUserProfile as any)?.readiness_score ?? 78);
+  // Source de vérité unifiée : priorité au score du check-in du jour en localStorage, sinon profil Supabase
+  const getTodayReadinessScore = () => {
+    if (!user) return 78;
+    try {
+      const saved = localStorage.getItem(`fitpulse_readiness_${user.id}`);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        const todayStr = new Date().toISOString().split('T')[0];
+        const checkinDateStr = parsed.date || new Date(parsed.timestamp).toISOString().split('T')[0];
+        if (checkinDateStr === todayStr && parsed.score) {
+          return Number(parsed.score);
+        }
+      }
+    } catch (e) {
+      // Ignore
+    }
+    return Number((currentUserProfile as any)?.readiness_score ?? 78);
+  };
+
+  const currentReadinessScore = getTodayReadinessScore();
 
   const todayApexData = calculateApexScore({
     readinessScore: currentReadinessScore,
