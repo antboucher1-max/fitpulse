@@ -1,34 +1,36 @@
 import { useState, useRef, useEffect, FormEvent } from 'react';
-import { Bot, Send, User, ArrowLeft, AlertTriangle, CheckCircle2 } from 'lucide-react';
-import { supabase } from '../supabaseClient';
+import { Bot, Send, User, ArrowLeft } from 'lucide-react';
+import { useAppState } from '../context/AppStateContext';
+import { askFitBotAI } from '../services/fitbotService';
 
 interface FitBotTabProps {
   currentUserProfile?: any;
-  currentReadinessScore?: number;
   onBack?: () => void;
 }
 
 interface Message {
   role: 'user' | 'assistant';
   content: string;
-  isProactiveAlert?: boolean;
+  isError?: boolean;
 }
 
-export default function FitBotTab({ currentUserProfile, currentReadinessScore = 80, onBack }: FitBotTabProps) {
+// Réécrit pour utiliser un vrai modèle de langage (via la Edge Function
+// Supabase fitbot-chat) au lieu de réponses pré-écrites détectées par
+// mots-clés. Le coach comprend maintenant des questions ouvertes ; s'il ne
+// comprend pas, il le dit et demande une clarification au lieu de planter ou
+// de sortir une réponse hors sujet.
+export default function FitBotTab({ currentUserProfile, onBack }: FitBotTabProps) {
+  const { readiness, trainingLoad, discipline, sessions } = useAppState();
+  const username = currentUserProfile?.username || 'Athlète';
+
   const [messages, setMessages] = useState<Message[]>([
     {
       role: 'assistant',
-      content: `Salut ${currentUserProfile?.username || 'Athlète'} ! Analyse matinale terminée. Ton indice de forme est à ${currentReadinessScore}%.`,
+      content: `Salut ${username} ! Je suis FitBot, ton coach. Pose-moi une question sur ton entraînement, ta récupération ou ta nutrition — je m'appuie sur tes vraies données pour te répondre.`,
     },
-    {
-      role: 'assistant',
-      content: `🚨 **Alerte Proactive Coach** : J'ai analysé tes 3 dernières séances sur le fil. Ta charge d'entraînement augmente de 40% cette semaine, ce qui dépasse les recommandations de sécurité pour ton objectif. \n\n👉 *Suggestion : Je t'ai modifié ton WOD de demain en une session axée sur la récupération active et le gainage léger pour éviter le surmenage.* Veux-tu valider ce nouveau planning ?`,
-      isProactiveAlert: true
-    }
   ]);
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [wodModified, setWodModified] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -39,13 +41,16 @@ export default function FitBotTab({ currentUserProfile, currentReadinessScore = 
     scrollToBottom();
   }, [messages, isLoading]);
 
-  const handleAcceptWodChange = () => {
-    setWodModified(true);
-    setMessages(prev => [
-      ...prev,
-      { role: 'user', content: "Oui, valide la modification de mon WOD de demain." },
-      { role: 'assistant', content: "✅ C'est fait ! Ton calendrier a été mis à jour automatiquement. Repose-toi bien ce soir, la forme reviendra plus forte après-demain." }
-    ]);
+  const buildRecentSessionsSummary = (): string => {
+    const last7Days = sessions.filter((s) => {
+      if (!s.createdAt) return false;
+      const diffDays = (Date.now() - new Date(s.createdAt).getTime()) / (24 * 60 * 60 * 1000);
+      return diffDays <= 7;
+    });
+    if (last7Days.length === 0) return 'Aucune séance enregistrée cette semaine.';
+    const counts: Record<string, number> = {};
+    last7Days.forEach((s) => { counts[s.type] = (counts[s.type] || 0) + 1; });
+    return Object.entries(counts).map(([type, n]) => `${n} séance(s) de ${type}`).join(', ');
   };
 
   const handleSendMessage = async (e: FormEvent) => {
@@ -54,31 +59,19 @@ export default function FitBotTab({ currentUserProfile, currentReadinessScore = 
 
     const userText = inputMessage.trim();
     setInputMessage('');
-    setMessages(prev => [...prev, { role: 'user', content: userText }]);
+    setMessages((prev) => [...prev, { role: 'user', content: userText }]);
     setIsLoading(true);
 
-    try {
-      setTimeout(() => {
-        let aiReply = "C'est bien noté ! ";
-        const lower = userText.toLowerCase();
+    const result = await askFitBotAI(userText, {
+      username,
+      readinessScore: readiness.score,
+      trainingLoad,
+      discipline,
+      recentSessionsSummary: buildRecentSessionsSummary(),
+    });
 
-        if (lower.includes('fatigue') || lower.includes('courbature') || lower.includes('recup')) {
-          aiReply += `Avec ton score de ${currentReadinessScore}%, écoute ton système nerveux. Une bonne nuit et des apports adaptés en micronutriments vont régler ça.`;
-        } else if (lower.includes('manger') || lower.includes('faim') || lower.includes('recette') || lower.includes('frigo')) {
-          aiReply += `Pense à utiliser le **Scan Frigo** juste en un clic depuis l'accueil pour que je t'invente une recette flash basée sur tes protéines actuelles !`;
-        } else {
-          aiReply += `Je veille sur ta progression. N'hésite pas si tu veux ajuster tes allures de course ou tes charges en musculation.`;
-        }
-
-        setMessages(prev => [...prev, { role: 'assistant', content: aiReply }]);
-        setIsLoading(false);
-      }, 1000);
-
-    } catch (err) {
-      console.error("Erreur FitBot :", err);
-      setMessages(prev => [...prev, { role: 'assistant', content: "Désolé, petit souci technique. Réessaie dans un instant !" }]);
-      setIsLoading(false);
-    }
+    setMessages((prev) => [...prev, { role: 'assistant', content: result.reply, isError: result.error }]);
+    setIsLoading(false);
   };
 
   return (
@@ -104,7 +97,7 @@ export default function FitBotTab({ currentUserProfile, currentReadinessScore = 
             <h3 className="text-sm font-black text-white flex items-center gap-2">
               Coach FitBot AI Proactif <span className="text-[9px] bg-cyan-500/20 text-cyan-400 font-extrabold px-2 py-0.5 rounded-full border border-cyan-500/30">Autonome 🛰️</span>
             </h3>
-            <p className="text-[10px] text-neutral-400">Analyse de surcharge active • Forme : {currentReadinessScore}%</p>
+            <p className="text-[10px] text-neutral-400">Coach conversationnel • Forme : {readiness.score > 0 ? `${readiness.score}%` : 'check-in non fait'}</p>
           </div>
         </div>
       </div>
@@ -122,8 +115,8 @@ export default function FitBotTab({ currentUserProfile, currentReadinessScore = 
               <div className={`max-w-[85%] p-3.5 rounded-2xl text-xs leading-relaxed whitespace-pre-line ${
                 msg.role === 'user' 
                   ? 'bg-orange-600 text-white rounded-tr-none shadow-lg' 
-                  : msg.isProactiveAlert 
-                    ? 'bg-amber-950/40 text-amber-200 border border-amber-500/40 rounded-tl-none shadow-xl'
+                  : msg.isError 
+                    ? 'bg-red-950/40 text-red-200 border border-red-500/40 rounded-tl-none shadow-xl'
                     : 'bg-neutral-950 text-neutral-200 border border-neutral-800 rounded-tl-none shadow-inner'
               }`}>
                 {msg.content}
@@ -134,19 +127,6 @@ export default function FitBotTab({ currentUserProfile, currentReadinessScore = 
                 </div>
               )}
             </div>
-
-            {/* Bouton d'action proactif si l'alerte est présente et non encore validée */}
-            {msg.isProactiveAlert && !wodModified && (
-              <div className="pl-9">
-                <button
-                  type="button"
-                  onClick={handleAcceptWodChange}
-                  className="py-2 px-4 bg-cyan-600 hover:bg-cyan-500 text-white font-bold rounded-xl text-xs transition shadow-lg flex items-center gap-1.5 cursor-pointer"
-                >
-                  <CheckCircle2 className="w-4 h-4" /> Appliquer la modification du WOD
-                </button>
-              </div>
-            )}
           </div>
         ))}
 
