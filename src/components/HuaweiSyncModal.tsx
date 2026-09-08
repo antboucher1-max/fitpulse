@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Watch, CheckCircle2, RefreshCw, X, ShieldCheck } from 'lucide-react';
 import { supabase } from '../supabaseClient';
+import { setWearableConnected } from '../utils/wearableConnections';
 
 interface HuaweiSyncModalProps {
   currentUserId?: string;
@@ -36,6 +37,10 @@ export default function HuaweiSyncModal({ currentUserId, onClose, onSynced }: Hu
       setSyncing(false);
       if (!error) {
         setSyncedSuccess(true);
+        // Aligne Huawei sur le même statut partagé que Garmin/Strava (voir
+        // utils/wearableConnections.ts), pour que les 3 intégrations
+        // répondent de façon cohérente à "suis-je connecté ?".
+        setWearableConnected('huawei', true);
         setTimeout(() => {
           onSynced();
           onClose();
