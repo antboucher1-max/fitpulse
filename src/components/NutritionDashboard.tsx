@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Apple, Droplet, Zap, Utensils, Flame, CheckCircle2 } from 'lucide-react';
 import { supabase } from '../supabaseClient';
+import { calculatePostWorkoutRecovery } from '../utils/nutritionCalculator';
 
 interface NutritionDashboardProps {
   currentUserId?: string;
@@ -20,17 +21,16 @@ export default function NutritionDashboard({
   const [isLogged, setIsLogged] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
 
-  // Calculs automatiques des besoins post-effort
-  const durationHours = lastRunDurationSecs / 3600;
-  
-  // Besoins en eau : ~750ml par heure d'effort + réhydratation de base (150% du poids perdu estimé)
-  const targetWaterMl = Math.round((durationHours * 750) + (bodyWeight * 50));
-  
-  // Besoins en glucides de récupération : 1.2g par kg de poids corporel + recharge post-effort
-  const targetCarbsGrams = Math.round(bodyWeight * 1.2 + (lastRunDistance * 4));
-  
-  // Besoins en protéines : 0.4g par kg pour la reconstruction tissulaire (surtout en hybride muscu/run)
-  const targetProteinGrams = Math.round(bodyWeight * 0.4);
+  // Calculs post-effort centralisés dans utils/nutritionCalculator.ts (même
+  // constante de protéines que NutritionTab, au lieu d'une valeur dupliquée).
+  const recovery = calculatePostWorkoutRecovery({
+    distanceKm: lastRunDistance,
+    durationSecs: lastRunDurationSecs,
+    bodyWeightKg: bodyWeight,
+  });
+  const targetWaterMl = recovery.targetWaterMl;
+  const targetCarbsGrams = recovery.targetCarbsGrams;
+  const targetProteinGrams = recovery.targetProteinGrams;
 
   // Recommandation personnalisée selon le score de fatigue
   const getPostWorkoutAdvice = (score: number) => {
