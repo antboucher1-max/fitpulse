@@ -2,11 +2,7 @@ import { useState, useEffect, FormEvent } from 'react';
 import { 
   Zap, Flame, Trophy, Plus, X, Timer, Calculator, Play, Pause, RotateCcw, Settings2, ShieldCheck, ArrowLeft, Lock, MapPin  
 } from 'lucide-react';
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseUrl = 'https://obtahwmcoqrcauscpksv.supabase.co';
-const supabaseAnonKey = 'sb_publishable_O8CKhUtzgq9nO9lKavNE9A__fAdRWoB';
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+import { supabase } from '../supabaseClient';
 
 interface BoxWarsTabProps {
   currentUserId?: string;
