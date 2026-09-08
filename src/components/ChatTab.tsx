@@ -1,11 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Send, MessageCircle, ArrowLeft, Trash2, Flag, Check, Flame } from 'lucide-react';
 import { RealUser, DBMessage } from '../types';
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseUrl = 'https://obtahwmcoqrcauscpksv.supabase.co';
-const supabaseAnonKey = 'sb_publishable_O8CKhUtzgq9nO9lKavNE9A__fAdRWoB';
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+import { supabase } from '../supabaseClient';
 
 interface ChatTabProps {
   currentUserId?: string;
