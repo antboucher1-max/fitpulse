@@ -9,6 +9,8 @@ export interface UnifiedSession {
   title: string;
   durationMins: number;
   rpe: number;
+  createdAt?: string; // ISO timestamp — ajouté pour permettre le bilan hebdo et
+                       // l'adaptation inter-discipline (savoir ce qui est "récent")
 }
 
 export interface Shoe {
@@ -142,7 +144,10 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   }, [revealedModules]);
 
   const addSession = (session: UnifiedSession) => {
-    setSessions((prev) => [session, ...prev]);
+    // Horodatage automatique si non fourni, pour que le bilan hebdo et
+    // l'adaptation inter-discipline puissent filtrer par récence.
+    const stamped: UnifiedSession = { ...session, createdAt: session.createdAt || new Date().toISOString() };
+    setSessions((prev) => [stamped, ...prev]);
   };
 
   const removeSession = (id: string) => {
