@@ -21,7 +21,7 @@ export const EXERCISE_REFERENCE_GUIDE: ExerciseGuide[] = [
     settings: 'Banc plat, prise légèrement supérieure à la largeur des épaules.',
     execution: 'Descendre la barre au sternum en contrôlant, coudes à environ 45° du buste, puis pousser jusqu\'à extension complète des bras.',
     tips: 'Garder les omoplates serrées et les pieds fermement ancrés au sol pour la stabilité.',
-    image_url: 'https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=300&q=80&fit=crop',
+    image_url: '',
     detailedDescription: 'Mouvement de base pour le développement de la force et du volume des pectoraux.',
   },
   {
@@ -33,7 +33,7 @@ export const EXERCISE_REFERENCE_GUIDE: ExerciseGuide[] = [
     settings: 'Banc incliné à 30-45 degrés.',
     execution: 'Pousser les haltères vers le haut en contractant les pectoraux en haut du mouvement, sans les entrechoquer.',
     tips: 'Contrôler la descente pour maximiser l\'étirement sans perdre la tension.',
-    image_url: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?w=300&q=80&fit=crop',
+    image_url: '',
     detailedDescription: 'Cible spécifiquement le haut des pectoraux, complémentaire au développé couché plat.',
   },
   {
@@ -45,7 +45,7 @@ export const EXERCISE_REFERENCE_GUIDE: ExerciseGuide[] = [
     settings: 'Barres parallèles, buste légèrement incliné vers l\'avant.',
     execution: 'Descendre jusqu\'à un angle de 90 degrés aux coudes, puis pousser jusqu\'à extension complète.',
     tips: 'Incliner le torse vers l\'avant accentue le travail des pectoraux plutôt que des triceps.',
-    image_url: 'https://images.unsplash.com/photo-1599058917212-97d142f46bce?w=300&q=80&fit=crop',
+    image_url: '',
     detailedDescription: 'Excellent exercice au poids du corps, peut être lesté pour progresser en charge.',
   },
   {
@@ -57,7 +57,7 @@ export const EXERCISE_REFERENCE_GUIDE: ExerciseGuide[] = [
     settings: 'Barre proche des tibias, pieds largeur de hanches.',
     execution: 'Garder le dos droit, pousser à travers les talons pour redresser les hanches et le buste simultanément.',
     tips: 'Ne jamais arrondir le bas du dos ; réduire la charge plutôt que sacrifier la technique.',
-    image_url: 'https://images.unsplash.com/photo-1603287681836-b174ce5074c2?w=300&q=80&fit=crop',
+    image_url: '',
     detailedDescription: 'Mouvement polyarticulaire de référence pour la force globale du corps.',
   },
   {
@@ -69,7 +69,7 @@ export const EXERCISE_REFERENCE_GUIDE: ExerciseGuide[] = [
     settings: 'Prise pronation, largeur légèrement supérieure aux épaules.',
     execution: 'Tirer la poitrine vers la barre en engageant les dorsaux, redescendre en contrôle jusqu\'à extension complète.',
     tips: 'Éviter de se balancer ; privilégier l\'amplitude complète à la quantité de répétitions.',
-    image_url: 'https://images.unsplash.com/photo-1598971639058-fab3c3109a00?w=300&q=80&fit=crop',
+    image_url: '',
     detailedDescription: 'Référence pour la force de tirage vertical et le développement du dos.',
   },
   {
@@ -81,7 +81,7 @@ export const EXERCISE_REFERENCE_GUIDE: ExerciseGuide[] = [
     settings: 'Buste penché à environ 45 degrés, genoux légèrement fléchis.',
     execution: 'Tirer la barre vers le nombril en serrant les omoplates, puis redescendre en contrôle.',
     tips: 'Garder le dos plat pendant tout le mouvement pour protéger la colonne.',
-    image_url: 'https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?w=300&q=80&fit=crop',
+    image_url: '',
     detailedDescription: 'Développe l\'épaisseur du dos, complémentaire aux tractions pour la largeur.',
   },
   {
@@ -93,7 +93,7 @@ export const EXERCISE_REFERENCE_GUIDE: ExerciseGuide[] = [
     settings: 'Barre posée sur les trapèzes, pieds largeur d\'épaules.',
     execution: 'Descendre les fesses en arrière en gardant les genoux alignés avec les pointes de pieds, jusqu\'à cuisses parallèles au sol ou plus bas.',
     tips: 'Garder le dos neutre et le regard droit devant tout au long du mouvement.',
-    image_url: 'https://images.unsplash.com/photo-1566241440091-ec10de8db2e1?w=300&q=80&fit=crop',
+    image_url: '',
     detailedDescription: 'Mouvement fondamental pour la force et la masse musculaire des jambes.',
   },
   {
@@ -105,7 +105,7 @@ export const EXERCISE_REFERENCE_GUIDE: ExerciseGuide[] = [
     settings: 'Jambes légèrement fléchies, barre proche des cuisses.',
     execution: 'Pousser les fesses vers l\'arrière pour étirer les ischio-jambiers, sans arrondir le dos, puis revenir en poussant le bassin vers l\'avant.',
     tips: 'L\'amplitude s\'arrête où le dos commence à se courber, pas plus bas.',
-    image_url: 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?w=300&q=80&fit=crop',
+    image_url: '',
     detailedDescription: 'Isole efficacement la chaîne postérieure, complémentaire au squat.',
   },
   {
@@ -117,7 +117,7 @@ export const EXERCISE_REFERENCE_GUIDE: ExerciseGuide[] = [
     settings: 'Un pied posé sur un banc à l\'arrière, haltères en main.',
     execution: 'Descendre verticalement sur la jambe avant jusqu\'à un angle de 90 degrés au genou, puis remonter.',
     tips: 'Excellent pour corriger les déséquilibres de force entre les deux jambes.',
-    image_url: 'https://images.unsplash.com/photo-1434596922112-19c563067271?w=300&q=80&fit=crop',
+    image_url: '',
     detailedDescription: 'Travail unilatéral exigeant en équilibre et en force.',
   },
   {
@@ -129,7 +129,7 @@ export const EXERCISE_REFERENCE_GUIDE: ExerciseGuide[] = [
     settings: 'Debout, barre au niveau des clavicules.',
     execution: 'Pousser la barre au-dessus de la tête en verrouillant les coudes en haut, sans cambrer excessivement le bas du dos.',
     tips: 'Gainer fort le tronc pour transférer la force efficacement vers le haut.',
-    image_url: 'https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?w=300&q=80&fit=crop',
+    image_url: '',
     detailedDescription: 'Référence pour la force et la stabilité des épaules.',
   },
   {
@@ -141,7 +141,7 @@ export const EXERCISE_REFERENCE_GUIDE: ExerciseGuide[] = [
     settings: 'Debout, haltères légers, bras légèrement fléchis.',
     execution: 'Monter les haltères sur les côtés jusqu\'à hauteur des épaules, puis redescendre en contrôle.',
     tips: 'Privilégier une charge modérée avec une exécution stricte plutôt que de tricher avec l\'élan.',
-    image_url: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?w=300&q=80&fit=crop',
+    image_url: '',
     detailedDescription: 'Isolation ciblée pour la largeur des épaules.',
   },
   {
@@ -153,7 +153,7 @@ export const EXERCISE_REFERENCE_GUIDE: ExerciseGuide[] = [
     settings: 'Debout, prise supination largeur d\'épaules.',
     execution: 'Garder les coudes fixes le long du corps, fléchir les avant-bras en contractant les biceps.',
     tips: 'Éviter de balancer le buste pour tricher sur les dernières répétitions.',
-    image_url: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?w=300&q=80&fit=crop',
+    image_url: '',
     detailedDescription: 'Exercice de base pour le développement des biceps.',
   },
   {
@@ -165,7 +165,7 @@ export const EXERCISE_REFERENCE_GUIDE: ExerciseGuide[] = [
     settings: 'Face à la poulie haute, corde ou barre droite.',
     execution: 'Pousser la corde ou la barre vers le bas en gardant les coudes serrés contre les côtes.',
     tips: 'Terminer le mouvement en extension complète pour maximiser la contraction.',
-    image_url: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=300&q=80&fit=crop',
+    image_url: '',
     detailedDescription: 'Isolation efficace pour le développement des triceps.',
   },
   {
@@ -177,7 +177,7 @@ export const EXERCISE_REFERENCE_GUIDE: ExerciseGuide[] = [
     settings: 'Appui sur les avant-bras et les pointes de pieds.',
     execution: 'Maintenir le corps aligné de la tête aux talons, sans creuser ni cambrer le bas du dos.',
     tips: 'Respirer normalement plutôt que de bloquer sa respiration.',
-    image_url: 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=300&q=80&fit=crop',
+    image_url: '',
     detailedDescription: 'Exercice de gainage statique fondamental pour la stabilité du tronc.',
   },
   {
@@ -189,7 +189,7 @@ export const EXERCISE_REFERENCE_GUIDE: ExerciseGuide[] = [
     settings: 'Suspendu à une barre de tractions, prise large.',
     execution: 'Relever les jambes tendues ou fléchies jusqu\'à l\'horizontale ou plus haut, en contrôlant la descente.',
     tips: 'Éviter de se balancer ; le contrôle prime sur l\'amplitude.',
-    image_url: 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=300&q=80&fit=crop',
+    image_url: '',
     detailedDescription: 'Cible efficacement le bas des abdominaux, plus exigeant que le crunch classique.',
   },
 ];
