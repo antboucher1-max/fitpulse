@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { BarChart3, TrendingUp } from 'lucide-react';
 import GearTrackerSection from './GearTrackerSection';
-import TrainingLoadWidget from './TrainingLoadWidget';
-// ReadinessWidget supprimé : recalculait un score de récupération différent
-// (recentLoadScore inventé à partir du nombre de posts). SncShieldWidget lit
-// désormais le vrai score du jour depuis AppStateContext, sans prop nécessaire.
+// TrainingLoadWidget et ReadinessWidget supprimés : les deux calculaient leur
+// propre verdict de charge/récupération indépendamment de SncShieldWidget,
+// ce qui pouvait afficher des messages contradictoires côte à côte (ex:
+// "urgence critique" et "optimale, continue ainsi" en même temps). Un seul
+// widget fait foi désormais.
 import SncShieldWidget from './SncShieldWidget';
 
 interface ProgressTabProps {
@@ -54,11 +55,8 @@ export default function ProgressTab({
 
   return (
     <div className="space-y-5 animate-fadeIn pb-20">
-      {/* Score de Récupération (Readiness) intégré tout en haut */}
+      {/* Score de Récupération + Charge d'entraînement, en un seul widget cohérent */}
       <SncShieldWidget />
-
-      {/* Widget de Charge d'Entraînement Globale (Fatigue unifiée Course + Muscu + Crossfit) */}
-      <TrainingLoadWidget posts={posts} />
 
       {/* Statistiques & Progression */}
       <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-5 shadow-xl">
