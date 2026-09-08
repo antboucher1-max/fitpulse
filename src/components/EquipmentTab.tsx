@@ -1,10 +1,6 @@
 import { useState, useEffect } from 'react';
 import { ShieldCheck, Plus, AlertTriangle } from 'lucide-react';
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseUrl = 'https://obtahwmcoqrcauscpksv.supabase.co';
-const supabaseAnonKey = 'sb_publishable_O8CKhUtzgq9nO9lKavNE9A__fAdRWoB';
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+import { supabase } from '../supabaseClient';
 
 export default function EquipmentTab({ currentUserId }: { currentUserId?: string }) {
   const [shoes, setShoes] = useState<any[]>([]);
