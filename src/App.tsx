@@ -1,13 +1,15 @@
 import { useState } from 'react';
 import { 
   Activity, Dumbbell, Compass, Share2, Trophy, Watch, 
-  Utensils, Home, HeartPulse, Map, User, Sparkles, ShieldAlert 
+  Utensils, Home, HeartPulse, Map, User, Sparkles, ShieldAlert,
+  ChevronDown, ChevronUp
 } from 'lucide-react';
 
 // --- STATE CENTRAL (remplace le polling localStorage) ---
 import { AppStateProvider, useAppState } from './context/AppStateContext';
 
 // --- IMPORTS DES MODULES ---
+import TodayTab from './components/TodayTab';
 import UnifiedTriptychModule from './components/UnifiedTriptychModule';
 import ClubBuddiesEcosystem from './components/ClubBuddiesEcosystem';
 import SurgicalAutomationModule from './components/SurgicalAutomationModule';
@@ -60,11 +62,35 @@ function AppContent() {
 
   const [showHuaweiModal, setShowHuaweiModal] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
+  const [showAdvancedHome, setShowAdvancedHome] = useState(false);
 
   // Charge globale : plus de polling, plus de duplication de la formule de calcul.
   // Elle vit dans AppStateContext et se met à jour instantanément dès qu'un
   // composant (ex: UnifiedTriptychModule) modifie les sessions.
-  const { trainingLoad: currentGlobalLoad } = useAppState();
+  const { trainingLoad: currentGlobalLoad, discipline, revealedModules, revealModule } = useAppState();
+
+  // Modules de l'onglet Entraînement, filtrés par discipline. Rien n'est
+  // supprimé : un module non pertinent pour la discipline choisie est juste
+  // masqué par défaut, et reste accessible via "+ Ajouter un module".
+  const TRAINING_MODULES: Array<{
+    id: string;
+    label: string;
+    disciplines: Array<'musculation' | 'course' | 'crossfit'>;
+    render: () => JSX.Element;
+  }> = [
+    { id: 'ghost-pacing', label: 'Ghost Pacing', disciplines: ['course'], render: () => <GhostPacingEngine currentVma={15} /> },
+    { id: 'gps-tracker', label: 'GPS Live', disciplines: ['course'], render: () => <LiveGpsTracker onUpdateDistance={(dist) => console.log('Distance GPS:', dist)} /> },
+    { id: 'live-coach', label: 'Coach Vocal', disciplines: ['course'], render: () => <LiveCoachEngine currentKm={0} currentPaceSeconds={0} isRunActive={false} /> },
+    { id: 'gym-log', label: 'Carnet de Musculation', disciplines: ['musculation'], render: () => <GymLogTab currentUserId={currentUserId} /> },
+    { id: 'exercises', label: 'Guide des Exercices', disciplines: ['musculation'], render: () => <ExercisesTab exercises={[]} exerciseSearch="" setExerciseSearch={() => {}} selectedCategoryFilter="Tous" setSelectedCategoryFilter={() => {}} onSelectExercise={() => {}} /> },
+    { id: 'wod-timer', label: 'Smart Timer WOD', disciplines: ['crossfit'], render: () => <WodTimerTab /> },
+  ];
+
+  const isModuleVisible = (mod: typeof TRAINING_MODULES[number]) =>
+    discipline === 'hybride' || mod.disciplines.includes(discipline as any) || revealedModules.includes(mod.id);
+
+  const visibleTrainingModules = TRAINING_MODULES.filter(isModuleVisible);
+  const hiddenTrainingModules = TRAINING_MODULES.filter((m) => !isModuleVisible(m));
 
   return (
     <div className="min-h-screen bg-neutral-950 text-white pb-32 selection:bg-orange-500 selection:text-white font-sans antialiased">
@@ -139,33 +165,63 @@ function AppContent() {
       {/* --- CONTENU PRINCIPAL --- */}
       <main className="max-w-5xl mx-auto px-4 py-6 space-y-6">
 
-        {/* VUE D'ENSEMBLE (Home) : Vitrine stratosphérique */}
+        {/* VUE D'ENSEMBLE (Home) : TodayTab en action-first, détails repliés par défaut */}
         {currentView === 'home' && (
-          <div className="space-y-6 animate-fadeIn">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className="lg:col-span-2 space-y-6">
-                <UnifiedTriptychModule currentUserId={currentUserId} />
-                <SurgicalAutomationModule />
+          <div className="space-y-4 animate-fadeIn">
+            <TodayTab currentUserProfile={null} onNavigateTab={setCurrentView} />
+
+            <button
+              onClick={() => setShowAdvancedHome(!showAdvancedHome)}
+              className="w-full py-3 bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 rounded-2xl text-xs font-bold text-neutral-400 hover:text-white transition cursor-pointer flex items-center justify-center gap-2"
+            >
+              {showAdvancedHome ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              {showAdvancedHome ? 'Masquer la vue avancée' : 'Voir la vue avancée (charge détaillée, automatisations, clubs)'}
+            </button>
+
+            {showAdvancedHome && (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fadeIn">
+                <div className="lg:col-span-2 space-y-6">
+                  <UnifiedTriptychModule currentUserId={currentUserId} />
+                  <SurgicalAutomationModule />
+                </div>
+                <div className="space-y-6">
+                  <SncShieldWidget weeklyLoad={currentGlobalLoad} />
+                  <ClubBuddiesEcosystem />
+                </div>
               </div>
-              <div className="space-y-6">
-                <SncShieldWidget weeklyLoad={currentGlobalLoad} />
-                <ClubBuddiesEcosystem />
-              </div>
-            </div>
+            )}
           </div>
         )}
 
-        {/* ENTRAÎNEMENT & GPS */}
+        {/* ENTRAÎNEMENT & GPS : filtré par discipline principale */}
         {currentView === 'training' && (
           <div className="space-y-6 animate-fadeIn">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <GhostPacingEngine currentVma={15} />
-              <LiveGpsTracker onUpdateDistance={(dist) => console.log('Distance GPS:', dist)} />
-            </div>
-            <LiveCoachEngine currentKm={0} currentPaceSeconds={0} isRunActive={false} />
-            <GymLogTab currentUserId={currentUserId} />
-            <ExercisesTab exercises={[]} exerciseSearch="" setExerciseSearch={() => {}} selectedCategoryFilter="Tous" setSelectedCategoryFilter={() => {}} onSelectExercise={() => {}} />
-            <WodTimerTab />
+            {visibleTrainingModules.length > 0 && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {visibleTrainingModules.map((mod) => (
+                  <div key={mod.id}>{mod.render()}</div>
+                ))}
+              </div>
+            )}
+
+            {hiddenTrainingModules.length > 0 && (
+              <div className="bg-neutral-900 border border-dashed border-neutral-800 rounded-2xl p-4 space-y-2">
+                <span className="text-[10px] uppercase font-bold text-neutral-500 block">
+                  Modules masqués (discipline "{discipline}") — rien n'est supprimé :
+                </span>
+                <div className="flex flex-wrap gap-2">
+                  {hiddenTrainingModules.map((mod) => (
+                    <button
+                      key={mod.id}
+                      onClick={() => revealModule(mod.id)}
+                      className="px-3 py-1.5 bg-neutral-950 hover:bg-neutral-800 border border-neutral-800 rounded-xl text-[11px] font-bold text-neutral-300 hover:text-white transition cursor-pointer"
+                    >
+                      + {mod.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
