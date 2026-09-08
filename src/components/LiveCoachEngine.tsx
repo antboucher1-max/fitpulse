@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Volume2, VolumeX, Wind, Droplets, Compass, Sparkles } from 'lucide-react';
 import { audioCoach } from '../utils/audioCoach';
+import { useAppState } from '../context/AppStateContext';
+import { getCrossDisciplineAdaptation } from '../utils/crossDisciplineAdaptation';
 
 interface LiveCoachEngineProps {
   currentKm: number;
@@ -13,6 +15,7 @@ export default function LiveCoachEngine({ currentKm, currentPaceSeconds, isRunAc
   const [headwindSpeed, setHeadwindSpeed] = useState(18); // km/h simulé par GPS/Météo
   const [humidity, setHumidity] = useState(78); // % d'humidité
   const [adjustedPaceBonus, setAdjustedPaceBonus] = useState(12); // secondes ajoutées par km à cause des conditions
+  const { sessions } = useAppState();
 
   // Synthèse vocale centralisée dans utils/audioCoach.ts (était dupliquée
   // ici, dans GhostPacingEngine.tsx et RestTimerTab.tsx).
@@ -29,6 +32,17 @@ export default function LiveCoachEngine({ currentKm, currentPaceSeconds, isRunAc
       const paceString = `${mins} minutes ${secs > 0 ? `${secs} secondes` : ''}`;
       
       let coachingTip = `Kilomètre ${currentKm} validé. Allure moyenne : ${paceString} du kilomètre. `;
+
+      // INNOVATION : le tout premier message du coach s'appuie sur la vraie
+      // analyse inter-discipline (utils/crossDisciplineAdaptation.ts) au lieu
+      // d'être uniquement basé sur la météo simulée — le coach parle de ta
+      // vraie semaine d'entraînement, pas juste du vent.
+      if (currentKm === 1) {
+        const adaptation = getCrossDisciplineAdaptation(sessions, 'run');
+        if (adaptation.isAdjusted) {
+          coachingTip = adaptation.message + ' ' + coachingTip;
+        }
+      }
       
       if (headwindSpeed > 15) {
         coachingTip += `Attention, vent de face estimé à ${headwindSpeed} kilomètres heure sur ce secteur. Ne force pas sur le cardio, garde ta foulée souple.`;
