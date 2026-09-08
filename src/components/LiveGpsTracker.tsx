@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Navigation, Play, Square } from 'lucide-react';
+import { calculateDistanceKm } from '../utils/geo';
 
 interface LiveGpsTrackerProps {
   onUpdateDistance: (distanceKm: number, currentPace: number) => void;
@@ -10,19 +11,6 @@ export default function LiveGpsTracker({ onUpdateDistance }: LiveGpsTrackerProps
   const [distance, setDistance] = useState(0);
   const [watchId, setWatchId] = useState<number | null>(null);
   const [lastCoords, setLastCoords] = useState<{ latitude: number; longitude: number } | null>(null);
-
-  // Formule de Haversine pour calculer la distance réelle entre deux points GPS en km
-  const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
-    const R = 6371; // Rayon de la Terre en km
-    const dLat = (lat2 - lat1) * (Math.PI / 180);
-    const dLon = (lon2 - lon1) * (Math.PI / 180);
-    const a =
-      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
-      Math.sin(dLon / 2) * Math.sin(dLon / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return R * c;
-  };
 
   const startGpsTracking = () => {
     if (!navigator.geolocation) {
@@ -40,7 +28,7 @@ export default function LiveGpsTracker({ onUpdateDistance }: LiveGpsTrackerProps
 
         setLastCoords((prev) => {
           if (prev) {
-            const distDelta = calculateDistance(prev.latitude, prev.longitude, latitude, longitude);
+            const distDelta = calculateDistanceKm(prev.latitude, prev.longitude, latitude, longitude);
             // Ignore les micro-sauts GPS aberrants de moins de 2 mètres
             if (distDelta > 0.002) {
               setDistance((currentDist) => {
