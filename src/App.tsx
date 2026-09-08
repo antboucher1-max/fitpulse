@@ -9,7 +9,6 @@ import { AppStateProvider, useAppState } from './context/AppStateContext';
 
 // --- IMPORTS DES MODULES ---
 import UnifiedTriptychModule from './components/UnifiedTriptychModule';
-import FitBotSncShield from './components/FitBotSncShield';
 import ClubBuddiesEcosystem from './components/ClubBuddiesEcosystem';
 import SurgicalAutomationModule from './components/SurgicalAutomationModule';
 
@@ -21,7 +20,6 @@ import ExercisesTab from './components/ExercisesTab';
 import WodTimerTab from './components/WodTimerTab';
 
 import SncShieldWidget from './components/SncShieldWidget';
-import ReadinessCheckin from './components/ReadinessCheckin';
 import FitBotProactiveCoach from './components/FitBotProactiveCoach';
 import BioSyncTab from './components/BioSyncTab';
 import CleanReadinessTab from './components/CleanReadinessTab';
@@ -174,10 +172,10 @@ function AppContent() {
         {/* SANTÉ & RÉCUPÉRATION */}
         {currentView === 'health' && (
           <div className="space-y-6 animate-fadeIn">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <SncShieldWidget weeklyLoad={currentGlobalLoad} />
-              <ReadinessCheckin />
-            </div>
+            {/* Ancien doublon retiré : ReadinessCheckin calculait un 2e score de
+                readiness différent de CleanReadinessTab, affiché juste en dessous.
+                CleanReadinessTab est désormais la seule UI de check-in. */}
+            <SncShieldWidget weeklyLoad={currentGlobalLoad} />
             <FitBotProactiveCoach />
             <BioSyncTab />
             <CleanReadinessTab />
