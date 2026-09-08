@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { 
   Activity, Dumbbell, Compass, Share2, Trophy, Watch, 
   Utensils, Home, HeartPulse, Map, User, Sparkles, ShieldAlert,
-  ChevronDown, ChevronUp
+  ChevronDown, ChevronUp, Bot
 } from 'lucide-react';
 
 // --- STATE CENTRAL (remplace le polling localStorage) ---
@@ -47,6 +47,7 @@ import ProfileTab from './components/ProfileTab';
 import HuaweiSyncModal from './components/HuaweiSyncModal';
 import HybridShareCard from './components/HybridShareCard';
 import OfflineRunGuard from './components/OfflineRunGuard';
+import FitBotTab from './components/FitBotTab';
 
 // Composant racine : ne fait qu'installer le Provider, aucune logique ici.
 export default function App() {
@@ -65,6 +66,7 @@ function AppContent() {
 
   const [showHuaweiModal, setShowHuaweiModal] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
+  const [showFitBotModal, setShowFitBotModal] = useState(false);
   const [showAdvancedHome, setShowAdvancedHome] = useState(false);
   const [showAdvancedHealth, setShowAdvancedHealth] = useState(false);
   const [showAdvancedNutrition, setShowAdvancedNutrition] = useState(false);
@@ -135,6 +137,12 @@ function AppContent() {
           </div>
 
           <div className="flex items-center gap-2">
+            <button 
+              onClick={() => setShowFitBotModal(true)}
+              className="px-3 py-2 bg-cyan-600 hover:bg-cyan-500 rounded-xl text-xs font-bold text-white transition flex items-center gap-1.5 cursor-pointer shadow-lg shadow-cyan-600/20"
+            >
+              <Bot className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Coach</span>
+            </button>
             <button 
               onClick={() => setShowHuaweiModal(true)}
               className="px-3 py-2 bg-neutral-900 hover:bg-neutral-800 border border-neutral-800/80 rounded-xl text-xs font-bold text-neutral-300 transition flex items-center gap-1.5 cursor-pointer"
@@ -338,6 +346,17 @@ function AppContent() {
           wodScore="3:55" 
           onClose={() => setShowShareModal(false)} 
         />
+      )}
+
+      {showFitBotModal && (
+        <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn">
+          <div className="w-full max-w-lg">
+            <FitBotTab
+              currentUserProfile={{ username: 'Antoine Boucher' }}
+              onBack={() => setShowFitBotModal(false)}
+            />
+          </div>
+        </div>
       )}
 
     </div>
