@@ -7,6 +7,7 @@ import {
 import { RealUser, TransformationPhoto } from '../types';
 import BadgesSection from './BadgesSection';
 import GearTrackerSection from './GearTrackerSection';
+import { isWearableConnected, setWearableConnected } from '../utils/wearableConnections';
 
 interface ProfileTabProps {
   user?: SupabaseUser | null;
@@ -104,24 +105,28 @@ export default function ProfileTab({
     
     if (code) {
       setIsStravaConnected(true);
-      localStorage.setItem('fitpulse_strava_connected', 'true');
+      setWearableConnected('strava', true);
       showToast('Compte Strava lié avec succès ! 🚀');
       window.history.replaceState({}, document.title, window.location.pathname);
     }
   }, []);
 
   useEffect(() => {
-    setIsStravaConnected(localStorage.getItem('fitpulse_strava_connected') === 'true');
+    // Statut de connexion lu depuis le helper partagé utils/wearableConnections.ts,
+    // au lieu de clés localStorage propres à cet écran. StravaSyncButton.tsx
+    // (utilisé ailleurs dans l'app) écrit désormais dans ce même statut, donc
+    // les deux surfaces Strava de l'app restent cohérentes entre elles.
+    setIsStravaConnected(isWearableConnected('strava'));
     setStravaSync(localStorage.getItem('fitpulse_strava_sync') !== 'false');
 
-    setIsGarminConnected(localStorage.getItem('fitpulse_garmin_connected') === 'true');
+    setIsGarminConnected(isWearableConnected('garmin'));
     setGarminSync(localStorage.getItem('fitpulse_garmin_sync') !== 'false');
   }, []);
 
   const toggleStrava = () => {
     if (isStravaConnected) {
       setIsStravaConnected(false);
-      localStorage.setItem('fitpulse_strava_connected', 'false');
+      setWearableConnected('strava', false);
       showToast('Strava déconnecté');
     } else {
       const clientId = 'TON_CLIENT_ID_STRAVA'; 
@@ -133,7 +138,7 @@ export default function ProfileTab({
   const toggleGarmin = () => {
     const nextState = !isGarminConnected;
     setIsGarminConnected(nextState);
-    localStorage.setItem('fitpulse_garmin_connected', String(nextState));
+    setWearableConnected('garmin', nextState);
     showToast(nextState ? 'Garmin Connect connecté avec succès' : 'Garmin déconnecté');
   };
 
