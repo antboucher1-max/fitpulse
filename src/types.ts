@@ -17,6 +17,7 @@ export interface ExerciseGuide {
   settings: string;
   execution: string;
   tips: string;
+  commonMistakes?: string[]; // erreurs fréquentes à éviter ("à ne pas faire")
   image_url: string;
   detailedDescription: string;
 }
