@@ -63,6 +63,8 @@ function AppContent() {
   const [showHuaweiModal, setShowHuaweiModal] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
   const [showAdvancedHome, setShowAdvancedHome] = useState(false);
+  const [showAdvancedHealth, setShowAdvancedHealth] = useState(false);
+  const [showAdvancedNutrition, setShowAdvancedNutrition] = useState(false);
 
   // Charge globale : plus de polling, plus de duplication de la formule de calcul.
   // Elle vit dans AppStateContext et se met à jour instantanément dès qu'un
@@ -225,29 +227,54 @@ function AppContent() {
           </div>
         )}
 
-        {/* SANTÉ & RÉCUPÉRATION */}
+        {/* SANTÉ & RÉCUPÉRATION : le check-in est l'action principale, le reste
+            (coach IA, bio-sync) est une analyse complémentaire repliée par défaut. */}
         {currentView === 'health' && (
           <div className="space-y-6 animate-fadeIn">
-            {/* Ancien doublon retiré : ReadinessCheckin calculait un 2e score de
-                readiness différent de CleanReadinessTab, affiché juste en dessous.
-                CleanReadinessTab est désormais la seule UI de check-in. */}
-            <SncShieldWidget weeklyLoad={currentGlobalLoad} />
-            <FitBotProactiveCoach />
-            <BioSyncTab />
             <CleanReadinessTab />
+            <SncShieldWidget weeklyLoad={currentGlobalLoad} />
+
+            <button
+              onClick={() => setShowAdvancedHealth(!showAdvancedHealth)}
+              className="w-full py-3 bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 rounded-2xl text-xs font-bold text-neutral-400 hover:text-white transition cursor-pointer flex items-center justify-center gap-2"
+            >
+              {showAdvancedHealth ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              {showAdvancedHealth ? 'Masquer les analyses avancées' : 'Voir les analyses avancées (Coach IA, Bio-Sync)'}
+            </button>
+
+            {showAdvancedHealth && (
+              <div className="space-y-6 animate-fadeIn">
+                <FitBotProactiveCoach />
+                <BioSyncTab />
+              </div>
+            )}
           </div>
         )}
 
-        {/* NUTRITION & AUTOMATISATION */}
+        {/* NUTRITION & AUTOMATISATION : le suivi du jour d'abord, les outils
+            secondaires (recettes, dashboard cloud, chaussures) repliés par défaut. */}
         {currentView === 'nutrition' && (
           <div className="space-y-6 animate-fadeIn">
             <NutritionTab currentUserId={currentUserId} bodyWeight={70} />
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FuelLockPostWod />
-              <FridgeScannerTab />
-            </div>
-            <NutritionDashboard currentUserId={currentUserId} />
-            <GearTrackerSection />
+
+            <button
+              onClick={() => setShowAdvancedNutrition(!showAdvancedNutrition)}
+              className="w-full py-3 bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 rounded-2xl text-xs font-bold text-neutral-400 hover:text-white transition cursor-pointer flex items-center justify-center gap-2"
+            >
+              {showAdvancedNutrition ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              {showAdvancedNutrition ? 'Masquer les outils avancés' : 'Voir les outils avancés (recettes, dashboard, matériel)'}
+            </button>
+
+            {showAdvancedNutrition && (
+              <div className="space-y-6 animate-fadeIn">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FuelLockPostWod />
+                  <FridgeScannerTab />
+                </div>
+                <NutritionDashboard currentUserId={currentUserId} />
+                <GearTrackerSection />
+              </div>
+            )}
           </div>
         )}
 
