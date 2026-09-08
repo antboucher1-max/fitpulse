@@ -18,8 +18,10 @@ export default function SncShieldWidget({
   const { trainingLoad, readiness } = useAppState();
 
   const effectiveLoad = weeklyLoad ?? trainingLoad;
-  // Score de récupération réel du jour (0 si pas encore de check-in fait).
-  const currentReadiness = readiness.score;
+  // BUGFIX : `null` si aucun check-in aujourd'hui, plus jamais `0` — 0 était
+  // interprété par le moteur comme "0% de récupération critique" au lieu de
+  // "donnée absente", ce qui déclenchait un faux message d'urgence.
+  const currentReadiness = readiness.score > 0 ? readiness.score : null;
 
   const loadsToAnalyze: TrainingLoadEntry[] = recentLoads || [
     { date: new Date().toISOString(), loadScore: effectiveLoad, type: 'running' }
@@ -53,7 +55,7 @@ export default function SncShieldWidget({
         </span>
       </div>
 
-      {currentReadiness === 0 && (
+      {currentReadiness === null && (
         <p className="text-[10px] text-neutral-500 italic">
           Aucun check-in aujourd'hui — analyse basée uniquement sur la charge d'entraînement.
         </p>
