@@ -9,6 +9,13 @@ import 'leaflet/dist/leaflet.css';
 import GearTrackerSection from './GearTrackerSection';
 import gpxParser from 'gpxparser';
 
+// Ancienne double définition de FitBotSNC et FuelLockPostWod supprimée :
+// ce fichier importe maintenant les vrais composants partagés au lieu de
+// recopier leur code. SncShieldWidget lit désormais le readiness réel du
+// state central (AppStateContext) au lieu d'un score fixe (78/45 en dur).
+import SncShieldWidget from './SncShieldWidget';
+import FuelLockPostWod from './FuelLockPostWod';
+
 function MapController({ center, plannedRoute }: { center: [number, number], plannedRoute?: Array<[number, number]> }) {
   const map = useMap();
   useEffect(() => {
@@ -42,47 +49,6 @@ function WelcomeGuideModal({ username, onClose }: { username: string; onClose: (
           Accéder au QG 🚀
         </button>
       </div>
-    </div>
-  );
-}
-
-// --- FITBOT SNC ---
-function FitBotSNC({ readinessScore = 78, weeklyLoad = 45 }: { readinessScore?: number; weeklyLoad?: number }) {
-  const isLocked = readinessScore < 50 || weeklyLoad > 80;
-  return (
-    <div className={`border rounded-3xl p-4 space-y-2 shadow-xl ${isLocked ? 'bg-red-950/20 border-red-500/40' : 'bg-neutral-900 border-neutral-800'}`}>
-      <div className="flex items-center gap-2 text-xs font-black uppercase text-orange-400">
-        <Zap className="w-4 h-4 animate-pulse" /> FitBot SNC (Auto-Régulation IA)
-      </div>
-      <p className="text-xs text-neutral-300">
-        {isLocked ? "🚨 [ALERTE SNC] Fatigue nerveuse détectée. Intensité verrouillée." : "⚡ [SNC Optimal] Système nerveux paré pour l'effort."}
-      </p>
-    </div>
-  );
-}
-
-// --- FUEL-LOCK POST-WOD ---
-function FuelLockPostWod({ lastRunDistanceKm = 10, bodyWeightKg = 70 }: { lastRunDistanceKm?: number; bodyWeightKg?: number }) {
-  const [recipe, setRecipe] = useState<any>(null);
-  const targetCarbs = Math.round(lastRunDistanceKm * 8);
-  const targetProt = Math.round(bodyWeightKg * 0.4);
-
-  return (
-    <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-4 space-y-3">
-      <div className="flex items-center justify-between text-xs font-black text-cyan-400 uppercase">
-        <span>Fuel-Lock Post-Effort 🧬</span>
-        <span>Cible : {targetCarbs}g Glucides</span>
-      </div>
-      {!recipe ? (
-        <button onClick={() => setRecipe({ title: "Bowl Récupération Poulet / Patate Douce", macros: `Glucides : ~${targetCarbs}g | Protéines : ~${targetProt}g` })} className="w-full py-2.5 bg-cyan-600 hover:bg-cyan-500 text-white font-black rounded-xl text-xs uppercase cursor-pointer">
-          Générer la recette 🥗
-        </button>
-      ) : (
-        <div className="bg-neutral-950 p-3 rounded-xl border border-cyan-500/30 text-xs space-y-1">
-          <div className="font-bold text-cyan-300">{recipe.title}</div>
-          <div className="text-emerald-400 font-mono">{recipe.macros}</div>
-        </div>
-      )}
     </div>
   );
 }
@@ -421,7 +387,7 @@ export default function RunningTab({
         </div>
       </div>
 
-      <FitBotSNC readinessScore={78} weeklyLoad={45} />
+      <SncShieldWidget />
 
       {/* =========================================================================
           2. CENTRE D'ANALYSE POST-EFFORT (IMPORT GPX & SAISIE MANUELLE)
