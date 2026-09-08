@@ -26,6 +26,11 @@ export interface ReadinessState {
   score: number; // 0 si aucun check-in fait aujourd'hui
 }
 
+// Discipline principale de l'athlète, choisie à l'onboarding. Sert à filtrer
+// l'interface pour ne montrer par défaut que les modules pertinents, sans
+// jamais supprimer les autres (juste masqués tant qu'on ne les révèle pas).
+export type AthleteDiscipline = 'musculation' | 'course' | 'crossfit' | 'hybride';
+
 interface AppStateValue {
   // Charge d'entraînement unifiée (ex triptyque)
   sessions: UnifiedSession[];
@@ -42,6 +47,12 @@ interface AppStateValue {
   readiness: ReadinessState;
   submitReadinessCheckin: (inputs: ReadinessInputs) => void;
   resetReadinessCheckin: () => void;
+
+  // Personnalisation de l'interface selon le profil de l'athlète
+  discipline: AthleteDiscipline;
+  setDiscipline: (d: AthleteDiscipline) => void;
+  revealedModules: string[]; // modules masqués par défaut mais révélés manuellement par l'utilisateur
+  revealModule: (moduleId: string) => void;
 }
 
 const AppStateContext = createContext<AppStateValue | undefined>(undefined);
@@ -50,6 +61,8 @@ const AppStateContext = createContext<AppStateValue | undefined>(undefined);
 const SESSIONS_KEY = 'fitpulse_triptych_sessions';
 const SHOES_KEY = 'fitpulse_gear_shoes';
 const READINESS_KEY = 'fitpulse_readiness'; // ancienne clé : `fitpulse_readiness_${userId}`, simplifiée ici
+const DISCIPLINE_KEY = 'fitpulse_discipline';
+const REVEALED_MODULES_KEY = 'fitpulse_revealed_modules';
 
 function loadFromStorage<T>(key: string, fallback: T): T {
   try {
@@ -97,6 +110,12 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     loadFromStorage<Shoe[]>(SHOES_KEY, [])
   );
   const [readiness, setReadiness] = useState<ReadinessState>(loadReadiness);
+  const [discipline, setDiscipline] = useState<AthleteDiscipline>(() =>
+    loadFromStorage<AthleteDiscipline>(DISCIPLINE_KEY, 'hybride')
+  );
+  const [revealedModules, setRevealedModules] = useState<string[]>(() =>
+    loadFromStorage<string[]>(REVEALED_MODULES_KEY, [])
+  );
 
   // Persistance automatique (remplace les setInterval de scrutation : on écrit
   // directement dans localStorage à chaque changement d'état, plus besoin de relire
@@ -113,6 +132,14 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     localStorage.setItem(READINESS_KEY, JSON.stringify(readiness));
   }, [readiness]);
+
+  useEffect(() => {
+    localStorage.setItem(DISCIPLINE_KEY, JSON.stringify(discipline));
+  }, [discipline]);
+
+  useEffect(() => {
+    localStorage.setItem(REVEALED_MODULES_KEY, JSON.stringify(revealedModules));
+  }, [revealedModules]);
 
   const addSession = (session: UnifiedSession) => {
     setSessions((prev) => [session, ...prev]);
@@ -131,6 +158,10 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     setReadiness({ date: todayStr(), inputs: null, score: 0 });
   };
 
+  const revealModule = (moduleId: string) => {
+    setRevealedModules((prev) => (prev.includes(moduleId) ? prev : [...prev, moduleId]));
+  };
+
   const trainingLoad = calculateUnifiedLoad(sessions);
 
   const value: AppStateValue = {
@@ -144,6 +175,10 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     readiness,
     submitReadinessCheckin,
     resetReadinessCheckin,
+    discipline,
+    setDiscipline,
+    revealedModules,
+    revealModule,
   };
 
   return <AppStateContext.Provider value={value}>{children}</AppStateContext.Provider>;
