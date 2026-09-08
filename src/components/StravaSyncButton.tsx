@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Activity, CheckCircle2, RefreshCw, Compass } from 'lucide-react';
 import { supabase } from '../supabaseClient';
+import { setWearableConnected } from '../utils/wearableConnections';
 
 interface StravaSyncButtonProps {
   currentUserId?: string;
@@ -91,6 +92,10 @@ export default function StravaSyncButton({ currentUserId, onSynced }: StravaSync
         }
 
         setSyncedCount(importedCount);
+        // Marque la connexion comme réussie dans le statut partagé, pour que
+        // ProfileTab.tsx (qui affiche aussi un statut Strava, séparément)
+        // reflète cette connexion au lieu de dire "non connecté".
+        setWearableConnected('strava', true);
         onSynced();
       }
 
