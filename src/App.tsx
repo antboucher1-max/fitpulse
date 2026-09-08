@@ -19,6 +19,7 @@ import LiveGpsTracker from './components/LiveGpsTracker';
 import LiveCoachEngine from './components/LiveCoachEngine';
 import GymLogTab from './components/GymLogTab';
 import ExercisesTab from './components/ExercisesTab';
+import { EXERCISE_REFERENCE_GUIDE } from './data/exerciseReferenceGuide';
 import WodTimerTab from './components/WodTimerTab';
 
 import SncShieldWidget from './components/SncShieldWidget';
@@ -65,6 +66,10 @@ function AppContent() {
   const [showAdvancedHome, setShowAdvancedHome] = useState(false);
   const [showAdvancedHealth, setShowAdvancedHealth] = useState(false);
   const [showAdvancedNutrition, setShowAdvancedNutrition] = useState(false);
+  // État réel pour le Guide des Exercices (avant : exercises={[]} + setters
+  // vides, donc l'onglet était en permanence vide et inutilisable).
+  const [exerciseSearch, setExerciseSearch] = useState('');
+  const [selectedExerciseCategory, setSelectedExerciseCategory] = useState('Tous');
 
   // Charge globale : plus de polling, plus de duplication de la formule de calcul.
   // Elle vit dans AppStateContext et se met à jour instantanément dès qu'un
@@ -84,7 +89,16 @@ function AppContent() {
     { id: 'gps-tracker', label: 'GPS Live', disciplines: ['course'], render: () => <LiveGpsTracker onUpdateDistance={(dist) => console.log('Distance GPS:', dist)} /> },
     { id: 'live-coach', label: 'Coach Vocal', disciplines: ['course'], render: () => <LiveCoachEngine currentKm={0} currentPaceSeconds={0} isRunActive={false} /> },
     { id: 'gym-log', label: 'Carnet de Musculation', disciplines: ['musculation'], render: () => <GymLogTab currentUserId={currentUserId} /> },
-    { id: 'exercises', label: 'Guide des Exercices', disciplines: ['musculation'], render: () => <ExercisesTab exercises={[]} exerciseSearch="" setExerciseSearch={() => {}} selectedCategoryFilter="Tous" setSelectedCategoryFilter={() => {}} onSelectExercise={() => {}} /> },
+    { id: 'exercises', label: 'Guide des Exercices', disciplines: ['musculation'], render: () => (
+      <ExercisesTab
+        exercises={EXERCISE_REFERENCE_GUIDE}
+        exerciseSearch={exerciseSearch}
+        setExerciseSearch={setExerciseSearch}
+        selectedCategoryFilter={selectedExerciseCategory}
+        setSelectedCategoryFilter={setSelectedExerciseCategory}
+        onSelectExercise={() => {}}
+      />
+    ) },
     { id: 'wod-timer', label: 'Smart Timer WOD', disciplines: ['crossfit'], render: () => <WodTimerTab /> },
   ];
 
