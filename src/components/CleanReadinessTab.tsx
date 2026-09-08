@@ -1,6 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { ArrowLeft, HelpCircle, Sparkles, Watch, Activity, CheckCircle2 } from 'lucide-react';
 import { supabase } from '../supabaseClient';
+import { useAppState } from '../context/AppStateContext';
+import { getReadinessStatus, calculateReadinessScore } from '../utils/readinessCalculator';
 
 interface CleanReadinessTabProps {
   currentUserId?: string;
@@ -8,45 +10,23 @@ interface CleanReadinessTabProps {
   onCheckinSaved?: () => void;
 }
 
+// NOTE : cette version remplace CleanReadinessTab.tsx, ReadinessTab.tsx,
+// ReadinessCheckin.tsx et ReadinessWidget.tsx, qui calculaient chacun un score
+// de récupération différent. Le calcul vit maintenant uniquement dans
+// utils/readinessCalculator.ts, et l'état du jour dans AppStateContext.
+// Les 3 autres fichiers peuvent être supprimés du projet une fois ce
+// composant vérifié en conditions réelles.
 export default function CleanReadinessTab({ currentUserId, onBack, onCheckinSaved }: CleanReadinessTabProps) {
-  const [hasCheckedIn, setHasCheckedIn] = useState(false);
+  const { readiness, submitReadinessCheckin, resetReadinessCheckin } = useAppState();
+  const hasCheckedIn = readiness.inputs !== null;
+
   const [isWatchConnected, setIsWatchConnected] = useState(false);
   const [watchName, setWatchName] = useState<string>('');
-  const [sleepHours, setSleepHours] = useState<number | ''>('');
-  const [sleepQuality, setSleepQuality] = useState<number>(3);
-  const [soreness, setSoreness] = useState<number>(2);
-  const [stressLevel, setStressLevel] = useState<number>(2);
+  const [sleepHours, setSleepHours] = useState<number | ''>(readiness.inputs?.sleepHours ?? '');
+  const [sleepQuality, setSleepQuality] = useState<number>(readiness.inputs?.sleepQuality ?? 3);
+  const [soreness, setSoreness] = useState<number>(readiness.inputs?.soreness ?? 2);
+  const [stressLevel, setStressLevel] = useState<number>(readiness.inputs?.stressLevel ?? 2);
   const [showGuide, setShowGuide] = useState(false);
-
-  useEffect(() => {
-    const savedReadiness = localStorage.getItem(`fitpulse_readiness_${currentUserId}`);
-    if (savedReadiness) {
-      try {
-        const parsed = JSON.parse(savedReadiness);
-        const todayStr = new Date().toISOString().split('T')[0];
-        const checkinDateStr = parsed.date || new Date(parsed.timestamp).toISOString().split('T')[0];
-
-        if (checkinDateStr === todayStr) {
-          setHasCheckedIn(true);
-          setSleepHours(parsed.sleepHours || '');
-          setSleepQuality(parsed.sleepQuality || 3);
-          setSoreness(parsed.soreness || 2);
-          setStressLevel(parsed.stressLevel || 2);
-        } else {
-          localStorage.removeItem(`fitpulse_readiness_${currentUserId}`);
-          setHasCheckedIn(false);
-        }
-      } catch (e) {
-        console.warn("Erreur lecture readiness locale", e);
-      }
-    }
-
-    const savedWatch = localStorage.getItem(`fitpulse_connected_watch_${currentUserId}`);
-    if (savedWatch) {
-      setIsWatchConnected(true);
-      setWatchName(savedWatch);
-    }
-  }, [currentUserId]);
 
   const handleConnectWatch = () => {
     const choice = window.prompt("Choisis ton écosystème de montre :\n1. Huawei Health\n2. Garmin Connect\n3. Apple Health / Coros", "1");
@@ -58,7 +38,6 @@ export default function CleanReadinessTab({ currentUserId, onBack, onCheckinSave
 
     setIsWatchConnected(true);
     setWatchName(brand);
-    localStorage.setItem(`fitpulse_connected_watch_${currentUserId}`, brand);
     setSleepHours(7.8);
     alert(`Montre ${brand} connectée avec succès ! Données de sommeil synchronisées 🛰️`);
   };
@@ -66,19 +45,7 @@ export default function CleanReadinessTab({ currentUserId, onBack, onCheckinSave
   const handleDisconnectWatch = () => {
     setIsWatchConnected(false);
     setWatchName('');
-    localStorage.removeItem(`fitpulse_connected_watch_${currentUserId}`);
   };
-
-  const calculateReadinessScore = () => {
-    if (sleepHours === '') return 0;
-    const sleepScore = Math.min(100, (Number(sleepHours) / 8) * 40);
-    const qualityScore = (sleepQuality / 5) * 30;
-    const sorenessPenalty = ((6 - soreness) / 5) * 15;
-    const stressPenalty = ((6 - stressLevel) / 5) * 15;
-    return Math.round(sleepScore + qualityScore + sorenessPenalty + stressPenalty);
-  };
-
-  const readinessScore = calculateReadinessScore();
 
   const handleSaveCheckin = async () => {
     if (sleepHours === '') {
@@ -86,28 +53,27 @@ export default function CleanReadinessTab({ currentUserId, onBack, onCheckinSave
       return;
     }
 
-    const todayStr = new Date().toISOString().split('T')[0];
-    const data = {
-      date: todayStr,
-      sleepHours,
+    const inputs = {
+      sleepHours: Number(sleepHours),
       sleepQuality,
       soreness,
       stressLevel,
-      score: readinessScore,
-      timestamp: Date.now()
     };
 
-    localStorage.setItem(`fitpulse_readiness_${currentUserId}`, JSON.stringify(data));
-    setHasCheckedIn(true);
+    // On calcule le score localement pour l'utiliser immédiatement (l'update
+    // du context via submitReadinessCheckin ne sera visible qu'au prochain
+    // rendu, donc on ne peut pas relire `readiness.score` juste après l'appel).
+    const computedScore = calculateReadinessScore(inputs);
+    submitReadinessCheckin(inputs);
 
     if (currentUserId) {
       const { error } = await supabase
         .from('profiles')
-        .update({ readiness_score: readinessScore })
+        .update({ readiness_score: computedScore })
         .eq('id', currentUserId);
 
       if (!error && onCheckinSaved) {
-        onCheckinSaved(); // Déclenche le rafraîchissement dans App.tsx
+        onCheckinSaved();
       } else if (error) {
         console.warn("Erreur synchro score readiness Supabase :", error.message);
       }
@@ -115,8 +81,7 @@ export default function CleanReadinessTab({ currentUserId, onBack, onCheckinSave
   };
 
   const handleResetCheckin = async () => {
-    localStorage.removeItem(`fitpulse_readiness_${currentUserId}`);
-    setHasCheckedIn(false);
+    resetReadinessCheckin();
 
     if (currentUserId) {
       await supabase
@@ -129,6 +94,8 @@ export default function CleanReadinessTab({ currentUserId, onBack, onCheckinSave
       }
     }
   };
+
+  const status = getReadinessStatus(readiness.score);
 
   return (
     <div className="space-y-6 pb-24 animate-fadeIn">
@@ -184,16 +151,16 @@ export default function CleanReadinessTab({ currentUserId, onBack, onCheckinSave
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
             <div className="bg-neutral-900 border border-neutral-800 p-4 rounded-2xl space-y-1">
               <span className="text-[10px] uppercase font-bold text-neutral-400 block">Indice de Récupération</span>
-              <div className="text-3xl font-black text-white">{readinessScore}%</div>
-              <span className="text-[11px] text-emerald-400 font-bold block pt-1">
-                🟢 {readinessScore > 70 ? "Récupération optimale" : readinessScore > 40 ? "Récupération moyenne" : "Fatigue élevée"}
+              <div className="text-3xl font-black text-white">{readiness.score}%</div>
+              <span className={`text-[11px] font-bold block pt-1 ${status.color}`}>
+                🟢 {status.label}
               </span>
             </div>
 
             <div className="bg-neutral-900 border border-neutral-800 p-4 rounded-2xl space-y-1">
               <span className="text-[10px] uppercase font-bold text-neutral-400 block">Sommeil Validé</span>
-              <div className="text-3xl font-black text-white">{sleepHours}h</div>
-              <span className="text-xs text-neutral-400 block pt-1">Qualité : {sleepQuality}/5</span>
+              <div className="text-3xl font-black text-white">{readiness.inputs?.sleepHours}h</div>
+              <span className="text-xs text-neutral-400 block pt-1">Qualité : {readiness.inputs?.sleepQuality}/5</span>
             </div>
           </div>
         </div>
