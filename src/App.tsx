@@ -202,7 +202,7 @@ function AppContent() {
                 </div>
                 <div className="space-y-6">
                   <SncShieldWidget weeklyLoad={currentGlobalLoad} />
-                  <ClubBuddiesEcosystem />
+                  <ClubBuddiesEcosystem onNavigateTab={setCurrentView} />
                 </div>
               </div>
             )}
