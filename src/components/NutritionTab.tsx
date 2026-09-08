@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Apple, Droplet, Flame, Zap, Activity, Calendar, ShieldAlert, CheckCircle2 } from 'lucide-react';
 import { supabase } from '../supabaseClient';
+import { calculatePreWorkoutFueling, calculateGenericPostWorkoutTargets } from '../utils/nutritionCalculator';
 
 interface NutritionTabProps {
   currentUserProfile?: any;
@@ -56,21 +57,22 @@ export default function NutritionTab({ currentUserProfile, bodyWeight = 70, curr
     }
   };
 
-  // --- CALCULATEUR DE CARB-LOADING & RAVITO ---
-  let targetCarbsPerHour = 60;
-  if (sessionType === 'endurance') targetCarbsPerHour = 50;
-  if (sessionType === 'seuil') targetCarbsPerHour = 75;
-  if (sessionType === 'longue' || sessionType === 'foot') targetCarbsPerHour = 85;
+  // --- CALCULATEUR DE CARB-LOADING & RAVITO (logique centralisée dans utils/nutritionCalculator.ts) ---
+  const fueling = calculatePreWorkoutFueling({
+    durationHours: targetHours,
+    ambientTempC: ambientTemp,
+    sessionType,
+  });
+  const targetCarbsPerHour = fueling.carbsPerHour;
+  const totalCarbsNeeded = fueling.totalCarbsGrams;
+  const waterPerceptionMl = fueling.waterMlPerHour;
+  const totalWaterMl = fueling.totalWaterMl;
+  const totalSodiumMg = fueling.totalSodiumMg;
 
-  const totalCarbsNeeded = Math.round(targetCarbsPerHour * targetHours);
-  const waterPerceptionMl = ambientTemp > 25 ? 800 : ambientTemp > 18 ? 650 : 500;
-  const totalWaterMl = Math.round(waterPerceptionMl * targetHours);
-  const sodiumMgPerHour = ambientTemp > 25 ? 700 : 500;
-  const totalSodiumMg = Math.round(sodiumMgPerHour * targetHours);
-
-  // --- FENÈTRE ANABOLIQUE POST-EFFORT ---
-  const postWorkoutProtein = Math.round(bodyWeight * 0.4); // ~0.4g par kg de poids de corps
-  const postWorkoutCarbs = Math.round(bodyWeight * 0.8); // ~0.8g par kg pour reconstituer le glycogène
+  // --- FENÈTRE ANABOLIQUE POST-EFFORT (mêmes constantes que NutritionDashboard) ---
+  const genericRecovery = calculateGenericPostWorkoutTargets(bodyWeight);
+  const postWorkoutProtein = genericRecovery.proteinGrams;
+  const postWorkoutCarbs = genericRecovery.carbsGrams;
 
   return (
     <div className="space-y-6 pb-24 animate-fadeIn">
@@ -166,7 +168,7 @@ export default function NutritionTab({ currentUserProfile, bodyWeight = 70, curr
               <Flame className="w-3.5 h-3.5 text-orange-500" /> Glucides Requis
             </span>
             <div className="text-2xl font-black text-white mt-1">
-              {totalCarbsTestOrValue(totalCarbsNeeded)} <span className="text-xs font-normal text-orange-400">g</span>
+              {totalCarbsNeeded} <span className="text-xs font-normal text-orange-400">g</span>
             </div>
             <span className="text-[10px] text-neutral-500 block">Soit ~{targetCarbsPerHour}g / heure</span>
           </div>
@@ -219,8 +221,4 @@ export default function NutritionTab({ currentUserProfile, bodyWeight = 70, curr
 
     </div>
   );
-}
-
-function totalCarbsTestOrValue(val: number) {
-  return val;
 }
