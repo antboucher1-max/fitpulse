@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Volume2, VolumeX, Wind, Activity, Zap, Play, Square } from 'lucide-react';
+import { audioCoach } from '../utils/audioCoach';
 
 interface GhostPacingProps {
   currentVma: number;
@@ -12,14 +13,11 @@ export default function GhostPacingEngine({ currentVma }: GhostPacingProps) {
   const [windFactor, setWindFactor] = useState<'Face (+12 km/h)' | 'Dos (-8 km/h)' | 'Calme'>('Face (+12 km/h)');
   const [coachingAdvice, setCoachingAdvice] = useState('Prêt à lancer le Ghost Pacing intelligent ?');
 
-  // Synthèse vocale native du navigateur (Web Speech API - Zéro coût, fonctionne sur mobile et desktop)
+  // Synthèse vocale centralisée dans utils/audioCoach.ts (était dupliquée
+  // ici, dans LiveCoachEngine.tsx et RestTimerTab.tsx).
   const speak = (text: string) => {
-    if (!voiceEnabled || !('speechSynthesis' in window)) return;
-    window.speechSynthesis.cancel(); // Stop les bafouillements précédents
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = 'fr-FR';
-    utterance.rate = 1.05; // Un poil dynamique
-    window.speechSynthesis.speak(utterance);
+    if (!voiceEnabled) return;
+    audioCoach.speak(text);
   };
 
   useEffect(() => {
