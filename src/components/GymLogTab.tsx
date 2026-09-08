@@ -1,16 +1,26 @@
 import { useState, useEffect, FormEvent } from 'react';
 import { Dumbbell, Plus, Trash2, Play, CheckCircle2, ShieldAlert, History } from 'lucide-react';
 import { supabase } from '../supabaseClient';
+import MuscleMap, { getTargetedMusclesLabel } from './MuscleMap';
 
 interface GymLogTabProps {
   currentUserId?: string;
   onStartRestTimer?: () => void;
 }
 
+export type ExerciseCategory =
+  | 'Jambes'
+  | 'Pecs/Triceps'
+  | 'Dos/Biceps'
+  | 'Épaules/Abdos'
+  | 'Mobilité Hybride'
+  | 'Bras'
+  | 'Fessiers';
+
 interface ExerciseLog {
   id: string;
   exerciseName: string;
-  category: 'Jambes' | 'Pecs/Triceps' | 'Dos/Biceps' | 'Épaules/Abdos' | 'Mobilité Hybride' | 'Bras' | 'Fessiers';
+  category: ExerciseCategory;
   previousBest?: string;
   sets: Array<{ weight: number; reps: number; completed: boolean; status?: 'pending' | 'active' | 'validated' }>;
 }
@@ -185,7 +195,7 @@ export default function GymLogTab({ currentUserId, onStartRestTimer }: GymLogTab
 
   const handleFinishWorkout = async () => {
     if (!currentUserId) return;
-    
+
     const payload: any = {
       user_id: currentUserId,
       session_name: activeSessionName,
@@ -207,6 +217,8 @@ export default function GymLogTab({ currentUserId, onStartRestTimer }: GymLogTab
     }
   };
 
+  // Clés alignées sur ExerciseCategory (le préset "Mobilité" utilisait un libellé
+  // différent du type ExerciseCategory, ce qui cassait la carte musculaire associée).
   const muscleGroupsDatabase: Record<string, string[]> = {
     'Jambes': ['Back Squat (Force)', 'Front Squat', 'Presse à cuisses', 'Fentes bulgares', 'Leg Extension', 'Leg Curl ischio', 'Soulevé de Terre Roumain'],
     'Fessiers': ['Hip Thrust (Bassin)', 'Glute Bridge', 'Kickback poulie', 'Fentes marchées'],
@@ -214,12 +226,12 @@ export default function GymLogTab({ currentUserId, onStartRestTimer }: GymLogTab
     'Pecs/Triceps': ['Développé Couché Incliné', 'Développé Couché plat', 'Dips', 'Écartés poulie', 'Extension Triceps'],
     'Bras': ['Curl haltères alternés', 'Curl Marteau', 'Extension corde triceps', 'Dips banc'],
     'Épaules/Abdos': ['Développé Militaire', 'Élévations latérales', 'Gainage Pallof'],
-    'Mobilité': ['Mobilité hanche 90/90', 'Étirements chaîne post']
+    'Mobilité Hybride': ['Mobilité hanche 90/90', 'Étirements chaîne post']
   };
 
   const [selectedMuscleFilter, setSelectedMuscleFilter] = useState<string>('Jambes');
   const [newExName, setNewExName] = useState('');
-  const [newExCategory, setNewExCategory] = useState<'Jambes' | 'Pecs/Triceps' | 'Dos/Biceps' | 'Épaules/Abdos' | 'Mobilité Hybride' | 'Bras' | 'Fessiers'>('Jambes');
+  const [newExCategory, setNewExCategory] = useState<ExerciseCategory>('Jambes');
 
   return (
     <div className="space-y-6 pb-20 animate-fadeIn">
@@ -231,7 +243,7 @@ export default function GymLogTab({ currentUserId, onStartRestTimer }: GymLogTab
           </div>
           <h2 className="text-lg font-black text-white tracking-tight">Carnet de Musculation Hybride</h2>
         </div>
-        
+
         {!isSessionActive ? (
           <button
             type="button"
@@ -301,7 +313,7 @@ export default function GymLogTab({ currentUserId, onStartRestTimer }: GymLogTab
       ) : (
         <div className="space-y-4">
           <div className="bg-neutral-900 border border-neutral-800 p-4 rounded-2xl flex items-center justify-between">
-            <input 
+            <input
               type="text"
               value={activeSessionName}
               onChange={(e) => setActiveSessionName(e.target.value)}
@@ -315,9 +327,13 @@ export default function GymLogTab({ currentUserId, onStartRestTimer }: GymLogTab
           {exercises.map((ex) => (
             <div key={ex.id} className="bg-neutral-900 border border-neutral-800 rounded-3xl p-4 sm:p-5 space-y-3 shadow-xl">
               <div className="flex items-center justify-between">
-                <div>
-                  <span className="text-[10px] font-bold text-orange-400 uppercase tracking-wider block">{ex.category}</span>
-                  <h4 className="text-sm font-black text-white">{ex.exerciseName}</h4>
+                <div className="flex items-center gap-3">
+                  <MuscleMap category={ex.category} size="sm" />
+                  <div>
+                    <span className="text-[10px] font-bold text-orange-400 uppercase tracking-wider block">{ex.category}</span>
+                    <h4 className="text-sm font-black text-white">{ex.exerciseName}</h4>
+                    <span className="text-[10px] text-neutral-500">Cible : {getTargetedMusclesLabel(ex.category)}</span>
+                  </div>
                 </div>
                 <button
                   type="button"
@@ -346,7 +362,7 @@ export default function GymLogTab({ currentUserId, onStartRestTimer }: GymLogTab
                         #{setIndex + 1}
                       </div>
                       <div className="col-span-3">
-                        <input 
+                        <input
                           type="number"
                           value={set.weight}
                           onChange={(e) => handleUpdateSet(ex.id, setIndex, 'weight', Number(e.target.value))}
@@ -354,7 +370,7 @@ export default function GymLogTab({ currentUserId, onStartRestTimer }: GymLogTab
                         />
                       </div>
                       <div className="col-span-3">
-                        <input 
+                        <input
                           type="number"
                           value={set.reps}
                           onChange={(e) => handleUpdateSet(ex.id, setIndex, 'reps', Number(e.target.value))}
@@ -366,8 +382,8 @@ export default function GymLogTab({ currentUserId, onStartRestTimer }: GymLogTab
                           type="button"
                           onClick={() => handleSetAction(ex.id, setIndex)}
                           className={`w-full py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1 cursor-pointer ${
-                            status === 'validated' 
-                              ? 'bg-emerald-600 text-white shadow-lg' 
+                            status === 'validated'
+                              ? 'bg-emerald-600 text-white shadow-lg'
                               : status === 'active'
                               ? 'bg-amber-600 hover:bg-amber-500 text-white animate-pulse shadow-md'
                               : 'bg-neutral-900 hover:bg-neutral-800 text-neutral-300 border border-neutral-800'
@@ -428,6 +444,14 @@ export default function GymLogTab({ currentUserId, onStartRestTimer }: GymLogTab
               ))}
             </div>
 
+            <div className="flex items-center gap-3 bg-neutral-950 border border-neutral-800 rounded-2xl p-3">
+              <MuscleMap category={selectedMuscleFilter} size="md" />
+              <div>
+                <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block">Zones ciblées</span>
+                <span className="text-xs font-black text-orange-400">{getTargetedMusclesLabel(selectedMuscleFilter)}</span>
+              </div>
+            </div>
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
               {muscleGroupsDatabase[selectedMuscleFilter]?.map((exName, idx) => (
                 <button
@@ -448,28 +472,31 @@ export default function GymLogTab({ currentUserId, onStartRestTimer }: GymLogTab
             <h4 className="text-xs font-black uppercase tracking-wider text-orange-400 flex items-center gap-1.5">
               <Plus className="w-4 h-4" /> Exercice personnalisé libre
             </h4>
-             
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              <input 
-                type="text"
-                placeholder="Nom (ex: Hack Squat)..."
-                value={newExName}
-                onChange={(e) => setNewExName(e.target.value)}
-                className="w-full bg-neutral-950 border border-neutral-800 rounded-2xl px-4 py-3 text-xs text-white focus:outline-none focus:border-orange-500"
-              />
-              <select
-                value={newExCategory}
-                onChange={(e: any) => setNewExCategory(e.target.value)}
-                className="w-full bg-neutral-950 border border-neutral-800 rounded-2xl px-4 py-3 text-xs text-white focus:outline-none focus:border-orange-500 cursor-pointer"
-              >
-                <option value="Jambes">Jambes</option>
-                <option value="Fessiers">Fessiers</option>
-                <option value="Pecs/Triceps">Pecs / Triceps</option>
-                <option value="Dos/Biceps">Dos / Biceps</option>
-                <option value="Bras">Bras</option>
-                <option value="Épaules/Abdos">Épaules / Core</option>
-                <option value="Mobilité Hybride">Mobilité</option>
-              </select>
+
+            <div className="flex items-center gap-3">
+              <MuscleMap category={newExCategory} size="sm" />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 flex-1">
+                <input
+                  type="text"
+                  placeholder="Nom (ex: Hack Squat)..."
+                  value={newExName}
+                  onChange={(e) => setNewExName(e.target.value)}
+                  className="w-full bg-neutral-950 border border-neutral-800 rounded-2xl px-4 py-3 text-xs text-white focus:outline-none focus:border-orange-500"
+                />
+                <select
+                  value={newExCategory}
+                  onChange={(e: any) => setNewExCategory(e.target.value)}
+                  className="w-full bg-neutral-950 border border-neutral-800 rounded-2xl px-4 py-3 text-xs text-white focus:outline-none focus:border-orange-500 cursor-pointer"
+                >
+                  <option value="Jambes">Jambes</option>
+                  <option value="Fessiers">Fessiers</option>
+                  <option value="Pecs/Triceps">Pecs / Triceps</option>
+                  <option value="Dos/Biceps">Dos / Biceps</option>
+                  <option value="Bras">Bras</option>
+                  <option value="Épaules/Abdos">Épaules / Core</option>
+                  <option value="Mobilité Hybride">Mobilité</option>
+                </select>
+              </div>
             </div>
 
             <button
