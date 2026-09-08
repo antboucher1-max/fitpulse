@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { BookOpen, Search } from 'lucide-react';
 import { ExerciseGuide } from '../types';
+import MuscleMap from './MuscleMap';
 
 interface ExercisesTabProps {
   exercises?: ExerciseGuide[];
@@ -10,6 +11,19 @@ interface ExercisesTabProps {
   setSelectedCategoryFilter?: (cat: string) => void;
   onSelectExercise?: (ex: ExerciseGuide) => void;
 }
+
+// Les catégories de ce guide (Pectoraux/Dos/Jambes/Épaules/Bras/Core) ne sont
+// pas exactement celles utilisées par MuscleMap (Jambes/Fessiers/Dos-Biceps/
+// Pecs-Triceps/Bras/Épaules-Abdos/Mobilité Hybride), donc on fait une petite
+// correspondance plutôt que de dupliquer le composant ou sa logique.
+const CATEGORY_TO_MUSCLE_MAP: Record<string, string> = {
+  'Pectoraux': 'Pecs/Triceps',
+  'Dos': 'Dos/Biceps',
+  'Jambes': 'Jambes',
+  'Épaules': 'Épaules/Abdos',
+  'Bras': 'Bras',
+  'Core': 'Mobilité Hybride',
+};
 
 export default function ExercisesTab({ 
   exercises = [], 
@@ -44,7 +58,7 @@ export default function ExercisesTab({
           />
         </div>
         <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
-          {['Tous', 'Pectoraux', 'Dos', 'Jambes', 'Épaules', 'Bras'].map((cat) => (
+          {['Tous', 'Pectoraux', 'Dos', 'Jambes', 'Épaules', 'Bras', 'Core'].map((cat) => (
             <button 
               key={cat} 
               onClick={() => setSelectedCategoryFilter(cat)} 
@@ -64,7 +78,7 @@ export default function ExercisesTab({
                 className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 hover:border-orange-500/50 cursor-pointer flex items-center justify-between transition"
               >
                 <div className="flex items-center gap-4">
-                  {ex.image_url && <img src={ex.image_url} alt="" className="w-16 h-16 rounded-xl object-cover border border-neutral-800 flex-shrink-0" />}
+                  <MuscleMap category={CATEGORY_TO_MUSCLE_MAP[ex.category] || ex.category} size="sm" />
                   <div>
                     <div className="flex items-center gap-2 mb-1">
                       <span className="text-sm font-bold text-white">{ex.name}</span>
