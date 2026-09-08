@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { ArrowLeft, HelpCircle, Sparkles, Watch, Activity, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, HelpCircle, Sparkles, Watch, Activity, CheckCircle2, ChevronDown, ChevronUp, Calculator } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import { useAppState } from '../context/AppStateContext';
-import { getReadinessStatus, calculateReadinessScore } from '../utils/readinessCalculator';
+import { getReadinessStatus, calculateReadinessScore, calculateReadinessBreakdown, getRecoveryDebtInfo } from '../utils/readinessCalculator';
 
 interface CleanReadinessTabProps {
   currentUserId?: string;
@@ -19,6 +19,7 @@ interface CleanReadinessTabProps {
 export default function CleanReadinessTab({ currentUserId, onBack, onCheckinSaved }: CleanReadinessTabProps) {
   const { readiness, submitReadinessCheckin, resetReadinessCheckin } = useAppState();
   const hasCheckedIn = readiness.inputs !== null;
+  const [showBreakdown, setShowBreakdown] = useState(false);
 
   const [isWatchConnected, setIsWatchConnected] = useState(false);
   const [watchName, setWatchName] = useState<string>('');
@@ -163,6 +164,58 @@ export default function CleanReadinessTab({ currentUserId, onBack, onCheckinSave
               <span className="text-xs text-neutral-400 block pt-1">Qualité : {readiness.inputs?.sleepQuality}/5</span>
             </div>
           </div>
+
+          {/* INNOVATION : LA DETTE DE RÉCUPÉRATION — reformule le score en
+              solde de compte, plus intuitif qu'un pourcentage abstrait. */}
+          {(() => {
+            const debt = getRecoveryDebtInfo(readiness.score);
+            return (
+              <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-4 flex items-center justify-between">
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-neutral-400 block mb-1">
+                    {debt.emoji} Ton compte récupération
+                  </span>
+                  <span className="text-sm font-black text-white">{debt.label}</span>
+                  <p className="text-[11px] text-neutral-400 mt-1 leading-relaxed max-w-xs">{debt.advice}</p>
+                </div>
+                <div className={`text-2xl font-black font-mono ${debt.balance >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                  {debt.balance >= 0 ? '+' : ''}{debt.balance}
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* INNOVATION : TRANSPARENCE DU CALCUL — personne d'autre ne montre sa formule. */}
+          {readiness.inputs && (
+            <div className="bg-neutral-900 border border-neutral-800 rounded-2xl overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setShowBreakdown(!showBreakdown)}
+                className="w-full p-3.5 flex items-center justify-between text-xs font-bold text-cyan-400 cursor-pointer"
+              >
+                <span className="flex items-center gap-1.5">
+                  <Calculator className="w-3.5 h-3.5" /> Voir le calcul exact
+                </span>
+                {showBreakdown ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              </button>
+              {showBreakdown && (
+                <div className="px-3.5 pb-3.5 space-y-2 animate-fadeIn">
+                  {calculateReadinessBreakdown(readiness.inputs).items.map((item) => (
+                    <div key={item.label} className="bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs">
+                      <div className="flex items-center justify-between">
+                        <span className="text-neutral-300 font-semibold">{item.label} ({item.weightPercent}%)</span>
+                        <span className="text-cyan-400 font-mono font-bold">{item.points}/{item.maxPoints} pts</span>
+                      </div>
+                      <span className="text-[10px] text-neutral-500">{item.detail}</span>
+                    </div>
+                  ))}
+                  <div className="text-[10px] text-neutral-500 text-center pt-1">
+                    Aucune boîte noire : c'est exactement la formule utilisée, pas une approximation marketing.
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       ) : (
         <>
