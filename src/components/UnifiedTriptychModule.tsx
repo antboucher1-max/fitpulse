@@ -30,7 +30,8 @@ export default function UnifiedTriptychModule({ currentUserId }: UnifiedTriptych
               type: 'gym',
               title,
               durationMins: Number(log.durationMins || 60),
-              rpe: Number(log.rpe || 8)
+              rpe: Number(log.rpe || 8),
+              createdAt: log.date || new Date().toISOString(),
             });
           }
         });
