@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { MapPin, Navigation, Loader2 } from 'lucide-react';
+import { calculateDistanceKm } from '../utils/geo';
 
 interface GeolocSpotFilterProps {
   onRadiusSelect: (radiusKm: number, userCoords: { lat: number; lng: number } | null) => void;
@@ -71,15 +72,7 @@ export default function GeolocSpotFilter({ onRadiusSelect }: GeolocSpotFilterPro
   );
 }
 
-// Fonction utilitaire pour calculer la distance entre deux coordonnées GPS (Formule de Haversine)
-export function calculateDistanceKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
-  const R = 6371; // Rayon de la terre en km
-  const dLat = (lat2 - lat1) * (Math.PI / 180);
-  const dLon = (lon2 - lon1) * (Math.PI / 180);
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
-    Math.sin(dLon / 2) * Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
-}
+// Fonction calculateDistanceKm déplacée dans utils/geo.ts (elle était
+// dupliquée à l'identique dans LiveGpsTracker.tsx). Toujours exportée ici
+// par ré-export pour ne casser aucun import existant ailleurs dans le projet.
+export { calculateDistanceKm } from '../utils/geo';
