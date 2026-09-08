@@ -1,20 +1,28 @@
 import { ShieldAlert, ShieldCheck, Lock, Sparkles } from 'lucide-react';
 import { analyzeSncShield, TrainingLoadEntry } from './SncShieldEngine';
+import { useAppState } from '../context/AppStateContext';
 
 interface SncShieldWidgetProps {
-  currentReadiness?: number;
+  // `weeklyLoad` reste acceptable en prop pour compatibilité, mais si non fourni
+  // on utilise désormais la vraie charge d'entraînement calculée dans AppStateContext
+  // au lieu d'une valeur par défaut arbitraire.
   weeklyLoad?: number;
   recentLoads?: TrainingLoadEntry[];
   onOpenDetails?: () => void;
 }
 
 export default function SncShieldWidget({ 
-  currentReadiness = 80, 
-  weeklyLoad = 950, // Valeur nominale sécurisée par défaut (loin du seuil d'alerte)
+  weeklyLoad,
   recentLoads 
 }: SncShieldWidgetProps) {
+  const { trainingLoad, readiness } = useAppState();
+
+  const effectiveLoad = weeklyLoad ?? trainingLoad;
+  // Score de récupération réel du jour (0 si pas encore de check-in fait).
+  const currentReadiness = readiness.score;
+
   const loadsToAnalyze: TrainingLoadEntry[] = recentLoads || [
-    { date: new Date().toISOString(), loadScore: weeklyLoad, type: 'running' }
+    { date: new Date().toISOString(), loadScore: effectiveLoad, type: 'running' }
   ];
 
   // Analyse en direct via l'algorithme intelligent
@@ -44,6 +52,12 @@ export default function SncShieldWidget({
           {shieldData.riskLevel === 'critical' ? 'LOCKED' : shieldData.riskLevel === 'warning' ? 'WARNING' : 'NOMINAL'}
         </span>
       </div>
+
+      {currentReadiness === 0 && (
+        <p className="text-[10px] text-neutral-500 italic">
+          Aucun check-in aujourd'hui — analyse basée uniquement sur la charge d'entraînement.
+        </p>
+      )}
 
       <p className="text-xs text-neutral-300 leading-relaxed">
         {shieldData.shieldMessage}
