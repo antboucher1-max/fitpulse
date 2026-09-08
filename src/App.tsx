@@ -1,8 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { 
   Activity, Dumbbell, Compass, Share2, Trophy, Watch, 
   Utensils, Home, HeartPulse, Map, User, Sparkles, ShieldAlert 
 } from 'lucide-react';
+
+// --- STATE CENTRAL (remplace le polling localStorage) ---
+import { AppStateProvider, useAppState } from './context/AppStateContext';
 
 // --- IMPORTS DES MODULES ---
 import UnifiedTriptychModule from './components/UnifiedTriptychModule';
@@ -42,68 +45,28 @@ import HuaweiSyncModal from './components/HuaweiSyncModal';
 import HybridShareCard from './components/HybridShareCard';
 import OfflineRunGuard from './components/OfflineRunGuard';
 
+// Composant racine : ne fait qu'installer le Provider, aucune logique ici.
 export default function App() {
+  return (
+    <AppStateProvider>
+      <AppContent />
+    </AppStateProvider>
+  );
+}
+
+// Tout l'ancien contenu de App() vit maintenant ici, et lit la charge globale
+// directement depuis le state partagé au lieu de la recalculer via polling.
+function AppContent() {
   const currentUserId = "ant-boucher-id-70"; 
   const [currentView, setCurrentView] = useState<'home' | 'training' | 'health' | 'nutrition' | 'community' | 'profile'>('home');
 
   const [showHuaweiModal, setShowHuaweiModal] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
 
-  // État partagé pour synchroniser la charge globale en temps réel avec le SNC Shield (part de 0 si vide)
-  const [currentGlobalLoad, setCurrentGlobalLoad] = useState<number>(() => {
-    const saved = localStorage.getItem('fitpulse_triptych_sessions');
-    if (saved) {
-      try {
-        const sessions = JSON.parse(saved);
-        let totalLoad = 0;
-        sessions.forEach((session: any) => {
-          let multiplier = 1.0;
-          if (session.type === 'run') multiplier = 1.2;
-          if (session.type === 'gym') multiplier = 1.0;
-          if (session.type === 'fitcross') multiplier = 1.4;
-          totalLoad += (session.durationMins || 0) * (session.rpe || 0) * multiplier;
-        });
-        return Math.round(totalLoad);
-      } catch (e) {
-        // ignore
-      }
-    }
-    return 0;
-  });
-
-  // Écouteur pour mettre à jour la charge globale instantanément lors des modifications du triptyque
-  useEffect(() => {
-    const handleStorageChange = () => {
-      const saved = localStorage.getItem('fitpulse_triptych_sessions');
-      if (saved) {
-        try {
-          const sessions = JSON.parse(saved);
-          let totalLoad = 0;
-          sessions.forEach((session: any) => {
-            let multiplier = 1.0;
-            if (session.type === 'run') multiplier = 1.2;
-            if (session.type === 'gym') multiplier = 1.0;
-            if (session.type === 'fitcross') multiplier = 1.4;
-            totalLoad += (session.durationMins || 0) * (session.rpe || 0) * multiplier;
-          });
-          setCurrentGlobalLoad(Math.round(totalLoad));
-        } catch (e) {
-          // ignore
-        }
-      } else {
-        setCurrentGlobalLoad(0);
-      }
-    };
-
-    window.addEventListener('storage', handleStorageChange);
-    // Intervalle court pour intercepter les modifications locales instantanément
-    const interval = setInterval(handleStorageChange, 500);
-
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-      clearInterval(interval);
-    };
-  }, []);
+  // Charge globale : plus de polling, plus de duplication de la formule de calcul.
+  // Elle vit dans AppStateContext et se met à jour instantanément dès qu'un
+  // composant (ex: UnifiedTriptychModule) modifie les sessions.
+  const { trainingLoad: currentGlobalLoad } = useAppState();
 
   return (
     <div className="min-h-screen bg-neutral-950 text-white pb-32 selection:bg-orange-500 selection:text-white font-sans antialiased">
