@@ -1,5 +1,5 @@
 // src/services/gemini.ts
-const DEEPSEEK_API_KEY = 'sk-5e94d753da7a4ac88120383297f590eb';
+
 
 export async function askFitBotAI(userPrompt: string): Promise<string> {
   try {
