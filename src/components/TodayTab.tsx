@@ -1,6 +1,8 @@
-import { Zap, Navigation, Flame, ArrowRight, BatteryCharging, Dumbbell, Users, Activity } from 'lucide-react';
-import { useAppState, AthleteDiscipline } from '../context/AppStateContext';
+import { Zap, Navigation, Flame, ArrowRight, BatteryCharging, Dumbbell, Users, Activity, ShieldAlert } from 'lucide-react';
+import { useAppState, AthleteDiscipline, UnifiedSession } from '../context/AppStateContext';
 import { getReadinessStatus } from '../utils/readinessCalculator';
+import { getCrossDisciplineAdaptation } from '../utils/crossDisciplineAdaptation';
+import WeeklyRecapCard from './WeeklyRecapCard';
 
 interface TodayTabProps {
   currentUserProfile?: any;
@@ -18,10 +20,23 @@ const DISCIPLINE_OPTIONS: Array<{ id: AthleteDiscipline; label: string }> = [
 // qu'un mur de modules empilés. Le détail complet reste accessible via les
 // autres onglets et via la section "Vue avancée" dépliable dans App.tsx.
 export default function TodayTab({ currentUserProfile, onNavigateTab }: TodayTabProps) {
-  const { readiness, trainingLoad, discipline, setDiscipline } = useAppState();
+  const { readiness, trainingLoad, discipline, setDiscipline, sessions } = useAppState();
   const hasCheckedIn = readiness.inputs !== null;
   const status = getReadinessStatus(readiness.score);
   const currentHour = new Date().getHours();
+
+  // Type de séance "prévue aujourd'hui" déduit de la discipline choisie. En
+  // mode hybride, on part du principe que la prochaine séance suit le même
+  // type que la dernière enregistrée (à défaut d'un vrai planning), sinon 'run'.
+  const disciplineToType: Record<Exclude<AthleteDiscipline, 'hybride'>, UnifiedSession['type']> = {
+    musculation: 'gym',
+    course: 'run',
+    crossfit: 'fitcross',
+  };
+  const plannedType: UnifiedSession['type'] =
+    discipline === 'hybride' ? (sessions[0]?.type ?? 'run') : disciplineToType[discipline];
+
+  const crossAdaptation = getCrossDisciplineAdaptation(sessions, plannedType);
 
   const getTimeGreeting = () => {
     if (currentHour < 12) return "Prêt pour lancer la journée ?";
@@ -103,6 +118,29 @@ export default function TodayTab({ currentUserProfile, onNavigateTab }: TodayTab
           </div>
         </div>
       </div>
+
+      {/* 1bis. ANALYSE INTER-DISCIPLINE : la vraie différenciation FitPulse —
+          croise les 3 disciplines entre elles, pas juste la lecture readiness. */}
+      {crossAdaptation.isAdjusted && (
+        <div
+          className={`rounded-2xl p-4 border flex items-start gap-3 animate-fadeIn ${
+            crossAdaptation.severity === 'warning'
+              ? 'bg-amber-950/20 border-amber-500/30'
+              : 'bg-cyan-950/20 border-cyan-500/30'
+          }`}
+        >
+          <ShieldAlert className={`w-5 h-5 flex-shrink-0 mt-0.5 ${crossAdaptation.severity === 'warning' ? 'text-amber-400' : 'text-cyan-400'}`} />
+          <div className="space-y-0.5">
+            <span className={`text-[10px] font-black uppercase tracking-wider block ${crossAdaptation.severity === 'warning' ? 'text-amber-400' : 'text-cyan-400'}`}>
+              Analyse inter-discipline
+            </span>
+            <p className="text-xs text-neutral-300 leading-relaxed">{crossAdaptation.message}</p>
+          </div>
+        </div>
+      )}
+
+      {/* 1ter. BILAN HYBRIDE DE LA SEMAINE (partageable) */}
+      <WeeklyRecapCard />
 
       {/* 2. DISCIPLINE PRINCIPALE : personnalise ce qui s'affiche par défaut dans "Entraînement" */}
       <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-4 space-y-2.5">
