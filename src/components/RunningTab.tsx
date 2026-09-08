@@ -1,7 +1,7 @@
 import PaywallGate from './PaywallGate';
 import { useState, useEffect, useRef } from 'react';
 import { 
-  Mountain, Compass as CompassIcon, Trophy, Award, Zap, ChevronDown, ChevronUp, ArrowLeft, Upload, Edit3, X, Download, Trees, Footprints, CheckCircle2, ListOrdered
+  Mountain, Compass as CompassIcon, Trophy, Award, Zap, ChevronDown, ChevronUp, ArrowLeft, Upload, Edit3, X, Download, Trees, Footprints, CheckCircle2, ListOrdered, ShieldAlert
 } from 'lucide-react';
 import { MapContainer, TileLayer, Polyline, Marker, useMap } from 'react-leaflet';
 import L from 'leaflet';
@@ -9,12 +9,18 @@ import 'leaflet/dist/leaflet.css';
 import GearTrackerSection from './GearTrackerSection';
 import gpxParser from 'gpxparser';
 
-// Ancienne double définition de FitBotSNC et FuelLockPostWod supprimée :
+// Anciennes double définitions de FitBotSNC et FuelLockPostWod supprimées :
 // ce fichier importe maintenant les vrais composants partagés au lieu de
-// recopier leur code. SncShieldWidget lit désormais le readiness réel du
-// state central (AppStateContext) au lieu d'un score fixe (78/45 en dur).
+// recopier leur code. SncShieldWidget lit le readiness réel du state
+// central (AppStateContext) au lieu d'un score fixe (78/45 en dur).
 import SncShieldWidget from './SncShieldWidget';
 import FuelLockPostWod from './FuelLockPostWod';
+
+// Bibliothèque de sentiers curatés réels — voir data/curatedTrails.ts pour
+// le détail. Tant qu'elle est vide (aucun vrai tracé ajouté), le
+// générateur ci-dessous continue à fonctionner par formule, mais l'indique
+// clairement dans l'interface au lieu de le faire passer pour un sentier vérifié.
+import { findCuratedTrail } from '../data/curatedTrails';
 
 function MapController({ center, plannedRoute }: { center: [number, number], plannedRoute?: Array<[number, number]> }) {
   const map = useMap();
@@ -75,6 +81,11 @@ export default function RunningTab({
   const [plannedDPlus, setPlannedDPlus] = useState<number>(150);
   const [roadbook, setRoadbook] = useState<Array<{ km: number; elevation: number; targetPace: string; cumulativeTime: string }>>([]);
   const [isGeneratingRoute, setIsGeneratingRoute] = useState<boolean>(false);
+  // Indique si le tracé affiché vient d'un vrai sentier curaté (data/curatedTrails.ts)
+  // ou d'une génération par formule mathématique — voir l'avertissement affiché
+  // sur la carte en conséquence. Ne jamais présenter les deux comme équivalents.
+  const [isRouteVerified, setIsRouteVerified] = useState<boolean>(false);
+  const [routeSourceName, setRouteSourceName] = useState<string | null>(null);
 
   // Bilan Post-Effort (import GPX)
   const [importedRunData, setImportedRunData] = useState<{ distance: number; dPlus: number; timeSec: number } | null>(null);
@@ -101,34 +112,65 @@ export default function RunningTab({
   const generateRoadbookAndRoute = async () => {
     setIsGeneratingRoute(true);
     try {
-      const baseLat = 50.505;
-      const baseLng = 3.325;
-      
-      let latMultiplier = 0.015;
-      let lngMultiplier = 0.02;
-      if (selectedTerrain === 'carrieres') { latMultiplier = 0.02; lngMultiplier = 0.012; }
-      else if (selectedTerrain === 'champs') { latMultiplier = 0.008; lngMultiplier = 0.035; }
+      // Étape 1 : cherche d'abord un vrai sentier curaté correspondant au
+      // terrain et à la distance demandés (data/curatedTrails.ts). Tant que
+      // cette bibliothèque est vide, ceci ne trouvera rien et on bascule sur
+      // la génération par formule — mais en le disant clairement (voir
+      // isRouteVerified plus bas), au lieu de faire passer un tracé inventé
+      // pour un sentier vérifié.
+      // Variable locale (pas un state React) pour éviter de relire une valeur
+      // pas encore à jour juste après un setPlannedDPlus() — les mises à jour
+      // de state sont asynchrones en React.
+      let totalDPlusValue: number;
 
-      const targetLat = baseLat + (targetDistanceKm / 10) * latMultiplier;
-      const targetLng = baseLng + (targetDistanceKm / 10) * lngMultiplier;
+      const curated = findCuratedTrail(selectedTerrain, targetDistanceKm);
 
-      const res = await fetch(`https://router.project-osrm.org/route/v1/foot/${baseLng},${baseLat};${targetLng},${targetLat};${baseLng + 0.01},${baseLat - 0.01};${baseLng},${baseLat}?overview=full&geometries=geojson`);
-      const data = await res.json();
+      if (curated) {
+        setPlannedRoutePositions(curated.waypoints);
+        setPlannedDPlus(curated.dPlusM);
+        setIsRouteVerified(true);
+        setRouteSourceName(curated.name);
+        totalDPlusValue = curated.dPlusM;
+      } else {
+        // Étape 2 (repli) : génération par formule mathématique. Les points
+        // de passage sont inventés (baseLat/baseLng + un multiplicateur selon
+        // le terrain), pas de vraies coordonnées de sentier. OSRM calcule un
+        // vrai trajet entre ces points via les rues réelles, ce qui peut
+        // donner des tracés en zigzag s'ils tombent dans un village plutôt
+        // qu'en pleine nature — c'est attendu, pas un bug de rendu.
+        const baseLat = 50.505;
+        const baseLng = 3.325;
 
-      if (data?.routes?.[0]) {
-        const coords = data.routes[0].geometry.coordinates.map((c: [number, number]) => [c[1], c[0]] as [number, number]);
-        setPlannedRoutePositions(coords);
+        let latMultiplier = 0.015;
+        let lngMultiplier = 0.02;
+        if (selectedTerrain === 'carrieres') { latMultiplier = 0.02; lngMultiplier = 0.012; }
+        else if (selectedTerrain === 'champs') { latMultiplier = 0.008; lngMultiplier = 0.035; }
+
+        const targetLat = baseLat + (targetDistanceKm / 10) * latMultiplier;
+        const targetLng = baseLng + (targetDistanceKm / 10) * lngMultiplier;
+
+        const res = await fetch(`https://router.project-osrm.org/route/v1/foot/${baseLng},${baseLat};${targetLng},${targetLat};${baseLng + 0.01},${baseLat - 0.01};${baseLng},${baseLat}?overview=full&geometries=geojson`);
+        const data = await res.json();
+
+        if (data?.routes?.[0]) {
+          const coords = data.routes[0].geometry.coordinates.map((c: [number, number]) => [c[1], c[0]] as [number, number]);
+          setPlannedRoutePositions(coords);
+        }
+
+        const totalD = selectedTerrain === 'carrieres' ? Math.round(targetDistanceKm * 28) : selectedTerrain === 'bois' ? Math.round(targetDistanceKm * 18) : Math.round(targetDistanceKm * 8);
+        setPlannedDPlus(totalD);
+        setIsRouteVerified(false);
+        setRouteSourceName(null);
+        totalDPlusValue = totalD;
       }
 
-      const totalD = selectedTerrain === 'carrieres' ? Math.round(targetDistanceKm * 28) : selectedTerrain === 'bois' ? Math.round(targetDistanceKm * 18) : Math.round(targetDistanceKm * 8);
-      setPlannedDPlus(totalD);
-
+      const totalDForRoadbook = totalDPlusValue;
       const baseSecPerKm = basePaceMin * 60 + basePaceSec;
       let cumulativeSec = 0;
       const newRoadbook = [];
 
       for (let i = 1; i <= targetDistanceKm; i++) {
-        const kmEle = Math.round((Math.sin(i * 1.5) * (selectedTerrain === 'carrieres' ? 25 : 12)) + (totalD / targetDistanceKm));
+        const kmEle = Math.round((Math.sin(i * 1.5) * (selectedTerrain === 'carrieres' ? 25 : 12)) + (totalDForRoadbook / targetDistanceKm));
         const paceAdjustment = kmEle > 0 ? kmEle * 2.5 : -1;
         const kmSec = Math.max(200, baseSecPerKm + paceAdjustment);
         
@@ -378,12 +420,25 @@ export default function RunningTab({
         )}
 
         {/* Aperçu Carte Leaflet */}
-        <div className="w-full h-56 rounded-2xl overflow-hidden border border-neutral-800">
-          <MapContainer center={plannedRoutePositions[0] || [50.505, 3.325]} zoom={14} style={{ width: '100%', height: '100%', background: '#0a0a0a' }}>
-            <MapController center={plannedRoutePositions[0] || [50.505, 3.325]} plannedRoute={plannedRoutePositions} />
-            <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-            <Polyline positions={plannedRoutePositions} pathOptions={{ color: '#38bdf8', weight: 6 }} />
-          </MapContainer>
+        <div className="space-y-2">
+          {/* AVERTISSEMENT HONNÊTE : distingue un vrai sentier vérifié d'un
+              tracé estimé par calcul, plutôt que de les présenter pareil. */}
+          {isRouteVerified ? (
+            <div className="flex items-center gap-1.5 text-[10px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 rounded-xl w-fit">
+              <CheckCircle2 className="w-3.5 h-3.5" /> Sentier vérifié{routeSourceName ? ` : ${routeSourceName}` : ''}
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5 text-[10px] font-bold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-3 py-1.5 rounded-xl w-fit">
+              <ShieldAlert className="w-3.5 h-3.5" /> Itinéraire estimé — pas un sentier vérifié, vérifie le terrain avant de partir
+            </div>
+          )}
+          <div className="w-full h-56 rounded-2xl overflow-hidden border border-neutral-800">
+            <MapContainer center={plannedRoutePositions[0] || [50.505, 3.325]} zoom={14} style={{ width: '100%', height: '100%', background: '#0a0a0a' }}>
+              <MapController center={plannedRoutePositions[0] || [50.505, 3.325]} plannedRoute={plannedRoutePositions} />
+              <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+              <Polyline positions={plannedRoutePositions} pathOptions={{ color: '#38bdf8', weight: 6 }} />
+            </MapContainer>
+          </div>
         </div>
       </div>
 
