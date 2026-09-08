@@ -1,95 +1,48 @@
 import { useState, useEffect } from 'react';
 import { Activity, Dumbbell, Flame, Plus, Trash2, Zap, RefreshCcw } from 'lucide-react';
 import { supabase } from '../supabaseClient';
-
-interface UnifiedSession {
-  id: string;
-  type: 'run' | 'gym' | 'fitcross';
-  title: string;
-  durationMins: number;
-  rpe: number;
-}
+import { useAppState, UnifiedSession } from '../context/AppStateContext';
 
 interface UnifiedTriptychProps {
   currentUserId?: string;
 }
 
 export default function UnifiedTriptychModule({ currentUserId }: UnifiedTriptychProps) {
-  const [sessions, setSessions] = useState<UnifiedSession[]>(() => {
-    let collected: UnifiedSession[] = [];
+  // Les sessions et la charge globale vivent maintenant dans AppStateContext,
+  // partagées avec App.tsx (et bientôt tout le reste de l'app) sans polling :
+  // toute modification ici se répercute instantanément partout ailleurs.
+  const { sessions, setSessions, addSession, removeSession, trainingLoad: currentLoad } = useAppState();
 
-    // 1. Récupération automatique des logs de musculation enregistrés dans l'onglet Entraînement
+  // Import automatique ponctuel des logs de musculation au premier montage
+  // (fusionne avec les sessions déjà en state, sans écraser ce qui existe).
+  useEffect(() => {
     const savedGymLogs = localStorage.getItem('fitpulse_gym_logs');
-    if (savedGymLogs) {
-      try {
-        const parsedGym = JSON.parse(savedGymLogs);
+    if (!savedGymLogs) return;
+    try {
+      const parsedGym = JSON.parse(savedGymLogs);
+      setSessions(prev => {
+        const updated = [...prev];
         parsedGym.forEach((log: any) => {
-          collected.push({
-            id: `gym-auto-${log.id || Math.random()}`,
-            type: 'gym',
-            title: log.exerciseName || log.sessionTitle || 'Séance Musculation (Auto)',
-            durationMins: Number(log.durationMins || 60),
-            rpe: Number(log.rpe || 8)
-          });
-        });
-      } catch (e) { /* ignore */ }
-    }
-
-    // 2. Récupération des briques stockées localement
-    const saved = localStorage.getItem('fitpulse_triptych_sessions');
-    if (saved) {
-      try { 
-        const parsedSaved = JSON.parse(saved);
-        parsedSaved.forEach((item: UnifiedSession) => {
-          if (!collected.some(s => s.title === item.title && s.type === item.type)) {
-            collected.push(item);
+          const title = log.exerciseName || log.sessionTitle || 'Séance Musculation (Auto)';
+          if (!updated.some(s => s.title === title)) {
+            updated.push({
+              id: `gym-auto-${log.id || Math.random()}`,
+              type: 'gym',
+              title,
+              durationMins: Number(log.durationMins || 60),
+              rpe: Number(log.rpe || 8)
+            });
           }
         });
-      } catch (e) { /* ignore */ }
-    }
-
-    // SUPPRESSION DE LA CONDITION DE SECOURS QUI RÉINJECTAIT LES 3 SÉANCES PAR DÉFAUT
-    return collected;
-  });
-
-  // Sauvegarde automatique des sessions dans le localStorage pour maintenir la cohérence avec le SNC Shield
-  useEffect(() => {
-    localStorage.setItem('fitpulse_triptych_sessions', JSON.stringify(sessions));
-  }, [sessions]);
-
-  // Écouteur pour actualiser les données si un log de muscu change dans l'autre onglet
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const savedGymLogs = localStorage.getItem('fitpulse_gym_logs');
-      if (savedGymLogs) {
-        try {
-          const parsedGym = JSON.parse(savedGymLogs);
-          // S'assure que les nouveaux logs de muscu se reflètent dynamiquement
-          setSessions(prev => {
-            const hasNew = parsedGym.some((log: any) => !prev.some(p => p.title === (log.exerciseName || log.sessionTitle)));
-            if (hasNew) {
-              // Fusion propre
-              const updated = [...prev];
-              parsedGym.forEach((log: any) => {
-                const title = log.exerciseName || log.sessionTitle || 'Séance Musculation (Auto)';
-                if (!updated.some(s => s.title === title)) {
-                  updated.unshift({
-                    id: `gym-auto-${log.id || Math.random()}`,
-                    type: 'gym',
-                    title,
-                    durationMins: Number(log.durationMins || 60),
-                    rpe: Number(log.rpe || 8)
-                  });
-                }
-              });
-              return updated;
-            }
-            return prev;
-          });
-        } catch (e) { /* ignore */ }
-      }
-    }, 2000);
-    return () => clearInterval(interval);
+        return updated;
+      });
+    } catch (e) { /* ignore */ }
+    // NOTE : GymLogTab écrit encore dans localStorage plutôt que dans le state
+    // partagé. Une fois GymLogTab migré sur AppStateContext lui aussi, cet
+    // import ponctuel pourra être remplacé par une lecture directe du state,
+    // sans passer par localStorage. En attendant, on ne fait plus de polling :
+    // l'import se fait une fois au montage, ce qui suffit pour l'usage actuel.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const [newTitle, setNewTitle] = useState('');
@@ -97,20 +50,6 @@ export default function UnifiedTriptychModule({ currentUserId }: UnifiedTriptych
   const [newDuration, setNewDuration] = useState(45);
   const [newRpe, setNewRpe] = useState(7);
   const [saving, setSaving] = useState(false);
-
-  const calculateUnifiedLoad = (sessionList: UnifiedSession[]) => {
-    let totalLoad = 0;
-    sessionList.forEach(session => {
-      let multiplier = 1.0;
-      if (session.type === 'run') multiplier = 1.2;
-      if (session.type === 'gym') multiplier = 1.0;
-      if (session.type === 'fitcross') multiplier = 1.4;
-      totalLoad += Number(session.durationMins || 0) * Number(session.rpe || 0) * multiplier;
-    });
-    return Math.round(totalLoad);
-  };
-
-  const currentLoad = calculateUnifiedLoad(sessions);
 
   const handleAddSession = (e: React.FormEvent) => {
     e.preventDefault();
@@ -124,12 +63,12 @@ export default function UnifiedTriptychModule({ currentUserId }: UnifiedTriptych
       rpe: Number(newRpe)
     };
 
-    setSessions(prev => [newItem, ...prev]);
+    addSession(newItem);
     setNewTitle('');
   };
 
   const handleRemove = (id: string) => {
-    setSessions(prev => prev.filter(s => s.id !== id));
+    removeSession(id);
   };
 
   const handleSyncCloud = async () => {
