@@ -37,6 +37,7 @@ import GearTrackerSection from './components/GearTrackerSection';
 import ClubLeaderboard from './components/ClubLeaderboard';
 import LeaderboardTab from './components/LeaderboardTab';
 import RoadbookTab from './components/RoadbookTab';
+import BuddiesChatContainer from './components/BuddiesChatContainer';
 import ClubPassportCard from './components/ClubPassportCard';
 import SpotSegmentsTab from './components/SpotSegmentsTab';
 
@@ -70,6 +71,7 @@ function AppContent() {
   const [showAdvancedHome, setShowAdvancedHome] = useState(false);
   const [showAdvancedHealth, setShowAdvancedHealth] = useState(false);
   const [showAdvancedNutrition, setShowAdvancedNutrition] = useState(false);
+  const [showChat, setShowChat] = useState(false);
   // État réel pour le Guide des Exercices (avant : exercises={[]} + setters
   // vides, donc l'onglet était en permanence vide et inutilisable).
   const [exerciseSearch, setExerciseSearch] = useState('');
@@ -306,6 +308,16 @@ function AppContent() {
         {/* COMMUNAUTÉ & CLUBS : Mis en avant avec le Roadbook interactif en plein format */}
         {currentView === 'community' && (
           <div className="space-y-6 animate-fadeIn">
+            <button
+              onClick={() => setShowChat(!showChat)}
+              className="w-full py-3 bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 rounded-2xl text-xs font-bold text-neutral-300 hover:text-white transition cursor-pointer flex items-center justify-center gap-2"
+            >
+              {showChat ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              💬 {showChat ? 'Masquer la messagerie' : 'Ouvrir la messagerie avec tes buddies'}
+            </button>
+
+            {showChat && <BuddiesChatContainer currentUserId={currentUserId} />}
+
             <RoadbookTab currentUserId={currentUserId} />
             <ClubPassportCard currentUserId={currentUserId} homeClub="Club Tournai (Bastion)" />
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
