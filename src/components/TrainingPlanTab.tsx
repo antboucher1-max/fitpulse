@@ -1,11 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Calendar, AlertCircle, Sparkles } from 'lucide-react';
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '../supabaseClient';
 import { getAdaptiveTrainingPlan } from '../utils/adaptiveTrainer';
-
-const supabaseUrl = 'https://obtahwmcoqrcauscpksv.supabase.co';
-const supabaseAnonKey = 'sb_publishable_O8CKhUtzgq9nO9lKavNE9A__fAdRWoB';
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 // Ordre chronologique pour trier les jours de la semaine proprement
 const DAY_ORDER: Record<string, number> = {
