@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Volume2, VolumeX, Wind, Droplets, Compass, Sparkles } from 'lucide-react';
+import { audioCoach } from '../utils/audioCoach';
 
 interface LiveCoachEngineProps {
   currentKm: number;
@@ -13,14 +14,11 @@ export default function LiveCoachEngine({ currentKm, currentPaceSeconds, isRunAc
   const [humidity, setHumidity] = useState(78); // % d'humidité
   const [adjustedPaceBonus, setAdjustedPaceBonus] = useState(12); // secondes ajoutées par km à cause des conditions
 
-  // Fonction de synthèse vocale (Text-to-Speech natif mobile)
+  // Synthèse vocale centralisée dans utils/audioCoach.ts (était dupliquée
+  // ici, dans GhostPacingEngine.tsx et RestTimerTab.tsx).
   const speakCoachMessage = (message: string) => {
-    if (!voiceEnabled || !('speechSynthesis' in window)) return;
-    window.speechSynthesis.cancel(); // Stop les messages précédents
-    const utterance = new SpeechSynthesisUtterance(message);
-    utterance.lang = 'fr-FR';
-    utterance.rate = 1.05; // Léger dynamisme dans la voix
-    window.speechSynthesis.speak(utterance);
+    if (!voiceEnabled) return;
+    audioCoach.speak(message);
   };
 
   // Déclenchement automatique des rappels vocaux à chaque kilomètre franchi
