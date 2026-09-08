@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Timer, Play, Pause, RotateCcw, Plus, Minus, Sparkles, Bot, Volume2, VolumeX } from 'lucide-react';
+import { audioCoach } from '../utils/audioCoach';
 
 export default function RestTimerTab() {
   const [secondsLeft, setSecondsLeft] = useState(90); // 1 min 30 par défaut
@@ -27,16 +28,11 @@ export default function RestTimerTab() {
     }
   };
 
-  // Synthèse vocale robuste (garantit l'énoncé même en arrière-plan / veille)
+  // Synthèse vocale centralisée dans utils/audioCoach.ts (était dupliquée
+  // ici, dans GhostPacingEngine.tsx et LiveCoachEngine.tsx).
   const speakMessage = (text: string) => {
     if (!isVoiceActive) return;
-    if ('speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = 'fr-FR';
-      utterance.rate = 1.0;
-      window.speechSynthesis.speak(utterance);
-    }
+    audioCoach.speak(text);
   };
 
   useEffect(() => {
