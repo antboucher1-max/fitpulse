@@ -28,6 +28,16 @@ export interface ReadinessState {
   score: number; // 0 si aucun check-in fait aujourd'hui
 }
 
+// Historique des check-ins passés (contrairement à `readiness` qui ne garde
+// que celui du jour). Nécessaire pour le radar de motifs (innovation #4) et
+// pour toute analyse dans le temps. Limité aux 60 derniers jours pour ne pas
+// gonfler indéfiniment le localStorage.
+export interface ReadinessHistoryEntry {
+  date: string;
+  inputs: ReadinessInputs;
+  score: number;
+}
+
 // Discipline principale de l'athlète, choisie à l'onboarding. Sert à filtrer
 // l'interface pour ne montrer par défaut que les modules pertinents, sans
 // jamais supprimer les autres (juste masqués tant qu'on ne les révèle pas).
@@ -49,6 +59,7 @@ interface AppStateValue {
   readiness: ReadinessState;
   submitReadinessCheckin: (inputs: ReadinessInputs) => void;
   resetReadinessCheckin: () => void;
+  readinessHistory: ReadinessHistoryEntry[]; // pour le radar de motifs (innovation #4)
 
   // Personnalisation de l'interface selon le profil de l'athlète
   discipline: AthleteDiscipline;
@@ -63,6 +74,7 @@ const AppStateContext = createContext<AppStateValue | undefined>(undefined);
 const SESSIONS_KEY = 'fitpulse_triptych_sessions';
 const SHOES_KEY = 'fitpulse_gear_shoes';
 const READINESS_KEY = 'fitpulse_readiness'; // ancienne clé : `fitpulse_readiness_${userId}`, simplifiée ici
+const READINESS_HISTORY_KEY = 'fitpulse_readiness_history';
 const DISCIPLINE_KEY = 'fitpulse_discipline';
 const REVEALED_MODULES_KEY = 'fitpulse_revealed_modules';
 
@@ -112,6 +124,9 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     loadFromStorage<Shoe[]>(SHOES_KEY, [])
   );
   const [readiness, setReadiness] = useState<ReadinessState>(loadReadiness);
+  const [readinessHistory, setReadinessHistory] = useState<ReadinessHistoryEntry[]>(() =>
+    loadFromStorage<ReadinessHistoryEntry[]>(READINESS_HISTORY_KEY, [])
+  );
   const [discipline, setDiscipline] = useState<AthleteDiscipline>(() =>
     loadFromStorage<AthleteDiscipline>(DISCIPLINE_KEY, 'hybride')
   );
@@ -136,6 +151,10 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   }, [readiness]);
 
   useEffect(() => {
+    localStorage.setItem(READINESS_HISTORY_KEY, JSON.stringify(readinessHistory));
+  }, [readinessHistory]);
+
+  useEffect(() => {
     localStorage.setItem(DISCIPLINE_KEY, JSON.stringify(discipline));
   }, [discipline]);
 
@@ -156,7 +175,15 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
 
   const submitReadinessCheckin = (inputs: ReadinessInputs) => {
     const score = calculateReadinessScore(inputs);
-    setReadiness({ date: todayStr(), inputs, score });
+    const date = todayStr();
+    setReadiness({ date, inputs, score });
+    // Ajoute (ou remplace si déjà fait aujourd'hui) l'entrée du jour dans
+    // l'historique, garde au maximum les 60 derniers jours.
+    setReadinessHistory((prev) => {
+      const withoutToday = prev.filter((e) => e.date !== date);
+      const updated = [...withoutToday, { date, inputs, score }];
+      return updated.slice(-60);
+    });
   };
 
   const resetReadinessCheckin = () => {
@@ -180,6 +207,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     readiness,
     submitReadinessCheckin,
     resetReadinessCheckin,
+    readinessHistory,
     discipline,
     setDiscipline,
     revealedModules,
