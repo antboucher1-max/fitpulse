@@ -38,6 +38,7 @@ import ClubLeaderboard from './components/ClubLeaderboard';
 import LeaderboardTab from './components/LeaderboardTab';
 import RoadbookTab from './components/RoadbookTab';
 import BuddiesChatContainer from './components/BuddiesChatContainer';
+import BuddySearch from './components/BuddySearch';
 import ClubPassportCard from './components/ClubPassportCard';
 import SpotSegmentsTab from './components/SpotSegmentsTab';
 
@@ -316,7 +317,12 @@ function AppContent() {
               💬 {showChat ? 'Masquer la messagerie' : 'Ouvrir la messagerie avec tes buddies'}
             </button>
 
-            {showChat && <BuddiesChatContainer currentUserId={currentUserId} />}
+            {showChat && (
+              <div className="space-y-4">
+                <BuddySearch currentUserId={currentUserId} />
+                <BuddiesChatContainer currentUserId={currentUserId} />
+              </div>
+            )}
 
             <RoadbookTab currentUserId={currentUserId} />
             <ClubPassportCard currentUserId={currentUserId} homeClub="Club Tournai (Bastion)" />
